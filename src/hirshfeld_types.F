@@ -57,11 +57,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param hirshfeld_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_hirshfeld_type(hirshfeld_env,error)
+  SUBROUTINE create_hirshfeld_type(hirshfeld_env)
     TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hirshfeld_type', &
       routineP = moduleN//':'//routineN
@@ -72,11 +70,11 @@ CONTAINS
     failure = .FALSE.
 
     IF(ASSOCIATED(hirshfeld_env)) THEN
-       CALL release_hirshfeld_type(hirshfeld_env,error)
+       CALL release_hirshfeld_type(hirshfeld_env)
     END IF
 
     ALLOCATE(hirshfeld_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     hirshfeld_env%iterative = .FALSE.
     hirshfeld_env%shape_function_type = shape_function_gaussian
@@ -89,11 +87,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param hirshfeld_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_hirshfeld_type(hirshfeld_env,error)
+  SUBROUTINE release_hirshfeld_type(hirshfeld_env)
     TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_hirshfeld_type', &
       routineP = moduleN//':'//routineN
@@ -111,30 +107,30 @@ CONTAINS
           DO ikind=1,SIZE(kind_shape)
              IF(ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%zet)) THEN
                 DEALLOCATE(kind_shape(ikind)%zet, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF(ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%coef)) THEN
                 DEALLOCATE(kind_shape(ikind)%coef, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
           END DO
           DEALLOCATE(kind_shape, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        IF(ASSOCIATED(hirshfeld_env%charges)) THEN
           DEALLOCATE(hirshfeld_env%charges, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
-          CALL pw_release(hirshfeld_env%fnorm%pw,error=error)
+          CALL pw_release(hirshfeld_env%fnorm%pw)
           DEALLOCATE(hirshfeld_env%fnorm,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        ENDIF
 
        DEALLOCATE(hirshfeld_env, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     END IF
 
@@ -147,16 +143,14 @@ CONTAINS
 !> \param iterative ...
 !> \param ref_charge ...
 !> \param fnorm ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_hirshfeld_info(hirshfeld_env,shape_function_type,iterative,&
-             ref_charge,fnorm,error)
+             ref_charge,fnorm)
     TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     INTEGER, INTENT(OUT), OPTIONAL           :: shape_function_type
     LOGICAL, INTENT(OUT), OPTIONAL           :: iterative
     INTEGER, INTENT(OUT), OPTIONAL           :: ref_charge
     TYPE(pw_p_type), OPTIONAL, POINTER       :: fnorm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hirshfeld_info', &
       routineP = moduleN//':'//routineN
@@ -164,7 +158,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,failure)
 
     IF(PRESENT(shape_function_type)) THEN
        shape_function_type = hirshfeld_env%shape_function_type
@@ -188,16 +182,14 @@ CONTAINS
 !> \param iterative ...
 !> \param ref_charge ...
 !> \param fnorm ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_hirshfeld_info(hirshfeld_env,shape_function_type,iterative,&
-             ref_charge,fnorm,error)
+             ref_charge,fnorm)
     TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     INTEGER, INTENT(IN), OPTIONAL            :: shape_function_type
     LOGICAL, INTENT(IN), OPTIONAL            :: iterative
     INTEGER, INTENT(IN), OPTIONAL            :: ref_charge
     TYPE(pw_p_type), OPTIONAL, POINTER       :: fnorm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_hirshfeld_info', &
       routineP = moduleN//':'//routineN
@@ -205,7 +197,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,failure)
 
     IF(PRESENT(shape_function_type)) THEN
        hirshfeld_env%shape_function_type = shape_function_type

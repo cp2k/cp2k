@@ -68,14 +68,12 @@ CONTAINS
 !> \param p_env ...
 !> \param qs_env ...
 !> \param t_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE eigensolver(p_env, qs_env, t_env, error)
+  SUBROUTINE eigensolver(p_env, qs_env, t_env)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
       routineP = moduleN//':'//routineN
@@ -92,15 +90,15 @@ CONTAINS
     NULLIFY(logger, dft_control)
     failure   = .FALSE.
 
-    logger    => cp_error_get_logger(error)
+    logger    => cp_get_default_logger()
     output_unit  = cp_logger_get_default_io_unit(logger)
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
     n_ev      = dft_control%tddfpt_control%n_ev
     nspins    = dft_control%nspins
 
     ALLOCATE(ievals(n_ev), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     !---------------!
     ! initial guess !
@@ -112,13 +110,13 @@ CONTAINS
        WRITE (output_unit,*)
     END IF
     IF (ASSOCIATED(dft_control%tddfpt_control%lumos)) THEN
-       CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, error=error)
+       CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env)
     ELSE
        IF (output_unit>0) WRITE (output_unit,*) "LUMOS are needed in TDDFPT!"
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
     DO restarts=1, dft_control%tddfpt_control%n_restarts
-       IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals, error=error)) EXIT
+       IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals)) EXIT
        IF (output_unit>0) THEN
           WRITE (output_unit,*) " Restarting"
           WRITE (output_unit,*)
@@ -135,7 +133,7 @@ CONTAINS
        WRITE (output_unit,*)
     END IF
     DO restarts=1, dft_control%tddfpt_control%n_restarts
-          IF (iterative_solver(ievals, t_env, p_env, qs_env, t_env%evals, error=error)) EXIT
+          IF (iterative_solver(ievals, t_env, p_env, qs_env, t_env%evals)) EXIT
        IF (output_unit>0) THEN
           WRITE (output_unit,*) " Restarting"
           WRITE (output_unit,*)
@@ -146,7 +144,7 @@ CONTAINS
     ! cleanup !
     !---------!
     DEALLOCATE(ievals, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -168,19 +166,17 @@ CONTAINS
 !> \param p_env ...
 !> \param qs_env ...
 !> \param out_evals ...
-!> \param error ...
 !> \retval res ...
 ! *****************************************************************************
   FUNCTION iterative_solver(in_evals, &
                             t_env, p_env, qs_env, &
-                            out_evals, error) RESULT(res)
+                            out_evals) RESULT(res)
 
     REAL(KIND=dp), DIMENSION(:)              :: in_evals
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(kind=dp), DIMENSION(:), OPTIONAL    :: out_evals
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterative_solver', &
@@ -227,11 +223,10 @@ CONTAINS
                     matrix_s=matrix_s,&
                     dft_control=dft_control,&
                     para_env=para_env,&
-                    blacs_env=blacs_env,&
-                    error=error)
+                    blacs_env=blacs_env)
 
     tddfpt_control => dft_control%tddfpt_control
-    logger    => cp_error_get_logger(error)
+    logger    => cp_get_default_logger()
     output_unit  = cp_logger_get_default_io_unit(logger)
     n_ev      = tddfpt_control%n_ev
     nspins    = dft_control%nspins
@@ -254,37 +249,37 @@ CONTAINS
           WRITE (output_unit,*) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
        END IF
     END IF
-!    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,error,failure)
+!    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,failure)
 
     !----------------------!
     ! allocate the vectors !
     !----------------------!
-    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,error=error)
-    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X",error=error)
-    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R",error=error)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X")
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R")
 
     ALLOCATE(evals_difference(n_ev), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE(must_improve(n_ev), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE(evals(max_kv, 0:max_kv), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(evals_tmp(max_kv), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE(b(max_kv,nspins), Ab(max_kv,nspins), &
              Sb(max_kv,nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE(kv_fm_struct(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO spin=1, nspins
        NULLIFY (kv_fm_struct(spin)%struct)
        CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, para_env, blacs_env, &
-                                p_env%n_ao(spin), p_env%n_mo(spin),error=error)
+                                p_env%n_ao(spin), p_env%n_mo(spin))
     END DO
     DO spin=1, nspins
        DO i=1, max_kv
@@ -304,9 +299,9 @@ CONTAINS
     n_kv = n_ev
     iteration: DO
 
-       CALL allocate_krylov_vectors(b,  "b-",  k+1, n_kv, nspins, kv_fm_struct,error=error)
-       CALL allocate_krylov_vectors(Ab, "Ab-", k+1, n_kv, nspins, kv_fm_struct,error=error)
-       CALL allocate_krylov_vectors(Sb, "Sb-", k+1, n_kv, nspins, kv_fm_struct,error=error)
+       CALL allocate_krylov_vectors(b,  "b-",  k+1, n_kv, nspins, kv_fm_struct)
+       CALL allocate_krylov_vectors(Ab, "Ab-", k+1, n_kv, nspins, kv_fm_struct)
+       CALL allocate_krylov_vectors(Sb, "Sb-", k+1, n_kv, nspins, kv_fm_struct)
 
        DO i=1, n_kv
           k=k+1
@@ -315,7 +310,7 @@ CONTAINS
 
              ! take the initial guess
              DO spin=1, nspins
-                CALL cp_fm_to_fm(t_env%evecs(k,spin)%matrix, b(k,spin)%matrix,error=error)
+                CALL cp_fm_to_fm(t_env%evecs(k,spin)%matrix, b(k,spin)%matrix)
              END DO
 
           ELSE
@@ -327,9 +322,9 @@ CONTAINS
                    IF (tddfpt_control%invert_S) THEN
                       CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
                            1.0_dp, t_env%invS(spin)%matrix, Ab(k-1,spin)%matrix, &
-                           0.0_dp, b(k,spin)%matrix,error=error)
+                           0.0_dp, b(k,spin)%matrix)
                    ELSE
-                      CALL cp_fm_to_fm(Ab(k-1,spin)%matrix, b(k,spin)%matrix,error=error)
+                      CALL cp_fm_to_fm(Ab(k-1,spin)%matrix, b(k,spin)%matrix)
                    END IF
                 END DO
 
@@ -339,22 +334,22 @@ CONTAINS
                 ! create the new davidson vector
                 DO spin=1, nspins
 
-                   CALL cp_fm_set_all(R(spin)%matrix, 0.0_dp, error=error)
+                   CALL cp_fm_set_all(R(spin)%matrix, 0.0_dp)
                    DO j=1, k-i
-                      CALL cp_fm_to_fm(Ab(j,spin)%matrix, X(spin)%matrix,error=error)
+                      CALL cp_fm_to_fm(Ab(j,spin)%matrix, X(spin)%matrix)
                       CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
-                                               -evals(iev,iter-1), Sb(j,spin)%matrix,error=error)
+                                               -evals(iev,iter-1), Sb(j,spin)%matrix)
                       CALL cp_fm_get_element(Us%matrix, j, iev, tmp)
                       CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
-                                               tmp, X(spin)%matrix,error=error)
+                                               tmp, X(spin)%matrix)
                    END DO
 
                    IF (tddfpt_control%invert_S) THEN
                       CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
                            1.0_dp, t_env%invS(spin)%matrix, R(spin)%matrix, &
-                           0.0_dp, X(spin)%matrix,error=error)
+                           0.0_dp, X(spin)%matrix)
                    ELSE
-                      CALL cp_fm_to_fm(R(spin)%matrix, X(spin)%matrix,error=error)
+                      CALL cp_fm_to_fm(R(spin)%matrix, X(spin)%matrix)
                    END IF
 
                    !----------------!
@@ -371,58 +366,58 @@ CONTAINS
                          tmp2=MAX(tmp2,100*EPSILON(1.0_dp))
                          DO row=1, p_env%n_ao(spin)
                             CALL cp_fm_get_element(X(spin)%matrix, row, col, tmp)
-                            CALL cp_fm_set_element(b(k,spin)%matrix, row, col, tmp/tmp2,error=error)
+                            CALL cp_fm_set_element(b(k,spin)%matrix, row, col, tmp/tmp2)
                          END DO
                       END DO
                    ELSE
-                      CALL cp_fm_to_fm(X(spin)%matrix, b(k,spin)%matrix,error=error)
+                      CALL cp_fm_to_fm(X(spin)%matrix, b(k,spin)%matrix)
                    END IF
 
                 END DO
 
              ELSE
                 IF (output_unit>0) WRITE (output_unit,*) "unknown mode"
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
              END IF
 
           END IF
 
-          CALL p_preortho(p_env, qs_env, b(k,:),error=error)
+          CALL p_preortho(p_env, qs_env, b(k,:))
           DO j=1, tddfpt_control%n_reortho
-             CALL reorthogonalize(b(k,:), b, Sb, R, k-1,error=error) ! R is temp
+             CALL reorthogonalize(b(k,:), b, Sb, R, k-1) ! R is temp
           END DO
-          CALL normalize(b(k,:), R, matrix_s,error=error) ! R is temp
+          CALL normalize(b(k,:), R, matrix_s) ! R is temp
           DO spin=1, nspins
-             CALL cp_fm_to_fm(b(k,spin)%matrix, X(spin)%matrix,error=error)
+             CALL cp_fm_to_fm(b(k,spin)%matrix, X(spin)%matrix)
           END DO
           CALL apply_op(X, Ab(k,:),  p_env, qs_env, &
-               dft_control%tddfpt_control%do_kernel,error=error)
-          CALL p_postortho(p_env, qs_env, Ab(k,:),error=error)
+               dft_control%tddfpt_control%do_kernel)
+          CALL p_postortho(p_env, qs_env, Ab(k,:))
           DO spin=1, nspins
              CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
                   Sb(k,spin)%matrix, &
-                  p_env%n_mo(spin),error=error)
+                  p_env%n_mo(spin))
           END DO
        END DO
 
        !--------------------------------------------!
        ! deallocate memory for the reduced matrices !
        !--------------------------------------------!
-       IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix,error=error)
-       IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix,error=error)
-       IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct,error=error)
+       IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix)
+       IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix)
+       IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
 
        !------------------------------------------!
        ! allocate memory for the reduced matrices !
        !------------------------------------------!
-       CALL cp_fm_struct_create(tilde_fm_struct, para_env, blacs_env, k, k,error=error)
+       CALL cp_fm_struct_create(tilde_fm_struct, para_env, blacs_env, k, k)
        CALL cp_fm_create(Atilde%matrix, &
             tilde_fm_struct, &
-            routineP//"Atilde",error=error)
+            routineP//"Atilde")
        CALL cp_fm_create(Us%matrix, &
             tilde_fm_struct, &
-            routineP//"Us",error=error)
+            routineP//"Us")
 
        !---------------------------------------!
        ! calc the matrix Atilde = transp(b)*Ab !
@@ -431,10 +426,10 @@ CONTAINS
           DO j=1, k
              Atilde_ij= 0.0_dp
              DO spin=1, nspins
-                CALL cp_fm_trace(b(i,spin)%matrix, Ab(j,spin)%matrix, tmp,error=error)
+                CALL cp_fm_trace(b(i,spin)%matrix, Ab(j,spin)%matrix, tmp)
                 Atilde_ij = Atilde_ij + tmp
              END DO
-             CALL cp_fm_set_element(Atilde%matrix, i, j, Atilde_ij,error=error)
+             CALL cp_fm_set_element(Atilde%matrix, i, j, Atilde_ij)
           END DO
        END DO
 
@@ -442,7 +437,7 @@ CONTAINS
        ! diagonalize Atilde !
        !--------------------!
        evals_tmp(:) = evals(:,iter)
-       CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals_tmp(:),error=error)
+       CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals_tmp(:))
        evals(:,iter) =  evals_tmp(:)
 
        !-------------------!
@@ -502,11 +497,11 @@ CONTAINS
 
     DO spin=1, nspins
        DO j=1, n_ev
-          CALL cp_fm_set_all(t_env%evecs(j,spin)%matrix, 0.0_dp,error=error)
+          CALL cp_fm_set_all(t_env%evecs(j,spin)%matrix, 0.0_dp)
           DO i=1, k
              CALL cp_fm_get_element(Us%matrix, i, j, tmp)
              CALL cp_fm_scale_and_add(1.0_dp, t_env%evecs(j,spin)%matrix, &
-                                      tmp, b(i,spin)%matrix,error=error)
+                                      tmp, b(i,spin)%matrix)
           END DO
        END DO
     END DO
@@ -514,35 +509,35 @@ CONTAINS
     DO spin=1, nspins
        DO i=1, max_kv
           IF (ASSOCIATED(b(i,spin)%matrix)) &
-               CALL cp_fm_release(b(i,spin)%matrix,error=error)
+               CALL cp_fm_release(b(i,spin)%matrix)
           IF (ASSOCIATED(Ab(i,spin)%matrix)) &
-               CALL cp_fm_release(Ab(i,spin)%matrix,error=error)
+               CALL cp_fm_release(Ab(i,spin)%matrix)
           IF (ASSOCIATED(Sb(i,spin)%matrix)) &
-               CALL cp_fm_release(Sb(i,spin)%matrix,error=error)
+               CALL cp_fm_release(Sb(i,spin)%matrix)
        END DO
     END DO
 
     !----------!
     ! clean up !
     !----------!
-    IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix,error=error)
-    IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix,error=error)
-    IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct,error)
-    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X,error=error)
-    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R,error=error)
+    IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix)
+    IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix)
+    IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
     DO spin=1, nspins
-       CALL cp_fm_struct_release(kv_fm_struct(spin)%struct,error=error)
+       CALL cp_fm_struct_release(kv_fm_struct(spin)%struct)
        DO i=1, max_kv
           IF (ASSOCIATED(b(i,spin)%matrix)) &
-               CALL cp_fm_release(b(i,spin)%matrix,error=error)
+               CALL cp_fm_release(b(i,spin)%matrix)
           IF (ASSOCIATED(Ab(i,spin)%matrix)) &
-               CALL cp_fm_release(Ab(i,spin)%matrix,error=error)
+               CALL cp_fm_release(Ab(i,spin)%matrix)
           IF (ASSOCIATED(Sb(i,spin)%matrix)) &
-               CALL cp_fm_release(Sb(i,spin)%matrix,error=error)
+               CALL cp_fm_release(Sb(i,spin)%matrix)
        END DO
     END DO
     DEALLOCATE(b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
 
     CALL timestop(handle)
@@ -563,15 +558,13 @@ CONTAINS
 !> \param p_env ...
 !> \param qs_env ...
 !> \param do_kernel ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_op(X, R,  p_env, qs_env, do_kernel, error)
+  SUBROUTINE apply_op(X, R,  p_env, qs_env, do_kernel)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: do_kernel
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op', &
       routineP = moduleN//':'//routineN
@@ -585,13 +578,13 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     counter = counter + 1
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
     nspins = dft_control%nspins
 
     !------------!
     ! R = HX-SXL !
     !------------!
-    CALL p_op_l1(p_env, qs_env, X, R,error=error)  ! acts on both spins, result in R
+    CALL p_op_l1(p_env, qs_env, X, R)  ! acts on both spins, result in R
 
     !-----------------!
     ! calc P1 and     !
@@ -599,26 +592,26 @@ CONTAINS
     !-----------------!
     IF (do_kernel) THEN
        DO spin=1, nspins
-          CALL cp_dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp, error=error) ! optimize?
+          CALL cp_dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp) ! optimize?
           CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
-                                  alpha=0.5_dp,error=error)
+                                  alpha=0.5_dp)
           CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=X(spin)%matrix,&
                                   matrix_g=p_env%psi0d(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
-                                  alpha=0.5_dp,error=error)
+                                  alpha=0.5_dp)
        END DO
        DO spin=1, nspins
-          CALL cp_fm_set_all(X(spin)%matrix, 0.0_dp,error=error)
+          CALL cp_fm_set_all(X(spin)%matrix, 0.0_dp)
        END DO
        CALL p_op_l2(p_env, qs_env, p_env%p1, X, &
-                    alpha=1.0_dp, beta=0.0_dp,error=error) ! X = beta*X + alpha*K(P1)*C
+                    alpha=1.0_dp, beta=0.0_dp) ! X = beta*X + alpha*K(P1)*C
        DO spin=1, nspins
           CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
-                                   1.0_dp, X(spin)%matrix,error=error) ! add X to R
+                                   1.0_dp, X(spin)%matrix) ! add X to R
        END DO
     END IF
 
@@ -634,10 +627,9 @@ CONTAINS
 !> \param n_v ...
 !> \param nspins ...
 !> \param fm_struct ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
-                                     startv, n_v, nspins, fm_struct, error)
+                                     startv, n_v, nspins, fm_struct)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: vectors
@@ -645,7 +637,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: startv, n_v, nspins
     TYPE(cp_fm_struct_p_type), &
       DIMENSION(:), POINTER                  :: fm_struct
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_krylov_vectors', &
       routineP = moduleN//':'//routineN
@@ -659,7 +650,7 @@ CONTAINS
           mat_name = routineP//vectors_name//TRIM(cp_to_string(index))&
                  //","//TRIM(cp_to_string(spin))
           CALL cp_fm_create(vectors(index,spin)%matrix,  &
-               fm_struct(spin)%struct, mat_name,error=error)
+               fm_struct(spin)%struct, mat_name)
           IF (.NOT.ASSOCIATED(vectors(index,spin)%matrix)) &
                CALL stop_program(routineN,moduleN,__LINE__,&
                                  "Could not allocate "//TRIM(mat_name)//".")

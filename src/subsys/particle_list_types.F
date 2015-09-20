@@ -92,21 +92,18 @@ CONTAINS
 !>        will deallocate it (defaults to true)
 !> \param n_els number of elements in the list (at least one els_ptr or
 !>        n_els should be given)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE particle_list_create(list, els_ptr, &
-     owns_els, n_els, error)
+     owns_els, n_els)
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: list
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: els_ptr
     LOGICAL, INTENT(in), OPTIONAL            :: owns_els
     INTEGER, INTENT(in), OPTIONAL            :: n_els
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_create', &
       routineP = moduleN//':'//routineN
@@ -116,10 +113,10 @@ SUBROUTINE particle_list_create(list, els_ptr, &
 
   failure=.FALSE.
 
-  CPPrecondition(PRESENT(els_ptr).OR.PRESENT(n_els),cp_failure_level,routineP,error,failure)
+  CPPrecondition(PRESENT(els_ptr).OR.PRESENT(n_els),cp_failure_level,routineP,failure)
 
   ALLOCATE(list, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   last_particle_list_id=last_particle_list_id+1
   list%id_nr=last_particle_list_id
   list%ref_count=1
@@ -136,23 +133,20 @@ SUBROUTINE particle_list_create(list, els_ptr, &
   IF (PRESENT(n_els)) list%n_els=n_els
   IF (.NOT.ASSOCIATED(list%els)) THEN
      ALLOCATE(list%els(list%n_els),stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP)
   END IF
 END SUBROUTINE particle_list_create
 
 ! *****************************************************************************
 !> \brief retains a list (see doc/ReferenceCounting.html)
 !> \param list the list to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE particle_list_retain(list, error)
+SUBROUTINE particle_list_retain(list)
     TYPE(particle_list_type), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_retain', &
       routineP = moduleN//':'//routineN
@@ -161,23 +155,20 @@ SUBROUTINE particle_list_retain(list, error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(list),cp_failure_level,routineP,error,failure)
-  CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(list),cp_failure_level,routineP,failure)
+  CPPrecondition(list%ref_count>0,cp_failure_level,routineP,failure)
   list%ref_count=list%ref_count+1
 END SUBROUTINE particle_list_retain
 
 ! *****************************************************************************
 !> \brief releases a  list (see doc/ReferenceCounting.html)
 !> \param list the list to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE particle_list_release(list, error)
+SUBROUTINE particle_list_release(list)
     TYPE(particle_list_type), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_release', &
       routineP = moduleN//':'//routineN
@@ -188,17 +179,17 @@ SUBROUTINE particle_list_release(list, error)
   failure=.FALSE.
 
   IF (ASSOCIATED(list)) THEN
-     CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(list%ref_count>0,cp_failure_level,routineP,failure)
      list%ref_count=list%ref_count-1
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_particle_set(list%els,error=error)
+              CALL deallocate_particle_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)
         DEALLOCATE(list,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
      END IF
   END IF
   NULLIFY(list)

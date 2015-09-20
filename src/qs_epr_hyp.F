@@ -72,13 +72,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_epr_hyp_calc(qs_env,error)
+  SUBROUTINE qs_epr_hyp_calc(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_epr_hyp_calc', &
       routineP = moduleN//':'//routineN
@@ -126,15 +123,15 @@ CONTAINS
          logger, dft_section, para_env, particle_set, rho, rho_atom, &
          rho_atom_set, rhototspin_elec_gspace, hypaniso_gspace, rho_g)
 
-    logger => cp_error_get_logger(error)
-    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    logger => cp_get_default_logger()
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
     output_unit = cp_print_key_unit_nr(logger,dft_section,&
                   "PRINT%HYPERFINE_COUPLING_TENSOR",&
-                  extension=".eprhyp",log_filename=.FALSE.,error=error)
+                  extension=".eprhyp",log_filename=.FALSE.)
     CALL section_vals_val_get(dft_section,&
                 "PRINT%HYPERFINE_COUPLING_TENSOR%INTERACTION_RADIUS",&
-                r_val=int_radius,error=error)
-    CALL section_vals_val_get(dft_section,"LSD",l_val=lsd,error=error)
+                r_val=int_radius)
+    CALL section_vals_val_get(dft_section,"LSD",l_val=lsd)
 
     IF ( .NOT. lsd ) THEN
       ! EPR calculation only for LSD
@@ -151,8 +148,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,&
                     rho=rho,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                     rho_atom_set=rho_atom_set,pw_env=pw_env,&
-                    particle_set=particle_set,para_env=para_env,&
-                    error=error)
+                    particle_set=particle_set,para_env=para_env)
     group = para_env%group
 
     IF (output_unit>0) THEN
@@ -164,11 +160,11 @@ CONTAINS
     ! allocate hyperfine matrices
     natom = SIZE(particle_set,1)
     ALLOCATE (hypaniso(3,3,natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (hypiso(natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (hypiso_one(natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ! set the matrices to zero
     hypiso = 0.0_dp
@@ -183,7 +179,7 @@ CONTAINS
                            atom_list=atom_list,natom=natomkind,z=z)
 
       CALL get_qs_kind(qs_kind_set(ikind),harmonics=harmonics,&
-                       grid_atom=grid_atom,paw_atom=paw_atom,hard_radius=hard_radius,error=error)
+                       grid_atom=grid_atom,paw_atom=paw_atom,hard_radius=hard_radius)
 
       IF(.NOT. paw_atom) CYCLE ! skip the rest and go to next atom type
 
@@ -296,39 +292,36 @@ CONTAINS
     ! Now calculate the soft electronic spin density in reciprocal space (g-space)
     ! Plane waves grid to assemble the soft electronic spin density
     CALL pw_env_get(pw_env=pw_env,&
-                    auxbas_pw_pool=auxbas_pw_pool,&
-                    error=error)
+                    auxbas_pw_pool=auxbas_pw_pool)
 
     ALLOCATE (rhototspin_elec_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                             rhototspin_elec_gspace%pw,&
                             use_data=COMPLEXDATA1D,&
-                            in_space=RECIPROCALSPACE,&
-                            error=error)
-    CALL pw_zero(rhototspin_elec_gspace%pw,error=error)
+                            in_space=RECIPROCALSPACE)
+    CALL pw_zero(rhototspin_elec_gspace%pw)
 
     pw_grid => rhototspin_elec_gspace%pw%pw_grid
 
     ! Load the contribution of the soft electronic density
-    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
-    CPPrecondition(SIZE(rho_g)>1,cp_failure_level,routineP,error,failure)
-    CALL pw_axpy(rho_g(1)%pw,rhototspin_elec_gspace%pw,error=error)
-    CALL pw_axpy(rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp,error=error)
+    CALL qs_rho_get(rho, rho_g=rho_g)
+    CPPrecondition(SIZE(rho_g)>1,cp_failure_level,routineP,failure)
+    CALL pw_axpy(rho_g(1)%pw,rhototspin_elec_gspace%pw)
+    CALL pw_axpy(rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                             hypaniso_gspace%pw,&
                             use_data=COMPLEXDATA1D,&
-                            in_space=RECIPROCALSPACE,&
-                            error=error)
+                            in_space=RECIPROCALSPACE)
 
     DO idir1=1,3
       DO idir2=idir1,3 ! tensor symmetry
-        CALL pw_zero(hypaniso_gspace%pw,error=error)
+        CALL pw_zero(hypaniso_gspace%pw)
         CALL pw_dr2_gg ( rhototspin_elec_gspace%pw, hypaniso_gspace%pw, &
-                         idir1, idir2,error=error)
+                         idir1, idir2)
         DO iatom=1,natom
           sum = 0.0_dp
           ra(:) = pbc(particle_set(iatom)%r,cell)
@@ -344,13 +337,13 @@ CONTAINS
       END DO ! idir2
     END DO ! idir1
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,rhototspin_elec_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rhototspin_elec_gspace%pw)
     DEALLOCATE (rhototspin_elec_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,hypaniso_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,hypaniso_gspace%pw)
     DEALLOCATE (hypaniso_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ! Multiply hyperfine matrices with constant*gyromagnetic ratio's
     ! to have it in units of Mhz.
@@ -398,11 +391,11 @@ CONTAINS
 
     ! Deallocate the remainings ...
     DEALLOCATE (hypiso,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (hypiso_one,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (hypaniso,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE qs_epr_hyp_calc
 

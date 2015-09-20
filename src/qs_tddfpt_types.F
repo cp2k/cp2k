@@ -55,14 +55,12 @@ CONTAINS
 !> \param t_env ...
 !> \param p_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, error)
+  SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env)
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
       routineP = moduleN//':'//routineN
@@ -78,12 +76,11 @@ CONTAINS
     CALL get_qs_env(qs_env,&
                    dft_control=dft_control,&
                    para_env=para_env,&
-                   blacs_env=blacs_env,&
-                   error=error)
+                   blacs_env=blacs_env)
 
     n_ev    = dft_control%tddfpt_control%n_ev
     n_spins = dft_control%nspins
-    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools,error=error)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools)
 
     ALLOCATE (t_env%evals(n_ev),STAT=stat)
     IF (stat /=0 ) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -95,7 +92,7 @@ CONTAINS
     DO spin=1,n_spins
        DO i=1, n_ev
           CALL fm_pool_create_fm(t_env%ao_mo_fm_pools(spin)%pool, &
-                                 t_env%evecs(i,spin)%matrix,error=error)
+                                 t_env%evecs(i,spin)%matrix)
        END DO
     END DO
 
@@ -108,9 +105,9 @@ CONTAINS
     DO spin=1, n_spins
        NULLIFY(fm_struct)
        CALL cp_fm_struct_create(fm_struct, para_env, blacs_env, &
-                                p_env%n_ao(spin), p_env%n_ao(spin),error=error)
-       CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS",error=error)
-       CALL cp_fm_struct_release(fm_struct,error=error)
+                                p_env%n_ao(spin), p_env%n_ao(spin))
+       CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
+       CALL cp_fm_struct_release(fm_struct)
     END DO
 
   END SUBROUTINE tddfpt_env_allocate
@@ -118,12 +115,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param t_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tddfpt_env_deallocate(t_env,error)
+  SUBROUTINE tddfpt_env_deallocate(t_env)
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
       routineP = moduleN//':'//routineN
@@ -133,13 +128,13 @@ CONTAINS
     DO spin=1, SIZE(t_env%evecs, 2)
        DO i=1, SIZE(t_env%evecs, 1)
           CALL fm_pool_give_back_fm(t_env%ao_mo_fm_pools(spin)%pool, &
-                                    t_env%evecs(i,spin)%matrix,error=error)
+                                    t_env%evecs(i,spin)%matrix)
        END DO
     END DO
 
     DO spin=1, SIZE(t_env%invS)
        IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
-            CALL cp_fm_release(t_env%invS(spin)%matrix,error=error)
+            CALL cp_fm_release(t_env%invS(spin)%matrix)
     END DO
     DEALLOCATE (t_env%invS,t_env%evecs,t_env%evals,STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

@@ -56,17 +56,15 @@ CONTAINS
 !> \param dielectric  the dielectric data type to be allocated
 !> \param pw_pool pool of pw grid
 !> \param dielectric_params dielectric parameters read from input file
-!> \param error cp2k error
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_create(dielectric, pw_pool, dielectric_params, error)
+  SUBROUTINE dielectric_create(dielectric, pw_pool, dielectric_params)
     TYPE(dielectric_type), INTENT(INOUT), &
       POINTER                                :: dielectric
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(dielectric_parameters), INTENT(IN)  :: dielectric_params
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_create', &
       routineP = moduleN//':'//routineN
@@ -80,19 +78,16 @@ CONTAINS
        NULLIFY(dielectric%eps) 
        NULLIFY(dielectric%deps_drho)
        CALL pw_pool_create_pw(pw_pool, dielectric%eps, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(pw_pool, dielectric%deps_drho, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        dielectric%eps%cr3d = 1.0_dp
-       CALL pw_zero(dielectric%deps_drho, error)
+       CALL pw_zero(dielectric%deps_drho)
        DO i = 1, 3
           NULLIFY(dielectric%dln_eps(i)%pw)
           CALL pw_pool_create_pw(pw_pool, dielectric%dln_eps(i)%pw, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
-          CALL pw_zero(dielectric%dln_eps(i)%pw, error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_zero(dielectric%dln_eps(i)%pw)
        END DO
        dielectric%params = dielectric_params
        dielectric%params%times_called = 0
@@ -109,14 +104,13 @@ CONTAINS
 !> \param pw_pool pool of plane wave grid
 !> \param rho electronic density
 !> \param rho_core core density
-!> \param error cp2k error 
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !>       12.2014 added finite difference derivatives [Hossein Bani-Hashemian]
 !>       07.2015 density-independent dielectric regions [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_compute(dielectric, diel_rs_grid, pw_pool, rho, rho_core, error)
+  SUBROUTINE dielectric_compute(dielectric, diel_rs_grid, pw_pool, rho, rho_core)
 
     TYPE(dielectric_type), INTENT(INOUT), &
       POINTER                                :: dielectric
@@ -125,7 +119,6 @@ CONTAINS
     TYPE(pw_type), INTENT(IN), POINTER       :: rho
     TYPE(pw_type), INTENT(IN), OPTIONAL, &
       POINTER                                :: rho_core
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_compute', &
       routineP = moduleN//':'//routineN
@@ -154,46 +147,45 @@ CONTAINS
          (derivative_method .EQ. derivative_fft_use_deps))) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "The specified derivative method is not compatible with the type of "//&
-                      "the dielectric constant function.", error)
+                      "the dielectric constant function.")
     END IF
 
     NULLIFY(rho_elec_rs)
-    CALL pw_pool_create_pw(pw_pool, rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE, error=error) 
+    CALL pw_pool_create_pw(pw_pool, rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE) 
 
     ! for evaluating epsilon make sure rho is in the real space
-    CALL pw_transfer(rho, rho_elec_rs, error=error)
+    CALL pw_transfer(rho, rho_elec_rs)
 
     IF (PRESENT(rho_core)) THEN
       ! make sure rho_core is in the real space
       CALL pw_pool_create_pw(pw_pool, rho_core_rs, &
-                             use_data=REALDATA3D, in_space=REALSPACE, &
-                             error=error) 
-      CALL pw_transfer(rho_core, rho_core_rs, error=error)
+                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_transfer(rho_core, rho_core_rs)
       IF (dielectric%params%dielec_core_correction) THEN
          ! use (rho_elec - rho_core) to compute dielectric to avoid obtaining spurious 
          ! epsilon in the core region   
-         CALL pw_axpy(rho_core_rs, rho_elec_rs, - 2.0_dp , error=error)
+         CALL pw_axpy(rho_core_rs, rho_elec_rs, - 2.0_dp)
       ELSE
-         CALL pw_axpy(rho_core_rs, rho_elec_rs, - 1.0_dp , error=error)
+         CALL pw_axpy(rho_core_rs, rho_elec_rs, - 1.0_dp)
       END IF
-      CALL pw_pool_give_back_pw(pw_pool, rho_core_rs, error=error)
+      CALL pw_pool_give_back_pw(pw_pool, rho_core_rs)
     ELSE 
       CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                     "For dielectric constant larger than 1, rho_core has to be present.", error)
+                     "For dielectric constant larger than 1, rho_core has to be present.")
     END IF
 
 ! calculate the dielectric constant
     SELECT CASE(dielec_functiontype)
     CASE(rho_dependent)
       CALL dielectric_constant_sccs(rho_elec_rs, dielectric%eps, dielectric%deps_drho, &
-                                    eps0, rho_max, rho_min, error)
+                                    eps0, rho_max, rho_min)
     CASE(spatially_dependent)
       IF (times_called .EQ. 0) THEN
-         CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool, dielectric%params, error)
+         CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool, dielectric%params)
       END IF
     CASE(spatially_rho_dependent)
       CALL dielectric_constant_spatially_rho_dependent(rho_elec_rs, dielectric%eps, &
-                                    dielectric%deps_drho, pw_pool, dielectric%params, error)
+                                    dielectric%deps_drho, pw_pool, dielectric%params)
     END SELECT
 
 ! derivatives
@@ -203,36 +195,36 @@ CONTAINS
       SELECT CASE (derivative_method)
       CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
          NULLIFY(ln_eps)
-         CALL pw_pool_create_pw(pw_pool,ln_eps,use_data=REALDATA3D,in_space=REALSPACE,error=error)
+         CALL pw_pool_create_pw(pw_pool,ln_eps,use_data=REALDATA3D,in_space=REALSPACE)
          ln_eps%cr3d = LOG(dielectric%eps%cr3d)
       CASE (derivative_fft_use_deps)
          DO i = 1, 3
             NULLIFY(deps(i)%pw)
-            CALL pw_pool_create_pw(pw_pool,deps(i)%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
-            CALL pw_zero(deps(i)%pw, error)
+            CALL pw_pool_create_pw(pw_pool,deps(i)%pw,use_data=REALDATA3D,in_space=REALSPACE)
+            CALL pw_zero(deps(i)%pw)
          END DO
       CASE (derivative_fft_use_drho)
          DO i = 1, 3
             NULLIFY(deps(i)%pw, drho(i)%pw)
-            CALL pw_pool_create_pw(pw_pool,deps(i)%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
-            CALL pw_pool_create_pw(pw_pool,drho(i)%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
-            CALL pw_zero(deps(i)%pw, error)
-            CALL pw_zero(drho(i)%pw, error)
+            CALL pw_pool_create_pw(pw_pool,deps(i)%pw,use_data=REALDATA3D,in_space=REALSPACE)
+            CALL pw_pool_create_pw(pw_pool,drho(i)%pw,use_data=REALDATA3D,in_space=REALSPACE)
+            CALL pw_zero(deps(i)%pw)
+            CALL pw_zero(drho(i)%pw)
          END DO
       END SELECT
   
       SELECT CASE (derivative_method)
       CASE (derivative_cd3)
-         CALL derive_fdm_cd3(ln_eps, dielectric%dln_eps, diel_rs_grid, error)
+         CALL derive_fdm_cd3(ln_eps, dielectric%dln_eps, diel_rs_grid)
       CASE (derivative_cd5)
-         CALL derive_fdm_cd5(ln_eps, dielectric%dln_eps, diel_rs_grid, error)
+         CALL derive_fdm_cd5(ln_eps, dielectric%dln_eps, diel_rs_grid)
       CASE (derivative_cd7)
-         CALL derive_fdm_cd7(ln_eps, dielectric%dln_eps, diel_rs_grid, error)
+         CALL derive_fdm_cd7(ln_eps, dielectric%dln_eps, diel_rs_grid)
       CASE (derivative_fft)
-         CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool, error)
+         CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool)
       CASE (derivative_fft_use_deps)
          ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
-         CALL derive_fft(dielectric%eps, deps, pw_pool, error)
+         CALL derive_fft(dielectric%eps, deps, pw_pool)
   
          lb(1:3) = rho%pw_grid%bounds_local(1,1:3)
          ub(1:3) = rho%pw_grid%bounds_local(2,1:3)
@@ -253,7 +245,7 @@ CONTAINS
       CASE (derivative_fft_use_drho)
          ! \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
          ! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
-         CALL derive_fft(rho_elec_rs, drho, pw_pool, error)
+         CALL derive_fft(rho_elec_rs, drho, pw_pool)
          DO i = 1, 3
             deps(i)%pw%cr3d = drho(i)%pw%cr3d * dielectric%deps_drho%cr3d
             dielectric%dln_eps(i)%pw%cr3d = deps(i)%pw%cr3d / dielectric%eps%cr3d
@@ -262,20 +254,20 @@ CONTAINS
   
       SELECT CASE (derivative_method)
       CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
-         CALL pw_pool_give_back_pw(pw_pool, ln_eps, error=error)
+         CALL pw_pool_give_back_pw(pw_pool, ln_eps)
       CASE (derivative_fft_use_deps)
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, deps(i)%pw, error=error)
+            CALL pw_pool_give_back_pw(pw_pool, deps(i)%pw)
          END DO
       CASE (derivative_fft_use_drho)
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, drho(i)%pw, error=error)
-            CALL pw_pool_give_back_pw(pw_pool, deps(i)%pw, error=error)
+            CALL pw_pool_give_back_pw(pw_pool, drho(i)%pw)
+            CALL pw_pool_give_back_pw(pw_pool, deps(i)%pw)
          END DO
       END SELECT
     END IF
 
-    CALL pw_pool_give_back_pw(pw_pool, rho_elec_rs, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, rho_elec_rs)
 
     dielectric%params%times_called = dielectric%params%times_called + 1
 
@@ -292,16 +284,14 @@ CONTAINS
 !> \param eps0 dielectric constant in the bulk of the solvent
 !> \param rho_max upper density threshold
 !> \param rho_min lower density threshold
-!> \param error ...
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_constant_sccs(rho, eps, deps_drho, eps0, rho_max, rho_min, error)
+  SUBROUTINE dielectric_constant_sccs(rho, eps, deps_drho, eps0, rho_max, rho_min)
 
     TYPE(pw_type), POINTER                   :: rho, eps, deps_drho
     REAL(KIND=dp), INTENT(IN)                :: eps0, rho_max, rho_min
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_constant_sccs', &
       routineP = moduleN//':'//routineN
@@ -315,7 +305,7 @@ CONTAINS
 
     IF (eps0 .LT. 1.0_dp) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "The dielectric constant has to be greater than or equal to 1.", error)
+                     "The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     bounds_local = rho%pw_grid%bounds_local
@@ -361,7 +351,6 @@ CONTAINS
 !> \param x_locl x grid vetor of the simulation box local to this process
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
-!> \param error cp2k error
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -369,7 +358,7 @@ CONTAINS
   SUBROUTINE dielectric_constant_aa_cuboidal(eps, dielec_const, pw_pool, zeta, &
                                              x_xtnt, y_xtnt, z_xtnt, &
                                              x_glbl, y_glbl, z_glbl, &
-                                             x_locl, y_locl, z_locl, error)
+                                             x_locl, y_locl, z_locl)
 
     TYPE(pw_type), POINTER                   :: eps
     REAL(KIND=dp), INTENT(IN)                :: dielec_const
@@ -379,7 +368,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl, &
                                                 x_locl, y_locl, z_locl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dielectric_constant_aa_cuboidal', &
@@ -401,7 +389,7 @@ CONTAINS
 
     IF (dielec_const .LT. 1.0_dp) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The dielectric constant has to be greater than or equal to 1.", error)
+                      "The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     pw_grid => eps%pw_grid
@@ -419,11 +407,11 @@ CONTAINS
     IF (n_forb_xtnts .GT. 0) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "The given extents for the dielectric region are outside the range of "//&
-                      "the simulation cell.", error)
+                      "the simulation cell.")
     END IF
 
-    CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_copy(eps, eps_tmp, error=error)
+    CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_copy(eps, eps_tmp)
 
     bounds_local = pw_grid%bounds_local
     lb1 = bounds_local(1,1);      ub1 = bounds_local(2,1)
@@ -442,8 +430,8 @@ CONTAINS
       END DO
     END DO
 
-    CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps, error)
-    CALL pw_pool_give_back_pw(pw_pool, eps_tmp, error=error)
+    CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps)
+    CALL pw_pool_give_back_pw(pw_pool, eps_tmp)
 
     CALL timestop(handle)
 
@@ -464,7 +452,6 @@ CONTAINS
 !> \param x_locl x grid vetor of the simulation box local to this process
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
-!> \param error cp2k error
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -472,7 +459,7 @@ CONTAINS
   SUBROUTINE dielectric_constant_xaa_annular(eps, dielec_const, pw_pool, zeta, &
                                              x_xtnt, base_center, base_radii, &
                                              x_glbl, y_glbl, z_glbl, &
-                                             x_locl, y_locl, z_locl, error)
+                                             x_locl, y_locl, z_locl)
 
     TYPE(pw_type), POINTER                   :: eps
     REAL(KIND=dp), INTENT(IN)                :: dielec_const
@@ -483,7 +470,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl, &
                                                 x_locl, y_locl, z_locl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dielectric_constant_xaa_annular', &
@@ -506,7 +492,7 @@ CONTAINS
 
     IF (dielec_const .LT. 1.0_dp) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The dielectric constant has to be greater than or equal to 1.", error)
+                      "The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     pw_grid => eps%pw_grid
@@ -525,11 +511,11 @@ CONTAINS
     IF (n_forb_xtnts .GT. 0) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "The given extents for the dielectric region are outside the range of "//&
-                      "the simulation cell.", error)
+                      "the simulation cell.")
     END IF
 
-    CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_copy(eps, eps_tmp, error=error)
+    CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_copy(eps, eps_tmp)
 
     bounds_local = pw_grid%bounds_local
     lb1 = bounds_local(1,1);      ub1 = bounds_local(2,1)
@@ -549,8 +535,8 @@ CONTAINS
       END DO
     END DO
 
-    CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps, error)
-    CALL pw_pool_give_back_pw(pw_pool, eps_tmp, error=error)
+    CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps)
+    CALL pw_pool_give_back_pw(pw_pool, eps_tmp)
 
     CALL timestop(handle)
 
@@ -561,17 +547,15 @@ CONTAINS
 !> \param eps dielectric constant function
 !> \param pw_pool pool of planewave grid
 !> \param dielectric_params dielectric parameters read from input file
-!> \param error cp2k error
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_constant_spatially_dependent(eps, pw_pool, dielectric_params, error)
+  SUBROUTINE dielectric_constant_spatially_dependent(eps, pw_pool, dielectric_params)
 
     TYPE(pw_type), POINTER                   :: eps
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(dielectric_parameters), INTENT(IN)  :: dielectric_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dielectric_constant_spatially_dependent', &
@@ -593,12 +577,12 @@ CONTAINS
     n_aa_cuboidal = dielectric_params%n_aa_cuboidal
     n_xaa_annular = dielectric_params%n_xaa_annular
     pw_grid => pw_pool%pw_grid
-    CALL setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+    CALL setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
     n_dielectric_region = n_aa_cuboidal + n_xaa_annular
 
     IF (n_dielectric_region .EQ. 0) THEN
        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                      "No density independent dielectric region is defined.", error)
+                      "No density independent dielectric region is defined.")
     END IF
 
     DO j = 1, n_aa_cuboidal
@@ -610,7 +594,7 @@ CONTAINS
                                    dielectric_params%aa_cuboidal_yxtnt(:,j), &
                                    dielectric_params%aa_cuboidal_zxtnt(:,j), &
                                    x_glbl, y_glbl, z_glbl, &
-                                   x_locl, y_locl, z_locl, error)
+                                   x_locl, y_locl, z_locl)
     END DO
 
     DO j = 1, n_xaa_annular
@@ -623,7 +607,7 @@ CONTAINS
                                    dielectric_params%xaa_annular_xxtnt(:,j), &
                                    base_center, base_radii, &
                                    x_glbl, y_glbl, z_glbl, &
-                                   x_locl, y_locl, z_locl, error)
+                                   x_locl, y_locl, z_locl)
     END DO
 
     CALL timestop(handle)
@@ -639,18 +623,16 @@ CONTAINS
 !> \param deps_drho derivative of the dielectric constant wrt the density
 !> \param pw_pool pool of planewave grid
 !> \param dielectric_params dielectric parameters read from input file
-!> \param error cp2k error
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE dielectric_constant_spatially_rho_dependent(rho, eps, deps_drho, &
-                                               pw_pool, dielectric_params, error)
+                                               pw_pool, dielectric_params)
 
     TYPE(pw_type), POINTER                   :: rho, eps, deps_drho
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(dielectric_parameters), INTENT(IN)  :: dielectric_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dielectric_constant_spatially_rho_dependent', &
@@ -664,26 +646,26 @@ CONTAINS
 
     IF (dielectric_params%eps0 .LT. 1.0_dp) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "The dielectric constant has to be greater than or equal to 1.", error)
+                     "The dielectric constant has to be greater than or equal to 1.")
     END IF
 
-    CALL pw_pool_create_pw(pw_pool, eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, swch_func, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, dswch_func_drho, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_zero(eps_sptldep, error=error)
-    CALL pw_zero(swch_func, error=error)
-    CALL pw_zero(dswch_func_drho, error=error)
+    CALL pw_pool_create_pw(pw_pool, eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, swch_func, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, dswch_func_drho, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_zero(eps_sptldep)
+    CALL pw_zero(swch_func)
+    CALL pw_zero(dswch_func_drho)
 
-    CALL dielectric_constant_spatially_dependent(eps_sptldep, pw_pool, dielectric_params, error) 
+    CALL dielectric_constant_spatially_dependent(eps_sptldep, pw_pool, dielectric_params) 
     CALL dielectric_constant_sccs(rho, swch_func, dswch_func_drho, 2.0_dp, &
-                                  dielectric_params%rho_max, dielectric_params%rho_min, error)
+                                  dielectric_params%rho_max, dielectric_params%rho_min)
 
     eps%cr3d = ( (swch_func%cr3d - 1.0_dp) * (eps_sptldep%cr3d - 1.0_dp) ) + 1.0_dp
     deps_drho%cr3d = dswch_func_drho%cr3d * (eps_sptldep%cr3d - 1.0_dp)
 
-    CALL pw_pool_give_back_pw(pw_pool, dswch_func_drho, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, swch_func, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, eps_sptldep, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, dswch_func_drho)
+    CALL pw_pool_give_back_pw(pw_pool, swch_func)
+    CALL pw_pool_give_back_pw(pw_pool, eps_sptldep)
 
     CALL timestop(handle)
 
@@ -694,15 +676,13 @@ CONTAINS
 !> \param f  input funcition 
 !> \param df derivative of f
 !> \param pw_pool pool of plane-wave grid
-!> \param error cp2k error
 ! *****************************************************************************
-  SUBROUTINE derive_fft(f, df, pw_pool, error)
+  SUBROUTINE derive_fft(f, df, pw_pool)
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
       INTENT(INOUT)                          :: df
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fft', &
       routineP = moduleN//':'//routineN
@@ -716,21 +696,20 @@ CONTAINS
     DO i = 1, 2
        NULLIFY (work_gs(i)%pw)
        CALL pw_pool_create_pw(pw_pool, work_gs(i)%pw, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
     END DO
 
-    CALL pw_transfer(f, work_gs(1)%pw, error=error)
+    CALL pw_transfer(f, work_gs(1)%pw)
     DO i = 1, 3
        nd(:) = 0
        nd(i) = 1
-       CALL pw_copy(work_gs(1)%pw, work_gs(2)%pw, error=error)
-       CALL pw_derive(work_gs(2)%pw, nd(:), error=error)
-       CALL pw_transfer(work_gs(2)%pw, df(i)%pw, error=error)
+       CALL pw_copy(work_gs(1)%pw, work_gs(2)%pw)
+       CALL pw_derive(work_gs(2)%pw, nd(:))
+       CALL pw_transfer(work_gs(2)%pw, df(i)%pw)
     END DO
 
     DO i = 1, 2
-       CALL pw_pool_give_back_pw(pw_pool, work_gs(i)%pw, error=error)
+       CALL pw_pool_give_back_pw(pw_pool, work_gs(i)%pw)
     END DO
 
     CALL timestop(handle)

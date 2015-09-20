@@ -76,14 +76,13 @@ CONTAINS
 !> \param force_a ...
 !> \param force_b ...
 !> \param fs ...
-!> \param error ...
 !> \date    May 2011
 !> \author  Juerg Hutter
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE os_3center(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
        lb_max_set,lb_min_set,npgfb,rpgfb,zetb,auxint,rpgfc,&
-       rab,dab,rac,dac,rbc,dbc,vab,s,pab,force_a,force_b,fs,error)
+       rab,dab,rac,dac,rbc,dbc,vab,s,pab,force_a,force_b,fs)
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
     INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb
@@ -107,7 +106,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: force_a, force_b
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: fs
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'os_3center', &
       routineP = moduleN//':'//routineN
@@ -129,7 +127,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (PRESENT(pab)) THEN
-      CPPostcondition(PRESENT(fs),cp_failure_level,routineP,error,failure)
+      CPPostcondition(PRESENT(fs),cp_failure_level,routineP,failure)
       IF (PRESENT(force_a)) THEN
         calculate_force_a = .TRUE.
       ELSE
@@ -169,7 +167,7 @@ CONTAINS
 
     ! precalculate indices for horizontal recursion
     ALLOCATE (iiap(ncoset(mmax),3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ma=0,mmax
        DO iax=0,ma
           DO iay=0,ma-iax
@@ -543,7 +541,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (iiap,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE os_3center
 ! *****************************************************************************

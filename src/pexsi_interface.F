@@ -70,14 +70,13 @@ CONTAINS
 !> \param ordering ...
 !> \param npSymbFact ...
 !> \param verbosity ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_pexsi_set_options(pexsi_options, temperature, gap, deltaE, numPole, & 
                                   isInertiaCount, maxPEXSIIter, muMin0, muMax0, mu0, & 
                                   muInertiaTolerance, muInertiaExpansion, &
                                   muPEXSISafeGuard, numElectronPEXSITolerance, &
                                   matrixType, isSymbolicFactorize, ordering, & 
-                                  npSymbFact, verbosity, error)
+                                  npSymbFact, verbosity)
 
     TYPE(cp_pexsi_options), INTENT(INOUT)    :: pexsi_options
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: temperature, gap, deltaE
@@ -90,7 +89,6 @@ CONTAINS
                                                 isSymbolicFactorize, &
                                                 ordering, npSymbFact, &
                                                 verbosity
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_set_options', &
       routineP = moduleN//':'//routineN
@@ -122,7 +120,7 @@ CONTAINS
 #else
     CALL cp_assert (.FALSE., cp_fatal_level, cp_assertion_failed, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE cp_pexsi_set_options
 
@@ -147,14 +145,13 @@ CONTAINS
 !> \param ordering ...
 !> \param npSymbFact ...
 !> \param verbosity ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_pexsi_get_options(pexsi_options, temperature, gap, deltaE, numPole, &
                                   isInertiaCount, maxPEXSIIter, muMin0, muMax0, mu0, &
                                   muInertiaTolerance, muInertiaExpansion, &
                                   muPEXSISafeGuard, numElectronPEXSITolerance, &
                                   matrixType, isSymbolicFactorize, ordering, & 
-                                  npSymbFact, verbosity, error)
+                                  npSymbFact, verbosity)
     TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
     REAL(KIND=real_8), INTENT(OUT), OPTIONAL :: temperature, gap, deltaE
     INTEGER, INTENT(OUT), OPTIONAL           :: numPole, isInertiaCount, &
@@ -166,7 +163,6 @@ CONTAINS
                                                 isSymbolicFactorize, &
                                                 ordering, npSymbFact, &
                                                 verbosity
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_get_options', &
       routineP = moduleN//':'//routineN
@@ -217,18 +213,16 @@ CONTAINS
    IF(PRESENT(verbosity)) verbosity = -1
    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE cp_pexsi_get_options
 
 ! *****************************************************************************
 !> \brief ...
 !> \param pexsi_options ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_pexsi_set_default_options(pexsi_options, error)
+  SUBROUTINE cp_pexsi_set_default_options(pexsi_options)
     TYPE(cp_pexsi_options), INTENT(OUT)      :: pexsi_options
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_set_default_options', &
       routineP = moduleN//':'//routineN
@@ -238,7 +232,7 @@ CONTAINS
 #else
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE cp_pexsi_set_default_options
 
@@ -248,13 +242,11 @@ CONTAINS
 !> \param numProcRow ...
 !> \param numProcCol ...
 !> \param outputFileIndex ...
-!> \param error ...
 !> \retval cp_pexsi_plan_initialize ...
 ! *****************************************************************************
-  FUNCTION cp_pexsi_plan_initialize(comm, numProcRow, numProcCol, outputFileIndex, error)
+  FUNCTION cp_pexsi_plan_initialize(comm, numProcRow, numProcCol, outputFileIndex)
     INTEGER, INTENT(IN)                      :: comm, numProcRow, numProcCol, &
                                                 outputFileIndex
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8)                      :: cp_pexsi_plan_initialize
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_plan_initialize', &
@@ -267,12 +259,12 @@ CONTAINS
                                          numProcCol, outputFileIndex, info)
     CALL cp_assert(info .EQ. 0, cp_fatal_level, cp_internal_error, routineP,&
                    "Pexsi returned an error. Consider logPEXSI0 for details.",&
-                   only_ionode = .TRUE., error=error)
+                   only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END FUNCTION cp_pexsi_plan_initialize
 
@@ -289,12 +281,11 @@ CONTAINS
 !> \param HnzvalLocal ...
 !> \param isSIdentity ...
 !> \param SnzvalLocal ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_pexsi_load_real_symmetric_hs_matrix(plan,pexsi_options,nrows,nnz, &
                                                     nnzLocal,numColLocal,colptrLocal, &
                                                     rowindLocal,HnzvalLocal,isSIdentity, &
-                                                    SnzvalLocal,error)
+                                                    SnzvalLocal)
     INTEGER(KIND=int_8), INTENT(IN)          :: plan
     TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
     INTEGER, INTENT(IN)                      :: nrows, nnz, nnzLocal, &
@@ -303,7 +294,6 @@ CONTAINS
     REAL(KIND=real_8), INTENT(IN)            :: HnzvalLocal(*)
     INTEGER, INTENT(IN)                      :: isSIdentity
     REAL(KIND=real_8), INTENT(IN)            :: SnzvalLocal(*)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'cp_pexsi_load_real_symmetric_hs_matrix', &
@@ -319,12 +309,12 @@ CONTAINS
                                                 HnzvalLocal,isSIdentity,SnzvalLocal,info)
     CALL cp_assert(info .EQ. 0, cp_fatal_level, cp_internal_error, routineP, &
                    "Pexsi returned an error. Consider logPEXSI0 for details.", &
-                   only_ionode = .TRUE., error=error)
+                   only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE cp_pexsi_load_real_symmetric_hs_matrix
 
@@ -339,11 +329,10 @@ CONTAINS
 !> \param muMaxInertia ...
 !> \param numTotalInertiaIter ...
 !> \param numTotalPEXSIIter ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_pexsi_dft_driver(plan,pexsi_options,numElectronExact,muPEXSI, &
                                  numElectronPEXSI,muMinInertia,muMaxInertia, &
-                                 numTotalInertiaIter,numTotalPEXSIIter,error)
+                                 numTotalInertiaIter,numTotalPEXSIIter)
     INTEGER(KIND=int_8), INTENT(IN)          :: plan
     TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
     REAL(KIND=real_8), INTENT(IN)            :: numElectronExact
@@ -351,7 +340,6 @@ CONTAINS
                                                 muMinInertia, muMaxInertia
     INTEGER, INTENT(out)                     :: numTotalInertiaIter, &
                                                 numTotalPEXSIIter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_dft_driver', &
       routineP = moduleN//':'//routineN
@@ -365,7 +353,7 @@ CONTAINS
                              numTotalInertiaIter,numTotalPEXSIIter,info)
     CALL cp_assert(info .EQ. 0, cp_fatal_level, cp_internal_error, routineP,&
                    "Pexsi returned an error. Consider logPEXSI0 for details.",&
-                   only_ionode = .TRUE., error=error)
+                   only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
     ! assign intent-out arguments to silence compiler warnings
@@ -377,7 +365,7 @@ CONTAINS
     numTotalPEXSIIter = -1
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE cp_pexsi_dft_driver
 
@@ -390,15 +378,13 @@ CONTAINS
 !> \param totalEnergyH ...
 !> \param totalEnergyS ...
 !> \param totalFreeEnergy ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_pexsi_retrieve_real_symmetric_dft_matrix(plan,DMnzvalLocal,EDMnzvalLocal, &
                                                          FDMnzvalLocal,totalEnergyH, &
-                                                         totalEnergyS,totalFreeEnergy,error)
+                                                         totalEnergyS,totalFreeEnergy)
     INTEGER(KIND=int_8), INTENT(IN)          :: plan
     REAL(KIND=real_8), INTENT(out) :: DMnzvalLocal(*), EDMnzvalLocal(*), &
       FDMnzvalLocal(*), totalEnergyH, totalEnergyS, totalFreeEnergy
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'cp_pexsi_retrieve_real_symmetric_dft_matrix', &
@@ -414,7 +400,7 @@ CONTAINS
                                                      totalEnergyS,totalFreeEnergy,info)
     CALL cp_assert(info .EQ. 0, cp_fatal_level, cp_internal_error, routineP,&
                    "Pexsi returned an error. Consider logPEXSI0 for details.",&
-                   only_ionode = .TRUE., error=error)
+                   only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
     ! assign intent-out arguments to silence compiler warnings
@@ -427,18 +413,16 @@ CONTAINS
 
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE cp_pexsi_retrieve_real_symmetric_dft_matrix
 
 ! *****************************************************************************
 !> \brief ...
 !> \param plan ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_pexsi_plan_finalize(plan,error)
+  SUBROUTINE cp_pexsi_plan_finalize(plan)
     INTEGER(KIND=int_8), INTENT(IN)          :: plan
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_plan_finalize', &
       routineP = moduleN//':'//routineN
@@ -450,12 +434,12 @@ CONTAINS
     CALL f_ppexsi_plan_finalize(plan,info)
     CALL cp_assert(info .EQ. 0, cp_fatal_level, cp_internal_error, routineP,&
                    "Pexsi returned an error. Consider logPEXSI0 for details.",&
-                   only_ionode = .TRUE., error=error)
+                   only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE., error=error)
+                    only_ionode = .TRUE.)
 #endif
   END SUBROUTINE
 

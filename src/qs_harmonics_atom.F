@@ -61,13 +61,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Allocate a spherical harmonics set for the atom grid.
 !> \param harmonics ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_harmonics_atom(harmonics,error)
+  SUBROUTINE allocate_harmonics_atom(harmonics)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
@@ -76,10 +74,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics,error)
+    IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
     ALLOCATE (harmonics,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     harmonics%max_s_harm=0
     harmonics%llmax=0
@@ -104,13 +102,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate the spherical harmonics set for the atom grid.
 !> \param harmonics ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_harmonics_atom(harmonics,error)
+  SUBROUTINE deallocate_harmonics_atom(harmonics)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
@@ -123,56 +119,56 @@ CONTAINS
 
        IF(ASSOCIATED(harmonics%slm)) THEN
           DEALLOCATE (harmonics%slm,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%dmslm)) THEN
           DEALLOCATE (harmonics%dmslm,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%dslm)) THEN
           DEALLOCATE (harmonics%dslm,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%dslm_dxyz)) THEN
           DEALLOCATE (harmonics%dslm_dxyz,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%slm_int)) THEN
           DEALLOCATE (harmonics%slm_int,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_CG)) THEN
           DEALLOCATE (harmonics%my_CG,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_dCG)) THEN
           DEALLOCATE (harmonics%my_dCG,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_CG_dxyz)) THEN
           DEALLOCATE (harmonics%my_CG_dxyz,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_CG_dxyz_asym)) THEN
           DEALLOCATE (harmonics%my_CG_dxyz_asym,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(harmonics%a)) THEN
           DEALLOCATE (harmonics%a,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
 
        DEALLOCATE (harmonics,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer harmonics is not associated and "//&
@@ -194,17 +190,15 @@ CONTAINS
 !> \param pol ...
 !> \param cos_pol ...
 !> \param cotan_azi ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_harmonics_atom(harmonics,my_CG,na,&
-       llmax,maxs,max_s_harm,ll,wa,pol,cos_pol,cotan_azi,error)
+       llmax,maxs,max_s_harm,ll,wa,pol,cos_pol,cotan_azi)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     INTEGER, INTENT(IN)                      :: na, llmax, maxs, max_s_harm, &
                                                 ll
     REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, pol, cos_pol, cotan_azi
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
       routineP = moduleN//':'//routineN
@@ -226,7 +220,7 @@ CONTAINS
 
     NULLIFY (y,dy,slm,dslm_dxyz,dc)
 
-    CPPrecondition(ASSOCIATED(harmonics),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(harmonics),cp_failure_level,routineP,failure)
 
     harmonics%max_s_harm = max_s_harm
     harmonics%llmax = llmax
@@ -525,14 +519,12 @@ CONTAINS
 !> \param orb_basis ...
 !> \param llmax ...
 !> \param max_s_harm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_maxl_CG(harmonics,orb_basis,llmax,max_s_harm,error)
+  SUBROUTINE get_maxl_CG(harmonics,orb_basis,llmax,max_s_harm)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     INTEGER, INTENT(IN)                      :: llmax, max_s_harm
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_maxl_CG', &
       routineP = moduleN//':'//routineN
@@ -546,7 +538,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(harmonics),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(harmonics),cp_failure_level,routineP,failure)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,nset=nset)
 
@@ -558,15 +550,15 @@ CONTAINS
        DO is2 = 1,nset
           CALL get_none0_cg_list(harmonics%my_CG,&
                                  lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
-                                 max_s_harm,llmax,max_iso_not0=itmp,error=error)
+                                 max_s_harm,llmax,max_iso_not0=itmp)
           max_iso_not0 = MAX(max_iso_not0,itmp)
           CALL get_none0_cg_list(harmonics%my_dCG,&
                                  lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
-                                 max_s_harm,llmax,max_iso_not0=itmp,error=error)
+                                 max_s_harm,llmax,max_iso_not0=itmp)
           dmax_iso_not0 = MAX(dmax_iso_not0,itmp)
           CALL get_none0_cg_list(harmonics%my_CG_dxyz_asym,&
                                  lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
-                                 max_s_harm,llmax,max_iso_not0=itmp,error=error)
+                                 max_s_harm,llmax,max_iso_not0=itmp)
           damax_iso_not0 = MAX(damax_iso_not0,itmp)
        END DO ! is2
     END DO ! is1
@@ -590,10 +582,9 @@ CONTAINS
 !> \param list ...
 !> \param n_list ...
 !> \param max_iso_not0 ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_none0_cg_list4(cgc,lmin1,lmax1,lmin2,lmax2,max_s_harm,llmax,&
-                                list,n_list,max_iso_not0,error)
+                                list,n_list,max_iso_not0)
 
     REAL(dp), DIMENSION(:, :, :, :), &
       INTENT(IN)                             :: cgc
@@ -604,7 +595,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: n_list
     INTEGER, INTENT(OUT)                     :: max_iso_not0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list4', &
       routineP = moduleN//':'//routineN
@@ -612,11 +602,11 @@ CONTAINS
     INTEGER                                  :: iso, iso1, iso2, l1, l2, nlist
     LOGICAL                                  :: failure
 
-    CPPrecondition(nsoset(lmax1).LE.SIZE(cgc,2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(nsoset(lmax2).LE.SIZE(cgc,3),cp_failure_level,routineP,error,failure)
-    CPPrecondition(max_s_harm.LE.SIZE(cgc,4),cp_failure_level,routineP,error,failure)
+    CPPrecondition(nsoset(lmax1).LE.SIZE(cgc,2),cp_failure_level,routineP,failure)
+    CPPrecondition(nsoset(lmax2).LE.SIZE(cgc,3),cp_failure_level,routineP,failure)
+    CPPrecondition(max_s_harm.LE.SIZE(cgc,4),cp_failure_level,routineP,failure)
     IF(PRESENT(n_list).AND.PRESENT(list)) THEN
-       CPPrecondition(max_s_harm.LE.SIZE(list,3),cp_failure_level,routineP,error,failure)
+       CPPrecondition(max_s_harm.LE.SIZE(list,3),cp_failure_level,routineP,failure)
     ENDIF
     max_iso_not0 = 0
     IF(PRESENT(n_list).AND.PRESENT(list)) n_list = 0
@@ -657,10 +647,9 @@ CONTAINS
 !> \param list ...
 !> \param n_list ...
 !> \param max_iso_not0 ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_none0_cg_list3(cgc,lmin1,lmax1,lmin2,lmax2,max_s_harm,llmax,&
-                                list,n_list,max_iso_not0,error)
+                                list,n_list,max_iso_not0)
 
     REAL(dp), DIMENSION(:, :, :), INTENT(IN) :: cgc
     INTEGER, INTENT(IN)                      :: lmin1, lmax1, lmin2, lmax2, &
@@ -670,7 +659,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: n_list
     INTEGER, INTENT(OUT)                     :: max_iso_not0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list3', &
       routineP = moduleN//':'//routineN
@@ -678,11 +666,11 @@ CONTAINS
     INTEGER                                  :: iso, iso1, iso2, l1, l2, nlist
     LOGICAL                                  :: failure
 
-    CPPrecondition(nsoset(lmax1).LE.SIZE(cgc,1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(nsoset(lmax2).LE.SIZE(cgc,2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(max_s_harm.LE.SIZE(cgc,3),cp_failure_level,routineP,error,failure)
+    CPPrecondition(nsoset(lmax1).LE.SIZE(cgc,1),cp_failure_level,routineP,failure)
+    CPPrecondition(nsoset(lmax2).LE.SIZE(cgc,2),cp_failure_level,routineP,failure)
+    CPPrecondition(max_s_harm.LE.SIZE(cgc,3),cp_failure_level,routineP,failure)
     IF(PRESENT(n_list).AND.PRESENT(list)) THEN
-       CPPrecondition(max_s_harm.LE.SIZE(list,3),cp_failure_level,routineP,error,failure)
+       CPPrecondition(max_s_harm.LE.SIZE(list,3),cp_failure_level,routineP,failure)
     ENDIF
     max_iso_not0 = 0
     IF(PRESENT(n_list).AND.PRESENT(list)) n_list = 0

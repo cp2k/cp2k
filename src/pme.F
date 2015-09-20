@@ -87,7 +87,6 @@ CONTAINS
 !> \param use_virial ...
 !> \param charges ...
 !> \param atprop ...
-!> \param error ...
 !> \par History
 !>      JGH (15-Mar-2001) : New electrostatic calculation and pressure tensor
 !>      JGH (21-Mar-2001) : Complete rewrite
@@ -97,7 +96,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
        fg_coulomb, pv_g, shell_particle_set, core_particle_set,&
-       fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop, error )
+       fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
@@ -116,7 +115,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
     TYPE(atprop_type), POINTER               :: atprop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
@@ -146,7 +144,7 @@ CONTAINS
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
     CALL cite_reference(Darden1993)
-    CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, group = group)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
          pw_small_pool=pw_small_pool, rs_desc=rs_desc,&
          poisson_env=poisson_env, dg = dg )
@@ -161,8 +159,8 @@ CONTAINS
     CALL structure_factor_init(exp_igr)
 
     IF(PRESENT(shell_particle_set)) THEN
-       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,failure)
+       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
        nshell=SIZE(shell_particle_set)
        CALL structure_factor_allocate ( grid_s%bounds, npart, exp_igr, &
             allocate_centre = .TRUE., allocate_shell_e=.TRUE., allocate_shell_centre = .TRUE., nshell=nshell )
@@ -173,12 +171,12 @@ CONTAINS
     END IF
 
     CALL pw_pool_create_pw ( pw_small_pool, rhos1%pw, &
-         use_data = REALDATA3D ,error=error)
+         use_data = REALDATA3D)
     CALL pw_pool_create_pw ( pw_small_pool, rhos2%pw, &
-         use_data = REALDATA3D ,error=error)
+         use_data = REALDATA3D)
 
-    CALL rs_grid_create(rden, rs_desc, error=error)
-    CALL rs_grid_set_box ( grid_b, rs=rden, error=error )
+    CALL rs_grid_create(rden, rs_desc)
+    CALL rs_grid_set_box ( grid_b, rs=rden)
     CALL rs_grid_zero ( rden )
 
     IF ( rden%desc%parallel .AND. rden%desc%distributed ) THEN
@@ -209,7 +207,7 @@ CONTAINS
        IF(is1_core .OR. is2_core) THEN
           CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                rhos1, rhos2 , is1_core=is1_core, is2_core=is2_core, &
-               core_particle_set=core_particle_set, charges=charges, error=error )
+               core_particle_set=core_particle_set, charges=charges)
 
           ! add boxes to real space grid (big box)
           IF(is1_core) THEN
@@ -224,7 +222,7 @@ CONTAINS
           END IF
        ELSE
           CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-               rhos1, rhos2 , charges=charges,  error=error )
+               rhos1, rhos2 , charges=charges)
           ! add boxes to real space grid (big box)
           CALL dg_sum_patch ( rden, rhos1, exp_igr%centre ( :, p1 ) )
           IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr%centre ( :, p2 ) )
@@ -239,15 +237,15 @@ CONTAINS
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
           ! calculate function on small boxes (we use double packing in FFT)
           CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-               rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. , charges=charges, error=error)
+               rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. , charges=charges)
           ! add boxes to real space grid (big box)
           CALL dg_sum_patch ( rpot, rhos1, exp_igr%shell_centre ( :, p1 ) )
           IF ( p2 /= 0 ) CALL dg_sum_patch ( rpot, rhos2, exp_igr%shell_centre ( :, p2 ) )
        END DO
     END IF
 
-    CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE ,error=error)
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
+    CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw)
 
     !-------------- ELECTROSTATIC CALCULATION -----------
 
@@ -256,19 +254,19 @@ CONTAINS
        NULLIFY(dphi_g ( i )%pw)
        CALL pw_pool_create_pw ( pw_big_pool, dphi_g ( i )%pw, &
             use_data = COMPLEXDATA1D, &
-            in_space = RECIPROCALSPACE ,error=error)
+            in_space = RECIPROCALSPACE)
     END DO
     CALL pw_pool_create_pw ( pw_big_pool, phi_r, &
          use_data = REALDATA3D, &
-         in_space = REALSPACE ,error=error)
+         in_space = REALSPACE)
 
-    CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress ,error=error)
+    CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress)
 
     ! atomic energies
     IF (atprop%energy .OR. atprop%stress) THEN
        dvols = rhos1%pw%pw_grid%dvol
-       CALL rs_grid_create (rpot, rs_desc, error=error)
-       CALL rs_pw_transfer (rpot, phi_r, pw2rs, error=error)
+       CALL rs_grid_create (rpot, rs_desc)
+       CALL rs_pw_transfer (rpot, phi_r, pw2rs)
        ipart = 0
        DO
           CALL set_list ( particle_set, npart, exp_igr%centre, p1, rden, ipart, exp_igr %core_centre)
@@ -276,7 +274,7 @@ CONTAINS
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
           ! integrate box and potential
           CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-               rhos1, rhos2 , charges=charges,  error=error )
+               rhos1, rhos2 , charges=charges)
           ! add boxes to real space grid (big box)
           CALL dg_sum_patch_force_1d ( rpot, rhos1, exp_igr%centre(:,p1), fat1 )
           IF (atprop%energy) THEN
@@ -302,12 +300,10 @@ CONTAINS
        IF (atprop%stress) THEN
           CALL pw_pool_create_pw ( pw_big_pool, phi_g,  &
                                    use_data = COMPLEXDATA1D,&
-                                   in_space = RECIPROCALSPACE,&
-                                   error=error)
+                                   in_space = RECIPROCALSPACE)
           CALL pw_pool_create_pw ( pw_big_pool, rhob_g,  &
                                    use_data = COMPLEXDATA1D,&
-                                   in_space = RECIPROCALSPACE,&
-                                   error=error)
+                                   in_space = RECIPROCALSPACE)
           ffa = ( 0.5_dp / dg_rho0%zet ( 1 ) ) ** 2
           ffb = 1.0_dp / fourpi
           DO i = 1, 3
@@ -317,12 +313,12 @@ CONTAINS
              END DO
              IF(grid_b%have_g0) phi_g%cc(1) = 0.0_dp
              DO j = 1, i
-                CALL pw_copy ( phi_g, rhob_g, error=error)
+                CALL pw_copy ( phi_g, rhob_g)
                 nd = 0
                 nd ( j ) = 1
-                CALL pw_derive ( rhob_g, nd , error=error)
-                CALL pw_transfer ( rhob_g, rhob_r, error=error)
-                CALL rs_pw_transfer ( rpot, rhob_r, pw2rs, error=error)
+                CALL pw_derive ( rhob_g, nd)
+                CALL pw_transfer ( rhob_g, rhob_r)
+                CALL rs_pw_transfer ( rpot, rhob_r, pw2rs)
 
                 ipart = 0
                 DO
@@ -331,7 +327,7 @@ CONTAINS
                    IF ( p1 == 0 .AND. p2 == 0 ) EXIT
                    ! integrate box and potential
                    CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-                        rhos1, rhos2 , charges=charges,  error=error )
+                        rhos1, rhos2 , charges=charges)
                    ! add boxes to real space grid (big box)
                    CALL dg_sum_patch_force_1d ( rpot, rhos1, exp_igr%centre(:,p1), fat1 )
                    atprop%atstress(i,j,p1) = atprop%atstress(i,j,p1) + fat1*dvols
@@ -344,13 +340,13 @@ CONTAINS
                 END DO
              END DO
           END DO
-          CALL pw_pool_give_back_pw ( pw_big_pool, phi_g ,error=error)
-          CALL pw_pool_give_back_pw ( pw_big_pool, rhob_g ,error=error)
+          CALL pw_pool_give_back_pw ( pw_big_pool, phi_g)
+          CALL pw_pool_give_back_pw ( pw_big_pool, rhob_g)
        END IF
-       CALL rs_grid_release ( rpot, error=error)
+       CALL rs_grid_release ( rpot)
     END IF
 
-    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r ,error=error)
+    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r)
 
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
@@ -359,7 +355,7 @@ CONTAINS
     IF ((use_virial).AND.(PRESENT(pv_g))) THEN
        DO i = 1, 3
           DO j = i, 3
-             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i )%pw, dphi_g ( j )%pw, error=error)
+             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i )%pw, dphi_g ( j )%pw)
              f_stress ( j, i ) = f_stress ( i, j )
           END DO
        END DO
@@ -371,16 +367,16 @@ CONTAINS
     !--------END OF STRESS TENSOR CALCULATION -----------
 
     ALLOCATE ( drpot(1:3), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     DO i = 1, 3
-       CALL rs_grid_create(drpot(i)%rs_grid, rs_desc, error=error )
-       CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid, error=error )
-       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r, error=error)
-       CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw ,error=error)
-       CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs,error=error)
+       CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
+       CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid)
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r)
+       CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw)
+       CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs)
     END DO
 
-    CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r ,error=error)
+    CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r)
 
     !----------------- FORCE CALCULATION ----------------
 
@@ -474,17 +470,17 @@ CONTAINS
 
     !------------------CLEANING UP ----------------------
 
-    CALL rs_grid_release(rden, error=error)
+    CALL rs_grid_release(rden)
     IF (ASSOCIATED(drpot)) THEN
        DO i = 1, 3
-          CALL rs_grid_release(drpot(i)%rs_grid, error=error)
+          CALL rs_grid_release(drpot(i)%rs_grid)
        END DO
        DEALLOCATE ( drpot, STAT = ierr )
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
 
-    CALL pw_pool_give_back_pw ( pw_small_pool, rhos1%pw ,error=error)
-    CALL pw_pool_give_back_pw ( pw_small_pool, rhos2%pw ,error=error)
+    CALL pw_pool_give_back_pw ( pw_small_pool, rhos1%pw)
+    CALL pw_pool_give_back_pw ( pw_small_pool, rhos2%pw)
     CALL structure_factor_deallocate ( exp_igr )
 
     CALL timestop(handle)
@@ -509,14 +505,13 @@ CONTAINS
 !> \param is2_shell ...
 !> \param core_particle_set ...
 !> \param charges ...
-!> \param error ...
 !> \par History
 !>      JGH (23-Mar-2001) : Switch to integer from particle list pointers
 !> \author JGH (21-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
        grid_b, grid_s, rhos1, rhos2 , is1_core, is2_core, is1_shell,&
-       is2_shell, core_particle_set, charges, error)
+       is2_shell, core_particle_set, charges)
 
     TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
@@ -532,7 +527,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: core_particle_set
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch', &
       routineP = moduleN//':'//routineN
@@ -558,7 +552,7 @@ CONTAINS
     IF(PRESENT(is1_core)) my_is1_core = is1_core
     IF(PRESENT(is2_core)) my_is2_core = is2_core
     IF(my_is1_core .OR. my_is2_core) THEN
-       CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,error,failure)
+       CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,failure)
     END IF
     my_is1_shell = .FALSE.
     my_is2_shell = .FALSE.

@@ -43,17 +43,14 @@ CONTAINS
 !>        The grid is not allocated
 !> \param lgrid the lgrid that gets created
 !> \param rs_descs the rs grid descriptors used to set the lgrid size
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2011 created [IAB]
 !> \author Iain Bethune
 ! *****************************************************************************
-SUBROUTINE lgrid_create(lgrid,rs_descs,error)
+SUBROUTINE lgrid_create(lgrid,rs_descs)
     TYPE(lgrid_type), POINTER                :: lgrid
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_create', &
       routineP = moduleN//':'//routineN
@@ -63,9 +60,9 @@ SUBROUTINE lgrid_create(lgrid,rs_descs,error)
 
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
   ALLOCATE(lgrid, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   NULLIFY(lgrid%r)
   lgrid%ref_count=1
   ! Find the maximum number of grid points needed
@@ -79,15 +76,12 @@ END SUBROUTINE lgrid_create
 ! *****************************************************************************
 !> \brief retains the lgrid (see doc/ReferenceCounting.html)
 !> \param lgrid the lgrid_type to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2011 created [IAB]
 !> \author Iain Bethune
 ! *****************************************************************************
-SUBROUTINE lgrid_retain(lgrid,error)
+SUBROUTINE lgrid_retain(lgrid)
     TYPE(lgrid_type), POINTER                :: lgrid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_retain', &
       routineP = moduleN//':'//routineN
@@ -96,23 +90,20 @@ SUBROUTINE lgrid_retain(lgrid,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
-  CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
+  CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,failure)
   lgrid%ref_count=lgrid%ref_count+1
 END SUBROUTINE lgrid_retain
 
 ! *****************************************************************************
 !> \brief releases the given lgrid (see doc/ReferenceCounting.html)
 !> \param lgrid the lgrid_type to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2011 created [IAB]
 !> \author Iain Bethune
 ! *****************************************************************************
-SUBROUTINE lgrid_release(lgrid, error)
+SUBROUTINE lgrid_release(lgrid)
     TYPE(lgrid_type), POINTER                :: lgrid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_release', &
       routineP = moduleN//':'//routineN
@@ -122,15 +113,15 @@ SUBROUTINE lgrid_release(lgrid, error)
 
   failure=.FALSE.
   IF (ASSOCIATED(lgrid)) THEN
-     CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,failure)
      lgrid%ref_count=lgrid%ref_count-1
      IF (lgrid%ref_count<1) THEN
         IF (ASSOCIATED(lgrid%r)) THEN
            DEALLOCATE (lgrid%r,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         DEALLOCATE (lgrid,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         NULLIFY(lgrid)
      END IF
   END IF
@@ -140,16 +131,13 @@ END SUBROUTINE
 !> \brief allocates the lgrid for a given number of threads
 !> \param lgrid the lgrid_type for which the grid will be allocated
 !> \param nthreads how many threads to allocate for
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2011 created [IAB]
 !> \author Iain Bethune
 ! *****************************************************************************
-SUBROUTINE lgrid_allocate_grid(lgrid, nthreads, error)
+SUBROUTINE lgrid_allocate_grid(lgrid, nthreads)
     TYPE(lgrid_type), POINTER                :: lgrid
     INTEGER, INTENT(in)                      :: nthreads
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_allocate_grid', &
       routineP = moduleN//':'//routineN
@@ -157,8 +145,8 @@ SUBROUTINE lgrid_allocate_grid(lgrid, nthreads, error)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(.NOT. ASSOCIATED(lgrid%r),cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(.NOT. ASSOCIATED(lgrid%r),cp_failure_level,routineP)
     ALLOCATE(lgrid%r(lgrid%ldim*nthreads))
 END SUBROUTINE
 

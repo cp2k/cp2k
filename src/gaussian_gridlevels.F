@@ -51,15 +51,13 @@ CONTAINS
 !> \param cutoff ...
 !> \param rel_cutoff ...
 !> \param print_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section, error)
+  SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     INTEGER                                  :: ngrid_levels
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp)                            :: rel_cutoff
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
@@ -73,20 +71,18 @@ CONTAINS
        gridlevel_info%count(i)=0
     ENDDO
     gridlevel_info%print_section=>print_section
-    CALL section_vals_retain(print_section,error=error)
+    CALL section_vals_retain(print_section)
   END SUBROUTINE init_gaussian_gridlevel
 
 ! *****************************************************************************
 !> \brief ...
 !> \param gridlevel_info ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
+  SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_gaussian_gridlevel', &
       routineP = moduleN//':'//routineN
@@ -95,14 +91,14 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (PRESENT(para_env)) THEN
        group=para_env%group
     ELSE
        group=logger%para_env%group
     END IF
     output_unit = cp_print_key_unit_nr(logger,gridlevel_info%print_section, &
-         "", extension=".Log",error=error)
+         "", extension=".Log")
 
     CALL mp_sum(gridlevel_info%total_count,group)
     CALL mp_sum(gridlevel_info%count,group)
@@ -130,9 +126,9 @@ CONTAINS
                                      "gridlevel_info%cutoff")
 
     CALL cp_print_key_finished_output(output_unit,logger,gridlevel_info%print_section,&
-         "", error=error)
+         "")
 
-    CALL section_vals_release(gridlevel_info%print_section,error=error)
+    CALL section_vals_release(gridlevel_info%print_section)
 
     DEALLOCATE (gridlevel_info%count,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

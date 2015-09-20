@@ -83,7 +83,6 @@ MODULE mp2_ri_grad_util
 !> \param starts_array ...
 !> \param starts_B_virtual ...
 !> \param sub_proc_map ...
-!> \param error ...
 !> \param alpha_case ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
@@ -91,7 +90,7 @@ MODULE mp2_ri_grad_util
                             my_group_L_size,my_group_L_start,my_group_L_end,&
                             my_B_size,my_B_virtual_start,&
                             ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                            sub_proc_map,error,alpha_case)
+                            sub_proc_map,alpha_case)
 
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), ALLOCATABLE, &
@@ -103,7 +102,6 @@ MODULE mp2_ri_grad_util
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
       sub_proc_map
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: alpha_case
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_gamma', &
@@ -143,13 +141,13 @@ MODULE mp2_ri_grad_util
     ! now the data inside the group are divided into a ia x K matrix
     dimen_ia=homo*virtual
     ALLOCATE(sizes_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     sizes_ia=0
     ALLOCATE(starts_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     starts_ia=0
     ALLOCATE(ends_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ends_ia=0
 
     DO iproc=0, para_env_sub%num_pe-1
@@ -165,7 +163,7 @@ MODULE mp2_ri_grad_util
 
     ! reorder data (first (ia|K))
     ALLOCATE(BIb_C_2D(my_ia_size,my_group_L_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     BIb_C_2D=0.0_dp
 
     DO iiB=1, homo
@@ -186,7 +184,7 @@ MODULE mp2_ri_grad_util
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
       ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       BIb_C_rec=0.0_dp
 
       CALL  mp_sendrecv(B_ia_Q,proc_send,&
@@ -208,7 +206,7 @@ MODULE mp2_ri_grad_util
 
     ! reorder data (Gamma)
     ALLOCATE(Gamma_2D(my_ia_size,my_group_L_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     Gamma_2D=0.0_dp
 
     DO iiB=1, homo
@@ -236,7 +234,7 @@ MODULE mp2_ri_grad_util
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
       ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       BIb_C_rec=0.0_dp
 
       IF (alpha_case) THEN 
@@ -268,29 +266,29 @@ MODULE mp2_ri_grad_util
 
     ! create the processor map and size arrays
     ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     proc_map=0
     ALLOCATE(sizes(2,0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     sizes=0
     ALLOCATE(starts(2,0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     starts=0
     ALLOCATE(ends(2,0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ends=0
 
     ALLOCATE(pos_info(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     pos_info=0
     pos_info(para_env%mepos)=para_env_sub%mepos
     CALL mp_sum(pos_info,para_env%group)
 
     ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:ngroup-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     group_grid_2_mepos=0
     ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mepos_2_grid_group=0
 
     DO i=0,para_env%num_pe-1
@@ -323,7 +321,7 @@ MODULE mp2_ri_grad_util
 
     ! create the blacs env
     NULLIFY(blacs_env)
-    CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env, error=error)
+    CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
     ! create the fm matrix Gamma
     CALL array2fm(Gamma_2D,dimen_ia,dimen_RI,para_env,blacs_env,proc_map,&
@@ -331,25 +329,25 @@ MODULE mp2_ri_grad_util
                   my_group_L_start,my_group_L_end,&
                   sizes,starts,ends,&
                   group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
-                  fm_Y,error)
+                  fm_Y)
     ! create the fm matrix B_ia_P
     CALL array2fm(BIb_C_2D,dimen_ia,dimen_RI,para_env,blacs_env,proc_map,&
                   my_ia_start,my_ia_end,&
                   my_group_L_start,my_group_L_end,&
                   sizes,starts,ends,&
                   group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
-                  fm_ia_P,error)
+                  fm_ia_P)
 
     ! create PQ_half
     ! get the ranges and info for the (P|Q)^(-1/2) matrix
     ALLOCATE(sizes_P(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     sizes_P=0
     ALLOCATE(starts_P(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     starts_P=0
     ALLOCATE(ends_P(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ends_P=0
     DO iproc=0, para_env_sub%num_pe-1
       itmp=get_limit(dimen_RI,para_env_sub%num_pe,iproc)
@@ -382,24 +380,24 @@ MODULE mp2_ri_grad_util
     ! since we will need (P|Q)^(-1/2) in the future, make a copy
     IF (alpha_case) THEN
        ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
        CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
             my_P_start,my_P_end,&
             my_group_L_start,my_group_L_end,&
             sizes,starts,ends,&
             group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
-            PQ_half,error)
+            PQ_half)
     ELSE
        ALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta(my_P_size,my_group_L_size),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        mp2_env%ri_grad%Gamma_PQ_beta(:,:)=mp2_env%ri_grad%PQ_half
        CALL array2fm(mp2_env%ri_grad%Gamma_PQ_beta,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
             my_P_start,my_P_end,&
             my_group_L_start,my_group_L_end,&
             sizes,starts,ends,&
             group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
-            PQ_half,error)
+            PQ_half)
     ENDIF
 
 
@@ -407,44 +405,44 @@ MODULE mp2_ri_grad_util
     NULLIFY(fm_Gamma)
     NULLIFY(fm_struct)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_ia,&
-                             ncol_global=dimen_RI,para_env=para_env,error=error)
+                             ncol_global=dimen_RI,para_env=para_env)
     ! for now we don't force the blocks
     ! CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=num_rows,&
     !                          ncol_global=num_cols,para_env=para_env,&
-    !                          nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.,error=error)
-    CALL cp_fm_create(fm_Gamma,fm_struct,name="fm_Gamma",error=error)
-    CALL cp_fm_set_all(matrix=fm_Gamma,alpha=0.0_dp,error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+    !                          nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
+    CALL cp_fm_create(fm_Gamma,fm_struct,name="fm_Gamma")
+    CALL cp_fm_set_all(matrix=fm_Gamma,alpha=0.0_dp)
+    CALL cp_fm_struct_release(fm_struct)
     ! perform the matrix multiplication
     CALL cp_gemm(transa="N",transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
                     matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp,&
-                    matrix_c=fm_Gamma, error=error)
+                    matrix_c=fm_Gamma)
     ! release the Y matrix
-    CALL cp_fm_release(fm_Y,error=error)
+    CALL cp_fm_release(fm_Y)
  
     ! complete gamma small (fm_Gamma_PQ)
     NULLIFY(fm_Gamma_PQ_temp)
     NULLIFY(fm_struct)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_RI,&
-                             ncol_global=dimen_RI,para_env=para_env,error=error)
+                             ncol_global=dimen_RI,para_env=para_env)
     ! create temp matrix
-    CALL cp_fm_create(fm_Gamma_PQ_temp,fm_struct,name="fm_Gamma_PQ_temp",error=error)
-    CALL cp_fm_set_all(matrix=fm_Gamma_PQ_temp,alpha=0.0_dp,error=error)
+    CALL cp_fm_create(fm_Gamma_PQ_temp,fm_struct,name="fm_Gamma_PQ_temp")
+    CALL cp_fm_set_all(matrix=fm_Gamma_PQ_temp,alpha=0.0_dp)
     CALL cp_gemm(transa="T",transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp,&
                     matrix_a=fm_Gamma, matrix_b=fm_ia_P, beta=0.0_dp,&
-                    matrix_c=fm_Gamma_PQ_temp, error=error)
-    CALL cp_fm_release(fm_ia_P,error=error)
+                    matrix_c=fm_Gamma_PQ_temp)
+    CALL cp_fm_release(fm_ia_P)
     ! create fm_Gamma_PQ matrix
-    CALL cp_fm_create(fm_Gamma_PQ,fm_struct,name="fm_Gamma_PQ",error=error) 
+    CALL cp_fm_create(fm_Gamma_PQ,fm_struct,name="fm_Gamma_PQ") 
     ! release the structure
-    CALL cp_fm_struct_release(fm_struct,error=error)
-    CALL cp_fm_set_all(matrix=fm_Gamma_PQ,alpha=0.0_dp,error=error)
+    CALL cp_fm_struct_release(fm_struct)
+    CALL cp_fm_set_all(matrix=fm_Gamma_PQ,alpha=0.0_dp)
     ! perfome matrix multiplication
     CALL cp_gemm(transa="N",transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
                     matrix_a=fm_Gamma_PQ_temp, matrix_b=PQ_half, beta=0.0_dp,&
-                    matrix_c=fm_Gamma_PQ, error=error)
-    CALL cp_fm_release(fm_Gamma_PQ_temp,error=error)
-    CALL cp_fm_release(PQ_half,error=error)
+                    matrix_c=fm_Gamma_PQ)
+    CALL cp_fm_release(fm_Gamma_PQ_temp)
+    CALL cp_fm_release(PQ_half)
 
     IF(.FALSE.) THEN
       ALLOCATE(Gamma_2D(dimen_ia,dimen_RI))
@@ -453,8 +451,7 @@ MODULE mp2_ri_grad_util
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
-                          col_indices=col_indices,&
-                          error=error)
+                          col_indices=col_indices)
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
@@ -472,8 +469,7 @@ MODULE mp2_ri_grad_util
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
-                          col_indices=col_indices,&
-                          error=error)
+                          col_indices=col_indices)
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
@@ -497,8 +493,7 @@ MODULE mp2_ri_grad_util
     ! END DO
     CALL cp_fm_get_info(matrix=fm_Gamma,&
                         nrow_local=nrow_local,&
-                        ncol_local=ncol_local,&
-                        error=error)
+                        ncol_local=ncol_local)
     sizes=0
     sizes(1,para_env%mepos)=nrow_local
     sizes(2,para_env%mepos)=ncol_local
@@ -511,13 +506,12 @@ MODULE mp2_ri_grad_util
                   my_group_L_size,my_group_L_start,my_group_L_end,&
                   sizes,group_grid_2_mepos,mepos_2_grid_group,&
                   para_env_sub%num_pe,ngroup,&
-                  fm_Gamma,error)
+                  fm_Gamma)
 
     ! the same for the Gamma_PQ matrix
     CALL cp_fm_get_info(matrix=fm_Gamma_PQ,&
                         nrow_local=nrow_local,&
-                        ncol_local=ncol_local,&
-                        error=error)
+                        ncol_local=ncol_local)
     sizes=0
     sizes(1,para_env%mepos)=nrow_local
     sizes(2,para_env%mepos)=ncol_local
@@ -528,14 +522,14 @@ MODULE mp2_ri_grad_util
                   my_group_L_size,my_group_L_start,my_group_L_end,&
                   sizes,group_grid_2_mepos,mepos_2_grid_group,&
                   para_env_sub%num_pe,ngroup,&
-                  fm_Gamma_PQ,error)
+                  fm_Gamma_PQ)
     ELSE
        CALL fm2array(mp2_env%ri_grad%Gamma_PQ_beta,dimen_RI,dimen_RI,para_env,proc_map,&
                   my_P_size,my_P_start,my_P_end,&
                   my_group_L_size,my_group_L_start,my_group_L_end,&
                   sizes,group_grid_2_mepos,mepos_2_grid_group,&
                   para_env_sub%num_pe,ngroup,&
-                  fm_Gamma_PQ,error)
+                  fm_Gamma_PQ)
     ENDIF
 
     IF(.FALSE.) THEN
@@ -568,7 +562,7 @@ MODULE mp2_ri_grad_util
     CALL create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
                             my_ia_start,my_ia_end,my_group_L_size,&
                             sizes_ia,starts_ia,ends_ia,&
-                            mp2_env,error,alpha_case)
+                            mp2_env,alpha_case)
 
 
     IF(.FALSE.) THEN
@@ -619,11 +613,11 @@ MODULE mp2_ri_grad_util
     DEALLOCATE(sizes,starts,ends)
 
     ! release fm_matrices
-    ! CALL cp_fm_release(fm_Gamma,error=error)
-    ! CALL cp_fm_release(fm_Gamma_PQ,error=error)
+    ! CALL cp_fm_release(fm_Gamma)
+    ! CALL cp_fm_release(fm_Gamma_PQ)
 
     ! release blacs_env
-    CALL cp_blacs_env_release(blacs_env,error=error)
+    CALL cp_blacs_env_release(blacs_env)
 
     CALL timestop(handle)
 
@@ -648,14 +642,13 @@ MODULE mp2_ri_grad_util
 !> \param ngroup_row ...
 !> \param ngroup_col ...
 !> \param fm_mat ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE array2fm(mat2D,num_rows,num_cols,para_env,blacs_env,proc_map,&
                       my_start_row,my_end_row,&
                       my_start_col,my_end_col,&
                       sizes,starts,ends,&
                       group_grid_2_mepos,ngroup_row,ngroup_col,&
-                      fm_mat,error)
+                      fm_mat)
 
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat2D
@@ -669,7 +662,6 @@ MODULE mp2_ri_grad_util
                                                 group_grid_2_mepos
     INTEGER                                  :: ngroup_row, ngroup_col
     TYPE(cp_fm_type), POINTER                :: fm_mat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'array2fm', &
       routineP = moduleN//':'//routineN
@@ -703,14 +695,14 @@ MODULE mp2_ri_grad_util
     NULLIFY(fm_mat)
     NULLIFY(fm_struct)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=num_rows,&
-                             ncol_global=num_cols,para_env=para_env,error=error)
+                             ncol_global=num_cols,para_env=para_env)
     ! for now we don't force the blocks
     ! CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=num_rows,&
     !                          ncol_global=num_cols,para_env=para_env,&
-    !                          nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.,error=error)
-    CALL cp_fm_create(fm_mat,fm_struct,name="fm_mat",error=error)
-    CALL cp_fm_set_all(matrix=fm_mat,alpha=0.0_dp,error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+    !                          nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
+    CALL cp_fm_create(fm_mat,fm_struct,name="fm_mat")
+    CALL cp_fm_set_all(matrix=fm_mat,alpha=0.0_dp)
+    CALL cp_fm_struct_release(fm_struct)
 
     ! start filling procedure
     ! fill the matrix
@@ -720,8 +712,7 @@ MODULE mp2_ri_grad_util
                         row_indices=row_indices,&
                         col_indices=col_indices,&
                         nrow_block=nrow_block,&
-                        ncol_block=ncol_block,&
-                        error=error)
+                        ncol_block=ncol_block)
     myprow=fm_mat%matrix_struct%context%mepos(1)
     mypcol=fm_mat%matrix_struct%context%mepos(2)
     nprow =fm_mat%matrix_struct%context%num_pe(1)
@@ -732,10 +723,10 @@ MODULE mp2_ri_grad_util
     !    and supporting infos
     CALL timeset(routineN//"_info",handle2)
     ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     grid_2_mepos=0
     ALLOCATE(mepos_2_grid(0:para_env%num_pe-1,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mepos_2_grid=0
     ! fill the info array
     grid_2_mepos(myprow,mypcol)=para_env%mepos
@@ -747,7 +738,7 @@ MODULE mp2_ri_grad_util
 
     ! 1) loop over my local data and define a map for the proc to send data
     ALLOCATE(map_send_size(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_send_size=0
     DO jjB=my_start_col, my_end_col
       send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
@@ -762,7 +753,7 @@ MODULE mp2_ri_grad_util
 
     ! 2) loop over my local data of fm_mat and define a map for the proc from which rec data
     ALLOCATE(map_rec_size(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_rec_size=0
     part_row=FLOAT(num_rows)/FLOAT(ngroup_row)
     part_col=FLOAT(num_cols)/FLOAT(ngroup_col)
@@ -830,12 +821,12 @@ MODULE mp2_ri_grad_util
     END DO
     ! allocate the structure that will hold the messages to be sent
     ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! grid_ref_2_send_pos is an array (map) that given a pair 
     ! (ref_send_prow,ref_send_pcol) returns
     ! the position in the buffer_send associated to that process
     ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     grid_ref_2_send_pos=0
     ! finalize the allocation of buffer_send with the actual size
     ! of each message (actual size is size_send_buffer)
@@ -847,7 +838,7 @@ MODULE mp2_ri_grad_util
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
         ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         buffer_send(send_counter)%msg=0.0_dp
         buffer_send(send_counter)%proc=proc_send
         ! get the pointer to prow, pcol of the process that has 
@@ -863,7 +854,7 @@ MODULE mp2_ri_grad_util
     ! for doing that we need an array that keep track if the 
     ! sequential increase of the index for each message
     ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     iii_vet=0
     DO iiB=my_start_row, my_end_row
       send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
@@ -900,7 +891,7 @@ MODULE mp2_ri_grad_util
     END DO
     
     ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     rec_counter=0
     DO proc_shift=1, para_env%num_pe-1
@@ -910,7 +901,7 @@ MODULE mp2_ri_grad_util
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
         ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         buffer_rec(rec_counter)%msg=0.0_dp
         buffer_rec(rec_counter)%proc=proc_receive
         ! post the message to be received
@@ -921,7 +912,7 @@ MODULE mp2_ri_grad_util
 
     ! send messages
     ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     send_counter=0
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
@@ -946,7 +937,7 @@ MODULE mp2_ri_grad_util
       my_num_row_blocks=my_num_row_blocks+1
     END DO
     ALLOCATE(blocks_ranges_row(2,my_num_row_blocks),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     blocks_ranges_row=0
     blocks_ranges_row(1,1)=row_indices(1)
     iii=1
@@ -964,7 +955,7 @@ MODULE mp2_ri_grad_util
       my_num_col_blocks=my_num_col_blocks+1
     END DO
     ALLOCATE(blocks_ranges_col(2,my_num_col_blocks),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     blocks_ranges_col=0
     blocks_ranges_col(1,1)=col_indices(1)
     iii=1
@@ -998,7 +989,7 @@ MODULE mp2_ri_grad_util
           END DO
         END DO
         ALLOCATE(index_col_rec(num_rec_cols),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         index_col_rec=0
         iii=0
         DO jjB=1, my_num_col_blocks
@@ -1083,14 +1074,13 @@ MODULE mp2_ri_grad_util
 !> \param ngroup_row ...
 !> \param ngroup_col ...
 !> \param fm_mat ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE fm2array(mat2D,num_rows,num_cols,para_env,proc_map,&
                       my_rows,my_start_row,my_end_row,&
                       my_cols,my_start_col,my_end_col,&
                       sizes,group_grid_2_mepos,mepos_2_grid_group,&
                       ngroup_row,ngroup_col,&
-                      fm_mat,error)
+                      fm_mat)
 
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat2D
@@ -1104,7 +1094,6 @@ MODULE mp2_ri_grad_util
                                                 mepos_2_grid_group
     INTEGER                                  :: ngroup_row, ngroup_col
     TYPE(cp_fm_type), POINTER                :: fm_mat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm2array', &
       routineP = moduleN//':'//routineN
@@ -1133,7 +1122,7 @@ MODULE mp2_ri_grad_util
 
     ! allocate the array
     ALLOCATE(mat2D(my_rows,my_cols),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mat2D=0.0_dp
 
     ! start procedure
@@ -1144,8 +1133,7 @@ MODULE mp2_ri_grad_util
                         row_indices=row_indices,&
                         col_indices=col_indices,&
                         nrow_block=nrow_block,&
-                        ncol_block=ncol_block,&
-                        error=error)
+                        ncol_block=ncol_block)
     myprow=fm_mat%matrix_struct%context%mepos(1)
     mypcol=fm_mat%matrix_struct%context%mepos(2)
     nprow =fm_mat%matrix_struct%context%num_pe(1)
@@ -1156,13 +1144,13 @@ MODULE mp2_ri_grad_util
     !    and supporting infos
     CALL timeset(routineN//"_info",handle2)
     ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     grid_2_mepos=0
     ALLOCATE(mepos_2_grid(0:para_env%num_pe-1,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mepos_2_grid=0
     ! ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
-    ! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! mepos_2_grid_group=0
     ! fill the info array
     grid_2_mepos(myprow,mypcol)=para_env%mepos
@@ -1175,7 +1163,7 @@ MODULE mp2_ri_grad_util
 
     ! 1) loop over my local data and define a map for the proc to send data
     ALLOCATE(map_send_size(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_send_size=0
     part_row=FLOAT(num_rows)/FLOAT(ngroup_row)
     part_col=FLOAT(num_cols)/FLOAT(ngroup_col)   
@@ -1218,7 +1206,7 @@ MODULE mp2_ri_grad_util
 
     ! 2) loop over my local data of the array and define a map for the proc from which rec data
     ALLOCATE(map_rec_size(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_rec_size=0
     DO jjB=my_start_col, my_end_col
       rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
@@ -1259,14 +1247,14 @@ MODULE mp2_ri_grad_util
     END DO
     ! allocate the structure that will hold the messages to be sent
     ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)   
     ! grid_ref_2_send_pos is an array (map) that given a pair 
     ! (ref_send_prow,ref_send_pcol) returns
     ! the position in the buffer_send associated to that process
 
     ! ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
     ALLOCATE(grid_ref_2_send_pos(0:ngroup_row-1,0:ngroup_col-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     grid_ref_2_send_pos=0
 
     ! finalize the allocation of buffer_send with the actual size
@@ -1279,7 +1267,7 @@ MODULE mp2_ri_grad_util
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
         ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         buffer_send(send_counter)%msg=0.0_dp
         buffer_send(send_counter)%proc=proc_send
         ! get the pointer to prow, pcol of the process that has 
@@ -1295,7 +1283,7 @@ MODULE mp2_ri_grad_util
     ! for doing that we need an array that keep track if the 
     ! sequential increase of the index for each message
     ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     iii_vet=0
     DO jjB=1, ncol_local
       j_global=col_indices(jjB)
@@ -1335,7 +1323,7 @@ MODULE mp2_ri_grad_util
 
     DEALLOCATE(iii_vet)
     DEALLOCATE(grid_ref_2_send_pos)
-    ! CALL cp_fm_release(fm_mat,error=error)
+    ! CALL cp_fm_release(fm_mat)
     CALL timestop(handle2)
 
     ! 5) similarly to what done for the buffer_send 
@@ -1352,7 +1340,7 @@ MODULE mp2_ri_grad_util
     END DO
 
     ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     
     rec_counter=0
     DO proc_shift=1, para_env%num_pe-1
@@ -1362,7 +1350,7 @@ MODULE mp2_ri_grad_util
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
         ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         buffer_rec(rec_counter)%msg=0.0_dp
         buffer_rec(rec_counter)%proc=proc_receive
         ! post the message to be received
@@ -1373,7 +1361,7 @@ MODULE mp2_ri_grad_util
 
     ! send messages
     ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     send_counter=0
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
@@ -1391,7 +1379,7 @@ MODULE mp2_ri_grad_util
     CALL timeset(routineN//"_fill",handle2)
     iiB=MAXVAL(sizes(1,:))
     ALLOCATE(index_row_rec(iiB),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     index_row_rec=0
     rec_counter=0
     DO proc_shift=1, para_env%num_pe-1
@@ -1435,7 +1423,7 @@ MODULE mp2_ri_grad_util
     END DO
     DEALLOCATE(buffer_rec)
     DEALLOCATE(index_row_rec)
-    CALL cp_fm_release(fm_mat,error=error)
+    CALL cp_fm_release(fm_mat)
     CALL timestop(handle2)
 
     ! 7) Finally wait for all messeges to be sent
@@ -1466,13 +1454,12 @@ MODULE mp2_ri_grad_util
 !> \param starts_ia ...
 !> \param ends_ia ...
 !> \param mp2_env ...
-!> \param error ...
 !> \param alpha_case ...
 ! *****************************************************************************
   SUBROUTINE create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
                                 my_ia_start,my_ia_end,my_group_L_size,&
                                 sizes_ia,starts_ia,ends_ia,&
-                                mp2_env,error,alpha_case)
+                                mp2_env,alpha_case)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Gamma_2D
     INTEGER                                  :: homo, virtual, dimen_ia
@@ -1482,7 +1469,6 @@ MODULE mp2_ri_grad_util
                                                 my_group_L_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_ia, starts_ia, ends_ia
     TYPE(mp2_type), POINTER                  :: mp2_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: alpha_case
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma', &
@@ -1520,27 +1506,27 @@ MODULE mp2_ri_grad_util
     IF (alpha_case) THEN
        NULLIFY(mp2_env%ri_grad%G_P_ia)
        CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia, &
-            my_group_L_size,error=error)
+            my_group_L_size)
     ELSE
        NULLIFY(mp2_env%ri_grad%G_P_ia_beta)
        CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia_beta, &
-            my_group_L_size,error=error)
+            my_group_L_size)
     ENDIF
 
     ! create sub blacs env
     NULLIFY(blacs_env)
-    CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_sub, error=error)
+    CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_sub)
 
     ! create the fm_ia buffer matrix
     NULLIFY(fm_ia)
     NULLIFY(fm_struct)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=homo,&
-                             ncol_global=virtual,para_env=para_env_sub,error=error)
-    CALL cp_fm_create(fm_ia,fm_struct,name="fm_ia",error=error)
+                             ncol_global=virtual,para_env=para_env_sub)
+    CALL cp_fm_create(fm_ia,fm_struct,name="fm_ia")
     ! release structure 
-    CALL cp_fm_struct_release(fm_struct,error=error)   
+    CALL cp_fm_struct_release(fm_struct)   
     ! release blacs_env
-    CALL cp_blacs_env_release(blacs_env,error=error)
+    CALL cp_blacs_env_release(blacs_env)
 
     ! get array information
     CALL cp_fm_get_info(matrix=fm_ia,&
@@ -1549,8 +1535,7 @@ MODULE mp2_ri_grad_util
                         row_indices=row_indices,&
                         col_indices=col_indices,&
                         nrow_block=nrow_block,&
-                        ncol_block=ncol_block,&
-                        error=error)
+                        ncol_block=ncol_block)
     myprow=fm_ia%matrix_struct%context%mepos(1)
     mypcol=fm_ia%matrix_struct%context%mepos(2)
     nprow =fm_ia%matrix_struct%context%num_pe(1)
@@ -1558,10 +1543,10 @@ MODULE mp2_ri_grad_util
 
     ! 0) create array containing the processes position and supporting infos
     ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     grid_2_mepos=0
     ALLOCATE(mepos_2_grid(0:para_env_sub%num_pe-1,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mepos_2_grid=0
     ! fill the info array
     grid_2_mepos(myprow,mypcol)=para_env_sub%mepos
@@ -1573,7 +1558,7 @@ MODULE mp2_ri_grad_util
 
     ! loop over local index range and define the sending map
     ALLOCATE(map_send_size(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_send_size=0   
     DO iaia=my_ia_start, my_ia_end
       i_global=(iaia-1)/virtual+1
@@ -1588,7 +1573,7 @@ MODULE mp2_ri_grad_util
 
     ! loop over local data of fm_ia and define the receiving map
     ALLOCATE(map_rec_size(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_rec_size=0
     part_ia=FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
 
@@ -1620,10 +1605,10 @@ MODULE mp2_ri_grad_util
     END DO
     ! allocate the structure that will hold the messages to be sent
     ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure) 
     ! and the map from the grid of processess to the message position
     ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     grid_ref_2_send_pos=0
     ! finally allocate each message
     send_counter=0
@@ -1634,7 +1619,7 @@ MODULE mp2_ri_grad_util
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
         ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         buffer_send(send_counter)%proc=proc_send
         ! get the pointer to prow, pcol of the process that has 
         ! to receive this message
@@ -1657,9 +1642,9 @@ MODULE mp2_ri_grad_util
     ! allocate the structure that will hold the messages to be received
     ! and relative indeces
     ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(indeces_rec(number_of_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! finally allocate each message and fill the array of indeces
     rec_counter=0
     DO proc_shift=1, para_env_sub%num_pe-1
@@ -1669,11 +1654,11 @@ MODULE mp2_ri_grad_util
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
         ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         buffer_rec(rec_counter)%proc=proc_receive
         ! create the indeces array
         ALLOCATE(indeces_rec(rec_counter)%map(2,size_rec_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         indeces_rec(rec_counter)%map=0
         rec_iaia_start=starts_ia(proc_receive)
         rec_iaia_end=ends_ia(proc_receive)
@@ -1701,7 +1686,7 @@ MODULE mp2_ri_grad_util
     IF(map_rec_size(para_env_sub%mepos)>0) THEN
       size_rec_buffer=map_rec_size(para_env_sub%mepos)
       ALLOCATE(indeces_map_my(2,size_rec_buffer),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       indeces_map_my=0
       iii=0
       DO iaia=my_ia_start, my_ia_end
@@ -1724,15 +1709,15 @@ MODULE mp2_ri_grad_util
 
     ! auxiliary vector of indeces for the send buffer
     ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! vector for the send requests
     ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! loop over auxiliary basis function and redistribute into a fm
     ! and then compy the fm into a dbcsr matrix
     DO kkB=1, my_group_L_size
       ! zero the matries of the buffers and post the messages to be received
-      CALL cp_fm_set_all(matrix=fm_ia,alpha=0.0_dp,error=error)
+      CALL cp_fm_set_all(matrix=fm_ia,alpha=0.0_dp)
       rec_counter=0
       DO proc_shift=1, para_env_sub%num_pe-1
         proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
@@ -1806,18 +1791,18 @@ MODULE mp2_ri_grad_util
       ! now create the DBCSR matrix and copy fm_ia into it
       IF (alpha_case) THEN
         ALLOCATE(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
-        CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix,error=error)
+        CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
         CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix, &
              template=mp2_env%ri_grad%mo_coeff_o,&
-             m=homo,n=virtual, sym=dbcsr_type_no_symmetry,error=error)
-        CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia(kkB)%matrix,keep_sparsity=.FALSE.,error=error)
+             m=homo,n=virtual, sym=dbcsr_type_no_symmetry)
+        CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia(kkB)%matrix,keep_sparsity=.FALSE.)
       ELSE 
         ALLOCATE(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
-        CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix,error=error)
+        CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
         CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, &
              template=mp2_env%ri_grad%mo_coeff_o_beta,&
-             m=homo,n=virtual, sym=dbcsr_type_no_symmetry,error=error)
-        CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix,keep_sparsity=.FALSE.,error=error)
+             m=homo,n=virtual, sym=dbcsr_type_no_symmetry)
+        CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix,keep_sparsity=.FALSE.)
       ENDIF
 
     END DO
@@ -1845,7 +1830,7 @@ MODULE mp2_ri_grad_util
     DEALLOCATE(mepos_2_grid)
 
     ! release buffer matrix
-    CALL cp_fm_release(fm_ia,error=error)
+    CALL cp_fm_release(fm_ia)
 
     CALL timestop(handle)
 

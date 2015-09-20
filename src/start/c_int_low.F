@@ -49,13 +49,11 @@ SUBROUTINE cp_create_fenv(new_env_id,input_file_path,output_file_path,&
   USE f77_interface,                   ONLY: create_force_env
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_type, section_release
-  USE cp_error_handling,               ONLY: cp_error_type
   USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
   USE kinds,                           ONLY: default_path_length
 
   IMPLICIT NONE
 
-  TYPE(cp_error_type)                  :: error
   TYPE(section_type), POINTER          :: input_declaration
   CHARACTER(len=1,kind=c_char)         :: input_file_path(*), output_file_path(*)
   INTEGER(c_int)                       :: new_env_id, ierr
@@ -75,9 +73,9 @@ SUBROUTINE cp_create_fenv(new_env_id,input_file_path,output_file_path,&
   END DO
 
   NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_cp2k_root_section(input_declaration)
   CALL create_force_env(new_env_id,input_declaration,ifp,ofp,ierr=ierr)
-  CALL section_release(input_declaration,error=error)
+  CALL section_release(input_declaration)
 END SUBROUTINE cp_create_fenv
 
 ! *****************************************************************************
@@ -93,13 +91,11 @@ SUBROUTINE cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
   USE f77_interface,                   ONLY: create_force_env
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_type, section_release
-  USE cp_error_handling,               ONLY: cp_error_type
   USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
   USE kinds,                           ONLY: default_path_length
 
   IMPLICIT NONE
 
-  TYPE(cp_error_type)                  :: error
   TYPE(section_type), POINTER          :: input_declaration
   CHARACTER(len=1,kind=c_char)         :: input_file_path(*), output_file_path(*)
   INTEGER(c_int)                       :: new_env_id, mpi_comm, ierr
@@ -119,9 +115,9 @@ SUBROUTINE cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
   END DO
 
   NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_cp2k_root_section(input_declaration)
   CALL create_force_env(new_env_id,input_declaration,ifp,ofp,mpi_comm,ierr=ierr)
-  CALL section_release(input_declaration,error=error)
+  CALL section_release(input_declaration)
 END SUBROUTINE cp_create_fenv_comm
 
 ! *****************************************************************************
@@ -402,13 +398,11 @@ SUBROUTINE cp_run_input(input_file_path,output_file_path,ierr) BIND(C,name="cp_c
   USE cp2k_runs,                       ONLY: run_input
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_type, section_release
-  USE cp_error_handling,               ONLY: cp_error_type
   USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
   USE kinds,                           ONLY: default_path_length
 
   IMPLICIT NONE
 
-  TYPE(cp_error_type)                  :: error
   TYPE(section_type), POINTER          :: input_declaration
   CHARACTER(len=1,kind=c_char)         :: input_file_path(*), output_file_path(*)
   INTEGER(c_int)                       :: ierr
@@ -428,9 +422,9 @@ SUBROUTINE cp_run_input(input_file_path,output_file_path,ierr) BIND(C,name="cp_c
   END DO
 
   NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_cp2k_root_section(input_declaration)
   CALL run_input(input_declaration,ifp,ofp,ierr=ierr)
-  CALL section_release(input_declaration,error=error)
+  CALL section_release(input_declaration)
 END SUBROUTINE cp_run_input
 
 ! *****************************************************************************
@@ -445,13 +439,11 @@ RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
   USE cp2k_runs,                       ONLY: run_input
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_type, section_release
-  USE cp_error_handling,               ONLY: cp_error_type
   USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
   USE kinds,                           ONLY: default_path_length
 
   IMPLICIT NONE
 
-  TYPE(cp_error_type)                  :: error
   TYPE(section_type), POINTER          :: input_declaration
   CHARACTER(len=1,kind=c_char)         :: input_file_path(*), output_file_path(*)
   INTEGER(c_int)                       :: mpi_comm, ierr
@@ -471,9 +463,9 @@ RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
   END DO
 
   NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_cp2k_root_section(input_declaration)
   CALL run_input(input_declaration,ifp,ofp,ierr,mpi_comm)
-  CALL section_release(input_declaration,error=error)
+  CALL section_release(input_declaration)
 END SUBROUTINE cp_run_input_comm
 
 ! *****************************************************************************
@@ -508,7 +500,6 @@ END SUBROUTINE cp_do_shake
 SUBROUTINE cp_c_ext_method_set_ptr(f_env_id,func,ierr) BIND(C,name="cp_c_ext_method_set_ptr")
   USE               ISO_C_BINDING,     ONLY: c_int, c_funptr
   USE f77_interface,                   ONLY: f_env_add_defaults, f_env_rm_defaults, f_env_type 
-  USE cp_error_handling,               ONLY: cp_error_type
   USE force_env_types,                 ONLY: force_env_get, use_qs_force
 
   IMPLICIT NONE
@@ -517,17 +508,16 @@ SUBROUTINE cp_c_ext_method_set_ptr(f_env_id,func,ierr) BIND(C,name="cp_c_ext_met
   INTEGER(c_int)                       :: ierr
   INTEGER(c_int)                       :: f_env_id
   LOGICAL                              :: failure
-  TYPE(cp_error_type)                  :: error
   TYPE(f_env_type), POINTER            :: f_env
   INTEGER                              :: in_use
 
   failure = .FALSE.
   NULLIFY (f_env)
-  CALL f_env_add_defaults(f_env_id,f_env,error,failure)
-  CALL force_env_get(f_env%force_env,in_use=in_use,error=error)
+  CALL f_env_add_defaults(f_env_id,f_env,failure)
+  CALL force_env_get(f_env%force_env,in_use=in_use)
   IF (in_use .EQ. use_qs_force) THEN
       f_env%force_env%qs_env%transport_env%ext_c_method_ptr = func
   END IF
-  CALL f_env_rm_defaults(f_env,error,ierr) 
+  CALL f_env_rm_defaults(f_env,ierr) 
 END SUBROUTINE cp_c_ext_method_set_ptr
 

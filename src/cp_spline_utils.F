@@ -50,18 +50,14 @@ CONTAINS
 !> \param pw_coarse_out the coarse grid
 !> \param coarse_pool ...
 !> \param param_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      extremely slow (but correct) version
 ! *****************************************************************************
-  SUBROUTINE pw_restrict_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
-       error)
+  SUBROUTINE pw_restrict_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section)
     TYPE(pw_type), POINTER                   :: pw_fine_in, pw_coarse_out
     TYPE(pw_pool_type), POINTER              :: coarse_pool
     TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_s3', &
       routineP = moduleN//':'//routineN
@@ -81,71 +77,71 @@ CONTAINS
     ifile=ifile+1
     CALL timeset(routineN,handle)
     CALL section_vals_val_get(param_section,"safe_computation", &
-         l_val=safe_computation, error=error)
+         l_val=safe_computation)
     CALL section_vals_val_get(param_section,"aint_precond", &
-         i_val=aint_precond, error=error)
+         i_val=aint_precond)
     CALL section_vals_val_get(param_section,"precond", &
-         i_val=precond_kind, error=error)
+         i_val=precond_kind)
     CALL section_vals_val_get(param_section,"max_iter", &
-         i_val=max_iter, error=error)
+         i_val=max_iter)
     CALL section_vals_val_get(param_section,"eps_r", &
-         r_val=eps_r, error=error)
+         r_val=eps_r)
     CALL section_vals_val_get(param_section,"eps_x", &
-         r_val=eps_x, error=error)
+         r_val=eps_x)
     CALL section_vals_val_get(param_section,"kind",&
-         i_val=interp_kind, error=error)
+         i_val=interp_kind)
 
     pbc=(interp_kind==spline3_pbc_interp)
-    CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,failure)
     bo=pw_coarse_out%pw_grid%bounds_local
     NULLIFY(values,coeffs)
     CALL pw_pool_create_pw(coarse_pool,values, use_data=REALDATA3D,&
-         in_space=REALSPACE,error=error)
-    CALL pw_zero(values,error=error)
+         in_space=REALSPACE)
+    CALL pw_zero(values)
 
 !FM       nullify(tst_pw)
 !FM       CALL pw_pool_create_pw(coarse_pool,tst_pw, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE,error=error)
-!FM       call pw_copy(values,tst_pw,error=error)
+!FM            in_space=REALSPACE)
+!FM       call pw_copy(values,tst_pw)
 !FM       call add_fine2coarse(fine_values_pw=pw_fine_in,&
 !FM            coarse_coeffs_pw=tst_pw,&
 !FM            weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
 !FM            w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
-!FM            safe_computation=.false.,error=error)
+!FM            safe_computation=.false.)
 
     CALL add_fine2coarse(fine_values_pw=pw_fine_in,&
          coarse_coeffs_pw=values,&
          weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
          w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
-         safe_computation=safe_computation,error=error)
+         safe_computation=safe_computation)
 
-!FM       CALL pw_compare_debug(tst_pw,values,max_diff,error=error)
+!FM       CALL pw_compare_debug(tst_pw,values,max_diff)
 !FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"f2cmax_diff=",max_diff
-!FM       CALL pw_pool_give_back_pw(coarse_pool,tst_pw,error=error)
+!FM       CALL pw_pool_give_back_pw(coarse_pool,tst_pw)
 
     CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
-         in_space=REALSPACE,error=error)
+         in_space=REALSPACE)
     NULLIFY(precond)
     CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-         pool=coarse_pool,pbc=pbc,transpose=.TRUE.,error=error)
-    CALL pw_spline_do_precond(precond,values,coeffs,error=error)
-    CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+         pool=coarse_pool,pbc=pbc,transpose=.TRUE.)
+    CALL pw_spline_do_precond(precond,values,coeffs)
+    CALL pw_spline_precond_set_kind(precond,precond_kind)
     IF (pbc) THEN
        success=find_coeffs(values=values,coeffs=coeffs,&
             linOp=spl3_pbc,preconditioner=precond, pool=coarse_pool, &
-            eps_r=eps_r,eps_x=eps_x, max_iter=max_iter,error=error)
+            eps_r=eps_r,eps_x=eps_x, max_iter=max_iter)
     ELSE
        success=find_coeffs(values=values,coeffs=coeffs,&
             linOp=spl3_nopbct,preconditioner=precond, pool=coarse_pool, &
-            eps_r=eps_r,eps_x=eps_x, max_iter=max_iter,error=error)
+            eps_r=eps_r,eps_x=eps_x, max_iter=max_iter)
     END IF
-    CALL pw_spline_precond_release(precond,error=error)
+    CALL pw_spline_precond_release(precond)
 
-    CALL pw_zero(pw_coarse_out,error=error)
-    CALL pw_axpy(coeffs,pw_coarse_out,error=error)
+    CALL pw_zero(pw_coarse_out)
+    CALL pw_axpy(coeffs,pw_coarse_out)
 
-    CALL pw_pool_give_back_pw(coarse_pool,values,error=error)
-    CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
+    CALL pw_pool_give_back_pw(coarse_pool,values)
+    CALL pw_pool_give_back_pw(coarse_pool,coeffs)
     CALL timestop(handle)
   END SUBROUTINE pw_restrict_s3
 
@@ -155,18 +151,15 @@ CONTAINS
 !> \param pw_fine_out the fine grid
 !> \param coarse_pool ...
 !> \param param_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      extremely slow (but correct) version
 ! *****************************************************************************
   SUBROUTINE pw_prolongate_s3(pw_coarse_in,pw_fine_out,coarse_pool,&
-       param_section,error)
+       param_section)
     TYPE(pw_type), POINTER                   :: pw_coarse_in, pw_fine_out
     TYPE(pw_pool_type), POINTER              :: coarse_pool
     TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_s3', &
       routineP = moduleN//':'//routineN
@@ -188,69 +181,68 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(coeffs)
     CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
-         in_space=REALSPACE,error=error)
+         in_space=REALSPACE)
     bo=pw_coarse_in%pw_grid%bounds_local
     CALL section_vals_val_get(param_section,"safe_computation", &
-         l_val=safe_computation, error=error)
+         l_val=safe_computation)
     CALL section_vals_val_get(param_section,"aint_precond", &
-         i_val=aint_precond, error=error)
+         i_val=aint_precond)
     CALL section_vals_val_get(param_section,"precond", &
-         i_val=precond_kind, error=error)
+         i_val=precond_kind)
     CALL section_vals_val_get(param_section,"max_iter", &
-         i_val=max_iter, error=error)
+         i_val=max_iter)
     CALL section_vals_val_get(param_section,"eps_r", &
-         r_val=eps_r, error=error)
+         r_val=eps_r)
     CALL section_vals_val_get(param_section,"eps_x", &
-         r_val=eps_x, error=error)
+         r_val=eps_x)
     CALL section_vals_val_get(param_section,"kind",&
-         i_val=interp_kind,error=error)
+         i_val=interp_kind)
 
     pbc=(interp_kind==spline3_pbc_interp)
-    CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,failure)
     NULLIFY(precond)
     CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-         pool=coarse_pool,pbc=pbc,transpose=.FALSE.,error=error)
-    CALL pw_spline_do_precond(precond,pw_coarse_in,coeffs,error=error)
-    CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+         pool=coarse_pool,pbc=pbc,transpose=.FALSE.)
+    CALL pw_spline_do_precond(precond,pw_coarse_in,coeffs)
+    CALL pw_spline_precond_set_kind(precond,precond_kind)
     IF (pbc) THEN
        success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
             linOp=spl3_pbc,preconditioner=precond, pool=coarse_pool, &
             eps_r=eps_r,eps_x=eps_x,&
-            max_iter=max_iter,error=error)
+            max_iter=max_iter)
     ELSE
        success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
             linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
             eps_r=eps_r,eps_x=eps_x,&
-            max_iter=max_iter,error=error)
+            max_iter=max_iter)
     END IF
-    CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-    CALL pw_spline_precond_release(precond,error=error)
+    CPPostconditionNoFail(success,cp_warning_level,routineP)
+    CALL pw_spline_precond_release(precond)
 
 !FM       nullify(tst_pw)
 !FM       call pw_create(tst_pw, pw_fine_out%pw_grid, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE, error=error)
-!FM       call pw_copy(pw_fine_out,tst_pw,error=error)
+!FM            in_space=REALSPACE)
+!FM       call pw_copy(pw_fine_out,tst_pw)
 !FM       CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
 !FM            fine_values_pw=tst_pw,&
 !FM            weights_1d=spl3_1d_transf_coeffs,&
 !FM            w_border0=1._dp,&
 !FM            w_border1=spl3_1d_transf_border1,&
 !FM            pbc=pbc,safe_computation=.false.,&
-!FM            error=error)
+!FM            
 
     CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
          fine_values_pw=pw_fine_out,&
          weights_1d=spl3_1d_transf_coeffs,&
          w_border0=1._dp,&
          w_border1=spl3_1d_transf_border1,&
-         pbc=pbc,safe_computation=safe_computation,&
-         error=error)
+         pbc=pbc,safe_computation=safe_computation)
 
-!FM       CALL pw_compare_debug(tst_pw,pw_fine_out,max_diff,error=error)
+!FM       CALL pw_compare_debug(tst_pw,pw_fine_out,max_diff)
 !FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"c2fmax_diff=",max_diff
-!FM       CALL pw_release(tst_pw,error=error)
+!FM       CALL pw_release(tst_pw)
 
-    CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
+    CALL pw_pool_give_back_pw(coarse_pool,coeffs)
 
     CALL timestop(handle)
   END SUBROUTINE pw_prolongate_s3

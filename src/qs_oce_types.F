@@ -52,13 +52,11 @@ CONTAINS
 !> \brief   Allocate and initialize the matrix set of oce coefficients.
 !> \param oce_set ...
 !> \param nkind ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_oce_set(oce_set,nkind,error)
+  SUBROUTINE allocate_oce_set(oce_set,nkind)
     TYPE(oce_matrix_type), POINTER           :: oce_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_oce_set', &
       routineP = moduleN//':'//routineN
@@ -69,7 +67,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(oce_set%intac(nkind*nkind),STAT=istat)
-    CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_warning_level,routineP,failure)
     DO i=1,nkind*nkind
       NULLIFY(oce_set%intac(i)%alist)
       NULLIFY(oce_set%intac(i)%asort)
@@ -81,19 +79,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param oce_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_oce_set(oce_set,error)
+  SUBROUTINE create_oce_set(oce_set)
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_oce_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
-    IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set,error=error)
+    IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
 
     ALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"oce_set",0)
@@ -105,14 +101,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Deallocate the matrix set of oce coefficients
 !> \param oce_set ...
-!> \param error ...
 !> \date
 !> \author
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_oce_set(oce_set,error)
+  SUBROUTINE deallocate_oce_set(oce_set)
     TYPE(oce_matrix_type), POINTER           :: oce_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_oce_set', &
       routineP = moduleN//':'//routineN
@@ -121,7 +115,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
 
-    IF(ASSOCIATED(oce_set%intac)) CALL release_sap_int(oce_set%intac,error=error)
+    IF(ASSOCIATED(oce_set%intac)) CALL release_sap_int(oce_set%intac)
 
     DEALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

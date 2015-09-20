@@ -49,17 +49,15 @@ CONTAINS
 !> \brief Reads the POISSON input-section and into pw_poisson_parameter_type.
 !> \param poisson_section ...
 !> \param params ...
-!> \param error ...
 !> \par History
 !>      01.2014 Code moved into separate module from pw_poisson_types,
 !>              pw_poisson_methods and ps_wavelet_types.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE pw_poisson_read_parameters(poisson_section, params, error)
+  SUBROUTINE pw_poisson_read_parameters(poisson_section, params)
     TYPE(section_vals_type), POINTER         :: poisson_section
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -72,42 +70,42 @@ CONTAINS
     NULLIFY(ewald_section, mt_section, wavelet_section)
     failure=.FALSE.
 
-    CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=params%solver,error=error)
+    CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=params%solver)
 
     ! Decoding PERIODIC depending on chosen solver,
     ! because not all solvers support every possible periodicity
-    CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=periodic,error=error)
+    CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=periodic)
     SELECT CASE (params%solver)
       CASE(pw_poisson_periodic,pw_poisson_analytic,pw_poisson_mt,pw_poisson_multipole)
-         CALL decode_periodic_green(periodic, params, error)
+         CALL decode_periodic_green(periodic, params)
       CASE(pw_poisson_wavelet)
-         CALL decode_periodic_wavelet(periodic, params, error)
+         CALL decode_periodic_wavelet(periodic, params)
       CASE(pw_poisson_implicit)
       CASE(pw_poisson_none)
       CASE default
-         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     ! parsing EWALD subsection
     params%ewald_type = do_ewald_none
-    ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD", can_return_null=.TRUE., error=error)
+    ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD", can_return_null=.TRUE.)
     IF ( ASSOCIATED(ewald_section) ) THEN
-         CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=params%ewald_type,error=error)
-         CALL section_vals_val_get(ewald_section,"o_spline", i_val=params%ewald_o_spline,error=error)
-         CALL section_vals_val_get(ewald_section,"alpha",r_val=params%ewald_alpha,error=error)
+         CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=params%ewald_type)
+         CALL section_vals_val_get(ewald_section,"o_spline", i_val=params%ewald_o_spline)
+         CALL section_vals_val_get(ewald_section,"alpha",r_val=params%ewald_alpha)
     ENDIF
 
     ! parsing MT subsection
-    mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
-    CALL section_vals_val_get(mt_section,"REL_CUTOFF",r_val=params%mt_rel_cutoff,error=error)
-    CALL section_vals_val_get(mt_section,"ALPHA",r_val=params%mt_alpha,error=error)
+    mt_section => section_vals_get_subs_vals(poisson_section,"MT")
+    CALL section_vals_val_get(mt_section,"REL_CUTOFF",r_val=params%mt_rel_cutoff)
+    CALL section_vals_val_get(mt_section,"ALPHA",r_val=params%mt_alpha)
 
     ! parsing WAVELET subsection
-    wavelet_section => section_vals_get_subs_vals(poisson_section,"WAVELET",error=error)
-    CALL section_vals_val_get(wavelet_section,"SCF_TYPE",i_val=params%wavelet_scf_type,error=error)
+    wavelet_section => section_vals_get_subs_vals(poisson_section,"WAVELET")
+    CALL section_vals_val_get(wavelet_section,"SCF_TYPE",i_val=params%wavelet_scf_type)
 
     ! parsing IMPLICIT subsection
-    CALL ps_implicit_read_parameters(poisson_section, params, error)
+    CALL ps_implicit_read_parameters(poisson_section, params)
 
   END SUBROUTINE pw_poisson_read_parameters
 
@@ -115,14 +113,12 @@ CONTAINS
 !> \brief Helper routien for pw_poisson_read_parameters
 !> \param periodic ...
 !> \param params ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE decode_periodic_green(periodic, params, error)
+  SUBROUTINE decode_periodic_green(periodic, params)
     INTEGER, INTENT(IN)                      :: periodic
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_green', &
       routineP = moduleN//':'//routineN
@@ -149,10 +145,10 @@ CONTAINS
       CASE(use_perd_none)
          params%periodic = (/0,0,0/)
       CASE DEFAULT
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
     ! check for consistent use of periodicity (cell <-> Poisson solver)
-    !CPPostcondition(ALL(perd == cell%perd),cp_fatal_level,routineP,error,failure)
+    !CPPostcondition(ALL(perd == cell%perd),cp_fatal_level,routineP,failure)
 
   END SUBROUTINE decode_periodic_green
 
@@ -161,14 +157,12 @@ CONTAINS
 !> \brief Helper routien for pw_poisson_read_parameters
 !> \param periodic ...
 !> \param params ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE decode_periodic_wavelet(periodic, params, error)
+  SUBROUTINE decode_periodic_wavelet(periodic, params)
     INTEGER, INTENT(IN)                      :: periodic
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_wavelet', &
       routineP = moduleN//':'//routineN
@@ -193,9 +187,9 @@ CONTAINS
     CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_yz)
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "Poisson solver for this periodicity not yet implemented",&
-            error=error,failure=failure)
+            failure=failure)
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE decode_periodic_wavelet
@@ -205,16 +199,14 @@ CONTAINS
 !>        pw_poisson_parameter_type
 !> \param poisson_section poisson section to be read from input
 !> \param params poisson_env parameters 
-!> \param error  cp2k error 
 !> \par History
 !>      08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_read_parameters(poisson_section, params, error)
+  SUBROUTINE ps_implicit_read_parameters(poisson_section, params)
     TYPE(section_vals_type), POINTER         :: poisson_section
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -227,24 +219,24 @@ CONTAINS
     NULLIFY(ps_implicit_section, dielectric_section, dbc_section)
 
     ! parsing IMPLICIT subsection
-    ps_implicit_section => section_vals_get_subs_vals(poisson_section, "IMPLICIT", error=error)
+    ps_implicit_section => section_vals_get_subs_vals(poisson_section, "IMPLICIT")
     CALL section_vals_val_get(ps_implicit_section, "BOUNDARY_CONDITIONS", &
-                              i_val=params%ps_implicit_params%boundary_condition, error=error)
+                              i_val=params%ps_implicit_params%boundary_condition)
     CALL section_vals_val_get(ps_implicit_section, "ZERO_INITIAL_GUESS", &
-                              l_val=params%ps_implicit_params%zero_initial_guess, error=error)
-    CALL section_vals_val_get(ps_implicit_section, "max_iter", i_val=params%ps_implicit_params%max_iter, error=error)
-    CALL section_vals_val_get(ps_implicit_section, "tol", r_val=params%ps_implicit_params%tol, error=error)
-    CALL section_vals_val_get(ps_implicit_section, "omega", r_val=params%ps_implicit_params%omega, error=error)
+                              l_val=params%ps_implicit_params%zero_initial_guess)
+    CALL section_vals_val_get(ps_implicit_section, "max_iter", i_val=params%ps_implicit_params%max_iter)
+    CALL section_vals_val_get(ps_implicit_section, "tol", r_val=params%ps_implicit_params%tol)
+    CALL section_vals_val_get(ps_implicit_section, "omega", r_val=params%ps_implicit_params%omega)
 
     ! parsing DIELECTRIC subsection
-    dielectric_section => section_vals_get_subs_vals(ps_implicit_section, "DIELECTRIC", error=error)
-    CALL section_vals_get(dielectric_section, explicit=has_dielectric, error=error)
+    dielectric_section => section_vals_get_subs_vals(ps_implicit_section, "DIELECTRIC")
+    CALL section_vals_get(dielectric_section, explicit=has_dielectric)
     params%has_dielectric = has_dielectric
-    CALL dielectric_read_parameters(dielectric_section, params, error)
+    CALL dielectric_read_parameters(dielectric_section, params)
 
     ! parsing DIRICHLET_BC subsection
-    dbc_section => section_vals_get_subs_vals(ps_implicit_section, "DIRICHLET_BC", error=error)
-    CALL dirichlet_bc_read_parameters(dbc_section, params, error)
+    dbc_section => section_vals_get_subs_vals(ps_implicit_section, "DIRICHLET_BC")
+    CALL dirichlet_bc_read_parameters(dbc_section, params)
 
   END SUBROUTINE ps_implicit_read_parameters
 
@@ -253,16 +245,14 @@ CONTAINS
 !>        pw_poisson_parameter_type
 !> \param dielectric_section dielectric section to be read from input
 !> \param params poisson_env parameters 
-!> \param error  cp2k error 
 !> \par History
 !>      07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_read_parameters(dielectric_section, params, error)
+  SUBROUTINE dielectric_read_parameters(dielectric_section, params)
     TYPE(section_vals_type), POINTER         :: dielectric_section
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dielectric_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -277,19 +267,19 @@ CONTAINS
                                                 xaa_annular_section
 
     CALL section_vals_val_get(dielectric_section, "DIELECTRIC_CORE_CORRECTION", &
-                              l_val=params%dielectric_params%dielec_core_correction, error=error)
+                              l_val=params%dielectric_params%dielec_core_correction)
     CALL section_vals_val_get(dielectric_section, "DIELECTRIC_FUNCTION_TYPE", &
-                              i_val=params%dielectric_params%dielec_functiontype, error=error)
-    CALL section_vals_val_get(dielectric_section, "epsilon", r_val=params%dielectric_params%eps0, error=error)
-    CALL section_vals_val_get(dielectric_section, "rho_min", r_val=params%dielectric_params%rho_min, error=error)
-    CALL section_vals_val_get(dielectric_section, "rho_max", r_val=params%dielectric_params%rho_max, error=error)
+                              i_val=params%dielectric_params%dielec_functiontype)
+    CALL section_vals_val_get(dielectric_section, "epsilon", r_val=params%dielectric_params%eps0)
+    CALL section_vals_val_get(dielectric_section, "rho_min", r_val=params%dielectric_params%rho_min)
+    CALL section_vals_val_get(dielectric_section, "rho_max", r_val=params%dielectric_params%rho_max)
     CALL section_vals_val_get(dielectric_section, "DERIVATIVE_METHOD", &
-                              i_val=params%dielectric_params%derivative_method, error=error)
+                              i_val=params%dielectric_params%derivative_method)
 
-    aa_cuboidal_section => section_vals_get_subs_vals(dielectric_section, "DIELEC_AA_CUBOIDAL", error=error)
-    xaa_annular_section => section_vals_get_subs_vals(dielectric_section, "DIELEC_XAA_ANNULAR", error=error)
-    CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep, error=error)
-    CALL section_vals_get(xaa_annular_section, explicit=xaa_annular_explicit, n_repetition=n_xaaa_rep, error=error)
+    aa_cuboidal_section => section_vals_get_subs_vals(dielectric_section, "DIELEC_AA_CUBOIDAL")
+    xaa_annular_section => section_vals_get_subs_vals(dielectric_section, "DIELEC_XAA_ANNULAR")
+    CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
+    CALL section_vals_get(xaa_annular_section, explicit=xaa_annular_explicit, n_repetition=n_xaaa_rep)
 
 
     IF (params%solver .EQ. pw_poisson_implicit) THEN
@@ -303,15 +293,15 @@ CONTAINS
           NULLIFY(aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt)
           DO i = 1, n_aac_rep
              CALL section_vals_val_get(aa_cuboidal_section,"epsilon"   ,&
-                                       i_rep_section=i,r_val=eps,error=error)
+                                       i_rep_section=i,r_val=eps)
              CALL section_vals_val_get(aa_cuboidal_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta,error=error)
+                                       i_rep_section=i,r_val=zeta)
              CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt)
              CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt)
              CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt)
              params%dielectric_params%aa_cuboidal_eps(i) = eps
              params%dielectric_params%aa_cuboidal_zeta(i) = zeta
              params%dielectric_params%aa_cuboidal_xxtnt(:,i) = aa_cuboidal_xxtnt
@@ -331,15 +321,15 @@ CONTAINS
           NULLIFY(xaa_annular_xxtnt, xaa_annular_bctr, xaa_annular_brad)
           DO i = 1, n_xaaa_rep
              CALL section_vals_val_get(xaa_annular_section,"epsilon"    ,&
-                                       i_rep_section=i,r_val=eps,error=error)
+                                       i_rep_section=i,r_val=eps)
              CALL section_vals_val_get(xaa_annular_section,"zeta"    ,&
-                                       i_rep_section=i,r_val=zeta,error=error)
+                                       i_rep_section=i,r_val=zeta)
              CALL section_vals_val_get(xaa_annular_section,"X_xtnt"  ,&
-                                       i_rep_section=i,r_vals=xaa_annular_xxtnt,error=error)
+                                       i_rep_section=i,r_vals=xaa_annular_xxtnt)
              CALL section_vals_val_get(xaa_annular_section,"base_center",&
-                                       i_rep_section=i,r_vals=xaa_annular_bctr,error=error)
+                                       i_rep_section=i,r_vals=xaa_annular_bctr)
              CALL section_vals_val_get(xaa_annular_section,"base_radii",&
-                                       i_rep_section=i,r_vals=xaa_annular_brad,error=error)
+                                       i_rep_section=i,r_vals=xaa_annular_brad)
              params%dielectric_params%xaa_annular_eps(i) = eps
              params%dielectric_params%xaa_annular_zeta(i) = zeta
              params%dielectric_params%xaa_annular_xxtnt(:,i) = xaa_annular_xxtnt
@@ -358,17 +348,15 @@ CONTAINS
 !>        pw_poisson_parameter_type
 !> \param dbc_section dirichlet_bc section to be read from input
 !> \param params poisson_env parameters 
-!> \param error  cp2k error 
 !> \par History
 !>      08.2014 created [Hossein Bani-Hashemian]
 !>      07.2015 refactored [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dirichlet_bc_read_parameters(dbc_section, params, error)
+  SUBROUTINE dirichlet_bc_read_parameters(dbc_section, params)
     TYPE(section_vals_type), POINTER         :: dbc_section
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dirichlet_bc_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -392,15 +380,15 @@ CONTAINS
                                                 planar_section, &
                                                 xaa_cylindrical_section
 
-    CALL section_vals_val_get(dbc_section, "VERBOSE_OUTPUT", l_val=params%dbc_params%verbose_output, error=error)
-    aa_planar_section => section_vals_get_subs_vals(dbc_section, "AA_PLANAR", error=error)
-    planar_section => section_vals_get_subs_vals(dbc_section, "PLANAR", error=error)
-    xaa_cylindrical_section => section_vals_get_subs_vals(dbc_section, "XAA_CYLINDRICAL", error=error)
-    aa_cuboidal_section => section_vals_get_subs_vals(dbc_section, "AA_CUBOIDAL", error=error)
-    CALL section_vals_get(aa_planar_section, explicit=aa_planar_explicit, n_repetition=n_aap_rep, error=error)
-    CALL section_vals_get(planar_section, explicit=planar_explicit, n_repetition=n_p_rep, error=error)
-    CALL section_vals_get(xaa_cylindrical_section, explicit=xaa_cylindrical_explicit, n_repetition=n_xaac_rep, error=error)
-    CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep, error=error)
+    CALL section_vals_val_get(dbc_section, "VERBOSE_OUTPUT", l_val=params%dbc_params%verbose_output)
+    aa_planar_section => section_vals_get_subs_vals(dbc_section, "AA_PLANAR")
+    planar_section => section_vals_get_subs_vals(dbc_section, "PLANAR")
+    xaa_cylindrical_section => section_vals_get_subs_vals(dbc_section, "XAA_CYLINDRICAL")
+    aa_cuboidal_section => section_vals_get_subs_vals(dbc_section, "AA_CUBOIDAL")
+    CALL section_vals_get(aa_planar_section, explicit=aa_planar_explicit, n_repetition=n_aap_rep)
+    CALL section_vals_get(planar_section, explicit=planar_explicit, n_repetition=n_p_rep)
+    CALL section_vals_get(xaa_cylindrical_section, explicit=xaa_cylindrical_explicit, n_repetition=n_xaac_rep)
+    CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
 
     IF (params%solver .EQ. pw_poisson_implicit) THEN
        IF (aa_planar_explicit) THEN
@@ -415,65 +403,65 @@ CONTAINS
           NULLIFY(aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, aa_planar_nprtn)
           DO i = 1, n_aap_rep
              CALL section_vals_val_get(aa_planar_section,"v_D"   ,&
-                                       i_rep_section=i,r_val=v_D,error=error)
+                                       i_rep_section=i,r_val=v_D)
              CALL section_vals_val_get(aa_planar_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta,error=error)
+                                       i_rep_section=i,r_val=zeta)
              CALL section_vals_val_get(aa_planar_section,"smooth",&
-                                       i_rep_section=i,l_val=smooth,error=error)
+                                       i_rep_section=i,l_val=smooth)
 
              params%dbc_params%aa_planar_vD(i) = v_D
              params%dbc_params%aa_planar_zeta(i) = zeta
              params%dbc_params%aa_planar_smooth(i) = smooth
 
              CALL section_vals_val_get(aa_planar_section,"PARALLEL_PLANE",&
-                                       i_rep_section=i,i_val=parallel_plane,error=error)
+                                       i_rep_section=i,i_val=parallel_plane)
              CALL section_vals_val_get(aa_planar_section,"INTERCEPT",&
-                                       i_rep_section=i,r_val=intercept,error=error)
+                                       i_rep_section=i,r_val=intercept)
              SELECT CASE (parallel_plane)
              CASE (xy_aligned_rectangle)
                 CALL section_vals_val_get(aa_planar_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_xxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_planar_xxtnt)
                 CALL section_vals_val_get(aa_planar_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_yxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_planar_yxtnt)
 
                 params%dbc_params%aa_planar_xxtnt(:,i) = aa_planar_xxtnt
                 params%dbc_params%aa_planar_yxtnt(:,i) = aa_planar_yxtnt
                 params%dbc_params%aa_planar_zxtnt(:,i) = intercept
 
                 CALL section_vals_val_get(aa_planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_planar_nprtn,error=error)
+                                       i_rep_section=i,i_vals=aa_planar_nprtn)
 
                 params%dbc_params%aa_planar_nprtn(1,i) = aa_planar_nprtn(1)
                 params%dbc_params%aa_planar_nprtn(2,i) = aa_planar_nprtn(2)
                 params%dbc_params%aa_planar_nprtn(3,i) = 1
              CASE (yz_aligned_rectangle)
                 CALL section_vals_val_get(aa_planar_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_yxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_planar_yxtnt)
                 CALL section_vals_val_get(aa_planar_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_zxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_planar_zxtnt)
 
                 params%dbc_params%aa_planar_xxtnt(:,i) = intercept
                 params%dbc_params%aa_planar_yxtnt(:,i) = aa_planar_yxtnt
                 params%dbc_params%aa_planar_zxtnt(:,i) = aa_planar_zxtnt
 
                 CALL section_vals_val_get(aa_planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_planar_nprtn,error=error)
+                                       i_rep_section=i,i_vals=aa_planar_nprtn)
 
                 params%dbc_params%aa_planar_nprtn(1,i) = 1
                 params%dbc_params%aa_planar_nprtn(2,i) = aa_planar_nprtn(1)
                 params%dbc_params%aa_planar_nprtn(3,i) = aa_planar_nprtn(2)
              CASE (xz_aligned_rectangle)
                 CALL section_vals_val_get(aa_planar_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_xxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_planar_xxtnt)
                 CALL section_vals_val_get(aa_planar_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_zxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_planar_zxtnt)
 
                 params%dbc_params%aa_planar_xxtnt(:,i) = aa_planar_xxtnt
                 params%dbc_params%aa_planar_yxtnt(:,i) = intercept
                 params%dbc_params%aa_planar_zxtnt(:,i) = aa_planar_zxtnt
 
                 CALL section_vals_val_get(aa_planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_planar_nprtn,error=error)
+                                       i_rep_section=i,i_vals=aa_planar_nprtn)
 
                 params%dbc_params%aa_planar_nprtn(1,i) = aa_planar_nprtn(1)
                 params%dbc_params%aa_planar_nprtn(2,i) = 1
@@ -496,19 +484,19 @@ CONTAINS
           NULLIFY(planar_Avtx, planar_Bvtx, planar_Cvtx, planar_nprtn)
           DO i = 1, n_p_rep
              CALL section_vals_val_get(planar_section,"v_D"   ,&
-                                       i_rep_section=i,r_val=v_D,error=error)
+                                       i_rep_section=i,r_val=v_D)
              CALL section_vals_val_get(planar_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta,error=error)
+                                       i_rep_section=i,r_val=zeta)
              CALL section_vals_val_get(planar_section,"smooth",&
-                                       i_rep_section=i,l_val=smooth,error=error)
+                                       i_rep_section=i,l_val=smooth)
              CALL section_vals_val_get(planar_section,"A"     ,&
-                                       i_rep_section=i,r_vals=planar_Avtx,error=error)
+                                       i_rep_section=i,r_vals=planar_Avtx)
              CALL section_vals_val_get(planar_section,"B"     ,&
-                                       i_rep_section=i,r_vals=planar_Bvtx,error=error)
+                                       i_rep_section=i,r_vals=planar_Bvtx)
              CALL section_vals_val_get(planar_section,"C"     ,&
-                                       i_rep_section=i,r_vals=planar_Cvtx,error=error)
+                                       i_rep_section=i,r_vals=planar_Cvtx)
              CALL section_vals_val_get(planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=planar_nprtn,error=error)
+                                       i_rep_section=i,i_vals=planar_nprtn)
              params%dbc_params%planar_vD(i) = v_D
              params%dbc_params%planar_zeta(i) = zeta
              params%dbc_params%planar_smooth(i) = smooth
@@ -534,23 +522,23 @@ CONTAINS
           NULLIFY(xaa_cylindrical_xxtnt, xaa_cylindrical_bctr, xaa_cylindrical_nprtn)
           DO i = 1, n_xaac_rep
              CALL section_vals_val_get(xaa_cylindrical_section,"v_D"        ,&
-                                       i_rep_section=i,r_val=v_D,error=error)
+                                       i_rep_section=i,r_val=v_D)
              CALL section_vals_val_get(xaa_cylindrical_section,"zeta"       ,&
-                                       i_rep_section=i,r_val=zeta,error=error)
+                                       i_rep_section=i,r_val=zeta)
              CALL section_vals_val_get(xaa_cylindrical_section,"smooth"     ,&
-                                       i_rep_section=i,l_val=smooth,error=error)
+                                       i_rep_section=i,l_val=smooth)
              CALL section_vals_val_get(xaa_cylindrical_section,"X_xtnt"  ,&
-                                       i_rep_section=i,r_vals=xaa_cylindrical_xxtnt,error=error)
+                                       i_rep_section=i,r_vals=xaa_cylindrical_xxtnt)
              CALL section_vals_val_get(xaa_cylindrical_section,"base_center",&
-                                       i_rep_section=i,r_vals=xaa_cylindrical_bctr,error=error)
+                                       i_rep_section=i,r_vals=xaa_cylindrical_bctr)
              CALL section_vals_val_get(xaa_cylindrical_section,"base_radius",&
-                                       i_rep_section=i,r_val=xaa_cylindrical_brad,error=error)
+                                       i_rep_section=i,r_val=xaa_cylindrical_brad)
              CALL section_vals_val_get(xaa_cylindrical_section,"n_sides"    ,&
-                                       i_rep_section=i,i_val=xaa_cylindrical_nsides,error=error)
+                                       i_rep_section=i,i_val=xaa_cylindrical_nsides)
              CALL section_vals_val_get(xaa_cylindrical_section,"apx_type"   ,&
-                                       i_rep_section=i,i_val=xaa_cylindrical_apxtyp,error=error)
+                                       i_rep_section=i,i_val=xaa_cylindrical_apxtyp)
              CALL section_vals_val_get(xaa_cylindrical_section,"n_prtn"     ,&
-                                       i_rep_section=i,i_vals=xaa_cylindrical_nprtn,error=error)
+                                       i_rep_section=i,i_vals=xaa_cylindrical_nprtn)
              params%dbc_params%xaa_cylindrical_vD(i) = v_D
              params%dbc_params%xaa_cylindrical_zeta(i) = zeta
              params%dbc_params%xaa_cylindrical_smooth(i) = smooth
@@ -577,19 +565,19 @@ CONTAINS
           NULLIFY(aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt, aa_cuboidal_nprtn)
           DO i = 1, n_aac_rep
              CALL section_vals_val_get(aa_cuboidal_section,"v_D"   ,&
-                                       i_rep_section=i,r_val=v_D,error=error)
+                                       i_rep_section=i,r_val=v_D)
              CALL section_vals_val_get(aa_cuboidal_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta,error=error)
+                                       i_rep_section=i,r_val=zeta)
              CALL section_vals_val_get(aa_cuboidal_section,"smooth",&
-                                       i_rep_section=i,l_val=smooth,error=error)
+                                       i_rep_section=i,l_val=smooth)
              CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt)
              CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt)
              CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt,error=error)
+                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt)
              CALL section_vals_val_get(aa_cuboidal_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_cuboidal_nprtn,error=error)
+                                       i_rep_section=i,i_vals=aa_cuboidal_nprtn)
              params%dbc_params%aa_cuboidal_vD(i) = v_D
              params%dbc_params%aa_cuboidal_zeta(i) = zeta
              params%dbc_params%aa_cuboidal_smooth(i) = smooth

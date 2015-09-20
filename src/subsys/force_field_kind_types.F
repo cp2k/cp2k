@@ -110,14 +110,12 @@ CONTAINS
 !> \brief Allocate and initialize a bend kind set.
 !> \param bend_kind_set ...
 !> \param nkind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_bend_kind_set(bend_kind_set,nkind,error)
+  SUBROUTINE allocate_bend_kind_set(bend_kind_set,nkind)
 
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bend_kind_set', &
       routineP = moduleN//':'//routineN
@@ -128,7 +126,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(bend_kind_set)
     ALLOCATE (bend_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
        bend_kind_set(ikind)%id_type = do_ff_undef
        bend_kind_set(ikind)%k = 0.0_dp
@@ -147,14 +145,12 @@ CONTAINS
 !> \brief Allocate and initialize a bond kind set.
 !> \param bond_kind_set ...
 !> \param nkind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_bond_kind_set(bond_kind_set,nkind,error)
+  SUBROUTINE allocate_bond_kind_set(bond_kind_set,nkind)
 
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bond_kind_set', &
       routineP = moduleN//':'//routineN
@@ -165,7 +161,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(bond_kind_set)
     ALLOCATE (bond_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
        bond_kind_set(ikind)%id_type = do_ff_undef
        bond_kind_set(ikind)%k(:) = 0.0_dp
@@ -179,14 +175,12 @@ CONTAINS
 !> \brief Allocate and initialize a torsion kind set.
 !> \param torsion_kind_set ...
 !> \param nkind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_torsion_kind_set(torsion_kind_set,nkind,error)
+  SUBROUTINE allocate_torsion_kind_set(torsion_kind_set,nkind)
 
     TYPE(torsion_kind_type), DIMENSION(:), &
       POINTER                                :: torsion_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_torsion_kind_set', &
       routineP = moduleN//':'//routineN
@@ -197,7 +191,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(torsion_kind_set)
     ALLOCATE (torsion_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ikind=1,nkind
        torsion_kind_set(ikind)%id_type = do_ff_undef
@@ -213,14 +207,12 @@ CONTAINS
 !> \brief Allocate and initialize a ub kind set.
 !> \param ub_kind_set ...
 !> \param nkind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_ub_kind_set(ub_kind_set,nkind,error)
+  SUBROUTINE allocate_ub_kind_set(ub_kind_set,nkind)
 
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_ub_kind_set', &
       routineP = moduleN//':'//routineN
@@ -231,7 +223,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(ub_kind_set)
     ALLOCATE (ub_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
       ub_kind_set(ikind)%id_type = do_ff_undef
       ub_kind_set(ikind)%k = 0.0_dp
@@ -244,14 +236,12 @@ CONTAINS
 !> \brief Allocate and initialize a impr kind set.
 !> \param impr_kind_set ...
 !> \param nkind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_impr_kind_set(impr_kind_set,nkind,error)
+  SUBROUTINE allocate_impr_kind_set(impr_kind_set,nkind)
 
     TYPE(impr_kind_type), DIMENSION(:), &
       POINTER                                :: impr_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_impr_kind_set', &
       routineP = moduleN//':'//routineN
@@ -262,7 +252,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(impr_kind_set)
     ALLOCATE (impr_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
       impr_kind_set(ikind)%id_type = do_ff_undef
       impr_kind_set(ikind)%k = 0.0_dp
@@ -275,14 +265,12 @@ CONTAINS
 !> \brief Allocate and initialize a opbend kind set.
 !> \param opbend_kind_set ...
 !> \param nkind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_opbend_kind_set(opbend_kind_set,nkind,error)
+  SUBROUTINE allocate_opbend_kind_set(opbend_kind_set,nkind)
 
     TYPE(opbend_kind_type), DIMENSION(:), &
       POINTER                                :: opbend_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_opbend_kind_set', &
       routineP = moduleN//':'//routineN
@@ -293,7 +281,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(opbend_kind_set)
     ALLOCATE (opbend_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
       opbend_kind_set(ikind)%id_type = do_ff_undef
       opbend_kind_set(ikind)%k = 0.0_dp
@@ -305,13 +293,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocate a bend kind set.
 !> \param bend_kind_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_bend_kind_set(bend_kind_set,error)
+  SUBROUTINE deallocate_bend_kind_set(bend_kind_set)
 
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set', &
       routineP = moduleN//':'//routineN
@@ -321,19 +307,17 @@ CONTAINS
 
     failure = .FALSE.
     DEALLOCATE (bend_kind_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE deallocate_bend_kind_set
 
 ! *****************************************************************************
 !> \brief Deallocate a bond kind set.
 !> \param bond_kind_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_bond_kind_set(bond_kind_set,error)
+  SUBROUTINE deallocate_bond_kind_set(bond_kind_set)
 
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bond_kind_set', &
       routineP = moduleN//':'//routineN
@@ -343,19 +327,17 @@ CONTAINS
 
     failure = .FALSE.
     DEALLOCATE (bond_kind_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE deallocate_bond_kind_set
 
 ! *****************************************************************************
 !> \brief Deallocate a torsion kind element
 !> \param torsion_kind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE torsion_kind_dealloc_ref(torsion_kind,error)
+  SUBROUTINE torsion_kind_dealloc_ref(torsion_kind)
 
     TYPE(torsion_kind_type), INTENT(INOUT)   :: torsion_kind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
@@ -367,15 +349,15 @@ CONTAINS
 
     IF(ASSOCIATED(torsion_kind%k)) THEN
        DEALLOCATE(torsion_kind%k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(torsion_kind%m)) THEN
        DEALLOCATE(torsion_kind%m,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(torsion_kind%phi0)) THEN
        DEALLOCATE(torsion_kind%phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE torsion_kind_dealloc_ref
@@ -383,12 +365,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocate a ub kind set.
 !> \param ub_kind_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE ub_kind_dealloc_ref(ub_kind_set, error)
+  SUBROUTINE ub_kind_dealloc_ref(ub_kind_set)
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ub_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
@@ -398,17 +378,15 @@ CONTAINS
 
     failure = .FALSE.
     DEALLOCATE(ub_kind_set, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE ub_kind_dealloc_ref
 
 ! *****************************************************************************
 !> \brief Deallocate a impr kind element
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE impr_kind_dealloc_ref(error)
+  SUBROUTINE impr_kind_dealloc_ref()
 
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'impr_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN

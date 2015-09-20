@@ -40,15 +40,12 @@ CONTAINS
 !> \brief Initialize arrays for mapping KINDS <-> ELEMENTS
 !>      for major elements in AMBER and CHARMM
 !> \param ff_type ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_ff_map(ff_type, error)
+  SUBROUTINE create_ff_map(ff_type)
     CHARACTER(LEN=*), INTENT(IN)             :: ff_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ff_map', &
       routineP = moduleN//':'//routineN
@@ -62,12 +59,12 @@ CONTAINS
     SELECT CASE(ff_type)
     CASE("AMBER")
        ALLOCATE(amber_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! allocate substructures
        ALLOCATE(amber_map%kind(amb_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(amber_map%element(amb_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        amber_map%kind=(/&
             "BR","C ","CA","CB","CC","CK","CM","CN","CQ","CR",&
@@ -84,12 +81,12 @@ CONTAINS
 
     CASE("CHARMM")
        ALLOCATE(charmm_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! allocate substructures
        ALLOCATE(charmm_map%kind(chm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(charmm_map%element(chm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        charmm_map%kind=(/&
             "CA  ","CAL ","C   ","CC  ","CD  ","CE  ","CEL ","CES ","CLA ","CL  ",&
@@ -119,12 +116,12 @@ CONTAINS
 
     CASE("GROMOS")
        ALLOCATE(gromos_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! allocate substructures
        ALLOCATE(gromos_map%kind(grm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(gromos_map%element(grm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        gromos_map%kind=(/&
             "H1  ","CA  ","HA  ","SD  ","OG  ","CG  ","HD  ","SG  ",&
@@ -143,15 +140,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocates the arrays used for mapping
 !> \param ff_type ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE destroy_ff_map(ff_type, error)
+  SUBROUTINE destroy_ff_map(ff_type)
     CHARACTER(LEN=*), INTENT(IN)             :: ff_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_ff_map', &
       routineP = moduleN//':'//routineN
@@ -164,30 +158,30 @@ CONTAINS
     CASE("AMBER")
        ! deallocate substructures
        DEALLOCATE(amber_map%kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(amber_map%element,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! deallocate main
        DEALLOCATE(amber_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CASE("CHARMM")
        ! deallocate substructures
        DEALLOCATE(charmm_map%kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(charmm_map%element,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! deallocate main
        DEALLOCATE(charmm_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CASE("GROMOS")
        ! deallocate substructures
        DEALLOCATE(gromos_map%kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(gromos_map%element,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! deallocate main
        DEALLOCATE(gromos_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END SELECT
   END SUBROUTINE destroy_ff_map
 

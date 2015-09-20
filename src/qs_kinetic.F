@@ -78,7 +78,6 @@ CONTAINS
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with kpoints (optional)
 !> \param   eps_filter Filter final matrix (optional)
-!> \param   error for error handling
 !> \date    11.10.2010
 !> \par     History
 !>          Ported from qs_overlap, replaces code in build_core_hamiltonian
@@ -90,7 +89,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_kinetic_matrix(ks_env,matrix_t,matrixkp_t,matrix_name,&
              basis_type,sab_nl,calculate_forces,matrix_p,matrixkp_p,&
-             eps_filter,error)
+             eps_filter)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -106,7 +105,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: matrixkp_p
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_filter
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix', &
       routineP = moduleN//':'//routineN
@@ -160,11 +158,11 @@ CONTAINS
         use_cell_mapping = .FALSE.
      ELSEIF (PRESENT(matrixkp_t)) THEN
         dokp = .TRUE.
-        CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
-        CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+        CALL get_ks_env(ks_env=ks_env,kpoints=kpoints)
+        CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
         use_cell_mapping = (SIZE(cell_to_index) > 1)
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
      END IF
 
      NULLIFY (atomic_kind_set, qs_kind_set, p_block,dft_control)
@@ -173,57 +171,56 @@ CONTAINS
                      atomic_kind_set=atomic_kind_set,&
                      natom=natom,&
                      qs_kind_set=qs_kind_set,&
-                     dbcsr_dist=dbcsr_dist,&
-                     error=error)
+                     dbcsr_dist=dbcsr_dist)
 
      nimg = dft_control%nimages
      nkind = SIZE(atomic_kind_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
      do_forces = .FALSE.
      IF (PRESENT(calculate_forces)) do_forces = calculate_forces
 
      ! check for symmetry
-     CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,failure)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
      ! prepare basis set
      ALLOCATE (basis_set_list(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list,basis_type,qs_kind_set,error=error)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CALL basis_set_list_setup(basis_set_list,basis_type,qs_kind_set)
 
      IF(dokp) THEN
-        CALL cp_dbcsr_allocate_matrix_set(matrixkp_t,1,nimg,error=error)
+        CALL cp_dbcsr_allocate_matrix_set(matrixkp_t,1,nimg)
         CALL create_sab_matrix(ks_env, matrixkp_t, matrix_name, basis_set_list, basis_set_list, &
-                               sab_nl, do_symmetric, error)
+                               sab_nl, do_symmetric)
      ELSE
-        CALL cp_dbcsr_allocate_matrix_set(matrix_t,1,error=error)
+        CALL cp_dbcsr_allocate_matrix_set(matrix_t,1)
         CALL create_sab_matrix(ks_env, matrix_t, matrix_name, basis_set_list, basis_set_list, &
-                               sab_nl, do_symmetric, error)
+                               sab_nl, do_symmetric)
      END IF
 
      IF (do_forces) THEN
         ! if forces -> maybe virial too
-        CALL get_ks_env(ks_env=ks_env,force=force,virial=virial,error=error)
+        CALL get_ks_env(ks_env=ks_env,force=force,virial=virial)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
         ! we need density matrix for forces
         IF(dokp) THEN
-           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,error,failure)
+           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,failure)
         ELSE
-           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,failure)
         END IF
      END IF
 
      ! *** Allocate work storage ***
-     ldsab = get_memory_usage(qs_kind_set,basis_type,error=error)
+     ldsab = get_memory_usage(qs_kind_set,basis_type)
      ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      IF (do_forces) THEN
         ALLOCATE(dab(ldsab,ldsab,3),pab(ldsab,ldsab),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      END IF
 
      ! Iterate of neighbor list
@@ -262,7 +259,7 @@ CONTAINS
 
         IF(use_cell_mapping) THEN
            ic = cell_to_index(cell(1),cell(2),cell(3))
-           CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
+           CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
         ELSE
            ic = 1
         END IF
@@ -288,11 +285,11 @@ CONTAINS
         IF(dokp) THEN
            CALL cp_dbcsr_get_block_p(matrix=matrixkp_t(1,ic)%matrix,&
                 row=irow,col=icol,BLOCK=k_block,found=found)
-           CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           CPPostcondition(found,cp_failure_level,routineP,failure)
         ELSE
            CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
                 row=irow,col=icol,BLOCK=k_block,found=found)
-           CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           CPPostcondition(found,cp_failure_level,routineP,failure)
         END IF
 
         IF (do_forces) THEN
@@ -300,11 +297,11 @@ CONTAINS
            IF(dokp) THEN
               CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(1,ic)%matrix,&
                    row=irow,col=icol,block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+              CPPostcondition(found,cp_failure_level,routineP,failure)
            ELSE
               CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
                    block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+              CPPostcondition(found,cp_failure_level,routineP,failure)
            END IF
         END IF
 
@@ -327,30 +324,30 @@ CONTAINS
             IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom/=jatom) .OR. use_virial)) THEN
                ! Decontract P matrix block
                kab = 0.0_dp
-               CALL block_add("OUT",kab,nsgfa(iset),nsgfb(jset),p_block,sgfa,sgfb,trans=trans,error=error)
+               CALL block_add("OUT",kab,nsgfa(iset),nsgfb(jset),p_block,sgfa,sgfb,trans=trans)
                CALL decontraction(kab,pab,scon_a(:,sgfa:),ncoa,nsgfa(iset),scon_b(:,sgfb:),ncob,nsgfb(jset),&
-                                  trans=trans,error=error)
+                                  trans=trans)
                ! calculate integrals and derivatives
                CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
                             lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
-                            rab,kab,dab,error=error)
-               CALL force_trace(force_a,dab,pab,ncoa,ncob,3,error=error)
+                            rab,kab,dab)
+               CALL force_trace(force_a,dab,pab,ncoa,ncob,3)
                force(ikind)%kinetic(:,atom_a)=force(ikind)%kinetic(:,atom_a) + ff*force_a(:)
                force(jkind)%kinetic(:,atom_b)=force(jkind)%kinetic(:,atom_b) - ff*force_a(:)
                IF( use_virial ) THEN
-                  CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab, error)
+                  CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab)
                END IF
             ELSE
                ! calclulate integrals
                CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
                             lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
-                            rab,kab,error=error)
+                            rab,kab)
             END IF
             ! Contraction step 
             CALL contraction(kab,qab,ca=scon_a(:,sgfa:),na=ncoa,ma=nsgfa(iset),&
                                      cb=scon_b(:,sgfb:),nb=ncob,mb=nsgfb(jset),&
-                                     trans=trans,error=error)
-            CALL block_add("IN",qab,nsgfa(iset),nsgfb(jset),k_block,sgfa,sgfb,trans=trans,error=error)
+                                     trans=trans)
+            CALL block_add("IN",qab,nsgfa(iset),nsgfb(jset),k_block,sgfa,sgfb,trans=trans)
 
           END DO
         END DO
@@ -360,29 +357,29 @@ CONTAINS
 
      IF(dokp) THEN
         DO ic=1,nimg
-           CALL cp_dbcsr_finalize(matrixkp_t(1,ic)%matrix, error=error)
+           CALL cp_dbcsr_finalize(matrixkp_t(1,ic)%matrix)
            IF (PRESENT(eps_filter)) THEN
-              CALL cp_dbcsr_filter(matrixkp_t(1,ic)%matrix, eps_filter, error=error)
+              CALL cp_dbcsr_filter(matrixkp_t(1,ic)%matrix, eps_filter)
            END IF
         END DO
      ELSE
-        CALL cp_dbcsr_finalize(matrix_t(1)%matrix, error=error)
+        CALL cp_dbcsr_finalize(matrix_t(1)%matrix)
         IF (PRESENT(eps_filter)) THEN
-           CALL cp_dbcsr_filter(matrix_t(1)%matrix, eps_filter, error=error)
+           CALL cp_dbcsr_filter(matrix_t(1)%matrix, eps_filter)
         END IF
      END IF
 
      ! Release work storage
      DEALLOCATE (atom_of_kind,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE (kab,qab,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      IF(do_forces) THEN
         DEALLOCATE (pab,dab,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      END IF
      DEALLOCATE (basis_set_list,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
      CALL timestop(handle)
 

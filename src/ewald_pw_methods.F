@@ -58,16 +58,14 @@ CONTAINS
 !> \param ewald_pw ...
 !> \param ewald_env ...
 !> \param cell_hmat ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (15-Mar-2001)
 ! *****************************************************************************
-SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat,  error )
+SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     REAL(KIND=dp), DIMENSION(3, 3)           :: cell_hmat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_update', &
       routineP = moduleN//':'//routineN
@@ -93,11 +91,11 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat,  error )
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
                        alpha = alpha, o_spline = o_spline,&
                        poisson_section=poisson_section,&
-                       cell_hmat=old_cell_hmat, error=error)
+                       cell_hmat=old_cell_hmat)
 
   IF(ALL(cell_hmat==old_cell_hmat)) RETURN ! rebuild not needed
 
-  CALL ewald_env_set(ewald_env, cell_hmat=cell_hmat, error=error)
+  CALL ewald_env_set(ewald_env, cell_hmat=cell_hmat)
 
 
   SELECT CASE ( ewald_type )
@@ -105,46 +103,46 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat,  error )
      CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool, &
                          dg = dg, poisson_env=poisson_env )
      CALL pw_grid_change ( cell_hmat, pw_big_pool % pw_grid )
-     CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg ,error=error)
-     CALL pw_poisson_release(poisson_env,error=error)
+     CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg)
+     CALL pw_poisson_release(poisson_env)
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg, &
-          poisson_env=poisson_env ,error=error)
+          poisson_env=poisson_env)
   CASE ( do_ewald_pme )
      CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool, &
                          pw_small_pool = pw_small_pool, dg = dg, &
                          poisson_env=poisson_env )
      IF (.NOT.ASSOCIATED(poisson_env)) THEN
-        CALL pw_poisson_create(poisson_env,error=error)
-        CALL ewald_pw_set(ewald_pw, poisson_env=poisson_env,error=error)
+        CALL pw_poisson_create(poisson_env)
+        CALL ewald_pw_set(ewald_pw, poisson_env=poisson_env)
      END IF
      CALL pw_grid_change ( cell_hmat, pw_big_pool % pw_grid )
-     CALL dg_grid_change ( cell_hmat, pw_big_pool % pw_grid, pw_small_pool % pw_grid ,error=error)
-     CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg ,error=error)
+     CALL dg_grid_change ( cell_hmat, pw_big_pool % pw_grid, pw_small_pool % pw_grid)
+     CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg)
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool,  &
                          pw_small_pool = pw_small_pool, dg = dg, &
-                         poisson_env=poisson_env ,error=error)
+                         poisson_env=poisson_env)
   CASE ( do_ewald_spme )
      CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool,&
           poisson_env=poisson_env)
      IF (.NOT.ASSOCIATED(poisson_env)) THEN
-        CALL pw_poisson_create(poisson_env,error=error)
+        CALL pw_poisson_create(poisson_env)
      END IF
      CALL pw_grid_change ( cell_hmat, pw_big_pool % pw_grid )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, &
-          poisson_env=poisson_env ,error=error)
+          poisson_env=poisson_env)
   CASE ( do_ewald_none )
   CASE default
-     CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     CPAssert(.FALSE.,cp_failure_level,routineP,failure)
   END SELECT
   IF (ASSOCIATED(poisson_env)) THEN
      ALLOCATE(pw_pools(1),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
      pw_pools(1)%pool => pw_big_pool
-     CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+     CALL pw_poisson_read_parameters(poisson_section, poisson_params)
      CALL pw_poisson_set(poisson_env,cell_hmat=cell_hmat,parameters=poisson_params,&
-          use_level=1,pw_pools=pw_pools,error=error)
+          use_level=1,pw_pools=pw_pools)
      DEALLOCATE(pw_pools,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
   END IF
 
 END SUBROUTINE ewald_pw_grid_update
@@ -154,16 +152,14 @@ END SUBROUTINE ewald_pw_grid_update
 !> \param ewald_env ...
 !> \param pw_grid ...
 !> \param dg ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (15-Mar-2001)
 ! *****************************************************************************
-SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
+SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_rho0_setup', &
       routineP = moduleN//':'//routineN
@@ -173,7 +169,7 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
     REAL(dp), POINTER                        :: gcc( : ), zet( : )
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
-  CALL ewald_env_get ( ewald_env, alpha = alpha, ewald_type = ewald_type ,error=error)
+  CALL ewald_env_get ( ewald_env, alpha = alpha, ewald_type = ewald_type)
   CALL dg_get ( dg, dg_rho0 = dg_rho0 )
   CALL dg_rho0_get ( dg_rho0, gcc = gcc, zet = zet )
 
@@ -192,9 +188,9 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
   zet ( 1 ) =  alpha
   CALL dg_rho0_set (  dg_rho0, TYPE = ewald_type, zet = zet )
 
-  CALL dg_rho0_init ( dg_rho0, pw_grid ,error=error)
+  CALL dg_rho0_init ( dg_rho0, pw_grid)
 
-  CALL dg_set ( dg, dg_rho0 = dg_rho0, grid_index = grid_index ,error=error)
+  CALL dg_set ( dg, dg_rho0 = dg_rho0, grid_index = grid_index)
 
 END SUBROUTINE ewald_pw_rho0_setup
 

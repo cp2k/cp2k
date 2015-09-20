@@ -28,14 +28,12 @@ CONTAINS
 !> \brief setup the integer listing type
 !> \param ilist ...
 !> \param token ...
-!> \param error ...
 !> \date  08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE ilist_setup(ilist, token, error)
+  SUBROUTINE ilist_setup(ilist, token)
     TYPE(ilist_type), POINTER                :: ilist
     CHARACTER(LEN=*)                         :: token
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_setup', &
       routineP = moduleN//':'//routineN
@@ -44,7 +42,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
     ind = INDEX(token,"..")
     READ (UNIT=token(:ind-1),FMT=*) ilist%istart
     READ (UNIT=token(ind+2:),FMT=*) ilist%iend
@@ -62,13 +60,11 @@ CONTAINS
 ! ****************************************************************************
 !> \brief updates the integer listing type
 !> \param ilist ...
-!> \param error ...
 !> \date  08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE ilist_update(ilist, error)
+  SUBROUTINE ilist_update(ilist)
     TYPE(ilist_type), POINTER                :: ilist
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_update', &
       routineP = moduleN//':'//routineN
@@ -76,23 +72,21 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
     ilist%ipresent = ilist%ipresent + 1
     IF (ilist%ipresent>ilist%iend) THEN
-       CALL ilist_reset(ilist, error)
+       CALL ilist_reset(ilist)
     END IF
   END SUBROUTINE ilist_update
 
 ! ****************************************************************************
 !> \brief updates the integer listing type
 !> \param ilist ...
-!> \param error ...
 !> \date  08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE ilist_reset(ilist, error)
+  SUBROUTINE ilist_reset(ilist)
     TYPE(ilist_type), POINTER                :: ilist
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_reset', &
       routineP = moduleN//':'//routineN
@@ -100,7 +94,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
     IF (ilist%ipresent==ilist%iend) THEN
        ilist%istart   = HUGE(0)
        ilist%iend     = HUGE(0)

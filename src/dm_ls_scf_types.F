@@ -149,14 +149,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief release the LS type.
 !> \param ls_scf_env ...
-!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE ls_scf_release(ls_scf_env,error)
+  SUBROUTINE ls_scf_release(ls_scf_env)
     TYPE(ls_scf_env_type), POINTER           :: ls_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_release', &
       routineP = moduleN//':'//routineN
@@ -167,43 +165,43 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CALL cp_para_env_release(ls_scf_env%para_env,error)
+    CALL cp_para_env_release(ls_scf_env%para_env)
 
     DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ! set up the buffer for the history of matrices
     DO istore=1,MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
        DO ispin=1,SIZE(ls_scf_env%scf_history%matrix,1)
-          CALL cp_dbcsr_release(ls_scf_env%scf_history%matrix(ispin,istore),error=error)
+          CALL cp_dbcsr_release(ls_scf_env%scf_history%matrix(ispin,istore))
        ENDDO
     ENDDO
     DEALLOCATE(ls_scf_env%scf_history%matrix,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_dos)) &
-        CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos,error=error)
+        CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos)
     IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_cube)) &
-        CALL section_vals_release(ls_scf_env%chebyshev%print_key_cube,error=error)
+        CALL section_vals_release(ls_scf_env%chebyshev%print_key_cube)
     IF (ASSOCIATED(ls_scf_env%chebyshev%min_energy)) THEN
        DEALLOCATE(ls_scf_env%chebyshev%min_energy,stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
     IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
        DEALLOCATE(ls_scf_env%chebyshev%max_energy,stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
-      CALL mixing_storage_release(ls_scf_env%mixing_store,error)
+      CALL mixing_storage_release(ls_scf_env%mixing_store)
     ENDIF
 
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
-       CALL lib_pexsi_finalize(ls_scf_env%pexsi, error)
+       CALL lib_pexsi_finalize(ls_scf_env%pexsi)
     ENDIF
 
     DEALLOCATE(ls_scf_env,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 

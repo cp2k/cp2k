@@ -118,10 +118,9 @@ CONTAINS
 !> \param s uncontracted [s|r^n|s] integrals
 !> \param calculate_forces ...
 !> \param calc_aba flag if [aba] or [abb] is calculated
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE s_overlap_abx(la_max,npgfa,zeta,lb_max,npgfb,zetb,lx_max,npgfx,zetx,&
-                           rab,s,calculate_forces,calc_aba,error)
+                           rab,s,calculate_forces,calc_aba)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
@@ -133,7 +132,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: s
     LOGICAL, INTENT(IN)                      :: calculate_forces, calc_aba
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_abx', &
       routineP = moduleN//':'//routineN
@@ -169,7 +167,7 @@ CONTAINS
     ENDIF
 
     ALLOCATE(dtemp(nl+1), dsr_int(nl+1),stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     sqrt_pi3 = SQRT(pi**3)
 
@@ -328,7 +326,7 @@ CONTAINS
                  CALL cp_unimplemented_error(fromWhere=routineP, &
                       message="SHG integrals not implemented when sum of l quantum"//& 
                       " number of orbital and ri basis larger than 11", &
-                      error=error, error_level=cp_failure_level)
+                      error_level=cp_failure_level)
                END SELECT
                
                 
@@ -339,7 +337,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(dtemp, dsr_int, stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -576,9 +574,8 @@ CONTAINS
 !> \param dWaux_mat stores the derivatives of the angular-dependent part of 
 !>        the SHG integrals 
 !>        last dimension is (1:4): cc(1), cs(2), sc(3), ss(4)
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_dW_matrix(lamax,lbmax,Waux_mat,dWaux_mat,error)
+  SUBROUTINE get_dW_matrix(lamax,lbmax,Waux_mat,dWaux_mat)
 
     INTEGER, DIMENSION(:), POINTER           :: lamax
     INTEGER, INTENT(IN)                      :: lbmax
@@ -586,7 +583,6 @@ CONTAINS
       POINTER                                :: Waux_mat
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_dW_matrix', &
       routineP = moduleN//':'//routineN
@@ -607,9 +603,9 @@ CONTAINS
 
     jmax = MIN(MAXVAL(lamax),lbmax)
     ALLOCATE(Wam(0:jmax,4),Wamm(0:jmax,4),Wamp(0:jmax,4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(Wbm(0:jmax,4),Wbmm(0:jmax,4),Wbmp(0:jmax,4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO lb = 0,lbmax
        nlb = nsoset_pm(lb-1)
@@ -747,9 +743,9 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(Wam,Wamm,Wamp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(Wbm,Wbmm,Wbmp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 

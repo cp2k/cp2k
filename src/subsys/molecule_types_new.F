@@ -138,15 +138,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate a global constraint.
 !> \param gci ...
-!> \param error ...
 !> \par History
 !>      07.2003 created [fawzi]
 !>      01.2014 moved from cp_subsys_release() into separate routine.
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE deallocate_global_constraint(gci, error)
+  SUBROUTINE deallocate_global_constraint(gci)
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
@@ -168,8 +166,8 @@ CONTAINS
        ! Local information
        IF (ASSOCIATED(gci%lcolv)) THEN
           DO i=1, SIZE(gci%lcolv)
-             CALL colvar_release(gci%lcolv(i)%colvar,error=error)
-             CALL colvar_release(gci%lcolv(i)%colvar_old,error=error)
+             CALL colvar_release(gci%lcolv(i)%colvar)
+             CALL colvar_release(gci%lcolv(i)%colvar_old)
              NULLIFY(gci%lcolv(i)%colvar, gci%lcolv(i)%colvar_old)
           END DO
           DEALLOCATE (gci%lcolv)
@@ -193,23 +191,21 @@ CONTAINS
 !> \brief   Allocate a molecule set.
 !> \param molecule_set ...
 !> \param nmolecule ...
-!> \param error ...
 !> \date    29.08.2003
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_molecule_set(molecule_set,nmolecule,error)
+  SUBROUTINE allocate_molecule_set(molecule_set,nmolecule)
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, INTENT(IN)                      :: nmolecule
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule, istat
 
-    IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set,error)
+    IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set)
 
     ALLOCATE (molecule_set(nmolecule),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -231,15 +227,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate a molecule set.
 !> \param molecule_set ...
-!> \param error ...
 !> \date    29.08.2003
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_molecule_set(molecule_set,error)
+  SUBROUTINE deallocate_molecule_set(molecule_set)
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_set', &
       routineP = moduleN//':'//routineN
@@ -262,8 +256,8 @@ CONTAINS
          IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
             IF (ASSOCIATED(molecule_set(imolecule)%lci%lcolv)) THEN
                DO j = 1, SIZE(molecule_set(imolecule)%lci%lcolv)
-                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar,error=error)
-                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar_old,error=error)
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar)
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar)
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                END DO
@@ -514,13 +508,11 @@ CONTAINS
 !> \brief   finds for each atom the molecule it belongs to
 !> \param molecule_set ...
 !> \param atom_to_mol ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE molecule_of_atom(molecule_set,atom_to_mol,error)
+  SUBROUTINE molecule_of_atom(molecule_set,atom_to_mol)
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, DIMENSION(:), INTENT(OUT)       :: atom_to_mol
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'molecule_of_atom', &
       routineP = moduleN//':'//routineN
@@ -549,21 +541,19 @@ CONTAINS
 !> \param mol_to_nbasis ...
 !> \param mol_to_charge ...
 !> \param mol_to_multiplicity ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE get_molecule_set_info(molecule_set,atom_to_mol,mol_to_first_atom,&
     mol_to_last_atom,mol_to_nelectrons,mol_to_nbasis,mol_to_charge,&
-    mol_to_multiplicity,error)
+    mol_to_multiplicity)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: atom_to_mol, &
       mol_to_first_atom, mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, &
       mol_to_charge, mol_to_multiplicity
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info', &
       routineP = moduleN//':'//routineN

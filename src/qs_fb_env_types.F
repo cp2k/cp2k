@@ -97,13 +97,10 @@ CONTAINS
 ! **********************************************************************
 !> \brief retains the given fb_env
 !> \param fb_env : the fb_env to retain
-!> \param error  : variable to control error logging, stopping, ...
-!>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_env_retain(fb_env, error)
+  SUBROUTINE fb_env_retain(fb_env)
     TYPE(fb_env_obj), INTENT(IN)             :: fb_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_retain', &
       routineP = moduleN//':'//routineN
@@ -111,8 +108,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
-    CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP, error)
+    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
+    CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP)
     fb_env%obj%ref_count = fb_env%obj%ref_count + 1
   END SUBROUTINE fb_env_retain
 
@@ -121,13 +118,10 @@ CONTAINS
 !> \brief releases a given fb_env
 !> \brief ...
 !> \param fb_env : the fb_env to release
-!> \param error  : variable to control error logging, stopping, ...
-!>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_env_release(fb_env, error)
+  SUBROUTINE fb_env_release(fb_env)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_release', &
       routineP = moduleN//':'//routineN
@@ -137,23 +131,23 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(fb_env%obj)) THEN
-       CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP, error)
+       CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP)
        fb_env%obj%ref_count = fb_env%obj%ref_count - 1
        IF (fb_env%obj%ref_count == 0) THEN
           fb_env%obj%ref_count = 1
           IF (ASSOCIATED(fb_env%obj%rcut)) THEN
              DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
           IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
              DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
-          CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
-          CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
+          CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
+          CALL fb_trial_fns_release(fb_env%obj%trial_fns)
           fb_env%obj%ref_count = 0
           DEALLOCATE(fb_env%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
     ELSE
        NULLIFY(fb_env%obj)
@@ -219,13 +213,10 @@ CONTAINS
 !> \brief creates an empty fb_env object
 !> \param fb_env : its content must be a NULL fb_env pointer on input,
 !>                 and the output returns an empty fb_env object
-!> \param error  : variable to control error logging, stopping, ...
-!>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_env_create(fb_env, error)
+  SUBROUTINE fb_env_create(fb_env)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_create', &
       routineP = moduleN//':'//routineN
@@ -234,9 +225,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
     ALLOCATE(fb_env%obj, STAT=stat)
-    CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
+    CPPostconditionNoFail(stat==0, cp_failure_level, routineP)
     NULLIFY(fb_env%obj%rcut)
     CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
     CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
@@ -256,13 +247,10 @@ CONTAINS
 !> \brief ...
 !> \param fb_env : the fb_env object, which must not be NULL or
 !>                 UNDEFINED upon entry
-!> \param error  : variable to control error logging, stopping, ...
-!>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_env_init(fb_env, error)
+  SUBROUTINE fb_env_init(fb_env)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_init', &
       routineP = moduleN//':'//routineN
@@ -271,20 +259,20 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
     IF (ASSOCIATED(fb_env%obj%rcut)) THEN
        DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        NULLIFY(fb_env%obj%rcut)
     END IF
-    CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
-    CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
+    CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
+    CALL fb_trial_fns_release(fb_env%obj%trial_fns)
     fb_env%obj%filter_temperature = 0.0_dp
     fb_env%obj%auto_cutoff_scale = 1.0_dp
     fb_env%obj%collective_com = .TRUE.
     IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
        DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        NULLIFY(fb_env%obj%local_atoms)
     END IF
     fb_env%obj%nlocal_atoms = 0
@@ -307,8 +295,6 @@ CONTAINS
 !> \param collective_com     : outputs pointer to trial_fns
 !> \param local_atoms        : outputs pointer to local_atoms
 !> \param nlocal_atoms       : outputs pointer to nlocal_atoms
-!> \param error  : variable to control error logging, stopping, ...
-!>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_get(fb_env, &
@@ -319,8 +305,7 @@ CONTAINS
                         trial_fns, &
                         collective_com, &
                         local_atoms, &
-                        nlocal_atoms, &
-                        error)
+                        nlocal_atoms)
     TYPE(fb_env_obj), INTENT(IN)             :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rcut
@@ -333,7 +318,6 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: collective_com
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_atoms
     INTEGER, INTENT(OUT), OPTIONAL           :: nlocal_atoms
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
       routineP = moduleN//':'//routineN
@@ -341,8 +325,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
-    CPPrecondition(fb_env%obj%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
+    CPPrecondition(fb_env%obj%ref_count>0, cp_failure_level, routineP,failure)
     IF (PRESENT(rcut)) &
          rcut => fb_env%obj%rcut
     IF (PRESENT(filter_temperature)) &
@@ -374,8 +358,6 @@ CONTAINS
 !> \param collective_com     : sets collective_com attribute of fb_env (optional)
 !> \param local_atoms        : sets local_atoms attribute of fb_env (optional)
 !> \param nlocal_atoms       : sets nlocal_atoms attribute of fb_env (optional)
-!> \param error  : variable to control error logging, stopping, ...
-!>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_set(fb_env, &
@@ -386,8 +368,7 @@ CONTAINS
                         trial_fns, &
                         collective_com, &
                         local_atoms, &
-                        nlocal_atoms, &
-                        error)
+                        nlocal_atoms)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rcut
@@ -400,7 +381,6 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: collective_com
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_atoms
     INTEGER, INTENT(IN), OPTIONAL            :: nlocal_atoms
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
       routineP = moduleN//':'//routineN
@@ -409,11 +389,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
     IF (PRESENT(rcut)) THEN
        IF (ASSOCIATED(fb_env%obj%rcut)) THEN
           DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
        fb_env%obj%rcut => rcut
     END IF
@@ -423,14 +403,14 @@ CONTAINS
          fb_env%obj%auto_cutoff_scale = auto_cutoff_scale
     IF (PRESENT(atomic_halos)) THEN
        IF (fb_atomic_halo_list_has_data(atomic_halos)) &
-            CALL fb_atomic_halo_list_retain(atomic_halos, error)
-       CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
+            CALL fb_atomic_halo_list_retain(atomic_halos)
+       CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
        CALL fb_atomic_halo_list_associate(fb_env%obj%atomic_halos, atomic_halos)
     END IF
     IF (PRESENT(trial_fns)) THEN
        IF (fb_trial_fns_has_data(trial_fns)) &
-            CALL fb_trial_fns_retain(trial_fns, error)
-       CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
+            CALL fb_trial_fns_retain(trial_fns)
+       CALL fb_trial_fns_release(fb_env%obj%trial_fns)
        CALL fb_trial_fns_associate(fb_env%obj%trial_fns, trial_fns)
     END IF
     IF (PRESENT(collective_com)) &
@@ -438,7 +418,7 @@ CONTAINS
     IF (PRESENT(local_atoms)) THEN
        IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
           DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
        fb_env%obj%local_atoms => local_atoms
     END IF

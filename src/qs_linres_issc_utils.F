@@ -91,14 +91,12 @@ CONTAINS
 !> \param issc_env ...
 !> \param p_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE issc_response(issc_env,p_env,qs_env,error)
+  SUBROUTINE issc_response(issc_env,p_env,qs_env)
     !
     TYPE(issc_env_type)                      :: issc_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_response', &
       routineP = moduleN//':'//routineN
@@ -133,13 +131,13 @@ CONTAINS
     NULLIFY(logger, mpools, psi1,h1_psi0, mo_coeff,para_env)
     NULLIFY(tmp_fm_struct, psi1_fc, psi1_efg, psi1_pso, pso_psi0, fc_psi0, efg_psi0, psi0_order)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
     issc_section => section_vals_get_subs_vals(qs_env%input, &
-                                                 "PROPERTIES%LINRES%SPINSPIN",error=error)
+                                                 "PROPERTIES%LINRES%SPINSPIN")
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+         extension=".linresLog")
     IF(output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "*** Self consistent optimization of the response wavefunctions ***"
@@ -150,8 +148,7 @@ CONTAINS
                     mpools=mpools,&
                     linres_control=linres_control,&
                     mos=mos,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
     nspins = dft_control%nspins
 
@@ -168,25 +165,23 @@ CONTAINS
                       do_fc=do_fc, &
                       do_sd=do_sd, &
                       do_pso=do_pso, &
-                      do_dso=do_dso, &
-                      error=error)
+                      do_dso=do_dso)
     !
     ! allocate the vectors
     ALLOCATE(psi0_order(nspins))
     ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
        psi0_order(ispin)%matrix => mo_coeff
-       CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,nrow_global=nao,error=error)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,nrow_global=nao)
        NULLIFY(tmp_fm_struct,psi1(ispin)%matrix,h1_psi0(ispin)%matrix)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                                 ncol_global=nmo,&
-                                context=mo_coeff%matrix_struct%context,&
-                                error=error)
-       CALL cp_fm_create(psi1(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+                                context=mo_coeff%matrix_struct%context)
+       CALL cp_fm_create(psi1(ispin)%matrix,tmp_fm_struct)
+       CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct)
+       CALL cp_fm_struct_release(tmp_fm_struct)
     ENDDO
     chk = 0.0_dp
     should_stop =.FALSE.
@@ -198,7 +193,7 @@ CONTAINS
        DO jdir = idir,3
           ijdir = ijdir+1
           DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1_efg(ispin,ijdir)%matrix,0.0_dp,error=error)
+             CALL cp_fm_set_all(psi1_efg(ispin,ijdir)%matrix,0.0_dp)
           ENDDO
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator efg_"//ACHAR(idir+119)//ACHAR(jdir+119)
@@ -206,39 +201,39 @@ CONTAINS
           !
           !Initial guess for psi1
           DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-             !CALL cp_fm_to_fm(p_psi0(ispin,ijdir)%matrix, psi1(ispin)%matrix,error=error)
-             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp)
+             !CALL cp_fm_to_fm(p_psi0(ispin,ijdir)%matrix, psi1(ispin)%matrix)
+             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
           ENDDO
           !
           !DO scf cycle to optimize psi1
           DO ispin = 1,nspins
-             CALL cp_fm_to_fm(efg_psi0(ispin,ijdir)%matrix,h1_psi0(ispin)%matrix,error=error)
+             CALL cp_fm_to_fm(efg_psi0(ispin,ijdir)%matrix,h1_psi0(ispin)%matrix)
           ENDDO
           !
           !
           linres_control%lr_triplet = .FALSE.
           linres_control%do_kernel  = .FALSE.
           linres_control%converged  = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop)
           !
           !
           ! copy the response
           DO ispin=1,nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_efg(ispin,ijdir)%matrix,error=error)
-             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro,error=error)
+             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_efg(ispin,ijdir)%matrix)
+             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro)
              chk = chk + fro
           ENDDO
           !
           ! print response functions
           !IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
-          !     &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+          !     &   "PRINT%RESPONSE_FUNCTION_CUBES"),cp_p_file)) THEN
           !   ncubes = SIZE(list_cubes,1)
-          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
           !   DO ispin = 1,nspins
           !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
           !            centers_set(ispin)%array,print_key,'psi1_efg',&
-          !            idir=ijdir,ispin=ispin,error=error)
+          !            idir=ijdir,ispin=ispin)
           !   ENDDO ! ispin
           !ENDIF ! print response functions
           !
@@ -256,7 +251,7 @@ CONTAINS
     IF(do_pso) THEN
        DO idir = 1,3
           DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1_pso(ispin,idir)%matrix,0.0_dp,error=error)
+             CALL cp_fm_set_all(psi1_pso(ispin,idir)%matrix,0.0_dp)
           ENDDO
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator pso_"//ACHAR(idir+119)
@@ -264,39 +259,39 @@ CONTAINS
           !
           !Initial guess for psi1
           DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp)
+             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix)
+             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
           ENDDO
           !
           !DO scf cycle to optimize psi1
           DO ispin = 1,nspins
-             CALL cp_fm_to_fm(pso_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
+             CALL cp_fm_to_fm(pso_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix)
           ENDDO
           !
           !
           linres_control%lr_triplet = .FALSE. ! we do singlet response
           linres_control%do_kernel  = .FALSE. ! we do uncoupled response
           linres_control%converged  = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop)
           !
           !
           ! copy the response
           DO ispin=1,nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_pso(ispin,idir)%matrix,error=error)
-             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro,error=error)
+             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_pso(ispin,idir)%matrix)
+             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro)
              chk = chk + fro
           ENDDO
           !
           ! print response functions
           !IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
-          !     &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+          !     &   "PRINT%RESPONSE_FUNCTION_CUBES"),cp_p_file)) THEN
           !   ncubes = SIZE(list_cubes,1)
-          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
           !   DO ispin = 1,nspins
           !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
           !           centers_set(ispin)%array,print_key,'psi1_pso',&
-          !           idir=idir,ispin=ispin,error=error)
+          !           idir=idir,ispin=ispin)
           !   ENDDO ! ispin
           !ENDIF ! print response functions
           !
@@ -312,7 +307,7 @@ CONTAINS
     ! operator fc
     IF(do_fc) THEN
        DO ispin = 1,nspins
-          CALL cp_fm_set_all(psi1_fc(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_fm_set_all(psi1_fc(ispin)%matrix,0.0_dp)
        ENDDO
        IF(output_unit>0) THEN
           WRITE(output_unit,"(T10,A)") "Response to the perturbation operator fc"
@@ -320,39 +315,39 @@ CONTAINS
        !
        !Initial guess for psi1
        DO ispin = 1,nspins
-          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-          !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-          !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp)
+          !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix)
+          !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
        ENDDO
        !
        !DO scf cycle to optimize psi1
        DO ispin = 1,nspins
-          CALL cp_fm_to_fm(fc_psi0(ispin)%matrix,h1_psi0(ispin)%matrix,error=error)
+          CALL cp_fm_to_fm(fc_psi0(ispin)%matrix,h1_psi0(ispin)%matrix)
        ENDDO
        !
        !
        linres_control%lr_triplet = .TRUE. ! we do triplet response
        linres_control%do_kernel  = .TRUE. ! we do coupled response
        linres_control%converged  = .FALSE.
-       CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
+       CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop)
        !
        !
        ! copy the response
        DO ispin=1,nspins
-          CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_fc(ispin)%matrix,error=error)
-          CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro,error=error)
+          CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_fc(ispin)%matrix)
+          CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro)
           chk = chk + fro
        ENDDO
        !
        ! print response functions
        !IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
-       !     &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+       !     &   "PRINT%RESPONSE_FUNCTION_CUBES"),cp_p_file)) THEN
        !   ncubes = SIZE(list_cubes,1)
-       !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+       !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
        !   DO ispin = 1,nspins
        !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
        !           centers_set(ispin)%array,print_key,'psi1_pso',&
-       !           idir=idir,ispin=ispin,error=error)
+       !           idir=idir,ispin=ispin)
        !   ENDDO ! ispin
        !ENDIF ! print response functions
        !
@@ -370,7 +365,7 @@ CONTAINS
     IF(do_dso) THEN
        DO idir = 1,3
           DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1_dso(ispin,idir)%matrix,0.0_dp,error=error)
+             CALL cp_fm_set_all(psi1_dso(ispin,idir)%matrix,0.0_dp)
           ENDDO
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator r_"//ACHAR(idir+119)
@@ -378,39 +373,39 @@ CONTAINS
           !
           !Initial guess for psi1
           DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp)
+             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix)
+             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix)
           ENDDO
           !
           !DO scf cycle to optimize psi1
           DO ispin = 1,nspins
-             CALL cp_fm_to_fm(dso_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
+             CALL cp_fm_to_fm(dso_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix)
           ENDDO
           !
           !
           linres_control%lr_triplet = .FALSE. ! we do singlet response
           linres_control%do_kernel  = .TRUE.  ! we do uncoupled response
           linres_control%converged  = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop,error=error)
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,should_stop)
           !
           !
           ! copy the response
           DO ispin=1,nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_dso(ispin,idir)%matrix,error=error)
-             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro,error=error)
+             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_dso(ispin,idir)%matrix)
+             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro)
              chk = chk + fro
           ENDDO
           !
           ! print response functions
           !IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
-          !     &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+          !     &   "PRINT%RESPONSE_FUNCTION_CUBES"),cp_p_file)) THEN
           !   ncubes = SIZE(list_cubes,1)
-          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES")
           !   DO ispin = 1,nspins
           !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
           !           centers_set(ispin)%array,print_key,'psi1_pso',&
-          !           idir=idir,ispin=ispin,error=error)
+          !           idir=idir,ispin=ispin)
           !   ENDDO ! ispin
           !ENDIF ! print response functions
           !
@@ -434,14 +429,14 @@ CONTAINS
     !
     ! clean up
     DO ispin = 1,nspins
-       CALL cp_fm_release(psi1(ispin)%matrix,error=error)
-       CALL cp_fm_release(h1_psi0(ispin)%matrix,error=error)
+       CALL cp_fm_release(psi1(ispin)%matrix)
+       CALL cp_fm_release(h1_psi0(ispin)%matrix)
     ENDDO
     DEALLOCATE(psi1,h1_psi0,psi0_order,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         &                            "PRINT%PROGRAM_RUN_INFO",error=error)
+         &                            "PRINT%PROGRAM_RUN_INFO")
     !
     CALL timestop(handle)
     !
@@ -453,14 +448,12 @@ CONTAINS
 !> \param issc_env ...
 !> \param qs_env ...
 !> \param iatom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE issc_issc(issc_env,qs_env,iatom,error)
+  SUBROUTINE issc_issc(issc_env,qs_env,iatom)
 
     TYPE(issc_env_type)                      :: issc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_issc', &
       routineP = moduleN//':'//routineN
@@ -501,8 +494,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    mos=mos,&
-                    error=error)
+                    mos=mos)
 
     gapw = dft_control%qs_control%gapw
     natom = SIZE(particle_set,1)
@@ -522,8 +514,7 @@ CONTAINS
                       do_fc=do_fc, &
                       do_sd=do_sd, &
                       do_pso=do_pso, &
-                      do_dso=do_dso, &
-                      error=error)
+                      do_dso=do_dso)
 
     g = e_mass / ( 2.0_dp * p_mass )
     facfc  = hertz * g**2 * a_fine**4
@@ -534,12 +525,12 @@ CONTAINS
     !
     !
     issc_section => section_vals_get_subs_vals(qs_env%input, &
-         & "PROPERTIES%LINRES%SPINSPIN",error=error)
+         & "PROPERTIES%LINRES%SPINSPIN")
     !
     ! Initialize
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,maxocc=maxocc)
-       CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=nmo)
 
        DO jatom = 1,natom
           r_i = particle_set(iatom)%r
@@ -556,16 +547,16 @@ CONTAINS
           IF(do_fc.AND.iatom.NE.jatom) THEN
              !
              ! build the integral for the jatom
-             CALL cp_dbcsr_set(matrix_fc(1)%matrix,0.0_dp,error=error)
-             CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_j,error)
+             CALL cp_dbcsr_set(matrix_fc(1)%matrix,0.0_dp)
+             CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_j)
              CALL cp_dbcsr_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
                                     fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
-                  &                 alpha=1.0_dp,error=error)
+                  &                 alpha=1.0_dp)
 
-             CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
+             CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf)
              WRITE(*,*) ' jatom',jatom,'tr(P*fc)=',buf
 
-             CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_fc(ispin)%matrix,buf,error=error)
+             CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_fc(ispin)%matrix,buf)
              issc_fc = 2.0_dp * 2.0_dp * maxocc * facfc * buf
              issc(1,1,iatom,jatom,1) = issc(1,1,iatom,jatom,1) + issc_fc
              issc(2,2,iatom,jatom,1) = issc(2,2,iatom,jatom,1) + issc_fc
@@ -577,21 +568,21 @@ CONTAINS
           IF(do_sd.AND.iatom.NE.jatom) THEN
              !
              ! build the integral for the jatom
-             CALL cp_dbcsr_set(matrix_efg(1)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_efg(2)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_efg(3)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_efg(4)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_efg(5)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_efg(6)%matrix,0.0_dp,error=error)
-             CALL build_efg_matrix(qs_env,matrix_efg,r_j,error)
+             CALL cp_dbcsr_set(matrix_efg(1)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_efg(2)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_efg(3)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_efg(4)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_efg(5)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_efg(6)%matrix,0.0_dp)
+             CALL build_efg_matrix(qs_env,matrix_efg,r_j)
              DO ixyz = 1,6
                 CALL cp_dbcsr_sm_fm_multiply(matrix_efg(ixyz)%matrix,mo_coeff,&
                                        fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
-                     &                 alpha=1.0_dp,beta=0.0_dp,error=error)
-                CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
+                     &                 alpha=1.0_dp,beta=0.0_dp)
+                CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf)
                 WRITE(*,*) ' jatom',jatom,ixyz,'tr(P*efg)=',buf
              DO jxyz = 1,6
-                CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_efg(ispin,jxyz)%matrix,buf,error=error)
+                CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_efg(ispin,jxyz)%matrix,buf)
                 issc_sd = 2.0_dp * maxocc * facsd * buf
                 !issc(ixyz,jxyz,iatom,jatom) = issc_sd
                 !write(*,*) 'pso_',ixyz,jxyz,' iatom',iatom,'jatom',jatom,issc_pso
@@ -604,16 +595,16 @@ CONTAINS
           IF(do_pso.AND.iatom.NE.jatom) THEN
              !
              ! build the integral for the jatom
-             CALL cp_dbcsr_set(matrix_pso(1)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_pso(2)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(matrix_pso(3)%matrix,0.0_dp,error=error)
-             CALL build_pso_matrix(qs_env,matrix_pso,r_j,error)
+             CALL cp_dbcsr_set(matrix_pso(1)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_pso(2)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(matrix_pso(3)%matrix,0.0_dp)
+             CALL build_pso_matrix(qs_env,matrix_pso,r_j)
              DO ixyz = 1,3
                 CALL cp_dbcsr_sm_fm_multiply(matrix_pso(ixyz)%matrix,mo_coeff,&
                                        fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
-                     &                 alpha=1.0_dp,beta=0.0_dp,error=error)
+                     &                 alpha=1.0_dp,beta=0.0_dp)
              DO jxyz = 1,3
-                CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_pso(ispin,jxyz)%matrix,buf,error=error)
+                CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_pso(ispin,jxyz)%matrix,buf)
                 issc_pso = -2.0_dp * maxocc * facpso * buf
                 issc(ixyz,jxyz,iatom,jatom,3) = issc(ixyz,jxyz,iatom,jatom,3) + issc_pso
              ENDDO
@@ -626,31 +617,31 @@ CONTAINS
           IF(do_dso.AND.iatom.EQ.natom.AND.jatom.EQ.natom) THEN
              !
              ! build the integral for the jatom
-             !CALL cp_dbcsr_set(matrix_dso(1)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(2)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(3)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(4)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(5)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(6)%matrix,0.0_dp,error=error)
-             !CALL build_dso_matrix(qs_env,matrix_dso,r_i,r_j,error)
+             !CALL cp_dbcsr_set(matrix_dso(1)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(2)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(3)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(4)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(5)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(6)%matrix,0.0_dp)
+             !CALL build_dso_matrix(qs_env,matrix_dso,r_i,r_j)
              !DO ixyz = 1,6
              !   CALL cp_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
              !        &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
-             !        &                 alpha=1.0_dp,beta=0.0_dp,error=error)
-             !   CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
+             !        &                 alpha=1.0_dp,beta=0.0_dp)
+             !   CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf)
              !   issc_dso = 2.0_dp * maxocc * facdso * buf
              !   issc(ixyz,jxyz,iatom,jatom,4) = issc_dso
              !ENDDO
-             !CALL cp_dbcsr_set(matrix_dso(1)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(2)%matrix,0.0_dp,error=error)
-             !CALL cp_dbcsr_set(matrix_dso(3)%matrix,0.0_dp,error=error)
-             !CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1,error=error)
+             !CALL cp_dbcsr_set(matrix_dso(1)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(2)%matrix,0.0_dp)
+             !CALL cp_dbcsr_set(matrix_dso(3)%matrix,0.0_dp)
+             !CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1)
              DO ixyz = 1,3
                 CALL cp_dbcsr_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
                                        fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
-                     &                 alpha=1.0_dp,beta=0.0_dp,error=error)
+                     &                 alpha=1.0_dp,beta=0.0_dp)
              DO jxyz = 1,3
-                CALL cp_fm_trace(psi1_dso(ispin,jxyz)%matrix,fc_psi0(ispin)%matrix,buf,error=error)
+                CALL cp_fm_trace(psi1_dso(ispin,jxyz)%matrix,fc_psi0(ispin)%matrix,buf)
                 ! we save the polarizability for a checksum later on !
                 issc_dso = 2.0_dp * maxocc * buf
                 !WRITE(*,*) ixyz,jxyz,'tr(P_r*r)=',2.0_dp * maxocc * buf
@@ -673,12 +664,10 @@ CONTAINS
 !> \brief ...
 !> \param issc_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE issc_print(issc_env,qs_env,error)
+  SUBROUTINE issc_print(issc_env,qs_env)
     TYPE(issc_env_type)                      :: issc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'issc_print', &
       routineP = moduleN//':'//routineN
@@ -706,24 +695,22 @@ CONTAINS
 
     NULLIFY(logger,particle_set,atom_kind_i,atom_kind_j,dft_control)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     issc_section => section_vals_get_subs_vals(qs_env%input, &
-         "PROPERTIES%LINRES%SPINSPIN",error=error)
+         "PROPERTIES%LINRES%SPINSPIN")
 
     CALL get_issc_env(issc_env=issc_env, &
                       issc=issc, &
                       do_fc=do_fc, &
                       do_sd=do_sd, &
                       do_pso=do_pso, &
-                      do_dso=do_dso, &
-                      error=error)
+                      do_dso=do_dso)
     !
     CALL get_qs_env(qs_env=qs_env, &
                     dft_control=dft_control, &
-                    particle_set=particle_set, &
-                    error=error)
+                    particle_set=particle_set)
 
     natom = SIZE(particle_set,1)
     gapw = dft_control%qs_control%gapw
@@ -735,11 +722,10 @@ CONTAINS
     ENDIF
     !
     IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
-             "PRINT%K_MATRIX",error=error),cp_p_file)) THEN
+             "PRINT%K_MATRIX"),cp_p_file)) THEN
 
        unit_atoms=cp_print_key_unit_nr(logger,issc_section,"PRINT%K_MATRIX",&
-                  extension=".data",middle_name="K",log_filename=.FALSE.,&
-                  error=error)
+                  extension=".data",middle_name="K",log_filename=.FALSE.)
 
        IF(unit_atoms > 0) THEN
           WRITE(unit_atoms,*)
@@ -759,25 +745,25 @@ CONTAINS
                 ! FC
                 issc_tmp(:,:) = issc(:,:,iatom,jatom,1)
                 issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
-                CALL diamat_all(issc_tmp,eig,error=error)
+                CALL diamat_all(issc_tmp,eig)
                 issc_iso_fc = (eig(1)+ eig(2)+eig(3))/3.0_dp
                 !
                 ! SD
                 issc_tmp(:,:) = issc(:,:,iatom,jatom,2)
                 issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
-                CALL diamat_all(issc_tmp,eig,error=error)
+                CALL diamat_all(issc_tmp,eig)
                 issc_iso_sd = (eig(1)+ eig(2)+eig(3))/3.0_dp
                 !
                 ! PSO
                 issc_tmp(:,:) = issc(:,:,iatom,jatom,3)
                 issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
-                CALL diamat_all(issc_tmp,eig,error=error)
+                CALL diamat_all(issc_tmp,eig)
                 issc_iso_pso = (eig(1)+ eig(2)+eig(3))/3.0_dp
                 !
                 ! DSO
                 issc_tmp(:,:) = issc(:,:,iatom,jatom,4)
                 issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
-                CALL diamat_all(issc_tmp,eig,error=error)
+                CALL diamat_all(issc_tmp,eig)
                 issc_iso_dso = (eig(1)+ eig(2)+eig(3))/3.0_dp
                 !
                 ! TOT
@@ -799,7 +785,7 @@ CONTAINS
           ENDDO
        ENDIF
        CALL cp_print_key_finished_output(unit_atoms,logger,issc_section,&
-            &                            "PRINT%K_MATRIX",error=error)
+            &                            "PRINT%K_MATRIX")
     ENDIF
     !
     !
@@ -810,13 +796,11 @@ CONTAINS
 !> \brief Initialize the issc environment
 !> \param issc_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE issc_env_init(issc_env,qs_env,error)
+  SUBROUTINE issc_env_init(issc_env,qs_env)
     !
     TYPE(issc_env_type)                      :: issc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_env_init', &
       routineP = moduleN//':'//routineN
@@ -856,14 +840,14 @@ CONTAINS
     NULLIFY(particle_set, qs_kind_set)
     NULLIFY(sab_orb)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-                                       extension=".linresLog",error=error)
+                                       extension=".linresLog")
 
     IF(issc_env%ref_count /= 0) THEN
-       CALL issc_env_cleanup(issc_env,error=error)
+       CALL issc_env_cleanup(issc_env)
     ENDIF
 
     IF(output_unit>0) THEN
@@ -871,12 +855,12 @@ CONTAINS
        WRITE(output_unit,"(T10,A,/)") "Inizialization of the ISSC environment"
     ENDIF
 
-    CALL issc_env_create(issc_env,error=error)
+    CALL issc_env_create(issc_env)
     !
     issc_section => section_vals_get_subs_vals(qs_env%input, &
-         &          "PROPERTIES%LINRES%SPINSPIN",error=error)
-    !CALL section_vals_val_get(nmr_section,"INTERPOLATE_SHIFT",l_val=nmr_env%interpolate_shift,error=error)
-    !CALL section_vals_val_get(nmr_section,"SHIFT_GAPW_RADIUS",r_val=nmr_env%shift_gapw_radius,error=error)
+         &          "PROPERTIES%LINRES%SPINSPIN")
+    !CALL section_vals_val_get(nmr_section,"INTERPOLATE_SHIFT",l_val=nmr_env%interpolate_shift)
+    !CALL section_vals_val_get(nmr_section,"SHIFT_GAPW_RADIUS",r_val=nmr_env%shift_gapw_radius)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -885,8 +869,7 @@ CONTAINS
                     sab_orb=sab_orb,&
                     particle_set=particle_set,&
                     qs_kind_set=qs_kind_set,&
-                    dbcsr_dist=dbcsr_dist,&
-                    error=error)
+                    dbcsr_dist=dbcsr_dist)
     !
     !
     gapw = dft_control%qs_control%gapw
@@ -894,7 +877,7 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! check that the psi0 are localized and you have all the centers
-    CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
+    CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,failure)
     IF(failure.AND.(output_unit>0)) THEN
        WRITE(output_unit,'(A)') &
             ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals '
@@ -903,24 +886,24 @@ CONTAINS
     !
     ! read terms need to be calculated
     ! FC
-    CALL section_vals_val_get(issc_section,"DO_FC",l_val=issc_env%do_fc,error=error)
+    CALL section_vals_val_get(issc_section,"DO_FC",l_val=issc_env%do_fc)
     ! SD
-    CALL section_vals_val_get(issc_section,"DO_SD",l_val=issc_env%do_sd,error=error)
+    CALL section_vals_val_get(issc_section,"DO_SD",l_val=issc_env%do_sd)
     ! PSO
-    CALL section_vals_val_get(issc_section,"DO_PSO",l_val=issc_env%do_pso,error=error)
+    CALL section_vals_val_get(issc_section,"DO_PSO",l_val=issc_env%do_pso)
     ! DSO
-    CALL section_vals_val_get(issc_section,"DO_DSO",l_val=issc_env%do_dso,error=error)
+    CALL section_vals_val_get(issc_section,"DO_DSO",l_val=issc_env%do_dso)
     !
     !
     ! read the list of atoms on which the issc need to be calculated
-    CALL section_vals_val_get(issc_section,"ISSC_ON_ATOM_LIST",n_rep_val=n_rep,error=error)
+    CALL section_vals_val_get(issc_section,"ISSC_ON_ATOM_LIST",n_rep_val=n_rep)
     !
     !
     NULLIFY(issc_env%issc_on_atom_list)
     n = 0
     DO ir = 1,n_rep
        NULLIFY(list)
-       CALL section_vals_val_get(issc_section,"ISSC_ON_ATOM_LIST",i_rep_val=ir,i_vals=list,error=error)
+       CALL section_vals_val_get(issc_section,"ISSC_ON_ATOM_LIST",i_rep_val=ir,i_vals=list)
        IF(ASSOCIATED(list)) THEN
           CALL reallocate(issc_env%issc_on_atom_list,1,n+SIZE(list))
           DO ini = 1,SIZE(list)
@@ -932,7 +915,7 @@ CONTAINS
     !
     IF(.NOT.ASSOCIATED(issc_env%issc_on_atom_list)) THEN
        ALLOCATE(issc_env%issc_on_atom_list(natom),STAT=istat)
-       CPPrecondition(istat.EQ.0,cp_warning_level,routineP,error,failure)
+       CPPrecondition(istat.EQ.0,cp_warning_level,routineP,failure)
        DO iatom = 1,natom
           issc_env%issc_on_atom_list(iatom) = iatom
        ENDDO
@@ -944,7 +927,7 @@ CONTAINS
     ALLOCATE(issc_env%issc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
              issc_env%issc_loc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
              STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     issc_env%issc(:,:,:,:,:) = 0.0_dp
     issc_env%issc_loc(:,:,:,:,:) = 0.0_dp
     !
@@ -953,137 +936,134 @@ CONTAINS
              issc_env%psi1_efg(nspins,6),issc_env%psi1_pso(nspins,3),issc_env%psi1_fc(nspins),&
              issc_env%dso_psi0(nspins,3),issc_env%psi1_dso(nspins,3),&
              STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
        !mo_coeff => current_env%psi0_order(ispin)%matrix
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,ncol_global=m,nrow_global=nao,error=error)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=m,nrow_global=nao)
 
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                                 ncol_global=m,&
-                                context=mo_coeff%matrix_struct%context,&
-                                error=error)
+                                context=mo_coeff%matrix_struct%context)
        DO idir = 1,6
           NULLIFY(issc_env%psi1_efg(ispin,idir)%matrix,issc_env%efg_psi0(ispin,idir)%matrix)
-          CALL cp_fm_create(issc_env%psi1_efg(ispin,idir)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create(issc_env%efg_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(issc_env%psi1_efg(ispin,idir)%matrix,tmp_fm_struct)
+          CALL cp_fm_create(issc_env%efg_psi0(ispin,idir)%matrix,tmp_fm_struct)
        ENDDO
        DO idir = 1,3
           NULLIFY(issc_env%psi1_pso(ispin,idir)%matrix,issc_env%pso_psi0(ispin,idir)%matrix,&
                   issc_env%dso_psi0(ispin,idir)%matrix)
-          CALL cp_fm_create(issc_env%psi1_pso(ispin,idir)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create(issc_env%pso_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create(issc_env%psi1_dso(ispin,idir)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create(issc_env%dso_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(issc_env%psi1_pso(ispin,idir)%matrix,tmp_fm_struct)
+          CALL cp_fm_create(issc_env%pso_psi0(ispin,idir)%matrix,tmp_fm_struct)
+          CALL cp_fm_create(issc_env%psi1_dso(ispin,idir)%matrix,tmp_fm_struct)
+          CALL cp_fm_create(issc_env%dso_psi0(ispin,idir)%matrix,tmp_fm_struct)
        ENDDO
        NULLIFY(issc_env%psi1_fc(ispin)%matrix,issc_env%fc_psi0(ispin)%matrix)
-       CALL cp_fm_create(issc_env%psi1_fc(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_create(issc_env%fc_psi0(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       CALL cp_fm_create(issc_env%psi1_fc(ispin)%matrix,tmp_fm_struct)
+       CALL cp_fm_create(issc_env%fc_psi0(ispin)%matrix,tmp_fm_struct)
+       CALL cp_fm_struct_release(tmp_fm_struct)
     ENDDO
     !
     ! prepare for allocation
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf,error=error)
+                          last_sgf=last_sgf)
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     !
     ! efg, pso and fc operators
-    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_efg,6,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_efg,6)
     ALLOCATE(issc_env%matrix_efg(1)%matrix)
-    CALL cp_dbcsr_init(issc_env%matrix_efg(1)%matrix,error=error)
+    CALL cp_dbcsr_init(issc_env%matrix_efg(1)%matrix)
     CALL cp_dbcsr_create(matrix=issc_env%matrix_efg(1)%matrix, &
          name="efg (3xx-rr)/3", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_efg(1)%matrix,sab_orb,error=error)
+         nze=0, mutable_work=.TRUE.)
+    CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_efg(1)%matrix,sab_orb)
 
     ALLOCATE(issc_env%matrix_efg(2)%matrix,&
              issc_env%matrix_efg(3)%matrix,issc_env%matrix_efg(4)%matrix,&
              issc_env%matrix_efg(5)%matrix,issc_env%matrix_efg(6)%matrix)
-    CALL cp_dbcsr_init (issc_env%matrix_efg(2)%matrix,error=error)
-    CALL cp_dbcsr_init (issc_env%matrix_efg(3)%matrix,error=error)
-    CALL cp_dbcsr_init (issc_env%matrix_efg(4)%matrix,error=error)
-    CALL cp_dbcsr_init (issc_env%matrix_efg(5)%matrix,error=error)
-    CALL cp_dbcsr_init (issc_env%matrix_efg(6)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(2)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(3)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(4)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(5)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(6)%matrix)
     CALL cp_dbcsr_copy(issc_env%matrix_efg(2)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'efg xy',error=error)
+                   'efg xy')
     CALL cp_dbcsr_copy(issc_env%matrix_efg(3)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'efg xz',error=error)
+                   'efg xz')
     CALL cp_dbcsr_copy(issc_env%matrix_efg(4)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'efg (3yy-rr)/3',error=error)
+                   'efg (3yy-rr)/3')
     CALL cp_dbcsr_copy(issc_env%matrix_efg(5)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'efg yz',error=error)
+                   'efg yz')
     CALL cp_dbcsr_copy(issc_env%matrix_efg(6)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'efg (3zz-rr)/3',error=error)
+                   'efg (3zz-rr)/3')
 
-    CALL cp_dbcsr_set(issc_env%matrix_efg(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_efg(2)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_efg(3)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_efg(4)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_efg(5)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_efg(6)%matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(issc_env%matrix_efg(1)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_efg(2)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_efg(3)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_efg(4)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_efg(5)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_efg(6)%matrix,0.0_dp)
     !
     ! PSO
-    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_pso,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_pso,3)
     ALLOCATE(issc_env%matrix_pso(1)%matrix)
-    CALL cp_dbcsr_init(issc_env%matrix_pso(1)%matrix,error=error)
+    CALL cp_dbcsr_init(issc_env%matrix_pso(1)%matrix)
     CALL cp_dbcsr_create(matrix=issc_env%matrix_pso(1)%matrix, &
          name="pso x", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix,sab_orb,error=error)
+         nze=0, mutable_work=.TRUE.)
+    CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix,sab_orb)
 
     ALLOCATE(issc_env%matrix_pso(2)%matrix,issc_env%matrix_pso(3)%matrix)
-    CALL cp_dbcsr_init (issc_env%matrix_pso(2)%matrix,error=error)
-    CALL cp_dbcsr_init (issc_env%matrix_pso(3)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_pso(2)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_pso(3)%matrix)
     CALL cp_dbcsr_copy(issc_env%matrix_pso(2)%matrix,issc_env%matrix_pso(1)%matrix,&
-                   'pso y',error=error)
+                   'pso y')
     CALL cp_dbcsr_copy(issc_env%matrix_pso(3)%matrix,issc_env%matrix_pso(1)%matrix,&
-                   'pso z',error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_pso(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_pso(2)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_pso(3)%matrix,0.0_dp,error=error)
+                   'pso z')
+    CALL cp_dbcsr_set(issc_env%matrix_pso(1)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_pso(2)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_pso(3)%matrix,0.0_dp)
     !
     ! DSO
-    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_dso,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_dso,3)
     ALLOCATE(issc_env%matrix_dso(1)%matrix,issc_env%matrix_dso(2)%matrix,issc_env%matrix_dso(3)%matrix)
-    CALL cp_dbcsr_init(issc_env%matrix_dso(1)%matrix,error=error)
-    CALL cp_dbcsr_init(issc_env%matrix_dso(2)%matrix,error=error)
-    CALL cp_dbcsr_init(issc_env%matrix_dso(3)%matrix,error=error)
+    CALL cp_dbcsr_init(issc_env%matrix_dso(1)%matrix)
+    CALL cp_dbcsr_init(issc_env%matrix_dso(2)%matrix)
+    CALL cp_dbcsr_init(issc_env%matrix_dso(3)%matrix)
     CALL cp_dbcsr_copy(issc_env%matrix_dso(1)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'dso x',error=error)
+                   'dso x')
     CALL cp_dbcsr_copy(issc_env%matrix_dso(2)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'dso y',error=error)
+                   'dso y')
     CALL cp_dbcsr_copy(issc_env%matrix_dso(3)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'dso z',error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_dso(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_dso(2)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_dso(3)%matrix,0.0_dp,error=error)
+                   'dso z')
+    CALL cp_dbcsr_set(issc_env%matrix_dso(1)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_dso(2)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(issc_env%matrix_dso(3)%matrix,0.0_dp)
     !
     ! FC
-    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_fc,1,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_fc,1)
     ALLOCATE(issc_env%matrix_fc(1)%matrix)
-    CALL cp_dbcsr_init(issc_env%matrix_fc(1)%matrix,error=error)
+    CALL cp_dbcsr_init(issc_env%matrix_fc(1)%matrix)
     CALL cp_dbcsr_copy(issc_env%matrix_fc(1)%matrix,issc_env%matrix_efg(1)%matrix,&
-                   'fc',error=error)
-    CALL cp_dbcsr_set(issc_env%matrix_fc(1)%matrix,0.0_dp,error=error)
+                   'fc')
+    CALL cp_dbcsr_set(issc_env%matrix_fc(1)%matrix,0.0_dp)
 
     DEALLOCATE(row_blk_sizes)
     !
@@ -1094,7 +1074,7 @@ CONTAINS
     ENDIF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         &                            "PRINT%PROGRAM_RUN_INFO",error=error)
+         &                            "PRINT%PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 
@@ -1103,13 +1083,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocate the issc environment
 !> \param issc_env ...
-!> \param error ...
 !> \par History
 ! *****************************************************************************
-  SUBROUTINE issc_env_cleanup(issc_env,error)
+  SUBROUTINE issc_env_cleanup(issc_env)
 
     TYPE(issc_env_type)                      :: issc_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_env_cleanup', &
       routineP = moduleN//':'//routineN
@@ -1123,125 +1101,125 @@ CONTAINS
     IF(issc_env%ref_count == 0 ) THEN
        IF(ASSOCIATED(issc_env%issc_on_atom_list)) THEN
           DEALLOCATE(issc_env%issc_on_atom_list,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        IF(ASSOCIATED(issc_env%issc)) THEN
           DEALLOCATE(issc_env%issc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        IF(ASSOCIATED(issc_env%issc_loc)) THEN
           DEALLOCATE(issc_env%issc_loc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !efg_psi0
        IF(ASSOCIATED(issc_env%efg_psi0)) THEN
           DO idir = 1,SIZE(issc_env%efg_psi0,2)
              DO ispin = 1,SIZE(issc_env%efg_psi0,1)
-                CALL cp_fm_release(issc_env%efg_psi0(ispin,idir)%matrix,error=error)
+                CALL cp_fm_release(issc_env%efg_psi0(ispin,idir)%matrix)
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%efg_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !pso_psi0
        IF(ASSOCIATED(issc_env%pso_psi0)) THEN
           DO idir = 1,SIZE(issc_env%pso_psi0,2)
              DO ispin = 1,SIZE(issc_env%pso_psi0,1)
-                CALL cp_fm_release(issc_env%pso_psi0(ispin,idir)%matrix,error=error)
+                CALL cp_fm_release(issc_env%pso_psi0(ispin,idir)%matrix)
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%pso_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !dso_psi0
        IF(ASSOCIATED(issc_env%dso_psi0)) THEN
           DO idir = 1,SIZE(issc_env%dso_psi0,2)
              DO ispin = 1,SIZE(issc_env%dso_psi0,1)
-                CALL cp_fm_release(issc_env%dso_psi0(ispin,idir)%matrix,error=error)
+                CALL cp_fm_release(issc_env%dso_psi0(ispin,idir)%matrix)
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%dso_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !fc_psi0
        IF(ASSOCIATED(issc_env%fc_psi0)) THEN
           DO ispin = 1,SIZE(issc_env%fc_psi0,1)
-             CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix,error=error)
+             CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix)
           ENDDO
           DEALLOCATE(issc_env%fc_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !psi1_efg
        IF(ASSOCIATED(issc_env%psi1_efg)) THEN
           DO idir = 1,SIZE(issc_env%psi1_efg,2)
              DO ispin = 1,SIZE(issc_env%psi1_efg,1)
-                CALL cp_fm_release(issc_env%psi1_efg(ispin,idir)%matrix,error=error)
+                CALL cp_fm_release(issc_env%psi1_efg(ispin,idir)%matrix)
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%psi1_efg,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !psi1_pso
        IF(ASSOCIATED(issc_env%psi1_pso)) THEN
           DO idir = 1,SIZE(issc_env%psi1_pso,2)
              DO ispin = 1,SIZE(issc_env%psi1_pso,1)
-                CALL cp_fm_release(issc_env%psi1_pso(ispin,idir)%matrix,error=error)
+                CALL cp_fm_release(issc_env%psi1_pso(ispin,idir)%matrix)
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%psi1_pso,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !psi1_dso
        IF(ASSOCIATED(issc_env%psi1_dso)) THEN
           DO idir = 1,SIZE(issc_env%psi1_dso,2)
              DO ispin = 1,SIZE(issc_env%psi1_dso,1)
-                CALL cp_fm_release(issc_env%psi1_dso(ispin,idir)%matrix,error=error)
+                CALL cp_fm_release(issc_env%psi1_dso(ispin,idir)%matrix)
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%psi1_dso,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        !psi1_fc
        IF(ASSOCIATED(issc_env%psi1_fc)) THEN
           DO ispin = 1,SIZE(issc_env%psi1_fc,1)
-             CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix,error=error)
+             CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
           ENDDO
           DEALLOCATE(issc_env%psi1_fc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ENDIF
        !
        ! cubes
        !IF(ASSOCIATED(issc_env%list_cubes)) THEN
        !   DEALLOCATE(issc_env%list_cubes,STAT=istat)
-       !   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        !ENDIF
        !
        !matrix_efg
        IF(ASSOCIATED(issc_env%matrix_efg)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_efg,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_efg)
        ENDIF
        !
        !matrix_pso
        IF(ASSOCIATED(issc_env%matrix_pso)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_pso,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_pso)
        ENDIF
        !
        !matrix_dso
        IF(ASSOCIATED(issc_env%matrix_dso)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_dso,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_dso)
        ENDIF
        !
        !matrix_fc
        IF(ASSOCIATED(issc_env%matrix_fc)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_fc,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_fc)
        ENDIF
 
     ENDIF ! ref count

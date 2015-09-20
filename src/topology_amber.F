@@ -93,14 +93,12 @@ CONTAINS
 !> \param topology ...
 !> \param para_env ...
 !> \param subsys_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE read_coordinate_crd (topology,para_env,subsys_section,error)
+  SUBROUTINE read_coordinate_crd (topology,para_env,subsys_section)
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_crd', &
       routineP = moduleN//':'//routineN
@@ -116,9 +114,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: velocity_section
 
     NULLIFY(parser, logger, velocity)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/CRD_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
@@ -126,16 +124,16 @@ CONTAINS
 
     ! Title Section
     IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| Parsing the TITLE section'
-    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
-    CALL parser_get_next_line(parser,1,error=error)
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
+    CALL parser_get_next_line(parser,1)
     ! Title may be missing
-    IF (parser_test_next_token(parser,error=error)=="STR") THEN
-       CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
+    IF (parser_test_next_token(parser)=="STR") THEN
+       CALL parser_get_object(parser,string,string_length=default_string_length)
        IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| '//TRIM(string)
        ! Natom and Time (which we ignore)
-       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_next_line(parser,1)
     END IF
-    CALL parser_get_object(parser,natom,error=error)
+    CALL parser_get_object(parser,natom)
     topology%natoms = natom
     IF(iw>0) WRITE(iw,'(T2,A,I0)') 'CRD_INFO| Number of atoms: ',natom
     CALL reallocate(atom_info%id_molname, 1,    natom)
@@ -153,7 +151,7 @@ CONTAINS
     topology%aa_element = .TRUE.
 
     ! Coordinates
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     DO j = 1, natom-MOD(natom,2), 2
        IF (my_end) EXIT
        READ(parser%input_line,*)atom_info%r(1,j  ),atom_info%r(2,j  ),atom_info%r(3,j  ),&
@@ -167,9 +165,9 @@ CONTAINS
        atom_info%resid  (j  ) =  HUGE(0)
        atom_info%atm_mass     (j  ) =  HUGE(0.0_dp)
        atom_info%atm_charge   (j  ) = -HUGE(0.0_dp)
-       atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom",error=error)
-       atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom",error=error)
-       atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom",error=error)
+       atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom")
+       atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom")
+       atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom")
 
        atom_info%id_atmname(j+1) = str2id(s2s("__UNDEF__"))
        atom_info%id_molname(j+1) = str2id(s2s("__UNDEF__"))
@@ -178,11 +176,11 @@ CONTAINS
        atom_info%resid  (j+1) =  HUGE(0)
        atom_info%atm_mass     (j+1) =  HUGE(0.0_dp)
        atom_info%atm_charge   (j+1) = -HUGE(0.0_dp)
-       atom_info%r(1,j+1) = cp_unit_to_cp2k(atom_info%r(1,j+1),"angstrom",error=error)
-       atom_info%r(2,j+1) = cp_unit_to_cp2k(atom_info%r(2,j+1),"angstrom",error=error)
-       atom_info%r(3,j+1) = cp_unit_to_cp2k(atom_info%r(3,j+1),"angstrom",error=error)
+       atom_info%r(1,j+1) = cp_unit_to_cp2k(atom_info%r(1,j+1),"angstrom")
+       atom_info%r(2,j+1) = cp_unit_to_cp2k(atom_info%r(2,j+1),"angstrom")
+       atom_info%r(3,j+1) = cp_unit_to_cp2k(atom_info%r(3,j+1),"angstrom")
 
-       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       CALL parser_get_next_line(parser,1,at_end=my_end)
     END DO
     ! Trigger error
     IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
@@ -203,11 +201,11 @@ CPSourceFileRef,&
        atom_info%resid  (j  ) =  HUGE(0)
        atom_info%atm_mass     (j  ) =  HUGE(0.0_dp)
        atom_info%atm_charge   (j  ) = -HUGE(0.0_dp)
-       atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom",error=error)
-       atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom",error=error)
-       atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom",error=error)
+       atom_info%r(1,j  ) = cp_unit_to_cp2k(atom_info%r(1,j  ),"angstrom")
+       atom_info%r(2,j  ) = cp_unit_to_cp2k(atom_info%r(2,j  ),"angstrom")
+       atom_info%r(3,j  ) = cp_unit_to_cp2k(atom_info%r(3,j  ),"angstrom")
 
-       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       CALL parser_get_next_line(parser,1,at_end=my_end)
     END IF
 
     IF (my_end) THEN
@@ -223,17 +221,17 @@ CPSourceFileRef,&
           READ(parser%input_line,*)velocity(1,j  ),velocity(2,j  ),velocity(3,j  ),&
                                    velocity(1,j+1),velocity(2,j+1),velocity(3,j+1)
 
-          velocity(1,j  ) = cp_unit_to_cp2k(velocity(1,j  ),"angstrom*ps^-1",error=error)
-          velocity(2,j  ) = cp_unit_to_cp2k(velocity(2,j  ),"angstrom*ps^-1",error=error)
-          velocity(3,j  ) = cp_unit_to_cp2k(velocity(3,j  ),"angstrom*ps^-1",error=error)
+          velocity(1,j  ) = cp_unit_to_cp2k(velocity(1,j  ),"angstrom*ps^-1")
+          velocity(2,j  ) = cp_unit_to_cp2k(velocity(2,j  ),"angstrom*ps^-1")
+          velocity(3,j  ) = cp_unit_to_cp2k(velocity(3,j  ),"angstrom*ps^-1")
           velocity(1:3,j  ) = velocity(1:3,j  )*amber_conv_factor
 
-          velocity(1,j+1) = cp_unit_to_cp2k(velocity(1,j+1),"angstrom*ps^-1",error=error)
-          velocity(2,j+1) = cp_unit_to_cp2k(velocity(2,j+1),"angstrom*ps^-1",error=error)
-          velocity(3,j+1) = cp_unit_to_cp2k(velocity(3,j+1),"angstrom*ps^-1",error=error)
+          velocity(1,j+1) = cp_unit_to_cp2k(velocity(1,j+1),"angstrom*ps^-1")
+          velocity(2,j+1) = cp_unit_to_cp2k(velocity(2,j+1),"angstrom*ps^-1")
+          velocity(3,j+1) = cp_unit_to_cp2k(velocity(3,j+1),"angstrom*ps^-1")
           velocity(1:3,j+1) = velocity(1:3,j+1)*amber_conv_factor
 
-          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+          CALL parser_get_next_line(parser,1,at_end=my_end)
        END DO
        setup_velocities = .TRUE.
        IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
@@ -248,20 +246,20 @@ CPSourceFileRef,&
           j = natom
           READ(parser%input_line,*)velocity(1,j  ),velocity(2,j  ),velocity(3,j  )
 
-          velocity(1,j  ) = cp_unit_to_cp2k(velocity(1,j  ),"angstrom*ps^-1",error=error)
-          velocity(2,j  ) = cp_unit_to_cp2k(velocity(2,j  ),"angstrom*ps^-1",error=error)
-          velocity(3,j  ) = cp_unit_to_cp2k(velocity(3,j  ),"angstrom*ps^-1",error=error)
+          velocity(1,j  ) = cp_unit_to_cp2k(velocity(1,j  ),"angstrom*ps^-1")
+          velocity(2,j  ) = cp_unit_to_cp2k(velocity(2,j  ),"angstrom*ps^-1")
+          velocity(3,j  ) = cp_unit_to_cp2k(velocity(3,j  ),"angstrom*ps^-1")
           velocity(1:3,j  ) = velocity(1:3,j  )*amber_conv_factor
 
-          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+          CALL parser_get_next_line(parser,1,at_end=my_end)
        END IF
        IF (setup_velocities) THEN
-          velocity_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          velocity_section => section_vals_get_subs_vals(subsys_section,"VELOCITY")
           CALL section_velocity_val_set(velocity_section, velocity=velocity, &
-               conv_factor=1.0_dp, error=error)
+               conv_factor=1.0_dp)
        END IF
        DEALLOCATE(velocity,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF (my_end) THEN
        CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
@@ -275,9 +273,9 @@ CPSourceFileRef,&
 CPSourceFileRef,&
             only_ionode=.TRUE.)
     END IF
-    CALL parser_release(parser,error=error)
+    CALL parser_release(parser)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/CRD_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/CRD_INFO")
     CALL timestop(handle)
 
   END SUBROUTINE read_coordinate_crd
@@ -291,16 +289,14 @@ CPSourceFileRef,&
 !> \param topology ...
 !> \param para_env ...
 !> \param subsys_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE read_connectivity_amber (filename, topology, para_env, subsys_section, error)
+  SUBROUTINE read_connectivity_amber (filename, topology, para_env, subsys_section)
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
       routineP = moduleN//':'//routineN
@@ -314,22 +310,22 @@ CPSourceFileRef,&
     NULLIFY(logger)
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/AMBER_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
 
     ! Read the Amber topology file
     CALL rdparm_amber_8(filename, iw, para_env, do_connectivity=.TRUE., do_forcefield=.FALSE.,&
-         atom_info=atom_info, conn_info=conn_info, error=error)
+         atom_info=atom_info, conn_info=conn_info)
 
     ! Molnames have been internally generated
     topology%molname_generated = .TRUE.
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/AMBER_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/AMBER_INFO")
     CALL timestop(handle)
   END SUBROUTINE read_connectivity_amber
 
@@ -378,11 +374,10 @@ CPSourceFileRef,&
 !> \param conn_info ...
 !> \param amb_info ...
 !> \param particle_set ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE rdparm_amber_8(filename, output_unit, para_env, do_connectivity,&
-       do_forcefield, atom_info, conn_info, amb_info, particle_set, error)
+       do_forcefield, atom_info, conn_info, amb_info, particle_set)
 
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     INTEGER, INTENT(IN)                      :: output_unit
@@ -394,7 +389,6 @@ CPSourceFileRef,&
     TYPE(amber_info_type), OPTIONAL, POINTER :: amb_info
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdparm_amber_8', &
       routineP = moduleN//':'//routineN
@@ -422,16 +416,16 @@ CPSourceFileRef,&
     NULLIFY(parser)
     IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
          TRIM(filename)
-    CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,error=error)
-    valid_format = check_amber_8_std(parser, output_unit, error)
+    CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.)
+    valid_format = check_amber_8_std(parser, output_unit)
     IF (valid_format) THEN
-       DO WHILE (get_section_parmtop(parser, section, input_format, error))
+       DO WHILE (get_section_parmtop(parser, section, input_format))
           SELECT CASE (TRIM(section))
           CASE("TITLE")
              ! Who cares about the title?
              CYCLE
           CASE("POINTERS")
-             CALL rd_amber_section(parser, section, info, 31, error)
+             CALL rd_amber_section(parser, section, info, 31)
              ! Assign pointers to the corresponding labels
              ! just for convenience to have something more human readable
              natom    = info( 1)
@@ -479,93 +473,93 @@ CPSourceFileRef,&
              ! Allocate temporary arrays
              IF (do_connectivity) THEN
                 check = PRESENT(atom_info).AND.PRESENT(conn_info)
-                CPPrecondition(check,cp_failure_level,routineP,error,failure)
+                CPPrecondition(check,cp_failure_level,routineP,failure)
                 natom_prev = 0
                 IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
                 ! Allocate for extracting connectivity infos
                 ALLOCATE(labres (nres               ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(ipres  (nres               ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (do_forcefield) THEN
                 ! Allocate for extracting forcefield infos
                 ALLOCATE(iac    (natom              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(ico    (ntypes*ntypes      ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(rk     (numbnd             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(req    (numbnd             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(tk     (numang             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(teq    (numang             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(pk     (nptra              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(pn     (nptra              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(phase  (nptra              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(cn1    (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(cn2    (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(asol   (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(bsol   (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              ! Always Allocate
              ALLOCATE(ibh    (nbonh              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(jbh    (nbonh              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(icbh   (nbonh              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(ib     (nbona              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(jb     (nbona              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(icb    (nbona              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(ith    (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(jth    (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(kth    (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(icth   (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(it     (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(jt     (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(kt     (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(ict    (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(iph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(jph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(kph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(lph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(icph   (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(ip     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(jp     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(kp     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(lp     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(icp    (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           CASE("ATOM_NAME")
              ! Atom names are just ignored according the CP2K philosophy
              CYCLE
@@ -573,99 +567,99 @@ CPSourceFileRef,&
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
              ALLOCATE(strtmp_a(natom), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL rd_amber_section(parser, section, strtmp_a , natom, error)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CALL rd_amber_section(parser, section, strtmp_a , natom)
              DO i=1,natom
                 atom_info%id_atmname(natom_prev+i)=str2id(strtmp_a(i))
              ENDDO
              DEALLOCATE(strtmp_a, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           CASE("CHARGE")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, atom_info%atm_charge(natom_prev+1:), natom, error)
+             CALL rd_amber_section(parser, section, atom_info%atm_charge(natom_prev+1:), natom)
              ! Convert charges into atomic units
              atom_info%atm_charge(natom_prev+1:) = atom_info%atm_charge(natom_prev+1:)/amber_conv_charge
           CASE("MASS")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, atom_info%atm_mass(natom_prev+1:), natom, error)
+             CALL rd_amber_section(parser, section, atom_info%atm_mass(natom_prev+1:), natom)
           CASE("RESIDUE_LABEL")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%id_resname,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, labres, nres, error)
+             CALL rd_amber_section(parser, section, labres, nres)
           CASE("RESIDUE_POINTER")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%resid,1,natom_prev+natom)
-             CALL rd_amber_section(parser, section, ipres, nres, error)
+             CALL rd_amber_section(parser, section, ipres, nres)
           CASE("ATOM_TYPE_INDEX")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, iac, natom, error)
+             CALL rd_amber_section(parser, section, iac, natom)
           CASE("NONBONDED_PARM_INDEX")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, ico, ntypes**2, error)
+             CALL rd_amber_section(parser, section, ico, ntypes**2)
           CASE("BOND_FORCE_CONSTANT")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, rk, numbnd, error)
+             CALL rd_amber_section(parser, section, rk, numbnd)
           CASE("BOND_EQUIL_VALUE")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, req, numbnd, error)
+             CALL rd_amber_section(parser, section, req, numbnd)
           CASE("ANGLE_FORCE_CONSTANT")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, tk, numang, error)
+             CALL rd_amber_section(parser, section, tk, numang)
           CASE("ANGLE_EQUIL_VALUE")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, teq, numang, error)
+             CALL rd_amber_section(parser, section, teq, numang)
           CASE("DIHEDRAL_FORCE_CONSTANT")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, pk, nptra, error)
+             CALL rd_amber_section(parser, section, pk, nptra)
           CASE("DIHEDRAL_PERIODICITY")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, pn, nptra, error)
+             CALL rd_amber_section(parser, section, pn, nptra)
           CASE("DIHEDRAL_PHASE")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, phase, nptra, error)
+             CALL rd_amber_section(parser, section, phase, nptra)
           CASE("LENNARD_JONES_ACOEF")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, cn1, ntypes*(ntypes+1)/2, error)
+             CALL rd_amber_section(parser, section, cn1, ntypes*(ntypes+1)/2)
           CASE("LENNARD_JONES_BCOEF")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, cn2, ntypes*(ntypes+1)/2, error)
+             CALL rd_amber_section(parser, section, cn2, ntypes*(ntypes+1)/2)
           CASE("HBOND_ACOEF")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, asol, nphb, error)
+             CALL rd_amber_section(parser, section, asol, nphb)
           CASE("HBOND_BCOEF")
              IF (.NOT.do_forcefield) CYCLE
-             CALL rd_amber_section(parser, section, bsol, nphb, error)
+             CALL rd_amber_section(parser, section, bsol, nphb)
           CASE("BONDS_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh, error)
+             CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh)
              ! Conver to an atomic index
              ibh(:) = ibh(:)/3+1
              jbh(:) = jbh(:)/3+1
           CASE("BONDS_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ib, jb, icb, nbona, error)
+             CALL rd_amber_section(parser, section, ib, jb, icb, nbona)
              ! Conver to an atomic index
              ib(:)  =  ib(:)/3+1
              jb(:)  =  jb(:)/3+1
           CASE("ANGLES_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth, error)
+             CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth)
              ! Conver to an atomic index
              ith(:) = ith(:)/3+1
              jth(:) = jth(:)/3+1
              kth(:) = kth(:)/3+1
           CASE("ANGLES_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta, error)
+             CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta)
              ! Conver to an atomic index
              it(:)  =  it(:)/3+1
              jt(:)  =  jt(:)/3+1
              kt(:)  =  kt(:)/3+1
           CASE("DIHEDRALS_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih, error)
+             CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih)
              ! Conver to an atomic index
              iph(:) = iph(:)/3+1
              jph(:) = jph(:)/3+1
@@ -673,7 +667,7 @@ CPSourceFileRef,&
              lph(:) = ABS(lph(:))/3+1
           CASE("DIHEDRALS_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
-             CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia, error)
+             CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia)
              ! Conver to an atomic index
              ip(:)  = ip(:)/3+1
              jp(:)  = jp(:)/3+1
@@ -692,9 +686,9 @@ CPSourceFileRef,&
        ! Conform Amber Names with CHARMM convention (kind<->charge)
        ! ----------------------------------------------------------
        ALLOCATE(isymbl(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(iwork(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        DO i=1,SIZE(isymbl)
           isymbl(i) = id2str(atom_info%id_atmname(natom_prev+i))
@@ -706,11 +700,11 @@ CPSourceFileRef,&
        istart = 1
        DO i = 2, natom
           IF (TRIM(isymbl(i))/=TRIM(isymbl(istart))) THEN
-             CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:), error)
+             CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:))
              istart = i
           END IF
        END DO
-       CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:), error)
+       CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:))
 
        ! Copy back the modified and conformed atom types
        DO i = 1, natom
@@ -729,13 +723,13 @@ CPSourceFileRef,&
 
        ! Deallocate when extracting connectivity infos
        DEALLOCATE(iwork,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(isymbl,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(labres,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(ipres,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        ! ----------------------------------------------------------
        ! Copy connectivity
@@ -790,9 +784,9 @@ CPSourceFileRef,&
 
        IF (nphih+nphia /= 0) THEN
           ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(iwork(nphih+nphia),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
           DO i = 1, nphih
              full_torsions(1,i)          = iph(i)
@@ -831,9 +825,9 @@ CPSourceFileRef,&
           CALL reallocate(conn_info%phi_d,1,unique_torsions)
 
           DEALLOCATE(full_torsions,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(iwork,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        ! IMPROPERS
        CALL reallocate(conn_info%impr_a,1,0)
@@ -847,7 +841,7 @@ CPSourceFileRef,&
        CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
        atom_info%id_molname(natom_prev+1:natom_prev+natom) = str2id(s2s("__UNDEF__"))
        CALL topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
-            atom_info%id_molname(natom_prev+1:natom_prev+natom), error)
+            atom_info%id_molname(natom_prev+1:natom_prev+natom))
        CALL timestop(handle2)
     END IF
 
@@ -865,11 +859,11 @@ CPSourceFileRef,&
        ! Bonds containing hydrogens
        CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b,&
             amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
-            nbonh, ibh, jbh, icbh, rk, req, error)
+            nbonh, ibh, jbh, icbh, rk, req)
        ! Bonds non-containing hydrogens
        CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b,&
             amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
-            nbona, ib, jb, icb, rk, req, error)
+            nbona, ib, jb, icb, rk, req)
        ! Shrink arrays size to the minimal request
        CALL reallocate(amb_info%bond_a, 1,nsize)
        CALL reallocate(amb_info%bond_b, 1,nsize)
@@ -888,11 +882,11 @@ CPSourceFileRef,&
        ! Bends containing hydrogens
        CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b,&
             amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
-            particle_set, nsize, ntheth, ith, jth, kth, icth, tk, teq, error)
+            particle_set, nsize, ntheth, ith, jth, kth, icth, tk, teq)
        ! Bends non-containing hydrogens
        CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b,&
             amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
-            particle_set, nsize, ntheta, it, jt, kt, ict, tk, teq, error)
+            particle_set, nsize, ntheta, it, jt, kt, ict, tk, teq)
        ! Shrink arrays size to the minimal request
        CALL reallocate(amb_info%bend_a, 1,nsize)
        CALL reallocate(amb_info%bend_b, 1,nsize)
@@ -916,12 +910,12 @@ CPSourceFileRef,&
        CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
             amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
             amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize,&
-            nphih, iph, jph, kph, lph, icph, pk, pn, phase, error)
+            nphih, iph, jph, kph, lph, icph, pk, pn, phase)
        ! Torsions non-containing hydrogens
        CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
             amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
             amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize,&
-            nphia, ip, jp, kp, lp, icp, pk, pn, phase, error)
+            nphia, ip, jp, kp, lp, icp, pk, pn, phase)
        ! Shrink arrays size to the minimal request
        CALL reallocate(amb_info%torsion_a, 1,nsize)
        CALL reallocate(amb_info%torsion_b, 1,nsize)
@@ -941,7 +935,7 @@ CPSourceFileRef,&
        nsize = 0
        CALL post_process_LJ_info(amb_info%nonbond_a, amb_info%nonbond_eps,&
             amb_info%nonbond_rmin2, particle_set, ntypes, nsize, iac, ico,&
-            cn1, cn2, natom, error)
+            cn1, cn2, natom)
 
        ! Shrink arrays size to the minimal request
        CALL reallocate(amb_info%nonbond_a,     1, nsize)
@@ -950,83 +944,83 @@ CPSourceFileRef,&
 
        ! Deallocate at the end of the dirty job
        DEALLOCATE(iac,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(ico,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(rk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(req,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(tk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(teq,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(pk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(pn,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(phase,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(cn1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(cn2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(asol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(bsol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL timestop(handle2)
     END IF
     ! Always Deallocate
     DEALLOCATE(ibh,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(jbh,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(icbh,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(ib,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(jb,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(icb,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(ith,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(jth,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(kth,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(icth,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(it,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(jt,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(kt,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(ict,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(iph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(jph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(kph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(lph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(icph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(ip,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(jp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(kp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(lp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(icp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL parser_release(parser,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL parser_release(parser)
     CALL timestop(handle)
     RETURN
     ! Output info Format
@@ -1046,17 +1040,15 @@ CPSourceFileRef,&
 !> \param i ...
 !> \param istart ...
 !> \param charges ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE conform_atom_type_low(isymbl, iwork, i, istart, charges, error)
+  SUBROUTINE conform_atom_type_low(isymbl, iwork, i, istart, charges)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:)                           :: isymbl
     INTEGER, DIMENSION(:)                    :: iwork
     INTEGER, INTENT(IN)                      :: i
     INTEGER, INTENT(INOUT)                   :: istart
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: charges
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &
       routineP = moduleN//':'//routineN
@@ -1074,11 +1066,11 @@ CPSourceFileRef,&
     iend = i - 1
     isize= iend-istart+1
     ALLOCATE(cwork(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(lindx(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(cindx(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ind = 0
     DO k = istart, iend
        ind = ind + 1
@@ -1118,11 +1110,11 @@ CPSourceFileRef,&
        END DO
     END IF
     DEALLOCATE(cwork, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(lindx, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(cindx, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
   END SUBROUTINE conform_atom_type_low
 
@@ -1133,16 +1125,14 @@ CPSourceFileRef,&
 !> \param section ...
 !> \param array1 ...
 !> \param dim ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE rd_amber_section_i1(parser, section, array1, dim, error)
+  SUBROUTINE rd_amber_section_i1(parser, section, array1, dim)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section
     INTEGER, DIMENSION(:)                    :: array1
     INTEGER, INTENT(IN)                      :: dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1', &
       routineP = moduleN//':'//routineN
@@ -1152,19 +1142,19 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object(parser,array1(i),error=error)
+       CALL parser_get_object(parser,array1(i))
        i = i + 1
     END DO
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,error=error,failure=failure)
+          CPSourceFileRef,failure=failure)
   END SUBROUTINE rd_amber_section_i1
 
 ! *****************************************************************************
@@ -1176,16 +1166,14 @@ CPSourceFileRef,&
 !> \param array2 ...
 !> \param array3 ...
 !> \param dim ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim, error)
+  SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section
     INTEGER, DIMENSION(:)                    :: array1, array2, array3
     INTEGER, INTENT(IN)                      :: dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3', &
       routineP = moduleN//':'//routineN
@@ -1194,31 +1182,31 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, my_end
 
     failure = .FALSE.
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
        !array1
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i),error=error)
+       CALL parser_get_object  (parser,array1(i))
        !array2
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array2(i),error=error)
+       CALL parser_get_object  (parser,array2(i))
        !array3
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array3(i),error=error)
+       CALL parser_get_object  (parser,array3(i))
        i = i + 1
     END DO
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
 CPSourceFileRef,&
-         error=error,failure=failure)
+         failure=failure)
   END SUBROUTINE rd_amber_section_i3
 
 ! *****************************************************************************
@@ -1231,16 +1219,14 @@ CPSourceFileRef,&
 !> \param array3 ...
 !> \param array4 ...
 !> \param dim ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim, error)
+  SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section
     INTEGER, DIMENSION(:)                    :: array1, array2, array3, array4
     INTEGER, INTENT(IN)                      :: dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4', &
       routineP = moduleN//':'//routineN
@@ -1249,36 +1235,36 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, my_end
 
     failure = .FALSE.
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
        !array1
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i),error=error)
+       CALL parser_get_object  (parser,array1(i))
        !array2
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array2(i),error=error)
+       CALL parser_get_object  (parser,array2(i))
        !array3
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array3(i),error=error)
+       CALL parser_get_object  (parser,array3(i))
        !array4
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array4(i),error=error)
+       CALL parser_get_object  (parser,array4(i))
        i = i + 1
     END DO
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
 CPSourceFileRef,&
-         error=error,failure=failure)
+         failure=failure)
   END SUBROUTINE rd_amber_section_i4
 
 ! *****************************************************************************
@@ -1292,18 +1278,16 @@ CPSourceFileRef,&
 !> \param array4 ...
 !> \param array5 ...
 !> \param dim ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE rd_amber_section_i5(parser, section, array1, array2, array3, array4, &
-       array5, dim, error)
+       array5, dim)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section
     INTEGER, DIMENSION(:)                    :: array1, array2, array3, &
                                                 array4, array5
     INTEGER, INTENT(IN)                      :: dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5', &
       routineP = moduleN//':'//routineN
@@ -1312,41 +1296,41 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, my_end
 
     failure = .FALSE.
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
        !array1
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i),error=error)
+       CALL parser_get_object  (parser,array1(i))
        !array2
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array2(i),error=error)
+       CALL parser_get_object  (parser,array2(i))
        !array3
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array3(i),error=error)
+       CALL parser_get_object  (parser,array3(i))
        !array4
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array4(i),error=error)
+       CALL parser_get_object  (parser,array4(i))
        !array5
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array5(i),error=error)
+       CALL parser_get_object  (parser,array5(i))
        i = i + 1
     END DO
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
 CPSourceFileRef,&
-         error=error,failure=failure)
+         failure=failure)
   END SUBROUTINE rd_amber_section_i5
 
 ! *****************************************************************************
@@ -1356,17 +1340,15 @@ CPSourceFileRef,&
 !> \param section ...
 !> \param array1 ...
 !> \param dim ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE rd_amber_section_c1(parser, section, array1, dim, error)
+  SUBROUTINE rd_amber_section_c1(parser, section, array1, dim)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:)                           :: array1
     INTEGER, INTENT(IN)                      :: dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1', &
       routineP = moduleN//':'//routineN
@@ -1376,19 +1358,19 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object(parser,array1(i),lower_to_upper=.TRUE.,error=error)
+       CALL parser_get_object(parser,array1(i),lower_to_upper=.TRUE.)
        i = i + 1
     END DO
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,error=error,failure=failure)
+          CPSourceFileRef,failure=failure)
   END SUBROUTINE rd_amber_section_c1
 
 ! *****************************************************************************
@@ -1398,16 +1380,14 @@ CPSourceFileRef,&
 !> \param section ...
 !> \param array1 ...
 !> \param dim ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE rd_amber_section_r1(parser, section, array1, dim, error)
+  SUBROUTINE rd_amber_section_r1(parser, section, array1, dim)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section
     REAL(KIND=dp), DIMENSION(:)              :: array1
     INTEGER, INTENT(IN)                      :: dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1', &
       routineP = moduleN//':'//routineN
@@ -1417,19 +1397,19 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
-       IF (parser_test_next_token(parser,error=error)=="EOL")&
-            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (parser_test_next_token(parser)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
-       CALL parser_get_object(parser,array1(i),error=error)
+       CALL parser_get_object(parser,array1(i))
        i = i + 1
     END DO
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,error=error,failure=failure)
+          CPSourceFileRef,failure=failure)
   END SUBROUTINE rd_amber_section_r1
 
 ! *****************************************************************************
@@ -1437,15 +1417,13 @@ CPSourceFileRef,&
 !> \param parser ...
 !> \param section ...
 !> \param input_format ...
-!> \param error ...
 !> \retval another_section ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  FUNCTION  get_section_parmtop(parser, section, input_format, error) RESULT(another_section)
+  FUNCTION  get_section_parmtop(parser, section, input_format) RESULT(another_section)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT)                            :: section, input_format
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: another_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop', &
@@ -1455,7 +1433,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, found, my_end
 
     failure = .FALSE.
-    CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.)
     IF (found) THEN
        ! section label
        indflag = INDEX(parser%input_line,"%FLAG")+LEN_TRIM("%FLAG")
@@ -1464,12 +1442,12 @@ CPSourceFileRef,&
        END DO
        section = TRIM(parser%input_line(indflag:))
        ! Input format
-       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       CALL parser_get_next_line(parser,1,at_end=my_end)
        CALL cp_assert((INDEX(parser%input_line,"%FORMAT")/=0).AND.(.NOT.my_end),&
             cp_fatal_level, cp_assertion_failed, routineP,&
             "Expecting %FORMAT. Not found! Abort reading of AMBER topology file! "//&
 CPSourceFileRef,&
-            error=error,failure=failure)
+            failure=failure)
 
        start_f = INDEX(parser%input_line,"(")
        end_f   = INDEX(parser%input_line,")")
@@ -1484,14 +1462,12 @@ CPSourceFileRef,&
 !> \brief Check the version of the AMBER topology file (we can handle from v8 on)
 !> \param parser ...
 !> \param output_unit ...
-!> \param error ...
 !> \retval found_AMBER_V8 ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  FUNCTION check_amber_8_std(parser, output_unit, error) RESULT(found_AMBER_V8)
+  FUNCTION check_amber_8_std(parser, output_unit) RESULT(found_AMBER_V8)
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: found_AMBER_V8
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
@@ -1500,12 +1476,12 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
-    CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
     CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
             "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
             "AMBER file formats. "//&
 CPSourceFileRef,&
-            error=error,failure=failure)
+            failure=failure)
     IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
          TRIM(parser%input_line)
 
@@ -1525,11 +1501,10 @@ CPSourceFileRef,&
 !> \param icb ...
 !> \param rk ...
 !> \param req ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! *****************************************************************************
   SUBROUTINE post_process_bonds_info(label_a, label_b, k, r0, particle_set, ibond, &
-       nbond, ib, jb, icb, rk, req, error)
+       nbond, ib, jb, icb, rk, req)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: label_a, label_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: k, r0
@@ -1539,7 +1514,6 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: nbond
     INTEGER, DIMENSION(:), INTENT(IN)        :: ib, jb, icb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rk, req
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info', &
       routineP = moduleN//':'//routineN
@@ -1555,9 +1529,9 @@ CPSourceFileRef,&
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
        ALLOCATE(work_label(2,nbond),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(iwork(nbond),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, nbond
           name_atm_a = particle_set(ib(i))%atomic_kind%name
           name_atm_b = particle_set(jb(i))%atomic_kind%name
@@ -1599,9 +1573,9 @@ CPSourceFileRef,&
        END DO
 
        DEALLOCATE(work_label,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(iwork, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bonds_info
@@ -1622,11 +1596,10 @@ CPSourceFileRef,&
 !> \param ict ...
 !> \param tk ...
 !> \param teq ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! *****************************************************************************
   SUBROUTINE post_process_bends_info(label_a, label_b, label_c, k, theta0, &
-       particle_set, itheta, ntheta, it, jt, kt, ict, tk, teq, error)
+       particle_set, itheta, ntheta, it, jt, kt, ict, tk, teq)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: label_a, label_b, label_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: k, theta0
@@ -1636,7 +1609,6 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: ntheta
     INTEGER, DIMENSION(:), INTENT(IN)        :: it, jt, kt, ict
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tk, teq
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info', &
       routineP = moduleN//':'//routineN
@@ -1653,9 +1625,9 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
        ALLOCATE(work_label(3,ntheta),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(iwork(ntheta),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, ntheta
           name_atm_a = particle_set(it(i))%atomic_kind%name
           name_atm_b = particle_set(jt(i))%atomic_kind%name
@@ -1706,9 +1678,9 @@ CPSourceFileRef,&
        END DO
 
        DEALLOCATE(work_label,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(iwork, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bends_info
@@ -1733,12 +1705,10 @@ CPSourceFileRef,&
 !> \param pk ...
 !> \param pn ...
 !> \param phase ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! *****************************************************************************
   SUBROUTINE post_process_torsions_info(label_a, label_b, label_c, label_d, k,&
-       m, phi0, particle_set, iphi, nphi, ip, jp, kp, lp, icp, pk, pn, phase,&
-       error)
+       m, phi0, particle_set, iphi, nphi, ip, jp, kp, lp, icp, pk, pn, phase)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: label_a, label_b, label_c, &
                                                 label_d
@@ -1751,7 +1721,6 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: nphi
     INTEGER, DIMENSION(:), INTENT(IN)        :: ip, jp, kp, lp, icp
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pk, pn, phase
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info', &
       routineP = moduleN//':'//routineN
@@ -1768,9 +1737,9 @@ CPSourceFileRef,&
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
        ALLOCATE(work_label(6,nphi),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(iwork(nphi),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, nphi
           name_atm_a = particle_set(ip(i))%atomic_kind%name
           name_atm_b = particle_set(jp(i))%atomic_kind%name
@@ -1809,7 +1778,7 @@ CPSourceFileRef,&
        m(iphi)    = NINT(pn   (icp(iwork(1))))
        IF (m(iphi)-pn   (icp(iwork(1))).GT.EPSILON(1.0_dp)) THEN
          ! non integer torsions not supported
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
 
        phi0(iphi) = phase(icp(iwork(1)))
@@ -1843,16 +1812,16 @@ CPSourceFileRef,&
              m(iphi)    = NINT(pn   (icp(iwork(i))))
              IF (m(iphi)-pn   (icp(iwork(i))).GT.EPSILON(1.0_dp)) THEN
                ! non integer torsions not supported
-               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+               CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
              phi0(iphi) = phase(icp(iwork(i)))
           END IF
        END DO
 
        DEALLOCATE(work_label,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(iwork, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_torsions_info
@@ -1870,11 +1839,10 @@ CPSourceFileRef,&
 !> \param cn1 ...
 !> \param cn2 ...
 !> \param natom ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! *****************************************************************************
   SUBROUTINE post_process_LJ_info(atom_label, eps, sigma, particle_set,&
-       ntypes, nsize, iac, ico, cn1, cn2, natom, error)
+       ntypes, nsize, iac, ico, cn1, cn2, natom)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_label
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eps, sigma
@@ -1885,7 +1853,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), INTENT(IN)        :: iac, ico
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cn1, cn2
     INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
       routineP = moduleN//':'//routineN
@@ -1902,9 +1869,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     CALL timeset(routineN, handle)
     ALLOCATE(work_label(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(iwork(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1, natom
        name_atm_a = particle_set(i)%atomic_kind%name
        l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a)
@@ -1921,7 +1888,7 @@ CPSourceFileRef,&
     F12 = cn1( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
     F6  = cn2( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
     check = (F6==0.0_dp).EQV.(F12==0.0_dp)
-    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    CPPostcondition(check,cp_failure_level,routineP,failure)
     my_sigma = 0.0_dp
     my_eps   = 0.0_dp
     IF (F6/=0.0_dp) THEN
@@ -1945,7 +1912,7 @@ CPSourceFileRef,&
           F12 = cn1( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
           F6  = cn2( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
           check = (F6==0.0_dp).EQV.(F12==0.0_dp)
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
           my_sigma = 0.0_dp
           my_eps   = 0.0_dp
           IF (F6/=0.0_dp) THEN
@@ -1960,9 +1927,9 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(work_label,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(iwork,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
   END SUBROUTINE post_process_LJ_info
 

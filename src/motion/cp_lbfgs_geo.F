@@ -55,21 +55,18 @@ CONTAINS
 !> \param geo_section ...
 !> \param gopt_env ...
 !> \param x0 ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   RECURSIVE SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env,&
-                          x0, error)
+                          x0)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_lbfgs', &
       routineP = moduleN//':'//routineN
@@ -89,46 +86,46 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (optimizer, para_env)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     root_section => force_env%root_section
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
-    CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
+    CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,failure)
 
-    CALL force_env_get(force_env, para_env=para_env, cell=cell, error=error)
+    CALL force_env_get(force_env, para_env=para_env, cell=cell)
 
     ! Geometry optimization starts now
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".geoLog",error=error)
+         extension=".geoLog")
     CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
     ! Stop if not implemented
     IF(gopt_env%type_id == default_ts_method_id) &
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="BFGS method not yet working with DIMER", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
 
-    CALL section_vals_val_get(geo_section,"LBFGS%TRUST_RADIUS",r_val=trust_radius,error=error)
+    CALL section_vals_val_get(geo_section,"LBFGS%TRUST_RADIUS",r_val=trust_radius)
     CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env,&
          x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error,&
          wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank,&
-         max_f_per_iter=gopt_param%max_f_per_iter,trust_radius=trust_radius, error=error)
-    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
+         max_f_per_iter=gopt_param%max_f_per_iter,trust_radius=trust_radius)
+    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr)
     converged=.FALSE.
 
     DO its=iter_nr+1,gopt_param%max_iter
-       CALL cp_iterate(logger%iter_info,last=(its==gopt_param%max_iter),error=error)
-       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its,error=error)
+       CALL cp_iterate(logger%iter_info,last=(its==gopt_param%max_iter))
+       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its)
        CALL gopt_f_ii(its, output_unit)
 
        ! Real optimization step..
        IF (.NOT.cp_opt_gopt_next(optimizer,geo_section=geo_section,&
-            force_env=force_env,gopt_param=gopt_param, converged=converged,error=error)) EXIT
+            force_env=force_env,gopt_param=gopt_param, converged=converged)) EXIT
 
        ! Check for an external exit command
-       CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
+       CALL external_control(should_stop,"GEO",globenv=globenv)
        IF (should_stop) THEN
-          CALL cp_opt_gopt_stop(optimizer, error=error)
+          CALL cp_opt_gopt_stop(optimizer)
           EXIT
        END IF
        IF (its == gopt_param%max_iter) EXIT
@@ -139,13 +136,13 @@ CONTAINS
     END IF
 
     ! Write final output information, if converged
-    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
+    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0)
     CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section,&
-         optimizer%para_env, optimizer%master, output_unit,  error)
+         optimizer%para_env, optimizer%master, output_unit)
 
-    CALL cp_opt_gopt_release(optimizer, error=error)
+    CALL cp_opt_gopt_release(optimizer)
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)
+            "PRINT%PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 

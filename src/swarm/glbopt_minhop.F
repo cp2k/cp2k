@@ -94,14 +94,12 @@ MODULE glbopt_minhop
 !> \param glbopt_section ...
 !> \param n_workers ...
 !> \param iw ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE minhop_init(this, glbopt_section, n_workers, iw, error)
+ SUBROUTINE minhop_init(this, glbopt_section, n_workers, iw)
     TYPE(minhop_type)                        :: this
     TYPE(section_vals_type), POINTER         :: glbopt_section
     INTEGER, INTENT(IN)                      :: n_workers, iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, n_histories
     REAL(kind=dp)                            :: temp_in_kelvin
@@ -111,27 +109,27 @@ MODULE glbopt_minhop
     CALL cite_reference(Goedecker2004)
 
     ! read input
-    minhop_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_HOPPING", error=error)
-    CALL section_vals_val_get(minhop_section,"BETA_1",  r_val=this%beta1,error=error)
-    CALL section_vals_val_get(minhop_section,"BETA_2",  r_val=this%beta2,error=error)
-    CALL section_vals_val_get(minhop_section,"BETA_3",  r_val=this%beta3,error=error)
-    CALL section_vals_val_get(minhop_section,"ALPHA_1", r_val=this%alpha1,error=error)
-    CALL section_vals_val_get(minhop_section,"ALPHA_2", r_val=this%alpha2,error=error)
-    CALL section_vals_val_get(minhop_section,"E_ACCEPT_INIT", r_val=this%Eaccept0,error=error)
-    CALL section_vals_val_get(minhop_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin,error=error)
+    minhop_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_HOPPING")
+    CALL section_vals_val_get(minhop_section,"BETA_1",  r_val=this%beta1)
+    CALL section_vals_val_get(minhop_section,"BETA_2",  r_val=this%beta2)
+    CALL section_vals_val_get(minhop_section,"BETA_3",  r_val=this%beta3)
+    CALL section_vals_val_get(minhop_section,"ALPHA_1", r_val=this%alpha1)
+    CALL section_vals_val_get(minhop_section,"ALPHA_2", r_val=this%alpha2)
+    CALL section_vals_val_get(minhop_section,"E_ACCEPT_INIT", r_val=this%Eaccept0)
+    CALL section_vals_val_get(minhop_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin)
     this%temp_init = temp_in_kelvin / kelvin
-    CALL section_vals_val_get(minhop_section,"SHARE_HISTORY", l_val=this%share_history,error=error)
+    CALL section_vals_val_get(minhop_section,"SHARE_HISTORY", l_val=this%share_history)
 
     ! allocate history / histories
-    history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY", error=error)
+    history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY")
     n_histories = n_workers
     IF(this%share_history) n_histories = 1
     ALLOCATE(this%history(n_histories))
 
     !only the first history shall write to iw
-    CALL history_init(this%history(1), history_section, iw=iw, error=error)
+    CALL history_init(this%history(1), history_section, iw=iw)
     DO i=2, n_histories
-      CALL history_init(this%history(i), history_section, iw=-1, error=error)
+      CALL history_init(this%history(i), history_section, iw=-1)
     END DO
 
     ALLOCATE(this%worker_state(n_workers))

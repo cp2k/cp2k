@@ -96,19 +96,16 @@ CONTAINS
 !> \param cancel_count counter of canceled elements
 !> \param para_env communication environment
 !> \param tmc_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE cancel_calculations(cancel_list, work_list, cancel_count,&
-                                 para_env, tmc_env, error)
+                                 para_env, tmc_env)
     TYPE(elem_list_type), POINTER            :: cancel_list
     TYPE(elem_array_type), DIMENSION(:), &
       POINTER                                :: work_list
     INTEGER                                  :: cancel_count
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cancel_calculations', &
       routineP = moduleN//':'//routineN
@@ -121,11 +118,11 @@ CONTAINS
     IF(.NOT.ASSOCIATED(cancel_list)) RETURN
     NULLIFY(tmp_element)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(work_list),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(work_list),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
 
 
     stat = TMC_STATUS_FAILED
@@ -145,16 +142,16 @@ CONTAINS
         END IF
       END DO working_elem_loop
 
-      CPPostcondition(wg.GE.0,cp_failure_level,routineP,error,failure)
-      CPPostcondition(stat.NE.TMC_STATUS_FAILED,cp_failure_level,routineP,error,failure)
-      CPPostcondition(work_list(wg)%elem%stat.NE.status_calc_approx_ener,cp_failure_level,routineP,error,failure)
+      CPPostcondition(wg.GE.0,cp_failure_level,routineP,failure)
+      CPPostcondition(stat.NE.TMC_STATUS_FAILED,cp_failure_level,routineP,failure)
+      CPPostcondition(work_list(wg)%elem%stat.NE.status_calc_approx_ener,cp_failure_level,routineP,failure)
 
       
       IF(DEBUG.GE.1) &
         WRITE(tmc_env%m_env%io_unit,*)&
           "TMC|master: cancel group "//cp_to_string(wg)
       CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
-               para_env=para_env, tmc_params=tmc_env%params, error=error)
+               para_env=para_env, tmc_params=tmc_env%params)
       work_list(wg)%canceled = .TRUE.
 
       ! counting the amount of canceled elements
@@ -179,17 +176,14 @@ CONTAINS
 !> \param ana_worker_info ...
 !> \param para_env communication environment
 !> \param tmc_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE send_analysis_tasks(ana_list, ana_worker_info, para_env, tmc_env, error)
+  SUBROUTINE send_analysis_tasks(ana_list, ana_worker_info, para_env, tmc_env)
     TYPE(elem_list_type), POINTER            :: ana_list
     TYPE(elem_array_type), DIMENSION(:), &
       POINTER                                :: ana_worker_info
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'send_analysis_tasks', &
       routineP = moduleN//':'//routineN
@@ -200,8 +194,8 @@ CONTAINS
 
     NULLIFY(list_tmp)
 
-    CPPrecondition(ASSOCIATED(ana_worker_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_worker_info),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
 
 
     wg_loop:DO wg=1, SIZE(ana_worker_info)
@@ -211,7 +205,7 @@ CONTAINS
         dest = wg
         CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest, &
                para_env=para_env, tmc_params=tmc_env%params, &
-               list_elem=ana_list, error=error)
+               list_elem=ana_list)
         IF(.NOT.ASSOCIATED(ana_list%next)) THEN
           DEALLOCATE(ana_list)
           ana_list => NULL()
@@ -229,14 +223,11 @@ CONTAINS
 !>        distribution with workers
 !> \param tmc_env structure for storing all the tmc parameters
 !> \param globenv global environment for external control
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE do_tmc_master(tmc_env, globenv, error)
+  SUBROUTINE do_tmc_master(tmc_env, globenv)
     TYPE(tmc_env_type), POINTER              :: tmc_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_tmc_master', &
       routineP = moduleN//':'//routineN
@@ -263,13 +254,13 @@ CONTAINS
     restarted_elem_nr = 0
     NULLIFY(init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
 
-    CPPrecondition(tmc_env%tmc_comp_set%group_nr==0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w),cp_failure_level,routineP,error,failure)
+    CPPrecondition(tmc_env%tmc_comp_set%group_nr==0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w),cp_failure_level,routineP,failure)
 
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
 
     !-- run time measurment, to end just in time
     ! start the timing
@@ -280,7 +271,7 @@ CONTAINS
 
     ! initialize the different modules
     IF(tmc_env%params%DRAW_TREE) &
-      CALL init_draw_trees(tmc_params=tmc_env%params, error=error) 
+      CALL init_draw_trees(tmc_params=tmc_env%params) 
 
     !-- initialize variables
     ! nr_of_job: counting the differnt task send / received
@@ -309,44 +300,42 @@ CONTAINS
     CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                      para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                      tmc_params=tmc_env%params, &
-                     wait_for_message=.TRUE., error=error)
+                     wait_for_message=.TRUE.)
     !-- wait for start configuration results and number of dimentions
     !-- get start configuration (init_conf element should not be allocated already)
     CALL tmc_message(msg_type=stat, send_recv=recv_msg, dest=wg, &
                      para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                      tmc_params=tmc_env%params, &
-                     elem=init_conf, success=flag, wait_for_message=.TRUE.,&
-                     error=error)
+                     elem=init_conf, success=flag, wait_for_message=.TRUE.)
     CALL cp_assert(stat.EQ.TMC_STAT_START_CONF_RESULT, cp_failure_level,&
                    cp_assertion_failed,routineP,&
                    "receiving start configuration failed, received stat "//&
-                   cp_to_string(stat), error, failure=failure)
+                   cp_to_string(stat),failure=failure)
     IF(failure)THEN
       CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                             worker_info=worker_info, &
-                            tmc_params=tmc_env%params, error=error)
+                            tmc_params=tmc_env%params)
       CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_ana, &
                             worker_info=ana_worker_info, &
-                            tmc_params=tmc_env%params, error=error)
+                            tmc_params=tmc_env%params)
       CALL timestop(handle)
       RETURN
     END IF
     ! get the atom names from first energy worker
     CALL communicate_atom_types(atoms=tmc_env%params%atoms, &
            source=1,&
-           para_env=tmc_env%tmc_comp_set%para_env_m_first_w, &
-           error=error)
+           para_env=tmc_env%tmc_comp_set%para_env_m_first_w)
 
     CALL init_cell(cell=tmc_env%params%cell)
 
     ! check the configuration consitency with selected moves
     CALL check_moves(tmc_params=tmc_env%params, &
            move_types=tmc_env%params%move_types, &
-           mol_array=init_conf%mol, error=error)
+           mol_array=init_conf%mol)
     IF(ASSOCIATED(tmc_env%params%nmc_move_types)) &
       CALL check_moves(tmc_params=tmc_env%params, &
              move_types=tmc_env%params%nmc_move_types, &
-             mol_array=init_conf%mol, error=error)
+             mol_array=init_conf%mol)
 
     ! set initial configuration 
     ! set initial random number generator seed (rng seed)
@@ -354,7 +343,7 @@ CONTAINS
     !   seting the subtrees
     CALL init_tree_mod(start_elem=init_conf, tmc_env=tmc_env, &
                        job_counts=nr_of_job, &
-                       worker_timings=worker_timings_aver, error=error)
+                       worker_timings=worker_timings_aver)
 
     ! init restart counter (espacially for restart case)
     IF(tmc_env%m_env%restart_out_step .NE. 0) THEN
@@ -370,8 +359,7 @@ CONTAINS
       stat = TMC_STATUS_WORKER_INIT
       CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
              para_env=tmc_env%tmc_comp_set%para_env_m_w,&
-             tmc_params=tmc_env%params, &
-             error=error)
+             tmc_params=tmc_env%params)
     END DO    
 
     ! send the atom informations to all analysis workers
@@ -383,15 +371,14 @@ CONTAINS
                result_count=tmc_env%m_env%result_count, &
                tmc_params=tmc_env%params, &
                elem=init_conf, &
-               wait_for_message=.TRUE., error=error)
+               wait_for_message=.TRUE.)
       END DO
       CALL communicate_atom_types(atoms=tmc_env%params%atoms, &
            source=0,&
-           para_env=tmc_env%tmc_comp_set%para_env_m_ana, &
-           error=error)
+           para_env=tmc_env%tmc_comp_set%para_env_m_ana)
     END IF
 
-    CALL deallocate_sub_tree_node(tree_elem=init_conf, error=error)
+    CALL deallocate_sub_tree_node(tree_elem=init_conf)
 
     ! regtest output
     IF(tmc_env%params%print_test_output.OR.DEBUG.GT.0)&
@@ -407,8 +394,7 @@ CONTAINS
       CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                        para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                        tmc_params=tmc_env%params, &
-                       elem=tmc_env%m_env%gt_head%conf(1)%elem, &
-                       error=error)
+                       elem=tmc_env%m_env%gt_head%conf(1)%elem)
       worker_info(wg)%busy = .TRUE.
       worker_info(wg)%elem => tmc_env%m_env%gt_head%conf(1)%elem
       init_conf => tmc_env%m_env%gt_head%conf(1)%elem
@@ -433,7 +419,7 @@ CONTAINS
         CALL tmc_message(msg_type=stat,send_recv=recv_msg,dest=wg,&
                          para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                          tmc_params=tmc_env%params, &
-                         elem_array=worker_info(:), success=flag, error=error)
+                         elem_array=worker_info(:), success=flag)
 
         IF(flag.EQV..FALSE.) EXIT worker_request_loop
         ! messages from worker group could be faster then the canceling request
@@ -451,7 +437,7 @@ CONTAINS
                        cp_failure_level,cp_assertion_failed,routineP,&
                        "no tree elem exist when receiving stat "//&
                        cp_to_string(stat)//"of group"//cp_to_string(wg),&
-                       error, failure=flag)
+                       failure=flag)
 
         IF(DEBUG.GE.1) &
           WRITE(tmc_env%m_env%io_unit,*)&
@@ -467,7 +453,7 @@ CONTAINS
         ! -- CANCEL_RECEIPT ------------------
         CASE(TMC_CANCELING_RECEIPT)
           ! worker should got cancel message before
-          CPPrecondition(worker_info(wg)%canceled ,cp_failure_level,routineP,error,failure)
+          CPPrecondition(worker_info(wg)%canceled ,cp_failure_level,routineP,failure)
           worker_info(wg)%canceled = .FALSE.
           worker_info(wg)%busy = .FALSE.
 
@@ -483,7 +469,7 @@ CONTAINS
                worker_info(wg)%elem%potential = 8000.0_dp
                IF(tmc_env%params%DRAW_TREE) THEN
                  CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                       tmc_params=tmc_env%params, error=error)
+                                       tmc_params=tmc_env%params)
                END IF
             CASE(status_cancel_nmc)
                !-- timings
@@ -495,7 +481,7 @@ CONTAINS
                worker_info(wg)%elem%potential = 8000.0_dp
                IF(tmc_env%params%DRAW_TREE) THEN 
                  CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                       tmc_params=tmc_env%params, error=error)
+                                       tmc_params=tmc_env%params)
                END IF
             CASE DEFAULT 
                ! the subtree element is again in use (reactivated)
@@ -505,7 +491,7 @@ CONTAINS
         ! -- START_CONF_RESULT ---------------
         CASE(TMC_STAT_START_CONF_RESULT)
            ! start configuration should already be handeled
-           CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
+           CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
         ! -- ENERGY RESULT -----------------
         CASE(TMC_STAT_APPROX_ENERGY_RESULT)
           nr_of_job(3) = nr_of_job(3) +1
@@ -513,7 +499,7 @@ CONTAINS
           worker_info(wg)%elem%stat = status_created
           IF(tmc_env%params%DRAW_TREE)THEN
             CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                  tmc_params=tmc_env%params, error=error)
+                                  tmc_params=tmc_env%params)
           END IF
           worker_info(wg)%elem => NULL()
           ! nothing to do, the approximate potential 
@@ -527,11 +513,11 @@ CONTAINS
           nr_of_job(3) = nr_of_job(3) +1
 
           worker_info(wg)%start_time = m_walltime() - worker_info(wg)%start_time
-          CALL set_walltime_delay(worker_info(wg)%start_time, walltime_delay, error)
+          CALL set_walltime_delay(worker_info(wg)%start_time, walltime_delay)
           worker_info(wg)%elem%stat = status_created
           IF(tmc_env%params%DRAW_TREE)THEN
             CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                  tmc_params=tmc_env%params, error=error)
+                                  tmc_params=tmc_env%params)
           END IF
           !-- send energy request
           ! in case of one singe input file, energy is already calculated
@@ -541,18 +527,18 @@ CONTAINS
              ! check acceptance of depending nodes
              IF(.NOT.(ASSOCIATED(worker_info(wg)%elem,init_conf))) THEN
                CALL check_acceptance_of_depending_subtree_nodes(tree_elem=worker_info(wg)%elem, &
-                        tmc_env=tmc_env, error=error)
+                        tmc_env=tmc_env)
              END IF
              IF(tmc_env%params%DRAW_TREE)THEN
                CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                     tmc_params=tmc_env%params, error=error)
+                                     tmc_params=tmc_env%params)
              END IF
              !-- CANCELING the calculations of the elements, which are definetively not needed anymore
              CALL cancel_calculations(cancel_list=tmc_env%m_env%cancelation_list, &
                                       work_list=worker_info, &
                                       para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                                       tmc_env=tmc_env, &
-                                      cancel_count=cancel_count, error=error)
+                                      cancel_count=cancel_count)
              worker_info(wg)%elem => NULL()
           ELSE
              ! if all working groups are equal, the same group calculates the energy
@@ -564,12 +550,12 @@ CONTAINS
                CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                                 para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                                 tmc_params=tmc_env%params, &
-                                elem=worker_info(wg)%elem, error=error)
+                                elem=worker_info(wg)%elem)
                worker_info(wg)%busy = .TRUE.
                nr_of_job(2) = nr_of_job(2) +1
                IF(tmc_env%params%DRAW_TREE)THEN
                  CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                       tmc_params=tmc_env%params, error=error)
+                                       tmc_params=tmc_env%params)
                END IF
                !-- set start time for energy calculation
                worker_info(wg)%start_time = m_walltime() 
@@ -585,7 +571,7 @@ CONTAINS
           nr_of_job(4) = nr_of_job(4) +1
 
           worker_info(wg)%start_time = m_walltime()-worker_info(wg)%start_time
-          CALL set_walltime_delay(worker_info(wg)%start_time, walltime_delay, error)
+          CALL set_walltime_delay(worker_info(wg)%start_time, walltime_delay)
 
           IF(.NOT.worker_info(wg)%canceled)&
             worker_info(wg)%busy = .FALSE.
@@ -593,30 +579,30 @@ CONTAINS
           IF(ASSOCIATED(worker_info(wg)%elem, init_conf)) THEN
             !-- distribute energy of first element to all subtrees
             CALL finalize_init(gt_tree_ptr=tmc_env%m_env%gt_head, &
-                               tmc_env=tmc_env, error=error)
+                               tmc_env=tmc_env)
             IF(tmc_env%params%DRAW_TREE) THEN
               CALL create_global_tree_dot_color(gt_tree_element=tmc_env%m_env%gt_act, &
-                                                tmc_params=tmc_env%params, error=error)
+                                                tmc_params=tmc_env%params)
               CALL create_dot_color(tree_element=worker_info(wg)%elem, &
-                                    tmc_params=tmc_env%params, error=error)
+                                    tmc_params=tmc_env%params)
             END IF
             init_conf => NULL()
           ELSE
             worker_info(wg)%elem%stat = status_calculated
             IF(tmc_env%params%DRAW_TREE) &
               CALL create_dot_color(worker_info(wg)%elem, &
-                                    tmc_params=tmc_env%params, error=error)
+                                    tmc_params=tmc_env%params)
             ! check acceptance of depending nodes
             ! first (initial) configuration do not have to be checked
             CALL check_acceptance_of_depending_subtree_nodes(tree_elem=worker_info(wg)%elem, &
-                     tmc_env=tmc_env,error=error)
+                     tmc_env=tmc_env)
           END IF
           !-- write out all configurations (not only Markov Chain) e.g. for fitting
           IF(tmc_env%params%all_conf_file_name.NE."")THEN
             CALL write_element_in_file(elem=worker_info(wg)%elem, &
                                        file_name=tmc_env%params%all_conf_file_name, &
                                        tmc_params=tmc_env%params, &
-                                       conf_nr=nr_of_job(4), error=error)
+                                       conf_nr=nr_of_job(4))
           END IF
 
           !-- CANCELING the calculations of the elements, 
@@ -625,7 +611,7 @@ CONTAINS
                                    work_list=worker_info, &
                                    para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                                    tmc_env=tmc_env, &
-                                   cancel_count=cancel_count, error=error)
+                                   cancel_count=cancel_count)
           IF(DEBUG.GE.9) &
             WRITE(tmc_env%m_env%io_unit,*) &
               "TMC|master: handled energy result of sub tree ", &
@@ -640,14 +626,14 @@ CONTAINS
             worker_info(wg)%elem%stat.NE.status_cancel_nmc) THEN
             ! update the acceptance probability and the canceling list 
             CALL check_elements_for_acc_prob_update(tree_elem=worker_info(wg)%elem, &
-                                                    tmc_env=tmc_env, error=error)
+                                                    tmc_env=tmc_env)
           END IF
           ! cancel inlikely elements
           CALL cancel_calculations(cancel_list=tmc_env%m_env%cancelation_list, &
                                    work_list=worker_info, &
                                    para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                                    tmc_env=tmc_env, &
-                                   cancel_count=cancel_count,error=error)
+                                   cancel_count=cancel_count)
         CASE(TMC_STAT_ANALYSIS_RESULT)
           ana_worker_info(wg)%busy = .FALSE.
           ana_worker_info(wg)%elem => NULL()
@@ -655,12 +641,12 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "received message with unknown info/stat type", &
-                   error, failure=flag)
+                   failure=flag)
         END SELECT
       END DO worker_request_loop
       !-- do tree update (check new results)
       CALL tree_update(tmc_env=tmc_env, result_acc=flag, &
-                       something_updated=l_update_tree, error=error)
+                       something_updated=l_update_tree)
       IF(DEBUG.GE.2 .AND. l_update_tree) &
         WRITE(tmc_env%m_env%io_unit,*) &
           "TMC|master: tree updated "//cp_to_string(l_update_tree)// &
@@ -670,7 +656,7 @@ CONTAINS
       CALL send_analysis_tasks(ana_list=tmc_env%m_env%analysis_list, &
                                ana_worker_info=ana_worker_info, &
                                para_env=tmc_env%tmc_comp_set%para_env_m_ana, &
-                               tmc_env=tmc_env, error=error)
+                               tmc_env=tmc_env)
 
       ! =======================================================================
       !-- ALL CALCULATIONS DONE (check) ---
@@ -678,8 +664,7 @@ CONTAINS
       ! if enough configurations are sampled or walltime is exeeded, 
       !   finish building trees
 !TODO set correct logger para_env to use this 
-      CALL external_control(should_stop=external_stop,flag="TMC",globenv=globenv,&
-                            error=error)
+      CALL external_control(should_stop=external_stop,flag="TMC",globenv=globenv)
       IF((ANY(tmc_env%m_env%result_count(1:).GE.tmc_env%m_env%num_MC_elem)&
          .AND.flag).OR.&
          (m_walltime()-run_time_start .GT. &
@@ -700,7 +685,7 @@ CONTAINS
         END IF
         IF(tmc_env%m_env%restart_out_step.NE.0)&
           CALL print_restart_file(tmc_env=tmc_env,job_counts=nr_of_job, &
-                                  timings=worker_timings_aver, error=error)
+                                  timings=worker_timings_aver)
         EXIT task_loop
       END IF
 
@@ -714,8 +699,7 @@ CONTAINS
         !-- CLEANING tree nodes beside the path through the tree from 
         !      end_of_clean_tree to tree_ptr
         ! --> getting back the end of clean tree
-        CALL remove_all_trees(working_elem_list=worker_info, tmc_env=tmc_env, &
-                               error=error) 
+        CALL remove_all_trees(working_elem_list=worker_info, tmc_env=tmc_env)
         !-- CANCELING the calculations of the elements, 
         !     which are definetively not needed anymore
         !   elements are added to canceling list if no global tree reference 
@@ -724,7 +708,7 @@ CONTAINS
                                  work_list=worker_info, &
                                  cancel_count=cancel_count, &
                                  para_env=tmc_env%tmc_comp_set%para_env_m_w,&
-                                 tmc_env=tmc_env, error=error)
+                                 tmc_env=tmc_env)
       END IF
 
       ! =====================================================================
@@ -745,13 +729,11 @@ CONTAINS
           ! search next element to calculate the energy
           CALL search_next_energy_calc(gt_head=tmc_env%m_env%gt_act, &
                                        new_gt_elem=gt_elem_tmp, stat=stat,&
-                                       react_count=reactivation_ener_count, &
-                                       error=error)
+                                       react_count=reactivation_ener_count)
           IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
             CALL create_new_gt_tree_node(tmc_env=tmc_env, stat=stat, &
                    new_elem=gt_elem_tmp, &
-                   reactivation_cc_count=reactivation_cc_count, &
-                   error=error)
+                   reactivation_cc_count=reactivation_cc_count)
           END IF
         ELSEIF(wg.GT.tmc_env%tmc_comp_set%group_ener_nr) THEN
         ! specialized groups (groups for exact energy and groups for configurational change)
@@ -759,8 +741,7 @@ CONTAINS
           !-- crate new node, configurational change is handled in tmc_tree module
           CALL create_new_gt_tree_node(tmc_env=tmc_env, stat=stat, &
                    new_elem=gt_elem_tmp, &
-                   reactivation_cc_count=reactivation_cc_count, &
-                   error=error)
+                   reactivation_cc_count=reactivation_cc_count)
           ! element could be already created, hence CC worker has nothing to do for this element
           ! in next round he will get a task
           IF(stat.EQ.status_created .OR. stat.EQ.status_calculate_energy) &
@@ -769,8 +750,7 @@ CONTAINS
           ! search next element to calculate the energy
           CALL search_next_energy_calc(gt_head=tmc_env%m_env%gt_act, &
                                        new_gt_elem=gt_elem_tmp, stat=stat, &
-                                       react_count=reactivation_ener_count, &
-                                       error=error)
+                                       react_count=reactivation_ener_count)
         END IF
 
         IF(DEBUG.GE.10)&
@@ -792,8 +772,7 @@ CONTAINS
           CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                            para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                            tmc_params=tmc_env%params, &
-                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem, &
-                           error=error)
+                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem)
           nr_of_job(1) = nr_of_job(1) +1
         CASE(status_created, status_calculate_energy)
           ! in case of parallel tempering the node can be already be calculating (related to another global tree node
@@ -801,22 +780,20 @@ CONTAINS
           gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem%stat = status_calculate_energy
           IF(tmc_env%params%DRAW_TREE) &
             CALL create_dot_color(tree_element=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem, &
-                                  tmc_params=tmc_env%params, error=error)
+                                  tmc_params=tmc_env%params)
           stat = TMC_STAT_ENERGY_REQUEST
           CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                            para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                            tmc_params=tmc_env%params, &
-                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem, &
-                           error=error)
+                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem)
           nr_of_job(2) = nr_of_job(2) +1
         CASE(status_calculate_MD)
           stat = TMC_STAT_MD_REQUEST
           CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                            para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                            tmc_params=tmc_env%params, &
-                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem, &
+                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem)
 !                           temperature=tmc_env%params%Temp(gt_elem_tmp%mv_conf), &
-                           error=error)
           nr_of_job(1) = nr_of_job(1) +1
         CASE(status_calculate_NMC_steps)
           !-- send information of element, which should be calculated
@@ -824,8 +801,7 @@ CONTAINS
           CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
                            para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                            tmc_params=tmc_env%params, &
-                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem, &
-                           error=error)
+                           elem=gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem)
           nr_of_job(1) = nr_of_job(1) +1
         CASE(status_cancel_nmc, status_cancel_ener)
           ! skip that task until receipt is received
@@ -835,7 +811,7 @@ CONTAINS
                          routineP,"new task of tree element"//&
                          cp_to_string(gt_elem_tmp%nr)//&
                          "has unknown status"//cp_to_string(stat), &
-                         error, failure=flag)
+                         failure=flag)
         END SELECT
         worker_info(wg)%elem => gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem 
         worker_info(wg)%busy = .TRUE.
@@ -857,18 +833,17 @@ CONTAINS
                   ", sub trees", tmc_env%m_env%result_count(1:)
 
           CALL print_move_types(init=.FALSE., file_io=tmc_env%m_env%io_unit, &
-                                tmc_params=tmc_env%params, error=error)
+                                tmc_params=tmc_env%params)
           ALLOCATE(tree_elem_counters(0:SIZE(tmc_env%params%Temp)))
           ALLOCATE(tree_elem_heads(0:SIZE(tmc_env%params%Temp)))
           CALL count_nodes_in_trees(global_tree_ptr=tmc_env%m_env%gt_act, &
                  end_of_clean_trees=tmc_env%m_env%st_clean_ends,&
-                 counters=tree_elem_counters, head_elements_nr=tree_elem_heads, &
-                 error=error) 
+                 counters=tree_elem_counters, head_elements_nr=tree_elem_heads)
           WRITE(tmc_env%m_env%io_unit,*) "nodes in trees", tree_elem_counters(:)
           WRITE(tmc_env%m_env%io_unit,*) "tree heads    ", tree_elem_heads(:) 
           IF(tmc_env%params%NMC_inp_file.NE."") THEN
             CALL count_prepared_nodes_in_trees(global_tree_ptr=tmc_env%m_env%gt_act, &
-                   counters=tree_elem_counters, error=error)
+                   counters=tree_elem_counters)
             WRITE(tmc_env%m_env%io_unit,FMT=*)&
                     "ener prepared ", tree_elem_counters
           END IF
@@ -909,7 +884,7 @@ CONTAINS
            tmc_env%m_env%result_count(0).GT.&
            restart_count*tmc_env%m_env%restart_out_step) THEN
           CALL print_restart_file(tmc_env=tmc_env, job_counts=nr_of_job, &
-                                  timings=worker_timings_aver, error=error)
+                                  timings=worker_timings_aver)
           restart_count = restart_count +1
         END IF
 
@@ -922,11 +897,11 @@ CONTAINS
       "finalizing TMC","="
     WRITE(tmc_env%m_env%io_unit,*) "acceptance rates:"
     CALL print_move_types(init=.FALSE., file_io=tmc_env%m_env%io_unit, &
-                          tmc_params=tmc_env%params, error=error)
+                          tmc_params=tmc_env%params)
     WRITE(tmc_env%m_env%io_unit,FMT="(/,T2,A)") REPEAT("-",79)
     ! program efficency result outputs
     ALLOCATE(efficiency(0:tmc_env%params%nr_temp))
-    CALL get_subtree_efficiency(tmc_env=tmc_env, eff=efficiency, error=error)
+    CALL get_subtree_efficiency(tmc_env=tmc_env, eff=efficiency)
     WRITE(tmc_env%m_env%io_unit,*) "Efficiencies:" 
     WRITE(tmc_env%m_env%io_unit,FMT="(A,F5.2,A,1000F5.2)")&
       " (MC elements/calculated configuration) global:", &
@@ -959,21 +934,21 @@ CONTAINS
     WRITE(tmc_env%m_env%io_unit,*) "stopping workers"
     CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                           worker_info=worker_info, &
-                          tmc_params=tmc_env%params, error=error)
+                          tmc_params=tmc_env%params)
     DEALLOCATE(worker_info)
     CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_ana, &
                           worker_info=ana_worker_info, &
-                          tmc_params=tmc_env%params, error=error)
+                          tmc_params=tmc_env%params)
     DEALLOCATE(ana_worker_info)
 
     !-- deallocating everything in tree module
-    CALL finalize_trees(tmc_env=tmc_env, error=error)
+    CALL finalize_trees(tmc_env=tmc_env)
 
-    CALL free_cancelation_list(tmc_env%m_env%cancelation_list, error)
+    CALL free_cancelation_list(tmc_env%m_env%cancelation_list)
 
     ! -- write final configuration
     IF(tmc_env%params%DRAW_TREE) &
-      CALL finalize_draw_tree(tmc_params=tmc_env%params, error=error)
+      CALL finalize_draw_tree(tmc_params=tmc_env%params)
 
     WRITE(tmc_env%m_env%io_unit,*) "TMC master: all work done."
 
@@ -987,14 +962,11 @@ CONTAINS
 !>        hence the program can stop with a proper finailze
 !> \param time actual calculation time
 !> \param walltime_delay the actual biggest calculation time
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE set_walltime_delay(time, walltime_delay, error)
+  SUBROUTINE set_walltime_delay(time, walltime_delay)
     REAL(KIND=dp)                            :: time
     INTEGER                                  :: walltime_delay
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_walltime_delay', &
       routineP = moduleN//':'//routineN
@@ -1002,7 +974,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(time.GE.0.0_dp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(time.GE.0.0_dp,cp_failure_level,routineP,failure)
 
     IF(time.GT.walltime_delay)THEN
       walltime_delay = INT(time)+1

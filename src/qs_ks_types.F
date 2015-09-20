@@ -233,24 +233,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocates a new instance of ks_env.
 !> \param ks_env ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE qs_ks_env_create(ks_env, error)
+SUBROUTINE qs_ks_env_create(ks_env)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_env_create', &
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(ks_env)) STOP routineP//"ks_env already associated"
     ALLOCATE(ks_env)
-    CALL qs_rho_create(ks_env%rho, error)
-    CALL qs_rho_create(ks_env%rho_aux_fit, error)
-    CALL qs_rho_create(ks_env%rho_aux_fit_buffer, error)
-    CALL qs_rho_create(ks_env%rho_xc, error)
-    CALL qs_rho_create(ks_env%rho_buffer, error)
-    CALL kpoint_create(ks_env%kpoints,error)
+    CALL qs_rho_create(ks_env%rho)
+    CALL qs_rho_create(ks_env%rho_aux_fit)
+    CALL qs_rho_create(ks_env%rho_aux_fit_buffer)
+    CALL qs_rho_create(ks_env%rho_xc)
+    CALL qs_rho_create(ks_env%rho_buffer)
+    CALL kpoint_create(ks_env%kpoints)
 END SUBROUTINE qs_ks_env_create
 
 
@@ -345,7 +343,6 @@ END SUBROUTINE qs_ks_env_create
 !> \param nelectron_total ...
 !> \param nelectron_spin ...
 !> \param admm_dm ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
                         s_mstruct_changed,rho_changed,&
@@ -368,8 +365,7 @@ END SUBROUTINE qs_ks_env_create
                         particle_set,energy,force,local_particles,local_molecules,&
                         molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
                         nkind, natom, dft_control,dbcsr_dist,distribution_2d,pw_env,&
-                        para_env,blacs_env, nelectron_total, nelectron_spin,admm_dm,&
-                        error)
+                        para_env,blacs_env, nelectron_total, nelectron_spin,admm_dm)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(pw_type), OPTIONAL, POINTER         :: v_hartree_rspace
@@ -438,7 +434,6 @@ END SUBROUTINE qs_ks_env_create
     INTEGER, OPTIONAL                        :: nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
      IF(ks_env%ref_count<1) STOP "get_ks_env: ks_env%ref_count<1"
@@ -541,8 +536,7 @@ END SUBROUTINE qs_ks_env_create
                         natom=natom,&
                         nkind=nkind,&
                         nelectron_total=nelectron_total,&
-                        nelectron_spin=nelectron_spin,&
-                        error=error)
+                        nelectron_spin=nelectron_spin)
 
   END SUBROUTINE get_ks_env
 
@@ -610,7 +604,6 @@ END SUBROUTINE qs_ks_env_create
 !> \param para_env ...
 !> \param blacs_env ...
 !> \param admm_dm ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
                         s_mstruct_changed,rho_changed,&
@@ -626,8 +619,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_se,sab_tbe,sab_core,sab_vdw,sab_scp,sab_almo,sab_kp,&
                         task_list,task_list_aux_fit,task_list_soft,&
                         subsys,dft_control,dbcsr_dist,distribution_2d,pw_env,&
-                        para_env,blacs_env,admm_dm,&
-                        error)
+                        para_env,blacs_env,admm_dm)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(pw_type), OPTIONAL, POINTER         :: v_hartree_rspace
@@ -666,7 +658,6 @@ END SUBROUTINE qs_ks_env_create
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
     TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
      IF(ks_env%ref_count<1) STOP "set_ks_env: ks_env%ref_count<1"
@@ -738,13 +729,13 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(task_list_soft)) ks_env%task_list_soft=>task_list_soft
 
      IF (PRESENT(subsys)) THEN
-       CALL qs_subsys_release(ks_env%subsys,error)
-       CALL qs_subsys_retain(subsys, error=error)
+       CALL qs_subsys_release(ks_env%subsys)
+       CALL qs_subsys_retain(subsys)
        ks_env%subsys => subsys
     END IF
     IF (PRESENT(dft_control)) THEN
-       CALL dft_control_retain(dft_control, error=error)
-       CALL dft_control_release(ks_env%dft_control, error=error)
+       CALL dft_control_retain(dft_control)
+       CALL dft_control_release(ks_env%dft_control)
        ks_env%dft_control => dft_control
     END IF
     IF (PRESENT(dbcsr_dist)) THEN
@@ -755,23 +746,23 @@ END SUBROUTINE qs_ks_env_create
        ks_env%dbcsr_dist => dbcsr_dist
     ENDIF
     IF (PRESENT(distribution_2d)) THEN
-       CALL distribution_2d_retain(distribution_2d,error=error)
-       CALL distribution_2d_release(ks_env%distribution_2d,error=error)
+       CALL distribution_2d_retain(distribution_2d)
+       CALL distribution_2d_release(ks_env%distribution_2d)
        ks_env%distribution_2d => distribution_2d
     ENDIF
     IF (PRESENT(pw_env)) THEN
-      CALL pw_env_retain(pw_env,error=error)
-      CALL pw_env_release(ks_env%pw_env,error=error)
+      CALL pw_env_retain(pw_env)
+      CALL pw_env_release(ks_env%pw_env)
       ks_env%pw_env => pw_env
     END IF
     IF (PRESENT(para_env)) THEN
-       CALL cp_para_env_retain(para_env,error=error)
-       CALL cp_para_env_release(ks_env%para_env,error=error)
+       CALL cp_para_env_retain(para_env)
+       CALL cp_para_env_release(ks_env%para_env)
        ks_env%para_env => para_env
     ENDIF
     IF (PRESENT(blacs_env)) THEN
-       CALL cp_blacs_env_retain(blacs_env,error=error)
-       CALL cp_blacs_env_release(ks_env%blacs_env,error=error)
+       CALL cp_blacs_env_retain(blacs_env)
+       CALL cp_blacs_env_release(ks_env%blacs_env)
        ks_env%blacs_env => blacs_env
     ENDIF
   END SUBROUTINE set_ks_env
@@ -779,15 +770,12 @@ END SUBROUTINE qs_ks_env_create
 ! *****************************************************************************
 !> \brief releases the ks_env (see doc/ReferenceCounting.html)
 !> \param ks_env the ks_env to be released
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_ks_release(ks_env,error)
+  SUBROUTINE qs_ks_release(ks_env)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_release', &
       routineP = moduleN//':'//routineN
@@ -797,77 +785,77 @@ END SUBROUTINE qs_ks_env_create
     failure=.FALSE.
 
     IF (ASSOCIATED(ks_env)) THEN
-       CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,failure)
        ks_env%ref_count=ks_env%ref_count-1
 
        IF (ks_env%ref_count<1) THEN
           IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
-            CALL pw_release(ks_env%v_hartree_rspace,error=error)
+            CALL pw_release(ks_env%v_hartree_rspace)
           IF (ASSOCIATED(ks_env%matrix_ks_im)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
-          CALL kpoint_transitional_release(ks_env%matrix_ks, error)
-          CALL kpoint_transitional_release(ks_env%matrix_h, error)
-          CALL kpoint_transitional_release(ks_env%matrix_vxc, error)
-          CALL kpoint_transitional_release(ks_env%matrix_s, error)
-          CALL kpoint_transitional_release(ks_env%matrix_w, error)
-          CALL kpoint_transitional_release(ks_env%kinetic, error)
+          CALL kpoint_transitional_release(ks_env%matrix_ks)
+          CALL kpoint_transitional_release(ks_env%matrix_h)
+          CALL kpoint_transitional_release(ks_env%matrix_vxc)
+          CALL kpoint_transitional_release(ks_env%matrix_s)
+          CALL kpoint_transitional_release(ks_env%matrix_w)
+          CALL kpoint_transitional_release(ks_env%kinetic)
 
           IF (ASSOCIATED(ks_env%matrix_ks_aux_fit)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
           IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_im)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
           IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_dft)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_dft,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_dft)
           IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_hfx)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_hfx,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_hfx)
           IF (ASSOCIATED(ks_env%matrix_s_aux_fit)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit)
           IF (ASSOCIATED(ks_env%matrix_s_aux_fit_vs_orb)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb)
           IF (ASSOCIATED(ks_env%matrix_w_mp2)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2)
           IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
           IF (ASSOCIATED(ks_env%gamma_matrix)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%gamma_matrix,error)
+            CALL cp_dbcsr_deallocate_matrix_set(ks_env%gamma_matrix)
           IF(ASSOCIATED(ks_env%rho))&
-            CALL qs_rho_release(ks_env%rho, error=error)
+            CALL qs_rho_release(ks_env%rho)
           IF(ASSOCIATED(ks_env%rho_buffer))&
-            CALL qs_rho_release(ks_env%rho_buffer,error=error)
+            CALL qs_rho_release(ks_env%rho_buffer)
           IF(ASSOCIATED(ks_env%rho_xc))&
-            CALL qs_rho_release(ks_env%rho_xc, error=error)
+            CALL qs_rho_release(ks_env%rho_xc)
           IF(ASSOCIATED(ks_env%rho_aux_fit))&
-            CALL qs_rho_release(ks_env%rho_aux_fit, error=error)
+            CALL qs_rho_release(ks_env%rho_aux_fit)
           IF(ASSOCIATED(ks_env%rho_aux_fit_buffer))&
-            CALL qs_rho_release(ks_env%rho_aux_fit_buffer, error=error)
+            CALL qs_rho_release(ks_env%rho_aux_fit_buffer)
           IF (ASSOCIATED(ks_env%distribution_2d)) &
-             CALL distribution_2d_release(ks_env%distribution_2d,error=error)
+             CALL distribution_2d_release(ks_env%distribution_2d)
           IF(ASSOCIATED(ks_env%task_list)) &
-             CALL deallocate_task_list(ks_env%task_list,error)
+             CALL deallocate_task_list(ks_env%task_list)
           IF(ASSOCIATED(ks_env%task_list_aux_fit)) &
-             CALL deallocate_task_list(ks_env%task_list_aux_fit,error)
+             CALL deallocate_task_list(ks_env%task_list_aux_fit)
           IF(ASSOCIATED(ks_env%task_list_soft)) &
-             CALL deallocate_task_list(ks_env%task_list_soft,error)
+             CALL deallocate_task_list(ks_env%task_list_soft)
 
           IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
-             CALL pw_release(ks_env%rho_nlcc_g%pw,error=error)
+             CALL pw_release(ks_env%rho_nlcc_g%pw)
              DEALLOCATE(ks_env%rho_nlcc_g)
           ENDIF
           IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
-             CALL pw_release(ks_env%rho_nlcc%pw,error=error)
+             CALL pw_release(ks_env%rho_nlcc%pw)
              DEALLOCATE(ks_env%rho_nlcc)
           ENDIF
           IF (ASSOCIATED(ks_env%rho_core)) THEN
-             CALL pw_release(ks_env%rho_core%pw,error=error)
+             CALL pw_release(ks_env%rho_core%pw)
              DEALLOCATE(ks_env%rho_core)
           ENDIF
           IF (ASSOCIATED(ks_env%vppl)) THEN
-             CALL pw_release(ks_env%vppl%pw,error=error)
+             CALL pw_release(ks_env%vppl%pw)
              DEALLOCATE(ks_env%vppl)
           ENDIF
           IF (ASSOCIATED(ks_env%vee)) THEN
-             CALL pw_release(ks_env%vee%pw,error=error)
+             CALL pw_release(ks_env%vee%pw)
              DEALLOCATE(ks_env%vee)
           ENDIF
           IF(ASSOCIATED(ks_env%dbcsr_dist)) THEN
@@ -892,13 +880,13 @@ END SUBROUTINE qs_ks_env_create
           CALL release_sab(ks_env%sab_lrc)
           CALL release_sab(ks_env%sab_almo)
           CALL release_sab(ks_env%sab_kp)
-          CALL dft_control_release(ks_env%dft_control, error=error)
-          CALL kpoint_release(ks_env%kpoints,error=error)
-          CALL qs_subsys_release(ks_env%subsys,error=error)
-          CALL pw_env_release(ks_env%pw_env, error=error)
-          CALL cp_para_env_release(ks_env%para_env,error=error)
-          CALL cp_blacs_env_release(ks_env%blacs_env, error=error)
-          CALL admm_dm_release(ks_env%admm_dm, error=error)
+          CALL dft_control_release(ks_env%dft_control)
+          CALL kpoint_release(ks_env%kpoints)
+          CALL qs_subsys_release(ks_env%subsys)
+          CALL pw_env_release(ks_env%pw_env)
+          CALL cp_para_env_release(ks_env%para_env)
+          CALL cp_blacs_env_release(ks_env%blacs_env)
+          CALL admm_dm_release(ks_env%admm_dm)
 
           DEALLOCATE(ks_env)
        END IF
@@ -930,15 +918,12 @@ END SUBROUTINE qs_ks_env_create
 ! *****************************************************************************
 !> \brief retains the given ks_environment
 !> \param ks_env the KohnSham environment to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_ks_retain(ks_env, error)
+SUBROUTINE qs_ks_retain(ks_env)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_retain', &
       routineP = moduleN//':'//routineN
@@ -947,8 +932,8 @@ SUBROUTINE qs_ks_retain(ks_env, error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,failure)
+  CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,failure)
   ks_env%ref_count=ks_env%ref_count+1
 END SUBROUTINE qs_ks_retain
 
@@ -963,20 +948,17 @@ END SUBROUTINE qs_ks_retain
 !> \param rho_changed if true it means that the density has changed
 !> \param potential_changed ...
 !> \param full_reset if true everything has changed
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      4.2002 created [fawzi]
 !>     12.2014 moved from qs_ks_methods, added deallocation of KS-matrices [Ole Schuett]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,&
-                              potential_changed,full_reset,error)
+                              potential_changed,full_reset)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
                                                 rho_changed, &
                                                 potential_changed, full_reset
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
       routineP = moduleN//':'//routineN
@@ -988,7 +970,7 @@ END SUBROUTINE qs_ks_retain
     failure = .FALSE.
     my_mstruct_chg = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,failure)
 
     IF (PRESENT(rho_changed)) THEN
        IF (rho_changed) ks_env%rho_changed = .TRUE.
@@ -1012,11 +994,11 @@ END SUBROUTINE qs_ks_retain
     IF(my_mstruct_chg) THEN
        ks_env%s_mstruct_changed = .TRUE.
        ! *** deallocate matrices that will have the wrong structure ***
-       CALL kpoint_transitional_release(ks_env%matrix_ks, error)
-       CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit,error)
+       CALL kpoint_transitional_release(ks_env%matrix_ks)
+       CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
        !TODO: deallocate imaginary parts as well
-       !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im,error)
-       !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im,error)
+       !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
+       !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
     ENDIF
 
     CALL  timestop(handle)

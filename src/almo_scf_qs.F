@@ -102,14 +102,13 @@ CONTAINS
 !> \param symmetry_new ...
 !> \param spin_key ...
 !> \param init_domains ...
-!> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE matrix_almo_create(matrix_new,matrix_qs,almo_scf_env,&
                                 name_new,size_keys,symmetry_new,&
-                                spin_key,init_domains,error)
+                                spin_key,init_domains)
 
     TYPE(cp_dbcsr_type)                      :: matrix_new, matrix_qs
     TYPE(almo_scf_env_type), INTENT(IN)      :: almo_scf_env
@@ -118,7 +117,6 @@ CONTAINS
     CHARACTER, INTENT(IN)                    :: symmetry_new
     INTEGER, INTENT(IN)                      :: spin_key
     LOGICAL, INTENT(IN)                      :: init_domains
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_almo_create', &
       routineP = moduleN//':'//routineN
@@ -211,8 +209,8 @@ CONTAINS
                 ENDDO
              END IF
           ELSE
-             CPErrorMessage(cp_failure_level,routineP,"Illegal distribution",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"Illegal distribution")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           ENDIF
           
        ELSE ! this dimension is not AO
@@ -248,14 +246,14 @@ CONTAINS
                    block_sizes_new(:)=almo_scf_env%nvirt_of_domain(:,spin_key)
                 ENDIF
              ELSE
-                CPErrorMessage(cp_failure_level,routineP,"Illegal distribution",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"Illegal distribution")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
              
           ELSE
  
-             CPErrorMessage(cp_failure_level,routineP,"Illegal dimension",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"Illegal dimension")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              
           ENDIF ! end choosing dim size (occ, virt)
       
@@ -304,10 +302,10 @@ CONTAINS
          reuse_arrays=.TRUE.)
     
     ! Create the matrix
-    CALL cp_dbcsr_init(matrix_new,error=error)
+    CALL cp_dbcsr_init(matrix_new)
     CALL cp_dbcsr_create (matrix_new, name_new,&
          dist_new, symmetry_new,&
-         row_sizes_new, col_sizes_new, reuse_arrays=.TRUE., error=error)
+         row_sizes_new, col_sizes_new, reuse_arrays=.TRUE.)
     CALL cp_dbcsr_distribution_release(dist_new)
 
     ! fill out reqired blocks with 1.0_dp to tell the dbcsr library
@@ -315,7 +313,7 @@ CONTAINS
     IF (init_domains) THEN
   
        mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_new)))
-       CALL cp_dbcsr_work_create(matrix_new, work_mutable=.TRUE., error=error)
+       CALL cp_dbcsr_work_create(matrix_new, work_mutable=.TRUE.)
 
        ! startQQQ - this part of the code scales quadratically
        ! therefore it is replaced with a less general but linear scaling algorithm below
@@ -342,8 +340,8 @@ CONTAINS
        !QQQ                  size_keys(2)==almo_mat_dim_virt_full) then 
        !QQQ           domain_row=almo_scf_env%domain_index_of_mo_block(iblock_row)
        !QQQ         else
-       !QQQ           CPErrorMessage(cp_failure_level,routineP,"Illegal dimension",error)
-       !QQQ           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !QQQ           CPErrorMessage(cp_failure_level,routineP,"Illegal dimension")
+       !QQQ           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        !QQQ         endif
    
        !QQQ         if (size_keys(2)==almo_mat_dim_aobasis) then
@@ -354,8 +352,8 @@ CONTAINS
        !QQQ                  size_keys(2)==almo_mat_dim_virt_full) then 
        !QQQ           domain_col=almo_scf_env%domain_index_of_mo_block(iblock_col)
        !QQQ         else
-       !QQQ           CPErrorMessage(cp_failure_level,routineP,"Illegal dimension",error)
-       !QQQ           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !QQQ           CPErrorMessage(cp_failure_level,routineP,"Illegal dimension")
+       !QQQ           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        !QQQ         endif
 
        !QQQ         ! Finds if we need this block
@@ -366,7 +364,7 @@ CONTAINS
        !QQQ         IF (active) THEN
        !QQQ            NULLIFY (p_new_block)
        !QQQ            CALL cp_dbcsr_reserve_block2d(matrix_new, iblock_row, iblock_col, p_new_block)
-       !QQQ            CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+       !QQQ            CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
        !QQQ            p_new_block(:,:) = 1.0_dp
        !QQQ         ENDIF
 
@@ -390,7 +388,7 @@ CONTAINS
              IF (active) THEN
                 NULLIFY (p_new_block)
                 CALL cp_dbcsr_reserve_block2d(matrix_new, iblock_row, iblock_col, p_new_block)
-                CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+                CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
                 p_new_block(:,:) = 1.0_dp
              ENDIF
 
@@ -400,7 +398,7 @@ CONTAINS
 
     ENDIF ! init_domains
 
-    CALL cp_dbcsr_finalize(matrix_new, error=error)
+    CALL cp_dbcsr_finalize(matrix_new)
 
     CALL timestop (handle)
 
@@ -412,17 +410,15 @@ CONTAINS
 !> \param matrix_almo ...
 !> \param almo_scf_env ...
 !> \param keep_sparsity ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE matrix_qs_to_almo(matrix_qs,matrix_almo,almo_scf_env,&
-                               keep_sparsity,error)
+                               keep_sparsity)
     TYPE(cp_dbcsr_type)                      :: matrix_qs, matrix_almo
     TYPE(almo_scf_env_type)                  :: almo_scf_env
     LOGICAL, INTENT(IN)                      :: keep_sparsity
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_qs_to_almo', &
       routineP = moduleN//':'//routineN
@@ -438,14 +434,13 @@ CONTAINS
     CASE(almo_mat_distr_atomic)
        ! automatic data_type conversion
        CALL cp_dbcsr_copy(matrix_almo,matrix_qs,&
-            keep_sparsity=keep_sparsity,error=error)
+            keep_sparsity=keep_sparsity)
     CASE(almo_mat_distr_molecular)
        ! desymmetrize the qs matrix
-       CALL cp_dbcsr_init (matrix_qs_nosym, error=error)
+       CALL cp_dbcsr_init (matrix_qs_nosym)
        CALL cp_dbcsr_create (matrix_qs_nosym, template=matrix_qs,&
-            matrix_type=dbcsr_type_no_symmetry, error=error)
-       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
-            error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym)
 
        ! perform the magic complete_redistribute
        ! before calling complete_redistribute set all blocks to zero
@@ -454,13 +449,13 @@ CONTAINS
        ! in the final redistributed matrix. this is a bug in
        ! complete_redistribute. RZK-warning it should be later corrected by calling
        ! dbcsr_set to 0.0 from within complete_redistribute
-       CALL cp_dbcsr_set(matrix_almo, 0.0_dp, error=error)
+       CALL cp_dbcsr_set(matrix_almo, 0.0_dp)
        CALL cp_dbcsr_complete_redistribute(matrix_qs_nosym, matrix_almo,&
-               keep_sparsity=keep_sparsity,error=error);
-       CALL cp_dbcsr_release (matrix_qs_nosym, error=error)
+               keep_sparsity=keep_sparsity);
+       CALL cp_dbcsr_release (matrix_qs_nosym)
 
     CASE DEFAULT 
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     CALL timestop(handle)
@@ -472,15 +467,13 @@ CONTAINS
 !> \param matrix_almo ...
 !> \param matrix_qs ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE matrix_almo_to_qs(matrix_almo,matrix_qs,almo_scf_env,error)
+  SUBROUTINE matrix_almo_to_qs(matrix_almo,matrix_qs,almo_scf_env)
     TYPE(cp_dbcsr_type)                      :: matrix_almo, matrix_qs
     TYPE(almo_scf_env_type), INTENT(IN)      :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_almo_to_qs', &
       routineP = moduleN//':'//routineN
@@ -492,32 +485,32 @@ CONTAINS
     ! RZK-warning if it's not a N(AO)xN(AO) matrix then stop
 
 !    IF (ls_mstruct%single_precision) THEN
-!       CALL cp_dbcsr_init (matrix_tmp, error=error)
+!       CALL cp_dbcsr_init (matrix_tmp)
 !       CALL cp_dbcsr_create (matrix_tmp, template=matrix_ls,&
-!            data_type=dbcsr_type_real_8, error=error)
-!       CALL cp_dbcsr_copy (matrix_tmp, matrix_ls, error=error)
+!            data_type=dbcsr_type_real_8)
+!       CALL cp_dbcsr_copy (matrix_tmp, matrix_ls)
 !    ENDIF
 
     SELECT CASE(almo_scf_env%mat_distr_aos)
     CASE(almo_mat_distr_atomic)
 !       IF (ls_mstruct%single_precision) THEN
-!          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_tmp, error=error)
+!          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_tmp)
 !       ELSE
-          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_almo, error=error)
+          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_almo)
 !       ENDIF
     CASE(almo_mat_distr_molecular)
-       CALL cp_dbcsr_set(matrix_qs,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_qs,0.0_dp)
 !       IF (ls_mstruct%single_precision) THEN
-!          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE., error=error) 
+!          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE.) 
 !       ELSE
-          CALL cp_dbcsr_complete_redistribute(matrix_almo, matrix_qs, keep_sparsity=.TRUE., error=error) 
+          CALL cp_dbcsr_complete_redistribute(matrix_almo, matrix_qs, keep_sparsity=.TRUE.) 
 !       ENDIF
     CASE DEFAULT 
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
 !    IF (ls_mstruct%single_precision) THEN
-!       CALL cp_dbcsr_release(matrix_tmp,error=error)
+!       CALL cp_dbcsr_release(matrix_tmp)
 !    ENDIF
 
     CALL timestop(handle)
@@ -530,15 +523,13 @@ CONTAINS
 !>        for the other SCF methods
 !> \param qs_env ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_init_qs(qs_env,almo_scf_env,error)
+  SUBROUTINE almo_scf_init_qs(qs_env,almo_scf_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_qs', &
       routineP = moduleN//':'//routineN
@@ -569,7 +560,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(rho, sab_orb, rho_ao)
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -592,26 +583,25 @@ CONTAINS
                     nelectron_spin=nelectron_spin,&
                     mscfg_env=mscfg_env,&
                     rho=rho,&
-                    sab_orb=sab_orb,&
-                    error=error)
+                    sab_orb=sab_orb)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
-    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,error,failure)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
+    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,failure)
 
     nspin=dft_control%nspins
 
     ! create matrix_ks if necessary
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspin,error)
+       CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspin)
        DO ispin=1,nspin
           ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
+          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix)
           CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,&
-               template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
-          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+               template=matrix_s(1)%matrix)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb)
+          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp)
        ENDDO
-       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks)
     ENDIF
 
     ! create an initial guess
@@ -624,34 +614,34 @@ CONTAINS
           ! all we need to do is convert the MOs of molecules into
           ! the ALMO matrix taking into account different distributions 
           CALL get_matrix_from_submatrices(mscfg_env,&
-                  almo_scf_env%matrix_t_blk(ispin), ispin, error)
+                  almo_scf_env%matrix_t_blk(ispin), ispin)
           CALL cp_dbcsr_filter(almo_scf_env%matrix_t_blk(ispin),&
-                  almo_scf_env%eps_filter,error=error)
+                  almo_scf_env%eps_filter)
 
        ENDDO
        
     CASE (atomic_guess)
 
        DO ispin=1,nspin
-          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp)
           IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
              CALL calculate_mopac_dm(rho_ao(ispin)%matrix,&
                   matrix_s(1)%matrix, has_unit_metric, &
                   dft_control, particle_set, atomic_kind_set, qs_kind_set,&
                   nspin, nelectron_spin(ispin),&
-                  para_env, error)
+                  para_env)
           ELSE
              CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,&
                   matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
-                  ispin, nspin, nelectron_spin(ispin), unit_nr, error)
+                  ispin, nspin, nelectron_spin(ispin), unit_nr)
           ENDIF
 
           ! copy the atomic-block dm into matrix_p_blk
           CALL matrix_qs_to_almo(rho_ao(ispin)%matrix,&
                                  almo_scf_env%matrix_p_blk(ispin),almo_scf_env,&
-                                 .FALSE.,error)
+                                 .FALSE.)
           CALL cp_dbcsr_filter(almo_scf_env%matrix_p_blk(ispin),&
-                  almo_scf_env%eps_filter,error=error)
+                  almo_scf_env%eps_filter)
 
        ENDDO
        
@@ -662,24 +652,24 @@ CONTAINS
        ! essentially producing the ionic orbitals
        ! while it works for simple systems this guess
        ! will lead to convergence problems with complex molecules
-       CALL almo_scf_p_blk_to_t_blk(almo_scf_env,error)
+       CALL almo_scf_p_blk_to_t_blk(almo_scf_env)
     
     END SELECT
 
-    CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env,error)
+    CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
     CALL almo_scf_t_blk_to_p(almo_scf_env,&
-            use_sigma_inv_guess=.FALSE.,error=error)
+            use_sigma_inv_guess=.FALSE.)
 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
                               rho_ao(ispin)%matrix,&
-                              almo_scf_env,error)
+                              almo_scf_env)
     ENDDO
 
-    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env)
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
-                             just_energy=.FALSE.,error=error)
+                             just_energy=.FALSE.)
 
     IF (unit_nr>0) THEN
        IF (almo_scf_env%almo_scf_guess.eq.molecular_guess) THEN
@@ -700,16 +690,14 @@ CONTAINS
 !> \param qs_env ...
 !> \param almo_scf_env ...
 !> \param energy_new ...
-!> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_dm_to_ks(qs_env,almo_scf_env,energy_new,error)
+  SUBROUTINE almo_scf_dm_to_ks(qs_env,almo_scf_env,energy_new)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
     REAL(KIND=dp)                            :: energy_new
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_dm_to_ks', &
       routineP = moduleN//':'//routineN
@@ -724,22 +712,21 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     nspin=almo_scf_env%nspins
-    CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL get_qs_env(qs_env, energy=energy, rho=rho)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     ! set the new density matrix 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
                               rho_ao(ispin)%matrix,&
-                              almo_scf_env,&
-                              error)
+                              almo_scf_env)
     END DO
 
     ! compute the corresponding KS matrix and new energy
-    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env)
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.,&
-                             print_active=.TRUE., error=error)
+                             print_active=.TRUE.)
     energy_new=energy%total
 
     CALL timestop(handle)
@@ -750,22 +737,20 @@ CONTAINS
 !> \brief update qs_env total energy
 !> \param qs_env ...
 !> \param energy ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_update_ks_energy(qs_env,energy,error)
+  SUBROUTINE almo_scf_update_ks_energy(qs_env,energy)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: energy
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_update_ks_energy', &
       routineP = moduleN//':'//routineN
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
-    CALL get_qs_env(qs_env, energy=qs_energy, error=error)
+    CALL get_qs_env(qs_env, energy=qs_energy)
     qs_energy%total=energy
 
   END SUBROUTINE almo_scf_update_ks_energy
@@ -774,16 +759,14 @@ CONTAINS
 !> \brief Creates the matrix that imposes absolute locality on MOs 
 !> \param qs_env ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.11 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_construct_quencher(qs_env,almo_scf_env,error)
+  SUBROUTINE almo_scf_construct_quencher(qs_env,almo_scf_env)
     
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_construct_quencher', &
       routineP = moduleN//':'//routineN
@@ -828,7 +811,7 @@ CONTAINS
     CALL timeset(routineN,handle)
        
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -842,8 +825,7 @@ CONTAINS
       molecule_set=molecule_set,&
       cell=cell,&
       matrix_s=matrix_s,&
-      sab_almo=sab_almo,&
-      error=error)
+      sab_almo=sab_almo)
 
     ! if we are dealing with molecules get info about them
     IF (almo_scf_env%domain_layout_mos==almo_domain_layout_molecular .OR. &
@@ -852,22 +834,21 @@ CONTAINS
        ALLOCATE(last_atom_of_molecule(almo_scf_env%nmolecules))
        CALL get_molecule_set_info(molecule_set,&
                mol_to_first_atom=first_atom_of_molecule,&
-               mol_to_last_atom=last_atom_of_molecule,&
-               error=error)
+               mol_to_last_atom=last_atom_of_molecule)
     ENDIF
 
     ! create a symmetrized copy of the ao overlap
-    CALL cp_dbcsr_init(matrix_s_sym,error=error)
+    CALL cp_dbcsr_init(matrix_s_sym)
     CALL cp_dbcsr_create(matrix_s_sym,&
             template=almo_scf_env%matrix_s(1),&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
     CALL cp_dbcsr_get_info(almo_scf_env%matrix_s(1),&
             matrix_type=sym)
     IF (sym.eq.dbcsr_type_no_symmetry) THEN
-       CALL cp_dbcsr_copy(matrix_s_sym,almo_scf_env%matrix_s(1),error=error)
+       CALL cp_dbcsr_copy(matrix_s_sym,almo_scf_env%matrix_s(1))
     ELSE
        CALL cp_dbcsr_desymmetrize(almo_scf_env%matrix_s(1),&
-               matrix_s_sym,error=error)
+               matrix_s_sym)
     ENDIF
 
     ALLOCATE(almo_scf_env%quench_t(almo_scf_env%nspins))
@@ -884,12 +865,11 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.FALSE.,&
-            error=error)
+            init_domains=.FALSE.)
     
        ! initialize distance quencher
        CALL cp_dbcsr_work_create(almo_scf_env%quench_t(ispin),&
-               work_mutable=.TRUE., error=error)
+               work_mutable=.TRUE.)
 
        nblkrows_tot = cp_dbcsr_nblkrows_total(almo_scf_env%quench_t(ispin))
        nblkcols_tot = cp_dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
@@ -1057,8 +1037,8 @@ CONTAINS
                       ELSE ! ao domains are atomic
    
                          ! ao domains are atomic / electron groups are molecular
-                         CPErrorMessage(cp_failure_level,routineP,"Illegal: atomic domains and molecular groups",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"Illegal: atomic domains and molecular groups")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
    
                       ENDIF
                    
@@ -1068,8 +1048,8 @@ CONTAINS
                       IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular) THEN
    
                          ! ao domains are molecular / electron groups are atomic
-                         CPErrorMessage(cp_failure_level,routineP,"Illegal: molecular domains and atomic groups",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"Illegal: molecular domains and atomic groups")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
    
                       ELSE 
                          
@@ -1087,12 +1067,12 @@ CONTAINS
                       NULLIFY (p_new_block)
                       CALL cp_dbcsr_reserve_block2d(almo_scf_env%quench_t(ispin),&
                               iblock_row, iblock_col, p_new_block)
-                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
                       p_new_block(:,:) = 1.0_dp
                       
                       IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
-                         CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                       ENDIF
                       almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                       almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1114,8 +1094,8 @@ CONTAINS
                          CALL cp_dbcsr_get_block_p(matrix_s_sym,&
                                  iblock_row, iblock_col, p_new_block, found)
                          IF (found) THEN
-                         !   CPErrorMessage(cp_failure_level,routineP,"S block not found",error)
-                         !   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         !   CPErrorMessage(cp_failure_level,routineP,"S block not found")
+                         !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                             overlap=MAXVAL(ABS(p_new_block))
                          ELSE
                             overlap=0.0_dp
@@ -1125,8 +1105,8 @@ CONTAINS
    
                          ! ao domains are atomic / electron groups are molecular
                          ! overlap_between_atom_and_molecule(atom=domain_row,molecule=domain_col)
-                         CPErrorMessage(cp_failure_level,routineP,"atomic domains and molecular groups - NYI",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"atomic domains and molecular groups - NYI")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
    
                       ENDIF
                    
@@ -1137,8 +1117,8 @@ CONTAINS
    
                          ! ao domains are molecular / electron groups are atomic
                          ! overlap_between_atom_and_molecule(atom=domain_col,molecule=domain_row)
-                         CPErrorMessage(cp_failure_level,routineP,"molecular domains and atomic groups - NYI",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"molecular domains and atomic groups - NYI")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
    
                       ELSE 
                          
@@ -1147,8 +1127,8 @@ CONTAINS
                          CALL cp_dbcsr_get_block_p(matrix_s_sym,&
                                  iblock_row, iblock_col, p_new_block, found)
                          IF (found) THEN
-                         !   CPErrorMessage(cp_failure_level,routineP,"S block not found",error)
-                         !   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         !   CPErrorMessage(cp_failure_level,routineP,"S block not found")
+                         !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                             overlap=MAXVAL(ABS(p_new_block))
                          ELSE
                             overlap=0.0_dp
@@ -1183,7 +1163,7 @@ CONTAINS
                       NULLIFY (p_new_block)
                       CALL cp_dbcsr_reserve_block2d(almo_scf_env%quench_t(ispin),&
                               iblock_row, iblock_col, p_new_block)
-                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
                       IF ( overlap.le.s0 ) THEN
                          p_new_block(:,:) = 1.0_dp
                          !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTRA-BLOCKS: ",&
@@ -1196,8 +1176,8 @@ CONTAINS
                       
                       IF (ABS(p_new_block(1,1)).gt.ABS(almo_scf_env%eps_filter)) THEN
                          IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
-                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded",error)
-                            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded")
+                            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                          ENDIF
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1238,7 +1218,7 @@ CONTAINS
                                   ENDIF
                                ENDDO ! jatom
                             ENDDO ! iatom
-                            CPPrecondition(contact_atom_1.gt.0,cp_failure_level,routineP,error,failure)
+                            CPPrecondition(contact_atom_1.gt.0,cp_failure_level,routineP,failure)
                             distance=SQRT(distance_squared)
                          ENDIF
    
@@ -1246,8 +1226,8 @@ CONTAINS
    
                          ! ao domains are atomic / electron groups are molecular
                          !distance_between_atom_and_molecule(atom=domain_row,molecule=domain_col)
-                         CPErrorMessage(cp_failure_level,routineP,"atomic domains and molecular groups - NYI",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"atomic domains and molecular groups - NYI")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
    
                       ENDIF
                    
@@ -1258,8 +1238,8 @@ CONTAINS
    
                          ! ao domains are molecular / electron groups are atomic
                          !distance_between_atom_and_molecule(atom=domain_col,molecule=domain_row)
-                         CPErrorMessage(cp_failure_level,routineP,"molecular domains and atomic groups - NYI",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"molecular domains and atomic groups - NYI")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
    
                       ELSE 
                          
@@ -1289,8 +1269,8 @@ CONTAINS
                       CALL stop_program(routineN,moduleN,__LINE__,&
                                         "Illegal quencher_radius_type")
                    END IF
-                   contact1_radius = cp_unit_to_cp2k(contact1_radius,"angstrom",error=error)
-                   contact2_radius = cp_unit_to_cp2k(contact2_radius,"angstrom",error=error)
+                   contact1_radius = cp_unit_to_cp2k(contact1_radius,"angstrom")
+                   contact2_radius = cp_unit_to_cp2k(contact2_radius,"angstrom")
 
 !RZK-warning the procedure is faulty for molecules: the closest contacts should be found using
 ! the element specific radii
@@ -1319,7 +1299,7 @@ CONTAINS
                       NULLIFY (p_new_block)
                       CALL cp_dbcsr_reserve_block2d(almo_scf_env%quench_t(ispin),&
                               iblock_row, iblock_col, p_new_block)
-                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
                       IF ( distance.le.r0 ) THEN
                          p_new_block(:,:) = 1.0_dp
                          !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTRA-BLOCKS: ",&
@@ -1327,7 +1307,7 @@ CONTAINS
                          !   contact2_radius, r0, r1, distance, p_new_block(1,1)
                       ELSE
 ! remove the intermediate values from the quencher temporarily
-CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                          p_new_block(:,:) = 1.0_dp/(1.0_dp+EXP((r1-r0)/(r0-distance)+(r1-r0)/(r1-distance)))
                          !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTER-BLOCKS: ",&
                          !   iblock_col, iblock_row, contact1_radius,&
@@ -1336,8 +1316,8 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       
                       IF (ABS(p_new_block(1,1)).gt.ABS(almo_scf_env%eps_filter)) THEN
                          IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
-                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded",error)
-                            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded")
+                            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                          ENDIF
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1359,17 +1339,17 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        DEALLOCATE(domain_neighbor_list)
        DEALLOCATE(current_number_neighbors)
 
-       CALL cp_dbcsr_finalize(almo_scf_env%quench_t(ispin),error=error)
+       CALL cp_dbcsr_finalize(almo_scf_env%quench_t(ispin))
        !CALL cp_dbcsr_scale(almo_scf_env%quench_t(ispin),&
-       !        almo_scf_env%envelope_amplitude,error=error)
+       !        almo_scf_env%envelope_amplitude)
        CALL cp_dbcsr_filter(almo_scf_env%quench_t(ispin),&
-               almo_scf_env%eps_filter,error=error)
+               almo_scf_env%eps_filter)
 
        ! check that both domain_map and quench_t have the same number of entries 
        nblks=cp_dbcsr_get_num_blocks(almo_scf_env%quench_t(ispin))
        IF (nblks.ne.domain_map_local_entries) THEN
-          CPErrorMessage(cp_failure_level,routineP,"number of blocks is wrong",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"number of blocks is wrong")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
 
        ! communicate local parts of the domain map
@@ -1459,8 +1439,8 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 domain_grid(grid1,0)=domain_grid(grid1,0)+1
              ELSE
                 ! should not be here - all records must be inserted
-                CPErrorMessage(cp_failure_level,routineP,"all records must be inserted",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"all records must be inserted")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
           ENDDO
           max_neig_fails=.FALSE.
@@ -1481,14 +1461,14 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     !ENDDO ! ispin
     IF (almo_scf_env%nspins.eq.2) THEN
        CALL cp_dbcsr_copy(almo_scf_env%quench_t(2),&
-               almo_scf_env%quench_t(1),error=error)
+               almo_scf_env%quench_t(1))
        almo_scf_env%domain_map(2)%pairs(:,:)=&
           almo_scf_env%domain_map(1)%pairs(:,:)
        almo_scf_env%domain_map(2)%index1(:)=&
           almo_scf_env%domain_map(1)%index1(:)
     ENDIF
 
-    CALL cp_dbcsr_release(matrix_s_sym,error=error)
+    CALL cp_dbcsr_release(matrix_s_sym)
 
     IF (almo_scf_env%domain_layout_mos==almo_domain_layout_molecular .OR. &
        almo_scf_env%domain_layout_aos==almo_domain_layout_molecular) THEN

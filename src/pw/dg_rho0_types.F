@@ -122,12 +122,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   create the dg_rho0 structure
 !> \param dg_rho0 ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE dg_rho0_create ( dg_rho0, error )
+  SUBROUTINE dg_rho0_create ( dg_rho0)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_create', &
       routineP = moduleN//':'//routineN
@@ -135,7 +133,7 @@ CONTAINS
     INTEGER                                  :: istat
 
     ALLOCATE ( dg_rho0, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
     NULLIFY ( dg_rho0 % gcc )
     NULLIFY ( dg_rho0 % zet )
     dg_rho0 % cutoff_radius = 0.0_dp
@@ -152,17 +150,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given dg_rho0_type
 !> \param dg_rho0 the dg_rho0_type to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE dg_rho0_retain ( dg_rho0, error)
+  SUBROUTINE dg_rho0_retain ( dg_rho0)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_retain', &
       routineP = moduleN//':'//routineN
@@ -171,25 +166,22 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(dg_rho0),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(dg_rho0),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP)
     dg_rho0%ref_count=dg_rho0%ref_count+1
   END SUBROUTINE dg_rho0_retain
 
 ! *****************************************************************************
 !> \brief releases the given dg_rho0_type
 !> \param dg_rho0 the dg_rho0_type to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE dg_rho0_release(dg_rho0, error)
+  SUBROUTINE dg_rho0_release(dg_rho0)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
       routineP = moduleN//':'//routineN
@@ -200,22 +192,22 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(dg_rho0)) THEN
-       CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP)
        dg_rho0%ref_count=dg_rho0%ref_count-1
        IF (dg_rho0%ref_count==0) THEN
           IF ( ASSOCIATED ( dg_rho0 % gcc ) ) THEN
              DEALLOCATE ( dg_rho0 % gcc, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( dg_rho0 % zet ) ) THEN
              DEALLOCATE ( dg_rho0 % zet, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
-          CALL pw_release ( dg_rho0 % density % pw ,error=error)
+          CALL pw_release ( dg_rho0 % density % pw)
           NULLIFY ( dg_rho0 % gcc )
           NULLIFY ( dg_rho0 % zet )
           DEALLOCATE (  dg_rho0 , stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY(dg_rho0)
@@ -225,24 +217,22 @@ CONTAINS
 !> \brief ...
 !> \param dg_rho0 ...
 !> \param pw_grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid, error )
+  SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_init', &
       routineP = moduleN//':'//routineN
 
-    CALL pw_release ( dg_rho0 % density % pw ,error=error)
+    CALL pw_release ( dg_rho0 % density % pw)
     SELECT CASE ( dg_rho0 % type )
     CASE ( do_ewald_ewald )
-       CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
-       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ),error=error)
+       CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D)
+       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ))
     CASE ( do_ewald_pme )
-       CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
-       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ),error=error)
+       CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D)
+       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ))
     CASE ( do_ewald_spme )
        CALL stop_program(routineN,moduleN,__LINE__,'SPME type not implemented')
     END SELECT
@@ -253,13 +243,11 @@ CONTAINS
 !> \brief ...
 !> \param dg_rho0 ...
 !> \param alpha ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha, error)
+  SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: dg_rho0
     REAL(KIND=dp), INTENT(IN)                :: alpha
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_pme_gauss', &
       routineP = moduleN//':'//routineN
@@ -297,7 +285,7 @@ CONTAINS
        n0 = bds ( 1, 3 )
     END IF
 
-    CALL pw_zero ( dg_rho0%pw,error=error)
+    CALL pw_zero ( dg_rho0%pw)
 
     rho0 => dg_rho0 % pw % cr3d
 

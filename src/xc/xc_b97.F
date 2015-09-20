@@ -66,14 +66,12 @@ CONTAINS
 !> \param sc ...
 !> \param reference ...
 !> \param shortform ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE b97_ref(param,lda,sx,sc,reference,shortform,error)
+  SUBROUTINE b97_ref(param,lda,sx,sc,reference,shortform)
     INTEGER                                  :: param
     LOGICAL                                  :: lda
     REAL(dp), INTENT(in)                     :: sx, sc
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_ref', &
       routineP = moduleN//':'//routineN
@@ -146,10 +144,10 @@ CONTAINS
              shortform = "wB97X-V, HFX+B97+VV10 functional (NOT TESTED)"//pol
           END IF
        ELSE
-         CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
+         CPAssertNoFail(.FALSE.,cp_failure_level,routineP)
        END IF
     CASE default
-       CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
+       CPAssertNoFail(.FALSE.,cp_failure_level,routineP)
     END SELECT
   END SUBROUTINE b97_ref
 
@@ -161,18 +159,14 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE b97_lda_info(b97_params,reference,shortform, needs, max_deriv,&
-       error)
+  SUBROUTINE b97_lda_info(b97_params,reference,shortform, needs, max_deriv)
     TYPE(section_vals_type), POINTER         :: b97_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_info', &
       routineP = moduleN//':'//routineN
@@ -182,11 +176,11 @@ CONTAINS
     REAL(kind=dp)                            :: sc, sx
 
     failure=.FALSE.
-    CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
-    CALL section_vals_val_get(b97_params,"scale_x",r_val=sx,error=error)
-    CALL section_vals_val_get(b97_params,"scale_c",r_val=sc,error=error)
+    CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
+    CALL section_vals_val_get(b97_params,"scale_x",r_val=sx)
+    CALL section_vals_val_get(b97_params,"scale_c",r_val=sc)
 
-    CALL b97_ref(param,.TRUE.,sx,sc,reference,shortform,error)
+    CALL b97_ref(param,.TRUE.,sx,sc,reference,shortform)
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
        needs%norm_drho=.TRUE.
@@ -203,18 +197,14 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE b97_lsd_info(b97_params,reference,shortform, needs, max_deriv,&
-       error)
+  SUBROUTINE b97_lsd_info(b97_params,reference,shortform, needs, max_deriv)
     TYPE(section_vals_type), POINTER         :: b97_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -224,11 +214,11 @@ CONTAINS
     REAL(kind=dp)                            :: sc, sx
 
     failure=.FALSE.
-    CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
-    CALL section_vals_val_get(b97_params,"scale_x",r_val=sx,error=error)
-    CALL section_vals_val_get(b97_params,"scale_c",r_val=sc,error=error)
+    CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
+    CALL section_vals_val_get(b97_params,"scale_x",r_val=sx)
+    CALL section_vals_val_get(b97_params,"scale_c",r_val=sc)
 
-    CALL b97_ref(param,.FALSE.,sx,sc,reference,shortform,error)
+    CALL b97_ref(param,.FALSE.,sx,sc,reference,shortform)
     IF (PRESENT(needs)) THEN
        needs%rho_spin=.TRUE.
        needs%norm_drho_spin=.TRUE.
@@ -246,16 +236,13 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param b97_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE b97_lda_eval(rho_set,deriv_set,grad_deriv,b97_params,error)
+  SUBROUTINE b97_lda_eval(rho_set,deriv_set,grad_deriv,b97_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: b97_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -275,20 +262,20 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(bo)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         drho_cutoff=epsilon_norm_drho,error=error)
+         drho_cutoff=epsilon_norm_drho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        dummy=> rho
     END IF
@@ -306,58 +293,57 @@ CONTAINS
 
     IF (grad_deriv>=0) THEN
        deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     END IF
     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
     END IF
     IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drho)(rho)(rho)",allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho,error=error)
+            "(norm_drho)(rho)(rho)",allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drho)(norm_drho)(rho)",allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho,error=error)
+            "(norm_drho)(norm_drho)(rho)",allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
-            error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+            "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho)
     END IF
     IF (grad_deriv>3.OR.grad_deriv<-3) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 3 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
-    CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
-    CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c,error=error)
-    CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x,error=error)
+    CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
+    CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c)
+    CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x)
 
     !$omp parallel default(none) &
     !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho, e_rho_rho) &
     !$omp          shared(e_ndrho_rho, e_ndrho_ndrho) &
     !$omp          shared(grad_deriv, npoints, epsilon_rho) &
-    !$omp          shared(epsilon_norm_drho, param, scale_c, scale_x, error)
+    !$omp          shared(epsilon_norm_drho, param, scale_c, scale_x)
 
     CALL b97_lda_calc(rho_tot=rho, norm_drho=norm_drho,&
          e_0=e_0,e_r=e_rho,e_ndr=e_ndrho,e_r_r=e_rho_rho,&
@@ -366,13 +352,13 @@ CONTAINS
         ! e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,&
          grad_deriv=grad_deriv,&
          npoints=npoints,epsilon_rho=epsilon_rho,&
-         param=param,scale_c_in=scale_c,scale_x_in=scale_x,error=error)
+         param=param,scale_c_in=scale_c,scale_x_in=scale_x)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
        DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -385,16 +371,13 @@ CONTAINS
 !> \param deriv_set ...
 !> \param grad_deriv ...
 !> \param b97_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE b97_lsd_eval(rho_set,deriv_set,grad_deriv,b97_params,error)
+  SUBROUTINE b97_lsd_eval(rho_set,deriv_set,grad_deriv,b97_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: b97_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -413,22 +396,22 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(deriv, bo)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,&
          rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
          norm_drhob=norm_drhob, &
          rho_cutoff=epsilon_rho,&
-         local_bounds=bo, error=error)
+         local_bounds=bo)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        dummy=> rhoa
     END IF
@@ -453,62 +436,62 @@ CONTAINS
 
     IF (grad_deriv>=0) THEN
        deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv, deriv_data=e_0)
     END IF
     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ra,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ra)
        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rb,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rb)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndra,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndra)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrb,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrb)
     END IF
     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ra_ra,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ra_ra)
        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ra_rb,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ra_rb)
        deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rb_rb,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rb_rb)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndra_ra,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndra_ra)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndra_rb,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndra_rb)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrb_rb,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrb_rb)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrb_ra,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrb_ra)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndra_ndra,error=error)
+            "(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndra_ndra)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drhoa)(norm_drhob)", allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndra_ndrb,error=error)
+            "(norm_drhoa)(norm_drhob)", allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndra_ndrb)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrb_ndrb,error=error)
+            "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrb_ndrb)
     END IF
     IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
        ! to do
     END IF
 
-    CALL section_vals_val_get(b97_params,"parametrization",i_val=param,error=error)
-    CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x,error=error)
-    CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c,error=error)
+    CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
+    CALL section_vals_val_get(b97_params,"scale_x",r_val=scale_x)
+    CALL section_vals_val_get(b97_params,"scale_c",r_val=scale_c)
 
     !$omp parallel default (none) &
     !$omp          shared(rhoa, rhob, norm_drhoa, norm_drhob, e_0, e_ra) &
@@ -516,7 +499,7 @@ CONTAINS
     !$omp          shared(e_ndra_ra, e_ndrb_ra, e_ndrb_rb, e_ndra_rb) &
     !$omp          shared(e_ndra_ndra, e_ndrb_ndrb, e_ndra_ndrb) &
     !$omp          shared(grad_deriv, npoints, param, scale_c, scale_x) &
-    !$omp          shared(epsilon_rho, error)
+    !$omp          shared(epsilon_rho)
 
     CALL b97_lsd_calc(&
          rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa,&
@@ -530,13 +513,13 @@ CONTAINS
          e_ndra_ndrb=e_ndra_ndrb,&
          grad_deriv=grad_deriv, npoints=npoints, &
          epsilon_rho=epsilon_rho,&
-         param=param,scale_c_in=scale_c,scale_x_in=scale_x,error=error)
+         param=param,scale_c_in=scale_c,scale_x_in=scale_x)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
        DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -546,12 +529,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param param ...
-!> \param error ...
 !> \retval res ...
 ! *****************************************************************************
-  FUNCTION b97_coeffs(param, error) RESULT(res)
+  FUNCTION b97_coeffs(param) RESULT(res)
     INTEGER, INTENT(in)                      :: param
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(dp), DIMENSION(10)                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_coeffs', &
@@ -565,7 +546,7 @@ CONTAINS
     CASE(xc_b97_mardirossian)
        res = params_b97_mardirossian
     CASE default
-       CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
+       CPAssertNoFail(.FALSE.,cp_failure_level,routineP)
        res=0.0_dp
     END SELECT
   END FUNCTION b97_coeffs
@@ -597,8 +578,6 @@ CONTAINS
 !> \param param ...
 !> \param scale_c_in derivative of the functional with respect to c_in
 !> \param scale_x_in derivative of the functional with respect to x_in
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE b97_lsd_calc(rhoa, rhob, norm_drhoa, norm_drhob,&
@@ -607,7 +586,7 @@ CONTAINS
        e_ndra_ndra, e_ndrb_ndrb, e_ndra_ndrb, &
        e_ra_ra, e_ra_rb, e_rb_rb,&
        grad_deriv,npoints,epsilon_rho, &
-       param, scale_c_in, scale_x_in, error)
+       param, scale_c_in, scale_x_in)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drhoa, &
                                                 norm_drhob
     REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ndra, &
@@ -617,7 +596,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: epsilon_rho
     INTEGER, INTENT(in)                      :: param
     REAL(kind=dp), INTENT(in)                :: scale_c_in, scale_x_in
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_calc', &
       routineP = moduleN//':'//routineN
@@ -732,7 +710,7 @@ CONTAINS
     beta_3_3 = 0.88026e0_dp
     beta_4_3 = 0.49671e0_dp
 
-    coeffs=b97_coeffs(param,error)
+    coeffs=b97_coeffs(param)
     c_x_0=coeffs(1)
     c_x_1=coeffs(2)
     c_x_2=coeffs(3)
@@ -1643,15 +1621,13 @@ CONTAINS
 !> \param param ...
 !> \param scale_c_in ...
 !> \param scale_x_in ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note slow version
 ! *****************************************************************************
 SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
      e_0, e_r, e_r_r, e_ndr, e_r_ndr, e_ndr_ndr, &
      grad_deriv,npoints,epsilon_rho,&
-     param, scale_c_in, scale_x_in, error)
+     param, scale_c_in, scale_x_in)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_tot, norm_drho
     REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_r, e_r_r, e_ndr, &
@@ -1660,7 +1636,6 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
     REAL(kind=dp), INTENT(in)                :: epsilon_rho
     INTEGER, INTENT(in)                      :: param
     REAL(kind=dp), INTENT(in)                :: scale_c_in, scale_x_in
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -1775,7 +1750,7 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
   beta_3_3 = 0.88026e0_dp
   beta_4_3 = 0.49671e0_dp
 
-  coeffs=b97_coeffs(param,error)
+  coeffs=b97_coeffs(param)
   c_x_0=coeffs(1)
   c_x_1=coeffs(2)
   c_x_2=coeffs(3)

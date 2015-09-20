@@ -111,13 +111,11 @@ CONTAINS
 !> \param farming_env ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE farming_parse_input(farming_env,root_section,para_env,error)
+  SUBROUTINE farming_parse_input(farming_env,root_section,para_env)
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_parse_input', &
       routineP = moduleN//':'//routineN
@@ -133,15 +131,14 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(farming_section, jobs_section, print_key, logger, dependencies, i_vals)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     farming_env%group_size_wish_set=.FALSE.
     farming_env%ngroup_wish_set    =.FALSE.
-    farming_section => section_vals_get_subs_vals(root_section,"FARMING",&
-         error=error)
+    farming_section => section_vals_get_subs_vals(root_section,"FARMING")
 
     IF (ASSOCIATED(farming_env%group_partition)) THEN
        DEALLOCATE(farming_env%group_partition,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
 
     ! The following input order is used
@@ -149,86 +146,86 @@ CONTAINS
     ! 2) NGROUP
     ! 3) GROUP_SIZE (default 8)
     CALL section_vals_val_get(farming_section,"GROUP_PARTITION",&
-         n_rep_val=n_rep_val,error=error)
+         n_rep_val=n_rep_val)
     IF (n_rep_val>0) THEN
        CALL section_vals_val_get(farming_section,"GROUP_PARTITION",&
-            i_vals=i_vals,error=error)
+            i_vals=i_vals)
        ALLOCATE(farming_env%group_partition(0:SIZE(i_vals)-1))
        farming_env%group_partition(:)=i_vals
        farming_env%ngroup_wish_set=.TRUE.
        farming_env%ngroup_wish=SIZE(i_vals)
     ELSE
        CALL section_vals_val_get(farming_section,"NGROUP",&
-            n_rep_val=n_rep_val,error=error)
+            n_rep_val=n_rep_val)
        IF (n_rep_val>0) THEN
           CALL section_vals_val_get(farming_section,"NGROUP",&
-               i_val=farming_env%ngroup_wish,error=error)
+               i_val=farming_env%ngroup_wish)
           farming_env%ngroup_wish_set=.TRUE.
        ELSE
           CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
-               i_val=farming_env%group_size_wish,error=error)
+               i_val=farming_env%group_size_wish)
           farming_env%group_size_wish_set=.TRUE.
        END IF
     END IF
 
 
     CALL section_vals_val_get(farming_section,"RESTART_FILE_NAME",&
-         explicit=explicit,error=error)
+         explicit=explicit)
     IF (explicit) THEN
        CALL section_vals_val_get(farming_section,"RESTART_FILE_NAME",&
-            c_val=farming_env%restart_file_name,error=error)
+            c_val=farming_env%restart_file_name)
     ELSE
-       print_key => section_vals_get_subs_vals(farming_section,"RESTART",error=error)
+       print_key => section_vals_get_subs_vals(farming_section,"RESTART")
        farming_env%restart_file_name=cp_print_key_generate_filename(logger,print_key,extension=".restart",&
-                                     my_local=.FALSE., error=error)
+                                     my_local=.FALSE.)
     END IF
 
     CALL section_vals_val_get(farming_section,"DO_RESTART",&
-         l_val=farming_env%restart,error=error)
+         l_val=farming_env%restart)
     CALL section_vals_val_get(farming_section,"MAX_JOBS_PER_GROUP",&
-         i_val=farming_env%max_steps,error=error)
+         i_val=farming_env%max_steps)
     CALL section_vals_val_get(farming_section,"CYCLE",&
-         l_val=farming_env%cycle,error=error)
+         l_val=farming_env%cycle)
     CALL section_vals_val_get(farming_section,"WAIT_TIME",&
-         r_val=farming_env%wait_time,error=error)
+         r_val=farming_env%wait_time)
 
     CALL section_vals_val_get(farming_section,"MASTER_SLAVE",&
-         l_val=farming_env%master_slave,error=error)
+         l_val=farming_env%master_slave)
 
-    jobs_section => section_vals_get_subs_vals(farming_section,"JOB",error=error)
-    CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs,error=error)
+    jobs_section => section_vals_get_subs_vals(farming_section,"JOB")
+    CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs)
 
     ALLOCATE(farming_env%Job(farming_env % njobs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL init_job_type(farming_env%job)
 
     has_dep=.FALSE.
     DO i=1,farming_env%njobs
        CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-            keyword_name="DIRECTORY",c_val=farming_env%Job(i)%cwd,error=error)
+            keyword_name="DIRECTORY",c_val=farming_env%Job(i)%cwd)
        CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-            keyword_name="INPUT_FILE_NAME",c_val=farming_env%Job(i)%input,error=error)
+            keyword_name="INPUT_FILE_NAME",c_val=farming_env%Job(i)%input)
        CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-            keyword_name="OUTPUT_FILE_NAME",c_val=farming_env%Job(i)%output,error=error)
+            keyword_name="OUTPUT_FILE_NAME",c_val=farming_env%Job(i)%output)
 
        ! if job id is not specified the job id is the index
        CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-            keyword_name="JOB_ID",n_rep_val=n_rep_val,error=error)
+            keyword_name="JOB_ID",n_rep_val=n_rep_val)
        IF (n_rep_val==0) THEN
             farming_env%Job(i)%id=i
        ELSE
             CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-                 keyword_name="JOB_ID",i_val=farming_env%Job(i)%id,error=error)
+                 keyword_name="JOB_ID",i_val=farming_env%Job(i)%id)
        ENDIF
 
        ! get dependencies
        CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-            keyword_name="DEPENDENCIES",n_rep_val=n_rep_val,error=error)
+            keyword_name="DEPENDENCIES",n_rep_val=n_rep_val)
        IF (n_rep_val==0) THEN
           ALLOCATE(farming_env%Job(i)%dependencies(0))
        ELSE
           CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-               keyword_name="DEPENDENCIES",i_vals=dependencies,error=error)
+               keyword_name="DEPENDENCIES",i_vals=dependencies)
           ALLOCATE(farming_env%Job(i)%dependencies(SIZE(dependencies,1)))
           farming_env%Job(i)%dependencies=dependencies
           IF (SIZE(dependencies,1).NE.0) has_dep=.TRUE.
@@ -236,13 +233,13 @@ CONTAINS
     END DO
 
     IF (has_dep) THEN
-       CPPostcondition(farming_env%master_slave,cp_failure_level,routineP,error,failure)
-       CPPostcondition(.NOT.farming_env%cycle,cp_failure_level,routineP,error,failure)
+       CPPostcondition(farming_env%master_slave,cp_failure_level,routineP,failure)
+       CPPostcondition(.NOT.farming_env%cycle,cp_failure_level,routineP,failure)
     ENDIF
 
 
     output_unit=cp_print_key_unit_nr(logger,farming_section,"PROGRAM_RUN_INFO",&
-                                       extension=".log",error=error)
+                                       extension=".log")
 
     ! master slave not supported
     IF (para_env%num_pe==1) THEN
@@ -315,7 +312,7 @@ CONTAINS
       ENDIF
 
       CALL cp_print_key_finished_output(output_unit,logger,farming_section,&
-             "PROGRAM_RUN_INFO", error=error)
+             "PROGRAM_RUN_INFO")
     ENDIF
      CALL mp_bcast(farming_env%restart_n,para_env%source,para_env%group)
 

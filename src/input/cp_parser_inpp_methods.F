@@ -45,7 +45,6 @@ CONTAINS
 !> \param input_file_name ...
 !> \param input_line_number ...
 !> \param input_unit ...
-!> \param error ...
 !> \par History
 !>      - standalone proof-of-concept implementation (20.02.2008,AK)
 !>      - integration into cp2k (22.02.2008,tlaino)
@@ -54,11 +53,10 @@ CONTAINS
 !> \author AK
 ! *****************************************************************************
   SUBROUTINE inpp_process_directive(inpp, input_line, input_file_name, input_line_number,&
-       input_unit, error)
+       input_unit)
     TYPE(inpp_type), POINTER                 :: inpp
     CHARACTER(LEN=*), INTENT(INOUT)          :: input_line, input_file_name
     INTEGER, INTENT(INOUT)                   :: input_line_number, input_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'inpp_process_directive', &
       routineP = moduleN//':'//routineN
@@ -71,11 +69,11 @@ CONTAINS
     LOGICAL                                  :: check, failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
     failure = .TRUE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
 
     ! find location of directive in line and check whether it is commented out
     indi = INDEX(input_line,"@")
@@ -137,10 +135,10 @@ CONTAINS
        ! Let's check that files already opened won't be again opened
        DO i = 1, inpp%io_stack_level
           check = TRIM(filename)/=TRIM(inpp%io_stack_filename(i))
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
        END DO
 
-       ! this stops on error, so we can always assume success
+       ! this stops on so we can always assume success
        CALL open_file(file_name=TRIM(filename),&
                       file_status="OLD",&
                       file_form="FORMATTED",&
@@ -349,7 +347,7 @@ CONTAINS
              DO WHILE (input_line(indf:indf)/=" ")
                 indf = indf + 1
              END DO
-             CPPostcondition((indf-indi)<=default_string_length,cp_failure_level,routineP,error,failure)
+             CPPostcondition((indf-indi)<=default_string_length,cp_failure_level,routineP,failure)
              mytag =input_line(indi:indf-1)
              CALL uppercase(mytag)
              IF(INDEX(mytag,"@ENDIF")>0) THEN
@@ -396,17 +394,15 @@ CONTAINS
 !> \param input_file_name ...
 !> \param input_line_number ...
 !> \param input_unit ...
-!> \param error ...
 !> \par History
 !>      - standalone proof-of-concept implemenation (20.02.2008,AK)
 !>      - integrated into cp2k (21.02.2008)
 !> \author AK
 ! *****************************************************************************
-  SUBROUTINE inpp_end_include(inpp, input_file_name, input_line_number, input_unit, error)
+  SUBROUTINE inpp_end_include(inpp, input_file_name, input_line_number, input_unit)
     TYPE(inpp_type), POINTER                 :: inpp
     CHARACTER(LEN=*), INTENT(INOUT)          :: input_file_name
     INTEGER, INTENT(INOUT)                   :: input_line_number, input_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'inpp_end_include', &
       routineP = moduleN//':'//routineN
@@ -414,7 +410,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
     IF(inpp%io_stack_level > 0) THEN
        CALL close_file(input_unit)
        input_unit=inpp%io_stack_channel(inpp%io_stack_level)
@@ -434,18 +430,15 @@ CONTAINS
 !> \param input_line ...
 !> \param input_file_name ...
 !> \param input_line_number ...
-!> \param error ...
 !> \par History
 !>      - standalone proof-of-concept implemenation (22.02.2008,AK)
 !>      - integrated into cp2k (23.02.2008)
 !> \author AK
 ! *****************************************************************************
-  SUBROUTINE inpp_expand_variables(inpp, input_line, input_file_name, input_line_number,&
-       error)
+  SUBROUTINE inpp_expand_variables(inpp, input_line, input_file_name, input_line_number)
     TYPE(inpp_type), POINTER                 :: inpp
     CHARACTER(LEN=*), INTENT(INOUT)          :: input_line, input_file_name
     INTEGER, INTENT(IN)                      :: input_line_number
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'inpp_expand_variables', &
       routineP = moduleN//':'//routineN
@@ -456,14 +449,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .TRUE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
 
     ! process line until all variables named with the convention ${VAR} are expanded
     DO WHILE (INDEX(input_line,'${') > 0)
        pos1=INDEX(input_line,'${')
        pos1=pos1+2
        pos2=INDEX(input_line(pos1:),'}')
-       CPPostcondition(pos2>0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(pos2>0,cp_failure_level,routineP,failure)
        IF(pos2==0) THEN
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@SET: Missing '}' in file: ",&
@@ -474,7 +467,7 @@ CONTAINS
        pos2=pos1+pos2-2
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPPostcondition(idx>0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(idx>0,cp_failure_level,routineP,failure)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable ${",TRIM(varname),"} not defined in file: ",&
@@ -497,13 +490,13 @@ CONTAINS
        pos1=INDEX(input_line,'$')
        pos1=pos1+1
        pos2=INDEX(input_line(pos1:),' ')
-       CPPostcondition(pos2>=0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(pos2>=0,cp_failure_level,routineP,failure)
        IF(pos2==0) pos2 = LEN_TRIM(input_line(pos1:))+1
 
        pos2=pos1+pos2-1
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPPostcondition(idx>=0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(idx>=0,cp_failure_level,routineP,failure)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable $",TRIM(varname)," not defined in file: ",&

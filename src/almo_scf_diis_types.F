@@ -87,18 +87,16 @@ CONTAINS
 !> \param sample_var ...
 !> \param error_type ...
 !> \param max_length ...
-!> \param error ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE almo_scf_diis_init_dbcsr(diis_env,sample_err,sample_var,error_type,&
-    max_length,error)
+    max_length)
 
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: sample_err, sample_var
     INTEGER, INTENT(IN)                      :: error_type, max_length
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_init_dbcsr', &
       routineP = moduleN//':'//routineN
@@ -109,8 +107,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     IF( max_length.le.0 ) THEN
-       CPErrorMessage(cp_failure_level,routineP,"DIIS: max_length is less than zero",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"DIIS: max_length is less than zero")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
     diis_env%diis_env_type=diis_env_dbcsr
@@ -125,19 +123,19 @@ CONTAINS
 
     ! create matrices
     DO im=1,diis_env%max_buffer_length
-       CALL cp_dbcsr_init(diis_env%m_err(im),error=error)
+       CALL cp_dbcsr_init(diis_env%m_err(im))
        CALL cp_dbcsr_create(diis_env%m_err(im),&
-               template=sample_err,error=error)
-       CALL cp_dbcsr_init(diis_env%m_var(im),error=error)
+               template=sample_err)
+       CALL cp_dbcsr_init(diis_env%m_var(im))
        CALL cp_dbcsr_create(diis_env%m_var(im),&
-               template=sample_var,error=error)
+               template=sample_var)
     ENDDO
     
     ! current B matrices are only 1-by-1, they will be expanded on-the-fly
     ! only one matrix is used with dbcsr version of DIIS
     ndomains=1
     ALLOCATE(diis_env%m_b(ndomains))
-    CALL init_submatrices(diis_env%m_b,error=error)
+    CALL init_submatrices(diis_env%m_b)
     ! hack into d_b structure to gain full control
     diis_env%m_b(:)%domain=100 ! arbitrary positive number
     DO idomain=1, ndomains
@@ -158,19 +156,17 @@ CONTAINS
 !> \param sample_var ...
 !> \param error_type ...
 !> \param max_length ...
-!> \param error ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE almo_scf_diis_init_domain(diis_env,sample_err,sample_var,error_type,&
-    max_length,error)
+    max_length)
 
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: sample_err, sample_var
     INTEGER, INTENT(IN)                      :: error_type, max_length
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_init_domain', &
       routineP = moduleN//':'//routineN
@@ -181,8 +177,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     IF( max_length.le.0 ) THEN
-       CPErrorMessage(cp_failure_level,routineP,"DIIS: max_length is less than zero",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"DIIS: max_length is less than zero")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
     diis_env%diis_env_type=diis_env_domain
@@ -198,12 +194,12 @@ CONTAINS
     ALLOCATE(diis_env%d_var(diis_env%max_buffer_length,ndomains))
    
     ! create matrices
-    CALL init_submatrices(diis_env%d_var,error=error)
-    CALL init_submatrices(diis_env%d_err,error=error)
+    CALL init_submatrices(diis_env%d_var)
+    CALL init_submatrices(diis_env%d_err)
     
     ! current B matrices are only 1-by-1, they will be expanded on-the-fly
     ALLOCATE(diis_env%m_b(ndomains))
-    CALL init_submatrices(diis_env%m_b,error=error)
+    CALL init_submatrices(diis_env%m_b)
     ! hack into d_b structure to gain full control
     ! distribute matrices as the err/var matrices
     diis_env%m_b(:)%domain=sample_err(:)%domain
@@ -225,18 +221,16 @@ CONTAINS
 !> \param err ...
 !> \param d_var ...
 !> \param d_err ...
-!> \param error ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_diis_push(diis_env,var,err,d_var,d_err,error)
+  SUBROUTINE almo_scf_diis_push(diis_env,var,err,d_var,d_err)
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(cp_dbcsr_type), INTENT(IN), &
       OPTIONAL                               :: var, err
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN), OPTIONAL     :: d_var, d_err
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_push', &
       routineP = moduleN//':'//routineN
@@ -253,28 +247,28 @@ CONTAINS
 
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.(PRESENT(var).AND.PRESENT(err)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrices",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrices")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.(PRESENT(d_var).AND.PRESENT(d_err)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     in_point=diis_env%in_point
 
     ! store a var-error pair
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
-       CALL cp_dbcsr_copy(diis_env%m_var(in_point),var,error=error) 
-       CALL cp_dbcsr_copy(diis_env%m_err(in_point),err,error=error) 
+       CALL cp_dbcsr_copy(diis_env%m_var(in_point),var) 
+       CALL cp_dbcsr_copy(diis_env%m_err(in_point),err) 
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
-       CALL copy_submatrices(d_var,diis_env%d_var(in_point,:),copy_data=.TRUE.,error=error) 
-       CALL copy_submatrices(d_err,diis_env%d_err(in_point,:),copy_data=.TRUE.,error=error) 
+       CALL copy_submatrices(d_var,diis_env%d_var(in_point,:),copy_data=.TRUE.) 
+       CALL copy_submatrices(d_err,diis_env%d_err(in_point,:),copy_data=.TRUE.) 
     ENDIF
 
     ! update the buffer length
@@ -299,8 +293,8 @@ CONTAINS
     !!!diis_env%m_b(in_point+1,1)=-1.0_dp
     !!!DO irow=1,diis_env%buffer_length
     !!!   trace0=almo_scf_diis_error_overlap(diis_env,&
-    !!!      A=diis_env%m_err(irow),B=diis_env%m_err(in_point),&
-    !!!      error=error)
+    !!!      A=diis_env%m_err(irow),B=diis_env%m_err(in_point))
+    !!!      
     !!!   diis_env%m_b(irow+1,in_point+1)=trace0
     !!!   diis_env%m_b(in_point+1,irow+1)=trace0
     !!!ENDDO
@@ -329,13 +323,11 @@ CONTAINS
           DO irow=1,diis_env%buffer_length
              IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
                 trace0=almo_scf_diis_error_overlap(diis_env,&
-                   A=diis_env%m_err(irow),B=diis_env%m_err(in_point),&
-                   error=error)
+                   A=diis_env%m_err(irow),B=diis_env%m_err(in_point))
              ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
                 trace0=almo_scf_diis_error_overlap(diis_env,&
                    d_A=diis_env%d_err(irow,idomain),&
-                   d_B=diis_env%d_err(in_point,idomain),&
-                   error=error)
+                   d_B=diis_env%d_err(in_point,idomain))
              ENDIF
              diis_env%m_b(idomain)%mdata(irow+1,in_point+1)=trace0
              diis_env%m_b(idomain)%mdata(in_point+1,irow+1)=trace0
@@ -356,18 +348,16 @@ CONTAINS
 !> \param diis_env ...
 !> \param extr_var ...
 !> \param d_extr_var ...
-!> \param error ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_diis_extrapolate(diis_env,extr_var,d_extr_var,error)
+  SUBROUTINE almo_scf_diis_extrapolate(diis_env,extr_var,d_extr_var)
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(cp_dbcsr_type), INTENT(INOUT), &
       OPTIONAL                               :: extr_var
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(INOUT), OPTIONAL  :: d_extr_var
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_extrapolate', &
       routineP = moduleN//':'//routineN
@@ -384,7 +374,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -393,17 +383,17 @@ CONTAINS
 
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.PRESENT(extr_var) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrix",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrix")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.PRESENT(d_extr_var) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     ! Prepare data
@@ -431,8 +421,8 @@ CONTAINS
           CALL DSYEV('V','L',diis_env%buffer_length+1,m_b_copy,&
                   diis_env%buffer_length+1,eigenvalues,WORK,LWORK,INFO)
           IF( INFO.NE.0 ) THEN
-             CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           END IF
           DEALLOCATE(WORK)
 
@@ -459,21 +449,21 @@ CONTAINS
           ! extrapolate the variable
           checksum=0.0_dp
           IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
-             CALL cp_dbcsr_set(extr_var,0.0_dp,error=error)
+             CALL cp_dbcsr_set(extr_var,0.0_dp)
              DO im=1,diis_env%buffer_length
                 CALL cp_dbcsr_add(extr_var,diis_env%m_var(im),&
-                        1.0_dp,coeff(im+1),error=error)
+                        1.0_dp,coeff(im+1))
                 checksum=checksum+coeff(im+1)
              ENDDO
           ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
              CALL copy_submatrices(diis_env%d_var(1,idomain),&
                      d_extr_var(idomain),&
-                     copy_data=.FALSE.,error=error)
-             CALL set_submatrices(d_extr_var(idomain),0.0_dp,error=error)
+                     copy_data=.FALSE.)
+             CALL set_submatrices(d_extr_var(idomain),0.0_dp)
              DO im=1,diis_env%buffer_length
                 CALL add_submatrices(1.0_dp,d_extr_var(idomain),&
                         coeff(im+1),diis_env%d_var(im,idomain),&
-                        'N',error=error)
+                        'N')
                 checksum=checksum+coeff(im+1)
              ENDDO
           ENDIF
@@ -499,20 +489,18 @@ CONTAINS
 !> \param B ...
 !> \param d_A ...
 !> \param d_B ...
-!> \param error ...
 !> \retval almo_scf_diis_error_overlap ...
 !> \par History
 !>       2013.02 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  FUNCTION almo_scf_diis_error_overlap(diis_env,A,B,d_A,d_B,error)
+  FUNCTION almo_scf_diis_error_overlap(diis_env,A,B,d_A,d_B)
     
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(cp_dbcsr_type), INTENT(INOUT), &
       OPTIONAL                               :: A, B
     TYPE(domain_submatrix_type), &
       INTENT(INOUT), OPTIONAL                :: d_A, d_B
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: almo_scf_diis_error_overlap
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_error_overlap', &
@@ -526,34 +514,34 @@ CONTAINS
 
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.(PRESENT(A).AND.PRESENT(B)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrices",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrices")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.(PRESENT(d_A).AND.PRESENT(d_B)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     SELECT CASE(diis_env%error_type)
     CASE (diis_error_orthogonal)
        IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
-          CALL cp_dbcsr_trace(A, B, trace, 'T', 'N', error=error)
+          CALL cp_dbcsr_trace(A, B, trace, 'T', 'N')
        ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
-          CPPrecondition(SIZE(d_A%mdata,1).eq.SIZE(d_B%mdata,1),cp_failure_level,routineP,error,failure)
-          CPPrecondition(SIZE(d_A%mdata,2).eq.SIZE(d_B%mdata,2),cp_failure_level,routineP,error,failure)
-          CPPrecondition(d_A%domain.eq.d_B%domain,cp_failure_level,routineP,error,failure)
-          CPPrecondition(d_A%domain.gt.0,cp_failure_level,routineP,error,failure)
-          CPPrecondition(d_B%domain.gt.0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(SIZE(d_A%mdata,1).eq.SIZE(d_B%mdata,1),cp_failure_level,routineP,failure)
+          CPPrecondition(SIZE(d_A%mdata,2).eq.SIZE(d_B%mdata,2),cp_failure_level,routineP,failure)
+          CPPrecondition(d_A%domain.eq.d_B%domain,cp_failure_level,routineP,failure)
+          CPPrecondition(d_A%domain.gt.0,cp_failure_level,routineP,failure)
+          CPPrecondition(d_B%domain.gt.0,cp_failure_level,routineP,failure)
           trace=SUM(d_A%mdata(:,:)*d_B%mdata(:,:))
        ENDIF
     CASE DEFAULT
-       CPErrorMessage(cp_failure_level,routineP,"Vector type is unknown",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"Vector type is unknown")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     almo_scf_diis_error_overlap=trace
@@ -565,14 +553,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief destroys the diis structure 
 !> \param diis_env ...
-!> \param error ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_diis_release(diis_env,error)
+  SUBROUTINE almo_scf_diis_release(diis_env)
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_release', &
       routineP = moduleN//':'//routineN
@@ -584,16 +570,16 @@ CONTAINS
     ! release matrices
     DO im=1,diis_env%max_buffer_length
        IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
-          CALL cp_dbcsr_release(diis_env%m_err(im),error=error)
-          CALL cp_dbcsr_release(diis_env%m_var(im),error=error)
+          CALL cp_dbcsr_release(diis_env%m_err(im))
+          CALL cp_dbcsr_release(diis_env%m_var(im))
        ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
-          CALL release_submatrices(diis_env%d_var(im,:),error=error)
-          CALL release_submatrices(diis_env%d_err(im,:),error=error)
+          CALL release_submatrices(diis_env%d_var(im,:))
+          CALL release_submatrices(diis_env%d_err(im,:))
        ENDIF
     ENDDO
 
     IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
-       CALL release_submatrices(diis_env%m_b(:),error=error)
+       CALL release_submatrices(diis_env%m_b(:))
     ENDIF
 
     IF (ALLOCATED(diis_env%m_b)) DEALLOCATE(diis_env%m_b)

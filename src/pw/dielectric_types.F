@@ -77,17 +77,14 @@ CONTAINS
 !> \brief   deallocates dielectric data type
 !> \param dielectric the dielectric data type to be released
 !> \param pw_pool pool of the plane wave grid  
-!> \param error cp2k error
-!>
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_release(dielectric, pw_pool, error)
+  SUBROUTINE dielectric_release(dielectric, pw_pool)
     TYPE(dielectric_type), POINTER           :: dielectric
     TYPE(pw_pool_type), INTENT(IN), &
       OPTIONAL, POINTER                      :: pw_pool
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dielectric_release', &
       routineP = moduleN//':'//routineN
@@ -101,21 +98,21 @@ CONTAINS
        IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
        IF (can_give_back) THEN
           CALL pw_pool_give_back_pw(pw_pool, dielectric%eps,&
-                                    accept_non_compatible=.TRUE., error=error)
+                                    accept_non_compatible=.TRUE.)
           CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho,&
-                                    accept_non_compatible=.TRUE., error=error)
+                                    accept_non_compatible=.TRUE.)
           DO i = 1, 3
              CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i)%pw,&
-                                    accept_non_compatible=.TRUE., error=error)
+                                    accept_non_compatible=.TRUE.)
           END DO
        ELSE
-          CALL pw_release(dielectric%eps, error = error)
-          CALL pw_release(dielectric%deps_drho, error = error)
+          CALL pw_release(dielectric%eps)
+          CALL pw_release(dielectric%deps_drho)
           DO i = 1, 3
-             CALL pw_release(dielectric%dln_eps(i)%pw, error=error)
+             CALL pw_release(dielectric%dln_eps(i)%pw)
           END DO
        END IF
-       CALL dielectric_parameters_dealloc(dielectric%params, error=error)
+       CALL dielectric_parameters_dealloc(dielectric%params)
        DEALLOCATE(dielectric)
     END IF
 
@@ -126,17 +123,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   deallocates dielectric_parameters type
 !> \param dielec_params dielectric parameters
-!> \param error cp2k error
-!>
 !> \par History
 !>       07.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dielectric_parameters_dealloc(dielec_params, error)
+  SUBROUTINE dielectric_parameters_dealloc(dielec_params)
 
     TYPE(dielectric_parameters), &
       INTENT(INOUT)                          :: dielec_params
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dielectric_parameters_dealloc', &

@@ -57,13 +57,11 @@ CONTAINS
 !> \param atom ...
 !> \param iw ...
 !> \param noguess ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_atom(atom,iw,noguess,error)
+  SUBROUTINE calculate_atom(atom,iw,noguess)
     TYPE(atom_type), POINTER                 :: atom
     INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN), OPTIONAL            :: noguess
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom', &
       routineP = moduleN//':'//routineN
@@ -79,13 +77,13 @@ CONTAINS
 
     SELECT CASE (method)
       CASE (do_rks_atom, do_rhf_atom)
-        CALL calculate_atom_restricted(atom,iw,noguess,error)
+        CALL calculate_atom_restricted(atom,iw,noguess)
       CASE (do_uks_atom, do_uhf_atom)
-        CALL calculate_atom_unrestricted(atom,iw,noguess,error)
+        CALL calculate_atom_unrestricted(atom,iw,noguess)
       CASE (do_rohf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
     END SELECT
 
     CALL timestop(handle)
@@ -97,13 +95,11 @@ CONTAINS
 !> \param atom ...
 !> \param iw ...
 !> \param noguess ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_atom_restricted(atom,iw,noguess,error)
+  SUBROUTINE calculate_atom_restricted(atom,iw,noguess)
     TYPE(atom_type), POINTER                 :: atom
     INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN), OPTIONAL            :: noguess
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted', &
       routineP = moduleN//':'//routineN
@@ -133,10 +129,10 @@ CONTAINS
     hf_frac = 0._dp
     IF (ASSOCIATED(atom%xc_section)) THEN
       xc_section => atom%xc_section
-      hfx_sections => section_vals_get_subs_vals(xc_section,"HF",error=error)
-      CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+      hfx_sections => section_vals_get_subs_vals(xc_section,"HF")
+      CALL section_vals_get(hfx_sections,explicit=do_hfx)
       IF ( do_hfx ) THEN
-        CALL section_vals_val_get(hfx_sections,"FRACTION", r_val=hf_frac, error=error)
+        CALL section_vals_val_get(hfx_sections,"FRACTION", r_val=hf_frac)
       END IF
     ELSE
       NULLIFY(xc_section)
@@ -149,23 +145,23 @@ CONTAINS
 
     SELECT CASE (method)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (do_rks_atom)
         need_x = do_hfx
         need_xc = .TRUE.
       CASE (do_uks_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (do_rhf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
         hf_frac = 1._dp
       CASE (do_uhf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (do_rohf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
         hf_frac = 1._dp
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
     END SELECT
 
 ! ZMP starting to read external density for the zmp calculation
@@ -193,18 +189,18 @@ CONTAINS
     ! check for relativistic method
     reltyp = atom%relativistic
 
-    IF (iw>0) CALL atom_print_state(atom%state,iw,error)
+    IF (iw>0) CALL atom_print_state(atom%state,iw)
 
     NULLIFY(hcore)
-    CALL create_opmat(hcore,atom%basis%nbas,error)
+    CALL create_opmat(hcore,atom%basis%nbas)
     ! Pseudopotentials
     SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (NO_PSEUDO)
         SELECT CASE (reltyp)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
           CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
           CASE (do_zoramp_atom, do_sczoramp_atom)
@@ -221,14 +217,14 @@ CONTAINS
     END IF
 
     NULLIFY(fmat,jmat,kmat,xcmat)
-    CALL create_opmat(fmat,atom%basis%nbas,error)
-    CALL create_opmat(jmat,atom%basis%nbas,error)
-    CALL create_opmat(kmat,atom%basis%nbas,error)
-    CALL create_opmat(xcmat,atom%basis%nbas,error)
+    CALL create_opmat(fmat,atom%basis%nbas)
+    CALL create_opmat(jmat,atom%basis%nbas)
+    CALL create_opmat(kmat,atom%basis%nbas)
+    CALL create_opmat(xcmat,atom%basis%nbas)
 
     NULLIFY(density,cpot)
-    CALL create_opgrid(density,atom%basis%grid,error)
-    CALL create_opgrid(cpot,atom%basis%grid,error)
+    CALL create_opgrid(density,atom%basis%grid)
+    CALL create_opgrid(cpot,atom%basis%grid)
 
     ! ZMP reading the file to restart
     IF (atom%doread) CALL atom_read_zmp_restart(atom,doguess,iw)
@@ -237,29 +233,29 @@ CONTAINS
       ! initial guess
       ALLOCATE(tmp_dens(SIZE(density%op)))
       tmp_dens=0
-      CALL slater_density(density%op,tmp_dens,atom%z,atom%state,atom%basis%grid,error)
+      CALL slater_density(density%op,tmp_dens,atom%z,atom%state,atom%basis%grid)
       density%op=density%op+tmp_dens
       DEALLOCATE(tmp_dens)
-      CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
-      CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
-      CALL wigner_slater_functional(density%op,cpot%op,error)
-      CALL numpot_matrix(xcmat%op,cpot%op,atom%basis,0,error)
+      CALL coulomb_potential_numeric(cpot%op,density%op,density%grid)
+      CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0)
+      CALL wigner_slater_functional(density%op,cpot%op)
+      CALL numpot_matrix(xcmat%op,cpot%op,atom%basis,0)
       fmat%op = hcore%op + jmat%op + xcmat%op
       CALL atom_solve(fmat%op,atom%integrals%utrans,atom%orbitals%wfn,atom%orbitals%ener,&
-                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc)
     END IF
     CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
-                     atom%state%maxl_occ,atom%state%maxn_occ,error)
+                     atom%state%maxl_occ,atom%state%maxn_occ)
 
     ! wavefunction history
     NULLIFY(history%dmat,history%hmat)
-    CALL atom_history_init (history,atom%optimization,fmat%op,error)
+    CALL atom_history_init (history,atom%optimization,fmat%op)
 
     iter = 0
     DO            !SCF Loop
 
       ! Kinetic energy
-      atom%energy%ekin = atom_trace(atom%integrals%kin,atom%orbitals%pmat,error)
+      atom%energy%ekin = atom_trace(atom%integrals%kin,atom%orbitals%pmat)
 
       ! Band energy
       atom%energy%eband = 0._dp
@@ -272,22 +268,22 @@ CONTAINS
       ! Pseudopotential energy
       SELECT CASE (atom%potential%ppot_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
         CASE (NO_PSEUDO)
           atom%energy%eploc = 0._dp
           atom%energy%epnl = 0._dp
         CASE (GTH_PSEUDO)
-          atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat,error)
-          atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat,error)
+          atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat)
+          atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat)
       END SELECT
       atom%energy%epseudo = atom%energy%eploc + atom%energy%epnl
 
       ! Core energy
-      atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat,error)
+      atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat)
 
       ! Confinement energy
       IF ( atom%potential%confinement ) THEN
-        atom%energy%econfinement = atom_trace(atom%integrals%conf,atom%orbitals%pmat,error)
+        atom%energy%econfinement = atom_trace(atom%integrals%conf,atom%orbitals%pmat)
       ELSE
         atom%energy%econfinement = 0._dp
       END IF
@@ -296,34 +292,34 @@ CONTAINS
       jmat%op = 0._dp
       SELECT CASE (atom%coulomb_integral_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
         CASE (do_analytic)
-          CALL ceri_contract(jmat%op,atom%integrals%ceri,atom%orbitals%pmat,atom%integrals%n,error=error)
+          CALL ceri_contract(jmat%op,atom%integrals%ceri,atom%orbitals%pmat,atom%integrals%n)
         CASE (do_semi_analytic)
           CALL coulomb_potential_analytic(cpot%op,atom%orbitals%pmat,atom%basis,atom%basis%grid,&
-                 atom%state%maxl_occ,error)
-          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
+                 atom%state%maxl_occ)
+          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0)
         CASE (do_numeric)
-          CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
-          CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
-          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
+          CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO")
+          CALL coulomb_potential_numeric(cpot%op,density%op,density%grid)
+          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0)
       END SELECT
-      atom%energy%ecoulomb = 0.5_dp * atom_trace(jmat%op,atom%orbitals%pmat,error)
+      atom%energy%ecoulomb = 0.5_dp * atom_trace(jmat%op,atom%orbitals%pmat)
 
       ! Exchange Term
       IF (need_x) THEN
         kmat%op = 0._dp
         SELECT CASE (atom%exchange_integral_type)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
           CASE (do_analytic)
-            CALL eeri_contract(kmat%op,atom%integrals%eeri,atom%orbitals%pmat,atom%integrals%n,error=error)
+            CALL eeri_contract(kmat%op,atom%integrals%eeri,atom%orbitals%pmat,atom%integrals%n)
           CASE (do_semi_analytic)
-            CALL exchange_semi_analytic(kmat%op,atom%state,atom%state%occupation,atom%orbitals%wfn,atom%basis,error=error)
+            CALL exchange_semi_analytic(kmat%op,atom%state,atom%state%occupation,atom%orbitals%wfn,atom%basis)
           CASE (do_numeric)
-            CALL exchange_numeric(kmat%op,atom%state,atom%state%occupation,atom%orbitals%wfn,atom%basis,error=error)
+            CALL exchange_numeric(kmat%op,atom%state,atom%state%occupation,atom%orbitals%wfn,atom%basis)
         END SELECT
-        atom%energy%eexchange = hf_frac * 0.5_dp * atom_trace(kmat%op,atom%orbitals%pmat,error)
+        atom%energy%eexchange = hf_frac * 0.5_dp * atom_trace(kmat%op,atom%orbitals%pmat)
         kmat%op = hf_frac*kmat%op
       ELSE
         kmat%op = 0._dp
@@ -333,14 +329,14 @@ CONTAINS
       ! XC
       IF (need_xc) THEN
         xcmat%op = 0._dp
-        CALL calculate_atom_vxc_lda(xcmat,atom,xc_section,error)
+        CALL calculate_atom_vxc_lda(xcmat,atom,xc_section)
       ! ZMP added options for the zmp calculations, building external density and vxc potential
       ELSEIF (need_zmp) THEN
         xcmat%op = 0._dp
-        CALL calculate_atom_zmp(ext_density=ext_density,atom=atom,lprint=.FALSE.,xcmat=xcmat,error=error)
+        CALL calculate_atom_zmp(ext_density=ext_density,atom=atom,lprint=.FALSE.,xcmat=xcmat)
       ELSEIF (need_vxc) THEN
         xcmat%op = 0._dp
-        CALL  calculate_atom_ext_vxc(vxc=ext_vxc,atom=atom,lprint=.FALSE.,xcmat=xcmat,error=error)
+        CALL  calculate_atom_ext_vxc(vxc=ext_vxc,atom=atom,lprint=.FALSE.,xcmat=xcmat)
       ELSE
         xcmat%op = 0._dp
         atom%energy%exc = 0._dp
@@ -360,15 +356,15 @@ CONTAINS
 
       ! calculate error matrix
       CALL err_matrix(jmat%op,deps,fmat%op,atom%orbitals%pmat,atom%integrals%utrans,&
-                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne,error)
+                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne)
 
       iter = iter + 1
 
       IF ( iw > 0 ) THEN
         IF (need_zmp ) THEN
-          CALL atom_print_zmp_iteration(iter,deps,atom,iw,error)
+          CALL atom_print_zmp_iteration(iter,deps,atom,iw)
         ELSE
-          CALL atom_print_iteration(iter,deps,atom%energy%etot,iw,error)
+          CALL atom_print_iteration(iter,deps,atom%energy%etot,iw)
         ENDIF
       END IF
 
@@ -381,31 +377,31 @@ CONTAINS
       END IF
 
       ! update history container and extrapolate KS matrix
-      CALL atom_history_update (history,fmat%op,jmat%op,error)
-      CALL atom_opt (fmat%op,history,deps,error)
+      CALL atom_history_update (history,fmat%op,jmat%op)
+      CALL atom_opt (fmat%op,history,deps)
 
       ! Solve HF/KS equations
       CALL atom_solve(fmat%op,atom%integrals%utrans,atom%orbitals%wfn,atom%orbitals%ener,&
-                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc)
       CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
-                       atom%state%maxl_occ,atom%state%maxn_occ,error)
+                       atom%state%maxl_occ,atom%state%maxn_occ)
 
     END DO        !SCF Loop
 
     IF ( iw > 0 ) THEN
-      CALL atom_print_energies(atom,iw,error)
+      CALL atom_print_energies(atom,iw)
     END IF
 
-    CALL atom_history_release(history,error)
+    CALL atom_history_release(history)
 
-    CALL release_opmat(fmat,error)
-    CALL release_opmat(jmat,error)
-    CALL release_opmat(kmat,error)
-    CALL release_opmat(xcmat,error)
-    CALL release_opmat(hcore,error)
+    CALL release_opmat(fmat)
+    CALL release_opmat(jmat)
+    CALL release_opmat(kmat)
+    CALL release_opmat(xcmat)
+    CALL release_opmat(hcore)
 
-    CALL release_opgrid(density,error)
-    CALL release_opgrid(cpot,error)
+    CALL release_opgrid(density)
+    CALL release_opgrid(cpot)
 
     ! ZMP deallocating ext_density ext_vxc
     IF (need_zmp) DEALLOCATE(ext_density)
@@ -420,13 +416,11 @@ CONTAINS
 !> \param atom ...
 !> \param iw ...
 !> \param noguess ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_atom_unrestricted(atom,iw,noguess,error)
+  SUBROUTINE calculate_atom_unrestricted(atom,iw,noguess)
     TYPE(atom_type), POINTER                 :: atom
     INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN), OPTIONAL            :: noguess
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_unrestricted', &
       routineP = moduleN//':'//routineN
@@ -457,10 +451,10 @@ CONTAINS
     hf_frac = 0._dp
     IF (ASSOCIATED(atom%xc_section)) THEN
       xc_section => atom%xc_section
-      hfx_sections => section_vals_get_subs_vals(xc_section,"HF",error=error)
-      CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+      hfx_sections => section_vals_get_subs_vals(xc_section,"HF")
+      CALL section_vals_get(hfx_sections,explicit=do_hfx)
       IF ( do_hfx ) THEN
-        CALL section_vals_val_get(hfx_sections,"FRACTION", r_val=hf_frac, error=error)
+        CALL section_vals_val_get(hfx_sections,"FRACTION", r_val=hf_frac)
       END IF
     ELSE
       NULLIFY(xc_section)
@@ -473,14 +467,14 @@ CONTAINS
 
     SELECT CASE (method)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (do_rks_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (do_uks_atom)
         need_x = do_hfx
         need_xc = .TRUE.
       CASE (do_rhf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (do_uhf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
@@ -489,7 +483,7 @@ CONTAINS
         need_x = .TRUE.
         need_xc = .FALSE.
         hf_frac = 1._dp
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
     END SELECT
 
     ! set alpha and beta occupations
@@ -516,21 +510,21 @@ CONTAINS
     ! check for relativistic method
     reltyp = atom%relativistic
 
-    IF (iw>0) CALL atom_print_state(atom%state,iw,error)
+    IF (iw>0) CALL atom_print_state(atom%state,iw)
 
     NULLIFY(hcore,hlsd)
-    CALL create_opmat(hcore,atom%basis%nbas,error)
-    CALL create_opmat(hlsd,atom%basis%nbas,error)
+    CALL create_opmat(hcore,atom%basis%nbas)
+    CALL create_opmat(hlsd,atom%basis%nbas)
     hlsd%op = 0._dp
     ! Pseudopotentials
     lsdpot=.FALSE.
     SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (NO_PSEUDO)
         SELECT CASE (reltyp)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
           CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
           CASE (do_zoramp_atom, do_sczoramp_atom)
@@ -551,58 +545,58 @@ CONTAINS
     END IF
 
     NULLIFY(fmata,fmatb,jmat,kmata,kmatb,xcmata,xcmatb)
-    CALL create_opmat(fmata,atom%basis%nbas,error)
-    CALL create_opmat(fmatb,atom%basis%nbas,error)
-    CALL create_opmat(jmat,atom%basis%nbas,error)
-    CALL create_opmat(kmata,atom%basis%nbas,error)
-    CALL create_opmat(kmatb,atom%basis%nbas,error)
-    CALL create_opmat(xcmata,atom%basis%nbas,error)
-    CALL create_opmat(xcmatb,atom%basis%nbas,error)
+    CALL create_opmat(fmata,atom%basis%nbas)
+    CALL create_opmat(fmatb,atom%basis%nbas)
+    CALL create_opmat(jmat,atom%basis%nbas)
+    CALL create_opmat(kmata,atom%basis%nbas)
+    CALL create_opmat(kmatb,atom%basis%nbas)
+    CALL create_opmat(xcmata,atom%basis%nbas)
+    CALL create_opmat(xcmatb,atom%basis%nbas)
 
     NULLIFY(density,rhoa,rhob,cpot)
-    CALL create_opgrid(density,atom%basis%grid,error)
-    CALL create_opgrid(rhoa,atom%basis%grid,error)
-    CALL create_opgrid(rhob,atom%basis%grid,error)
-    CALL create_opgrid(cpot,atom%basis%grid,error)
+    CALL create_opgrid(density,atom%basis%grid)
+    CALL create_opgrid(rhoa,atom%basis%grid)
+    CALL create_opgrid(rhob,atom%basis%grid)
+    CALL create_opgrid(cpot,atom%basis%grid)
 
     IF (doguess) THEN
       ! initial guess
-      CALL slater_density(rhoa%op,rhob%op,atom%z,atom%state,atom%basis%grid,error)
+      CALL slater_density(rhoa%op,rhob%op,atom%z,atom%state,atom%basis%grid)
       density%op = rhoa%op + rhob%op
-      CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
-      CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
+      CALL coulomb_potential_numeric(cpot%op,density%op,density%grid)
+      CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0)
       ! alpha spin
       density%op = 2._dp*rhoa%op
-      CALL wigner_slater_functional(density%op,cpot%op,error)
-      CALL numpot_matrix(xcmata%op,cpot%op,atom%basis,0,error)
+      CALL wigner_slater_functional(density%op,cpot%op)
+      CALL numpot_matrix(xcmata%op,cpot%op,atom%basis,0)
       fmata%op = hcore%op + hlsd%op + jmat%op + xcmata%op
       CALL atom_solve(fmata%op,atom%integrals%utrans,atom%orbitals%wfna,atom%orbitals%enera,&
-                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc)
       ! beta spin
       density%op = 2._dp*rhob%op
-      CALL wigner_slater_functional(density%op,cpot%op,error)
-      CALL numpot_matrix(xcmatb%op,cpot%op,atom%basis,0,error)
+      CALL wigner_slater_functional(density%op,cpot%op)
+      CALL numpot_matrix(xcmatb%op,cpot%op,atom%basis,0)
       fmatb%op = hcore%op - hlsd%op + jmat%op + xcmatb%op
       CALL atom_solve(fmatb%op,atom%integrals%utrans,atom%orbitals%wfnb,atom%orbitals%enerb,&
-                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc)
     END IF
     CALL atom_denmat(atom%orbitals%pmata,atom%orbitals%wfna,atom%basis%nbas,atom%state%occa,&
-                     atom%state%maxl_occ,atom%state%maxn_occ,error)
+                     atom%state%maxl_occ,atom%state%maxn_occ)
     CALL atom_denmat(atom%orbitals%pmatb,atom%orbitals%wfnb,atom%basis%nbas,atom%state%occb,&
-                     atom%state%maxl_occ,atom%state%maxn_occ,error)
+                     atom%state%maxl_occ,atom%state%maxn_occ)
     atom%orbitals%pmat = atom%orbitals%pmata + atom%orbitals%pmatb
 
     ! wavefunction history
     NULLIFY(historya%dmat,historya%hmat)
-    CALL atom_history_init (historya,atom%optimization,fmata%op,error)
+    CALL atom_history_init (historya,atom%optimization,fmata%op)
     NULLIFY(historyb%dmat,historyb%hmat)
-    CALL atom_history_init (historyb,atom%optimization,fmatb%op,error)
+    CALL atom_history_init (historyb,atom%optimization,fmatb%op)
 
     iter = 0
     DO            !SCF Loop
 
       ! Kinetic energy
-      atom%energy%ekin = atom_trace(atom%integrals%kin,atom%orbitals%pmat,error)
+      atom%energy%ekin = atom_trace(atom%integrals%kin,atom%orbitals%pmat)
 
       ! Band energy
       atom%energy%eband = 0._dp
@@ -616,22 +610,22 @@ CONTAINS
       ! Pseudopotential energy
       SELECT CASE (atom%potential%ppot_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
         CASE (NO_PSEUDO)
           atom%energy%eploc = 0._dp
           atom%energy%epnl = 0._dp
         CASE (GTH_PSEUDO)
-          atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat,error)
-          atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat,error)
+          atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat)
+          atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat)
       END SELECT
       atom%energy%epseudo = atom%energy%eploc + atom%energy%epnl
 
       ! Core energy
-      atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat,error)
+      atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat)
 
       ! Confinement energy
       IF ( atom%potential%confinement ) THEN
-        atom%energy%econfinement = atom_trace(atom%integrals%conf,atom%orbitals%pmat,error)
+        atom%energy%econfinement = atom_trace(atom%integrals%conf,atom%orbitals%pmat)
       ELSE
         atom%energy%econfinement = 0._dp
       END IF
@@ -640,19 +634,19 @@ CONTAINS
       jmat%op = 0._dp
       SELECT CASE (atom%coulomb_integral_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
         CASE (do_analytic)
-          CALL ceri_contract(jmat%op,atom%integrals%ceri,atom%orbitals%pmat,atom%integrals%n,error=error)
+          CALL ceri_contract(jmat%op,atom%integrals%ceri,atom%orbitals%pmat,atom%integrals%n)
         CASE (do_semi_analytic)
           CALL coulomb_potential_analytic(cpot%op,atom%orbitals%pmat,atom%basis,atom%basis%grid,&
-                 atom%state%maxl_occ,error)
-          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
+                 atom%state%maxl_occ)
+          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0)
         CASE (do_numeric)
-          CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
-          CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
-          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
+          CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO")
+          CALL coulomb_potential_numeric(cpot%op,density%op,density%grid)
+          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0)
       END SELECT
-      atom%energy%ecoulomb = 0.5_dp * atom_trace(jmat%op,atom%orbitals%pmat,error)
+      atom%energy%ecoulomb = 0.5_dp * atom_trace(jmat%op,atom%orbitals%pmat)
 
       ! Exchange Term
       IF (need_x) THEN
@@ -660,19 +654,19 @@ CONTAINS
         kmatb%op = 0._dp
         SELECT CASE (atom%exchange_integral_type)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
           CASE (do_analytic)
-            CALL eeri_contract(kmata%op,atom%integrals%eeri,atom%orbitals%pmata,atom%integrals%n,error=error)
-            CALL eeri_contract(kmatb%op,atom%integrals%eeri,atom%orbitals%pmatb,atom%integrals%n,error=error)
+            CALL eeri_contract(kmata%op,atom%integrals%eeri,atom%orbitals%pmata,atom%integrals%n)
+            CALL eeri_contract(kmatb%op,atom%integrals%eeri,atom%orbitals%pmatb,atom%integrals%n)
           CASE (do_semi_analytic)
-            CALL exchange_semi_analytic(kmata%op,atom%state,atom%state%occa,atom%orbitals%wfna,atom%basis,error=error)
-            CALL exchange_semi_analytic(kmatb%op,atom%state,atom%state%occb,atom%orbitals%wfnb,atom%basis,error=error)
+            CALL exchange_semi_analytic(kmata%op,atom%state,atom%state%occa,atom%orbitals%wfna,atom%basis)
+            CALL exchange_semi_analytic(kmatb%op,atom%state,atom%state%occb,atom%orbitals%wfnb,atom%basis)
           CASE (do_numeric)
-            CALL exchange_numeric(kmata%op,atom%state,atom%state%occa,atom%orbitals%wfna,atom%basis,error=error)
-            CALL exchange_numeric(kmatb%op,atom%state,atom%state%occb,atom%orbitals%wfnb,atom%basis,error=error)
+            CALL exchange_numeric(kmata%op,atom%state,atom%state%occa,atom%orbitals%wfna,atom%basis)
+            CALL exchange_numeric(kmatb%op,atom%state,atom%state%occb,atom%orbitals%wfnb,atom%basis)
         END SELECT
-        atom%energy%eexchange = hf_frac * ( atom_trace(kmata%op,atom%orbitals%pmata,error) + &
-                                                     atom_trace(kmatb%op,atom%orbitals%pmatb,error) )
+        atom%energy%eexchange = hf_frac * ( atom_trace(kmata%op,atom%orbitals%pmata) + &
+                                                     atom_trace(kmatb%op,atom%orbitals%pmatb) )
         kmata%op = 2._dp*hf_frac*kmata%op
         kmatb%op = 2._dp*hf_frac*kmatb%op
       ELSE
@@ -685,7 +679,7 @@ CONTAINS
       IF (need_xc) THEN
         xcmata%op = 0._dp
         xcmatb%op = 0._dp
-        CALL calculate_atom_vxc_lsd(xcmata,xcmatb,atom,xc_section,error)
+        CALL calculate_atom_vxc_lsd(xcmata,xcmatb,atom,xc_section)
       ELSE
         xcmata%op = 0._dp
         xcmatb%op = 0._dp
@@ -693,8 +687,8 @@ CONTAINS
       END IF
 
       IF(lsdpot) THEN
-         atom%energy%elsd = atom_trace(hlsd%op,atom%orbitals%pmata,error) - &
-                            atom_trace(hlsd%op,atom%orbitals%pmatb,error)
+         atom%energy%elsd = atom_trace(hlsd%op,atom%orbitals%pmata) - &
+                            atom_trace(hlsd%op,atom%orbitals%pmatb)
          atom%energy%epseudo = atom%energy%epseudo + atom%energy%elsd
          atom%energy%ecore = atom%energy%ecore + atom%energy%elsd
       ELSE
@@ -713,15 +707,15 @@ CONTAINS
 
       ! calculate error matrix
       CALL err_matrix(xcmata%op,depsa,fmata%op,atom%orbitals%pmata,atom%integrals%utrans,&
-                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne,error)
+                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne)
       CALL err_matrix(xcmatb%op,depsb,fmatb%op,atom%orbitals%pmatb,atom%integrals%utrans,&
-                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne,error)
+                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne)
       deps=2._dp*MAX(depsa,depsb)
 
       iter = iter + 1
 
       IF ( iw > 0 ) THEN
-        CALL atom_print_iteration(iter,deps,atom%energy%etot,iw,error)
+        CALL atom_print_iteration(iter,deps,atom%energy%etot,iw)
       END IF
 
       IF ( deps < eps_scf ) EXIT
@@ -733,45 +727,45 @@ CONTAINS
       END IF
 
       ! update history container and extrapolate KS matrix
-      CALL atom_history_update (historya,fmata%op,xcmata%op,error)
-      CALL atom_history_update (historyb,fmatb%op,xcmatb%op,error)
-      CALL atom_opt (fmata%op,historya,depsa,error)
-      CALL atom_opt (fmatb%op,historyb,depsb,error)
+      CALL atom_history_update (historya,fmata%op,xcmata%op)
+      CALL atom_history_update (historyb,fmatb%op,xcmatb%op)
+      CALL atom_opt (fmata%op,historya,depsa)
+      CALL atom_opt (fmatb%op,historyb,depsb)
 
       ! Solve HF/KS equations
       CALL atom_solve(fmata%op,atom%integrals%utrans,atom%orbitals%wfna,atom%orbitals%enera,&
-                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc)
       CALL atom_denmat(atom%orbitals%pmata,atom%orbitals%wfna,atom%basis%nbas,atom%state%occa,&
-                       atom%state%maxl_occ,atom%state%maxn_occ,error)
+                       atom%state%maxl_occ,atom%state%maxn_occ)
       CALL atom_solve(fmatb%op,atom%integrals%utrans,atom%orbitals%wfnb,atom%orbitals%enerb,&
-                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc)
       CALL atom_denmat(atom%orbitals%pmatb,atom%orbitals%wfnb,atom%basis%nbas,atom%state%occb,&
-                       atom%state%maxl_occ,atom%state%maxn_occ,error)
+                       atom%state%maxl_occ,atom%state%maxn_occ)
       atom%orbitals%pmat = atom%orbitals%pmata + atom%orbitals%pmatb
 
     END DO        !SCF Loop
 
     IF ( iw > 0 ) THEN
-      CALL atom_print_energies(atom,iw,error)
+      CALL atom_print_energies(atom,iw)
     END IF
 
-    CALL atom_history_release(historya,error)
-    CALL atom_history_release(historyb,error)
+    CALL atom_history_release(historya)
+    CALL atom_history_release(historyb)
 
-    CALL release_opgrid(density,error)
-    CALL release_opgrid(rhoa,error)
-    CALL release_opgrid(rhob,error)
-    CALL release_opgrid(cpot,error)
+    CALL release_opgrid(density)
+    CALL release_opgrid(rhoa)
+    CALL release_opgrid(rhob)
+    CALL release_opgrid(cpot)
 
-    CALL release_opmat(fmata,error)
-    CALL release_opmat(fmatb,error)
-    CALL release_opmat(jmat,error)
-    CALL release_opmat(kmata,error)
-    CALL release_opmat(kmatb,error)
-    CALL release_opmat(xcmata,error)
-    CALL release_opmat(xcmatb,error)
-    CALL release_opmat(hlsd,error)
-    CALL release_opmat(hcore,error)
+    CALL release_opmat(fmata)
+    CALL release_opmat(fmatb)
+    CALL release_opmat(jmat)
+    CALL release_opmat(kmata)
+    CALL release_opmat(kmatb)
+    CALL release_opmat(xcmata)
+    CALL release_opmat(xcmatb)
+    CALL release_opmat(hlsd)
+    CALL release_opmat(hcore)
 
     CALL timestop(handle)
 

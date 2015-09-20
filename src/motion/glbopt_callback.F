@@ -38,14 +38,12 @@ MODULE glbopt_callback
 !> \param mdctrl_data ...
 !> \param md_env ...
 !> \param should_stop ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE glbopt_md_callback(mdctrl_data, md_env, should_stop, error)
+  SUBROUTINE glbopt_md_callback(mdctrl_data, md_env, should_stop)
     TYPE(glbopt_mdctrl_data_type), POINTER   :: mdctrl_data
     TYPE(md_environment_type), POINTER       :: md_env
     LOGICAL, INTENT(inout)                   :: should_stop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_md_callback', &
       routineP = moduleN//':'//routineN
@@ -59,14 +57,14 @@ MODULE glbopt_callback
     TYPE(md_ener_type), POINTER              :: md_ener
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mdctrl_data), cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mdctrl_data), cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,failure)
 
     iw = mdctrl_data%output_unit
 
     ! add new potential energy value to history
     NULLIFY(md_ener, itimes)
-    CALL get_md_env(md_env=md_env, md_ener=md_ener, itimes=itimes, force_env=force_env, error=error)
+    CALL get_md_env(md_env=md_env, md_ener=md_ener, itimes=itimes, force_env=force_env)
     mdctrl_data%itimes = itimes
 
     mdctrl_data%epot_history(:) = EOSHIFT(mdctrl_data%epot_history, shift=-1)
@@ -94,10 +92,10 @@ MODULE glbopt_callback
        IF(iw>0) WRITE (iw,"(A)") " GLBOPT| Stopping MD because of MD_BUMPS_MAX."
     END IF
 
-    CALL force_env_get(force_env, subsys=subsys, error=error)
-    CALL cp_subsys_get(subsys, natom=n_atoms, error=error)
+    CALL force_env_get(force_env, subsys=subsys)
+    CALL cp_subsys_get(subsys, natom=n_atoms)
     ALLOCATE(positions(3*n_atoms))
-    CALL pack_subsys_particles(subsys, r=positions, error=error)
+    CALL pack_subsys_particles(subsys, r=positions)
 
   END SUBROUTINE glbopt_md_callback
 

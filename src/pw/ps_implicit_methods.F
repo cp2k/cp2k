@@ -105,13 +105,12 @@ CONTAINS
 !> \param dct_aux_pw_grid ...
 !> \param green green function for FFT based inverse Laplacian
 !> \param ps_implicit_env implicit env to be created
-!> \param error cp2k error
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE ps_implicit_create(pw_pool, poisson_params, dct_pw_grid, dct_aux_pw_grid, &
-                                green, ps_implicit_env, error)
+                                green, ps_implicit_env)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(pw_poisson_parameter_type), &
@@ -121,7 +120,6 @@ CONTAINS
       POINTER                                :: green
     TYPE(ps_implicit_type), INTENT(INOUT), &
       POINTER                                :: ps_implicit_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_create', &
       routineP = moduleN//':'//routineN
@@ -142,28 +140,28 @@ CONTAINS
        ps_implicit_env%params%dbc_params = poisson_params%dbc_params
 ! create dielectric
        NULLIFY(ps_implicit_env%dielectric)
-       CALL dielectric_create(ps_implicit_env%dielectric, pw_pool, poisson_params%dielectric_params, error)
+       CALL dielectric_create(ps_implicit_env%dielectric, pw_pool, poisson_params%dielectric_params)
 
        NULLIFY(ps_implicit_env%initial_guess)
        NULLIFY(ps_implicit_env%v_eps)
-       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-       CALL pw_zero(ps_implicit_env%v_eps, error)
+       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE)
+       CALL pw_zero(ps_implicit_env%v_eps)
 
        NULLIFY(ps_implicit_env%cstr_charge)
-       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-       CALL pw_zero(ps_implicit_env%cstr_charge, error)
+       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE)
+       CALL pw_zero(ps_implicit_env%cstr_charge)
 
        ps_implicit_env%ehartree = 0.0_dp
        ps_implicit_env%times_called = 0
 
        IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
            (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
-          CALL dct_type_init(pw_pool%pw_grid, ps_implicit_env%dct_env, error)
+          CALL dct_type_init(pw_pool%pw_grid, ps_implicit_env%dct_env)
        END IF
 ! prepare dirichlet bc
-       CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%gates, error)
+       CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%gates)
        CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, dct_aux_pw_grid, green, poisson_params, &
-                                       ps_implicit_env, error)
+                                       ps_implicit_env)
 
     END IF
 
@@ -177,19 +175,16 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
-!> \param error cp2k error
-!>
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, ehartree)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'implicit_poisson_solver_periodic', &
@@ -223,57 +218,57 @@ CONTAINS
     times_called = ps_implicit_env%times_called 
 
 ! check if this is the first scf iteration
-    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
+    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
-    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
 
     IF (use_zero_initial_guess) THEN
-       CALL pw_zero(v0, error=error)
+       CALL pw_zero(v0)
     ELSE
-       CALL pw_copy(ps_implicit_env%initial_guess, v0, error)
+       CALL pw_copy(ps_implicit_env%initial_guess, v0)
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
 
-    CALL pw_copy(v0, v_old, error=error)
+    CALL pw_copy(v0, v_old)
 
 ! res_old = g - \Delta(v_old) - P(v_old)
-    CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old, error)
-    CALL pw_scale(res_old, - 1.0_dp, error)
-    CALL pw_axpy(g, res_old, error=error)
+    CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old)
+    CALL pw_scale(res_old, - 1.0_dp)
+    CALL pw_axpy(g, res_old)
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres)
 
     iter = 1
     DO
 
 ! v_new = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres, omega, error=error)
-       CALL pw_copy(QAinvxres, v_new, error=error)
-       CALL pw_axpy(v_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega)
+       CALL pw_copy(QAinvxres, v_new)
+       CALL pw_axpy(v_old, v_new)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) )
 !         = (1 - \omega) * res_old - \omega * PxQAinvxres
-       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres , error=error)
-       CALL pw_copy(PxQAinvxres, res_new, error=error)
-       CALL pw_scale(res_new, - 1.0_dp , error)
-       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres)
+       CALL pw_copy(PxQAinvxres, res_new)
+       CALL pw_scale(res_new, - 1.0_dp)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres, &
-                                      pres_error, nabs_error, error)
+                                      pres_error, nabs_error)
 ! output
-       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(density, v_new, ehartree, error)  
-          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
+          CALL ps_implicit_compute_ehartree(density, v_new, ehartree)  
+          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
           ps_implicit_env%ehartree = ehartree
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
@@ -283,30 +278,30 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.", error) 
+                                                    routineP, "Poisson solver did not converge.") 
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! v_old = v_new, res_old = res_new
-       CALL pw_copy(v_new, v_old, error=error)
-       CALL pw_copy(res_new, res_old, error=error)
+       CALL pw_copy(v_new, v_old)
+       CALL pw_copy(res_new, res_old)
 
     END DO
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
-       CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
+       CALL pw_copy(v_new, ps_implicit_env%initial_guess)
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
-    CALL pw_pool_give_back_pw(pw_pool, g, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, g)
+    CALL pw_pool_give_back_pw(pw_pool, v0)
+    CALL pw_pool_give_back_pw(pw_pool, v_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_new)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
 
     CALL timestop(handle)
 
@@ -319,19 +314,16 @@ CONTAINS
 !> \param density electron density
 !> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
-!> \param error cp2k error
-!>
 !> \par History
 !>       02.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, ehartree)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'implicit_poisson_solver_neumann', &
@@ -368,33 +360,33 @@ CONTAINS
     times_called = ps_implicit_env%times_called
 
 ! check if this is the first scf iteration
-    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
+    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
-    CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid, error=error)
-    CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=poisson_env%dct_aux_pw_grid, error=error)
-    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid)
+    CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=poisson_env%dct_aux_pw_grid)
+    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
 
     IF (use_zero_initial_guess) THEN
-       CALL pw_zero(v0, error=error)
+       CALL pw_zero(v0)
     ELSE
-       CALL pw_copy(ps_implicit_env%initial_guess, v0, error)
+       CALL pw_copy(ps_implicit_env%initial_guess, v0)
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
 
-    CALL pw_copy(v0, v_old, error=error)
+    CALL pw_copy(v0, v_old)
 
 ! res_old = g - \Delta(v_old) - P(v_old)
     CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                adjust_local_bounds, v_old, res_old, error)
-    CALL pw_scale(res_old, - 1.0_dp, error)
-    CALL pw_axpy(g, res_old, error=error)
+                                adjust_local_bounds, v_old, res_old)
+    CALL pw_scale(res_old, - 1.0_dp)
+    CALL pw_axpy(g, res_old)
 
 ! evaluate \Delta^-1(res_old)
     CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
@@ -402,31 +394,31 @@ CONTAINS
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres, error)
+                                    adjust_local_bounds, res_old, QAinvxres)
 
     iter = 1
     DO
 
 ! v_new = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres, omega, error=error)
-       CALL pw_copy(QAinvxres, v_new, error=error)
-       CALL pw_axpy(v_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega)
+       CALL pw_copy(QAinvxres, v_new)
+       CALL pw_axpy(v_old, v_new)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) )
 !         = (1 - \omega) * res_old - \omega * PxQAinvxres
-       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres , error=error)
-       CALL pw_copy(PxQAinvxres, res_new, error=error)
-       CALL pw_scale(res_new, - 1.0_dp , error)
-       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres)
+       CALL pw_copy(PxQAinvxres, res_new)
+       CALL pw_scale(res_new, - 1.0_dp)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
-                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error, error)
+                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error)
 ! output
-       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(density, v_new, ehartree, error)  
-          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
+          CALL ps_implicit_compute_ehartree(density, v_new, ehartree)  
+          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
           ps_implicit_env%ehartree = ehartree
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
@@ -436,32 +428,32 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.", error) 
+                                                    routineP, "Poisson solver did not converge.") 
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! v_old = v_new, res_old = res_new
-       CALL pw_copy(v_new, v_old, error=error)
-       CALL pw_copy(res_new, res_old, error=error)
+       CALL pw_copy(v_new, v_old)
+       CALL pw_copy(res_new, res_old)
 
     END DO
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
-       CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
+       CALL pw_copy(v_new, ps_implicit_env%initial_guess)
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
-    CALL pw_pool_give_back_pw(pw_pool, g, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
-    CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
-    CALL pw_pool_release(pw_pool_xpndd, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, g)
+    CALL pw_pool_give_back_pw(pw_pool, v0)
+    CALL pw_pool_give_back_pw(pw_pool, v_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_new)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
+    CALL pw_pool_release(aux_pw_pool_xpndd)
+    CALL pw_pool_release(pw_pool_xpndd)
 
     CALL timestop(handle)
 
@@ -473,19 +465,16 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
-!> \param error cp2k error
-!>
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, ehartree)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'implicit_poisson_solver_mixed_periodic', &
@@ -554,7 +543,7 @@ CONTAINS
     END IF
 
 ! check if this is the first scf iteration
-    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
+    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
     ALLOCATE(B (n_tiles_tot, data_size))
     ALLOCATE(Bt(data_size, n_tiles_tot))
@@ -584,53 +573,53 @@ CONTAINS
     ALLOCATE(v_new1D(data_size))
     ALLOCATE(Bxv_new(n_tiles_tot))
 
-    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE)
 
     IF (use_zero_initial_guess) THEN
-       CALL pw_zero(v0, error=error)
+       CALL pw_zero(v0)
        lambda0 = 0.0_dp
     ELSE
-       CALL pw_copy(ps_implicit_env%initial_guess, v0, error)
+       CALL pw_copy(ps_implicit_env%initial_guess, v0)
        lambda0(:) = ps_implicit_env%initial_lambda
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
     g_avg = accurate_sum(g%cr3d) / ngpts
 
-    CALL pw_copy(v0, v_old, error=error)
+    CALL pw_copy(v0, v_old)
     lambda_old(:)= lambda0
 
 ! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
-    CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old, error)
-    CALL pw_scale(res_old, - 1.0_dp, error)
-    CALL pw_axpy(g, res_old, error=error)
+    CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old)
+    CALL pw_scale(res_old, - 1.0_dp)
+    CALL pw_axpy(g, res_old)
     IF (data_size .NE. 0) THEN
        CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
     END IF
-    CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
+    CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres)
 
     iter = 1
     DO
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres, omega, error=error)
-       CALL pw_copy(QAinvxres, v_new, error=error)
-       CALL pw_axpy(v_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega)
+       CALL pw_copy(QAinvxres, v_new)
+       CALL pw_axpy(v_old, v_new)
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
 !        = 1^t * (g - P(\bar{v})) 
-       CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar, error=error)
+       CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar)
        Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
@@ -654,24 +643,24 @@ CONTAINS
        IF (data_size .NE. 0) THEN
           CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
        END IF
-       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
+       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) - B^t * ( \lambda_new - \lambda_old )
 !         = (1 - \omega) * res_old - \omega * P(QAinvxres_old) - B^t * ( \lambda_new - \lambda_old )
-       CALL pw_zero(res_new, error=error) 
-       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres, error=error)
-       CALL pw_axpy(PxQAinvxres, res_new, - 1.0_dp, error=error)
-       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
+       CALL pw_zero(res_new) 
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres)
+       CALL pw_axpy(PxQAinvxres, res_new, - 1.0_dp)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
        res_new%cr3d = res_new%cr3d + Btxlambda_old3D - Btxlambda_new3D
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres, &
-                                      pres_error, nabs_error, error)
+                                      pres_error, nabs_error)
 ! output
-       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree, error)  
-          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
+          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree)  
+          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
           ps_implicit_env%ehartree = ehartree
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
@@ -703,35 +692,35 @@ CONTAINS
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.", error) 
+                                                    routineP, "Poisson solver did not converge.") 
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
-       CALL pw_copy(v_new, v_old, error=error)
+       CALL pw_copy(v_new, v_old)
        lambda_old(:) = lambda_new
-       CALL pw_copy(res_new, res_old, error=error)
+       CALL pw_copy(res_new, res_old)
        Btxlambda_old3D(:,:,:) = Btxlambda_new3D
 
     END DO
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
-       CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
+       CALL pw_copy(v_new, ps_implicit_env%initial_guess)
        ps_implicit_env%initial_lambda = lambda_new
     END IF
        
     ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
-    CALL pw_pool_give_back_pw(pw_pool, g, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, g)
+    CALL pw_pool_give_back_pw(pw_pool, v0)
+    CALL pw_pool_give_back_pw(pw_pool, v_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_new)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
+    CALL pw_pool_give_back_pw(pw_pool, Axvbar)
 
     CALL timestop(handle)
 
@@ -743,19 +732,16 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
-!> \param error cp2k error
-!>
 !> \par History
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, ehartree)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'implicit_poisson_solver_mixed', &
@@ -827,7 +813,7 @@ CONTAINS
     END IF
 
 ! check if this is the first scf iteration
-    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
+    IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
     ALLOCATE(B (n_tiles_tot, data_size))
     ALLOCATE(Bt(data_size, n_tiles_tot))
@@ -857,40 +843,40 @@ CONTAINS
     ALLOCATE(v_new1D(data_size))
     ALLOCATE(Bxv_new(n_tiles_tot))
 
-    CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid, error=error)
-    CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=poisson_env%dct_aux_pw_grid, error=error)
-    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid)
+    CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=poisson_env%dct_aux_pw_grid)
+    CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE)
 
     IF (use_zero_initial_guess) THEN
-       CALL pw_zero(v0, error=error)
+       CALL pw_zero(v0)
        lambda0 = 0.0_dp
     ELSE
-       CALL pw_copy(ps_implicit_env%initial_guess, v0, error)
+       CALL pw_copy(ps_implicit_env%initial_guess, v0)
        lambda0(:) = ps_implicit_env%initial_lambda
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
     g_avg = accurate_sum(g%cr3d) / ngpts
 
-    CALL pw_copy(v0, v_old, error=error)
+    CALL pw_copy(v0, v_old)
     lambda_old(:)= lambda0
 
 ! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
     CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                adjust_local_bounds, v_old, res_old, error)
-    CALL pw_scale(res_old, - 1.0_dp, error)
-    CALL pw_axpy(g, res_old, error=error)
+                                adjust_local_bounds, v_old, res_old)
+    CALL pw_scale(res_old, - 1.0_dp)
+    CALL pw_axpy(g, res_old)
     IF (data_size .NE. 0) THEN
        CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
     END IF
-    CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
+    CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
@@ -899,19 +885,19 @@ CONTAINS
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres, error)
+                                    adjust_local_bounds, res_old, QAinvxres)
 
     iter = 1
     DO
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres, omega, error=error)
-       CALL pw_copy(QAinvxres, v_new, error=error)
-       CALL pw_axpy(v_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega)
+       CALL pw_copy(QAinvxres, v_new)
+       CALL pw_axpy(v_old, v_new)
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
 !        = 1^t * (g - P(\bar{v})) 
-       CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar, error=error)
+       CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar)
        Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
@@ -935,24 +921,24 @@ CONTAINS
        IF (data_size .NE. 0) THEN
           CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
        END IF
-       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
+       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) - B^t * ( \lambda_new - \lambda_old )
 !         = (1 - \omega) * res_old - \omega * P(QAinvxres_old) - B^t * ( \lambda_new - \lambda_old )
-       CALL pw_zero(res_new, error=error) 
-       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres, error=error)
-       CALL pw_axpy(PxQAinvxres, res_new, - 1.0_dp, error=error)
-       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
+       CALL pw_zero(res_new) 
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres)
+       CALL pw_axpy(PxQAinvxres, res_new, - 1.0_dp)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
        res_new%cr3d = res_new%cr3d - Btxlambda_new3D + Btxlambda_old3D
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
-                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error, error)
+                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error)
 ! output
-       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree, error)  
-          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
+          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree)  
+          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
           ps_implicit_env%ehartree = ehartree
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
@@ -984,37 +970,37 @@ CONTAINS
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.", error) 
+                                                    routineP, "Poisson solver did not converge.") 
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
-       CALL pw_copy(v_new, v_old, error=error)
+       CALL pw_copy(v_new, v_old)
        lambda_old(:) = lambda_new
-       CALL pw_copy(res_new, res_old, error=error)
+       CALL pw_copy(res_new, res_old)
        Btxlambda_old3D(:,:,:) = Btxlambda_new3D
 
     END DO
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
-       CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
+       CALL pw_copy(v_new, ps_implicit_env%initial_guess)
        ps_implicit_env%initial_lambda = lambda_new
     END IF
 
     ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
-    CALL pw_pool_give_back_pw(pw_pool, g, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
-    CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
-    CALL pw_pool_release(pw_pool_xpndd, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, g)
+    CALL pw_pool_give_back_pw(pw_pool, v0)
+    CALL pw_pool_give_back_pw(pw_pool, v_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_old)
+    CALL pw_pool_give_back_pw(pw_pool, res_new)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
+    CALL pw_pool_give_back_pw(pw_pool, Axvbar)
+    CALL pw_pool_release(aux_pw_pool_xpndd)
+    CALL pw_pool_release(pw_pool_xpndd)
 
     CALL timestop(handle)
 
@@ -1024,17 +1010,15 @@ CONTAINS
 !> \brief  allocates and zeroises initial guess for implicit (iterative) Poisson solver
 !> \param ps_implicit_env the implicit env contaning the initial guess
 !> \param pw_pool pool of pw grid
-!> \param error cp2k error
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
+  SUBROUTINE ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
     TYPE(ps_implicit_type), INTENT(INOUT), &
       POINTER                                :: ps_implicit_env
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'ps_implicit_initial_guess_create', &
@@ -1046,9 +1030,8 @@ CONTAINS
 
     n_tiles_tot = SIZE(ps_implicit_env%v_D)
     CALL pw_pool_create_pw(pw_pool, ps_implicit_env%initial_guess, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
-    CALL pw_zero(ps_implicit_env%initial_guess, error)
+                           use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_zero(ps_implicit_env%initial_guess)
     ALLOCATE(ps_implicit_env%initial_lambda(n_tiles_tot))
     ps_implicit_env%initial_lambda = 0.0_dp
 
@@ -1064,13 +1047,12 @@ CONTAINS
 !> \param green green functions for FFT based inverse Laplacian
 !> \param poisson_params paramaters of the poisson_env
 !> \param ps_implicit_env the implicit_env that stores the blocks
-!> \param error cp2k error
 !> \par History
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE ps_implicit_prepare_blocks(pw_pool_orig, dct_pw_grid, dct_aux_pw_grid, green, &
-                                        poisson_params, ps_implicit_env, error)
+                                        poisson_params, ps_implicit_env)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_orig
     TYPE(pw_grid_type), INTENT(IN), POINTER  :: dct_pw_grid, dct_aux_pw_grid
@@ -1080,7 +1062,6 @@ CONTAINS
       INTENT(IN)                             :: poisson_params
     TYPE(ps_implicit_type), INTENT(INOUT), &
       POINTER                                :: ps_implicit_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_prepare_blocks', &
       routineP = moduleN//':'//routineN
@@ -1109,7 +1090,7 @@ CONTAINS
 
     pw_grid_orig => pw_pool_orig%pw_grid
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos .EQ. logger%para_env%source) THEN
        unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
     ELSE
@@ -1171,10 +1152,10 @@ CONTAINS
        ALLOCATE(R(n_tiles_tot+1, n_tiles_tot+1))
        ALLOCATE(work_arr(n_tiles_tot+1), ipiv(n_tiles_tot+1)) ! LAPACK work and ipiv arrays
 
-       CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+       CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
 ! prepare pw_pool for evaluating inverse Laplacian of tile_pw's using DCT
-       CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
-       CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=dct_aux_pw_grid, error=error)
+       CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
+       CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=dct_aux_pw_grid)
 
 ! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
@@ -1186,47 +1167,47 @@ CONTAINS
           IF (smooth) THEN
              DO i = 1, n_tiles
                 tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
-                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-                CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
+                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
+                CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in)
                 smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
-                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
                 CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                                 dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                                 dct_env%srcs_expand, dct_env%flipg_stat, &
                                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
                                                 dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                                adjust_local_bounds, pw_in, pw_out, error)
+                                                adjust_local_bounds, pw_in, pw_out)
                 QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
                 ! the electrostatic potential has opposite sign by internal convention
                 ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in, error=error)
+                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
+                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in)
              END DO
           ELSE
              DO i = 1, n_tiles
                 pw_in => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
                 tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     ! normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / tile_npts)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
                 CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                                 dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                                 dct_env%srcs_expand, dct_env%flipg_stat, &
                                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
                                                 dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                                adjust_local_bounds, pw_in, pw_out, error)
+                                                adjust_local_bounds, pw_in, pw_out)
                 QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
                 ! the electrostatic potential has opposite sign by internal convention
                 ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
+                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
              END DO
           END IF
           indx1 = indx2 + 1
@@ -1254,14 +1235,14 @@ CONTAINS
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
        IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
                         "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
-                        "you need to reduce the number of tiles.", error)
+                        "you need to reduce the number of tiles.")
        CALL DGETRI(n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, work_arr, n_tiles_tot+1, info)
        IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "Inversion of R failed!", error)
+                        "Inversion of R failed!")
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
-       CALL pw_pool_release(pw_pool_xpndd, error=error)
-       CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
+       CALL pw_pool_release(pw_pool_xpndd)
+       CALL pw_pool_release(aux_pw_pool_xpndd)
 
        done_preparing = .TRUE.
        CALL mp_sum(done_preparing, pw_grid_orig%para%group)
@@ -1302,7 +1283,7 @@ CONTAINS
        ALLOCATE(R(n_tiles_tot+1, n_tiles_tot+1))
        ALLOCATE(work_arr(n_tiles_tot+1), ipiv(n_tiles_tot+1))
 
-       CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+       CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
 
 ! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
@@ -1314,37 +1295,37 @@ CONTAINS
           IF (smooth) THEN
              DO i = 1, n_tiles
                 tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
-                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-                CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
+                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
+                CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in)
                 smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
-                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-                CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out, error)
+                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
+                CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out)
                 QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
                 ! the electrostatic potential has opposite sign by internal convention
                 ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in, error=error)
+                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
+                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in)
              END DO
           ELSE
              DO i = 1, n_tiles
                 pw_in => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
                 tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     ! normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / tile_npts)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-                CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out, error)
+                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
+                CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out)
                 QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
                 ! the electrostatic potential has opposite sign by internal convention
                 ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
+                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
              END DO
           END IF
           indx1 = indx2 + 1
@@ -1372,10 +1353,10 @@ CONTAINS
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
        IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
                         "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
-                        "you need to reduce the number of tiles.", error)
+                        "you need to reduce the number of tiles.")
        CALL DGETRI(n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, work_arr, n_tiles_tot+1, info)
        IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "Inversion of R failed!", error)
+                        "Inversion of R failed!")
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
 
@@ -1404,7 +1385,7 @@ CONTAINS
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
                         "Please specify the type of boundary conditions using the "//&
-                        "input file keyword BOUNDARY_CONDITIONS.", error)
+                        "input file keyword BOUNDARY_CONDITIONS.")
     END SELECT
 
     CALL timestop(handle)
@@ -1418,19 +1399,17 @@ CONTAINS
 !> \param dielectric dielectric_type contaning eps
 !> \param v input matrix
 !> \param Pxv action of the operator P on v
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_P_operator(pw_pool, dielectric, v, Pxv, error)
+  SUBROUTINE apply_P_operator(pw_pool, dielectric, v, Pxv)
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(dielectric_type), INTENT(IN), &
       POINTER                                :: dielectric
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     TYPE(pw_type), INTENT(INOUT), POINTER    :: Pxv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_P_operator', &
       routineP = moduleN//':'//routineN
@@ -1443,17 +1422,16 @@ CONTAINS
     dln_eps = dielectric%dln_eps
     DO i = 1, 3
        CALL pw_pool_create_pw(pw_pool, dv(i)%pw, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
     END DO
 
-    CALL derive_fft(v, dv, pw_pool, error)
+    CALL derive_fft(v, dv, pw_pool)
     Pxv%cr3d = - ( dv(1)%pw%cr3d * dln_eps(1)%pw%cr3d + &
                    dv(2)%pw%cr3d * dln_eps(2)%pw%cr3d + &
                    dv(3)%pw%cr3d * dln_eps(3)%pw%cr3d )
 
     DO i = 1, 3
-       CALL pw_pool_give_back_pw(pw_pool, dv(i)%pw, error=error)
+       CALL pw_pool_give_back_pw(pw_pool, dv(i)%pw)
     END DO
 
     CALL timestop(handle)
@@ -1466,19 +1444,17 @@ CONTAINS
 !> \param green green functions for FFT based inverse Laplacian
 !> \param pw_in pw_in (density)
 !> \param pw_out pw_out (potential)
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_inv_laplace_operator_fft(pw_pool, green, pw_in, pw_out, error)
+  SUBROUTINE apply_inv_laplace_operator_fft(pw_pool, green, pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
       POINTER                                :: green
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'apply_inv_laplace_operator_fft', &
@@ -1498,16 +1474,15 @@ CONTAINS
     ng = SIZE(pw_grid%gsq)
 
     CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
-                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                           error=error)
+                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-    CALL pw_transfer(pw_in, pw_in_gs, error=error)
+    CALL pw_transfer(pw_in, pw_in_gs)
     DO ig = 1, ng
        pw_in_gs%cc(ig) = prefactor * pw_in_gs%cc(ig) * green%influence_fn%cc(ig)
     END DO
-    CALL pw_transfer(pw_in_gs, pw_out, error=error)
+    CALL pw_transfer(pw_in_gs, pw_out)
 
-    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
 
     CALL timestop(handle)
 
@@ -1530,7 +1505,6 @@ CONTAINS
 !> \param adjust_local_bounds whether or not to adjust local bounds
 !> \param pw_in input data
 !> \param pw_out output data
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -1538,7 +1512,7 @@ CONTAINS
   SUBROUTINE apply_inv_laplace_operator_dct(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, dests_shrink, &
                srcs_shrink, bounds_shftd, bounds_local_shftd, adjust_local_bounds, &
-               pw_in, pw_out, error)
+               pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
                                                 aux_pw_pool_xpndd
@@ -1552,7 +1526,6 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: adjust_local_bounds
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'apply_inv_laplace_operator_dct', &
@@ -1576,62 +1549,54 @@ CONTAINS
     IF (adjust_local_bounds) THEN
 
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
        CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
    
        CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd, error)
-       CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj, error) 
-       CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE., error=error)
+                      pw_in, pw_in_xpndd)
+       CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj) 
+       CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE.)
        DO ig = 1, ng_xpndd
           pw_in_xpndd_gs%cc(ig) = prefactor * pw_in_xpndd_gs%cc(ig) * green%dct_influence_fn%cc(ig)
        END DO
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE., error=error)
-       CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj, error) 
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out, error)
+       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
+       CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj) 
+       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out)
    
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd, error=error)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj, error=error)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs, error=error)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd_adj, error=error)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_out_xpndd, error=error)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
+       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj)
+       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd_adj)
+       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_out_xpndd)
 
     ELSE
 
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
    
        CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd, error)
-       CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE., error=error)
+                      pw_in, pw_in_xpndd)
+       CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE.)
        DO ig = 1, ng_xpndd
           pw_in_xpndd_gs%cc(ig) = prefactor * pw_in_xpndd_gs%cc(ig) * green%dct_influence_fn%cc(ig)
        END DO
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE., error=error)
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out, error)
+       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
+       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out)
    
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd, error=error)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs, error=error)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd, error=error)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd)
 
     END IF
 
@@ -1645,19 +1610,17 @@ CONTAINS
 !> \param green green functions for FFT based inverse Laplacian
 !> \param pw_in pw_in (potential)
 !> \param pw_out pw_out (density)
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_laplace_operator_fft(pw_pool, green, pw_in, pw_out, error)
+  SUBROUTINE apply_laplace_operator_fft(pw_pool, green, pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
       POINTER                                :: green
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_laplace_operator_fft', &
       routineP = moduleN//':'//routineN
@@ -1678,10 +1641,9 @@ CONTAINS
     have_g0 = green%influence_fn%pw_grid%have_g0
 
     CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
-                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                           error=error)
+                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-    CALL pw_transfer(pw_in, pw_in_gs, error=error)
+    CALL pw_transfer(pw_in, pw_in_gs)
 
     IF (have_g0) THEN
        g0_index = green%influence_fn%pw_grid%first_gne0 - 1
@@ -1691,9 +1653,9 @@ CONTAINS
        pw_in_gs%cc(ig) = prefactor * (pw_in_gs%cc(ig) / green%influence_fn%cc(ig))
     END DO
 
-    CALL pw_transfer(pw_in_gs, pw_out, error=error)
+    CALL pw_transfer(pw_in_gs, pw_out)
 
-    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
 
     CALL timestop(handle)
 
@@ -1715,7 +1677,6 @@ CONTAINS
 !> \param adjust_local_bounds whether or not to adjust local bounds 
 !> \param pw_in input data
 !> \param pw_out output data
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -1723,7 +1684,7 @@ CONTAINS
   SUBROUTINE apply_laplace_operator_dct(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, dests_shrink, &
                srcs_shrink, bounds_shftd, bounds_local_shftd, adjust_local_bounds, &
-               pw_in, pw_out, error)
+               pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
                                                 aux_pw_pool_xpndd
@@ -1737,7 +1698,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: adjust_local_bounds
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_laplace_operator_dct', &
       routineP = moduleN//':'//routineN
@@ -1762,25 +1722,20 @@ CONTAINS
     IF (adjust_local_bounds) THEN
 
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
        CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
    
        CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd, error)
-       CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj, error) 
-       CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE., error=error)
+                      pw_in, pw_in_xpndd)
+       CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj) 
+       CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE.)
 
        IF (have_g0) THEN
           g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
@@ -1790,31 +1745,28 @@ CONTAINS
           pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
        END DO
 
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE., error=error)
-       CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj, error) 
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out, error)
+       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
+       CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj) 
+       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out)
    
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd, error=error)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj, error=error)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs, error=error)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd_adj, error=error)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_out_xpndd, error=error)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
+       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj)
+       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd_adj)
+       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_out_xpndd)
 
     ELSE
 
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
        CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
 
        CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd, error)
-       CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE., error=error)
+                      pw_in, pw_in_xpndd)
+       CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE.)
 
        IF (have_g0) THEN
           g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
@@ -1824,12 +1776,12 @@ CONTAINS
           pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
        END DO
 
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE., error=error)
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out, error)
+       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
+       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out)
    
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd, error=error)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs, error=error)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd, error=error)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs)
+       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd)
 
     END IF
 
@@ -1844,12 +1796,11 @@ CONTAINS
 !> \param dielectric dielectric environment
 !> \param v potential
 !> \param density density
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_poisson_operator_fft(pw_pool, green, dielectric, v, density, error)
+  SUBROUTINE apply_poisson_operator_fft(pw_pool, green, dielectric, v, density)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
@@ -1858,7 +1809,6 @@ CONTAINS
       POINTER                                :: dielectric
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     TYPE(pw_type), INTENT(INOUT), POINTER    :: density
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_poisson_operator_fft', &
       routineP = moduleN//':'//routineN
@@ -1869,14 +1819,13 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL pw_pool_create_pw(pw_pool, Pxv, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
+                           use_data=REALDATA3D, in_space=REALSPACE)
 
-    CALL apply_P_operator(pw_pool, dielectric, v, Pxv, error=error)
-    CALL apply_laplace_operator(pw_pool, green, v, density, error=error)
-    CALL pw_axpy(Pxv, density, error=error)
+    CALL apply_P_operator(pw_pool, dielectric, v, Pxv)
+    CALL apply_laplace_operator(pw_pool, green, v, density)
+    CALL pw_axpy(Pxv, density)
 
-    CALL pw_pool_give_back_pw(pw_pool, Pxv, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, Pxv)
 
     CALL timestop(handle)
 
@@ -1894,13 +1843,12 @@ CONTAINS
 !> \param adjust_local_bounds whether or not to adjust local bounds
 !> \param v potential
 !> \param density density
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE apply_poisson_operator_dct(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, &
-                                        dct_env, adjust_local_bounds, v, density, error)
+                                        dct_env, adjust_local_bounds, v, density)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
@@ -1913,7 +1861,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: adjust_local_bounds
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     TYPE(pw_type), INTENT(INOUT), POINTER    :: density
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_poisson_operator_dct', &
       routineP = moduleN//':'//routineN
@@ -1924,19 +1871,18 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL pw_pool_create_pw(pw_pool, Pxv, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
+                           use_data=REALDATA3D, in_space=REALSPACE)
 
-    CALL apply_P_operator(pw_pool, dielectric, v, Pxv, error=error)
+    CALL apply_P_operator(pw_pool, dielectric, v, Pxv)
     CALL apply_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                 dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                 dct_env%srcs_expand, dct_env%flipg_stat, &
                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
                                 dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                adjust_local_bounds, v, density, error)
-    CALL pw_axpy(Pxv, density, error=error)
+                                adjust_local_bounds, v, density)
+    CALL pw_axpy(Pxv, density)
 
-    CALL pw_pool_give_back_pw(pw_pool, Pxv, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, Pxv)
 
     CALL timestop(handle)
 
@@ -1952,19 +1898,17 @@ CONTAINS
 !> \param dielectric dielectric environment
 !> \param v Hartree potential
 !> \param v_eps v_eps
-!> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_compute_veps(pw_pool, dielectric, v, v_eps, error)
+  SUBROUTINE ps_implicit_compute_veps(pw_pool, dielectric, v, v_eps)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(dielectric_type), INTENT(IN), &
       POINTER                                :: dielectric
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_eps
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_veps', &
       routineP = moduleN//':'//routineN
@@ -1980,24 +1924,22 @@ CONTAINS
     deps_drho => dielectric%deps_drho
 
     CALL pw_pool_create_pw(pw_pool, dv2, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
+                           use_data=REALDATA3D, in_space=REALSPACE)
     DO i = 1, 3
        CALL pw_pool_create_pw(pw_pool, dv(i)%pw, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
+                           use_data=REALDATA3D, in_space=REALSPACE)
     END DO
 
-    CALL derive_fft(v, dv, pw_pool, error)
+    CALL derive_fft(v, dv, pw_pool)
 
 ! evaluate |\nabla_r(v)|^2
     dv2%cr3d = dv(1)%pw%cr3d ** 2 + dv(2)%pw%cr3d ** 2 + dv(3)%pw%cr3d ** 2
 
     v_eps%cr3d = - (1.0_dp / eightpi) * (dv2%cr3d * deps_drho%cr3d)
 
-    CALL pw_pool_give_back_pw(pw_pool, dv2, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, dv2)
     DO i = 1, 3
-       CALL pw_pool_give_back_pw(pw_pool, dv(i)%pw, error=error)
+       CALL pw_pool_give_back_pw(pw_pool, dv(i)%pw)
     END DO
 
     CALL timestop(handle)
@@ -2009,16 +1951,14 @@ CONTAINS
 !> \param density electronic density
 !> \param v Hartree potential
 !> \param ehartree Hartree energy
-!> \param error cp2k error
 !> \par History
 !>       06.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE compute_ehartree_periodic_bc(density, v, ehartree, error)
+  SUBROUTINE compute_ehartree_periodic_bc(density, v, ehartree)
 
     TYPE(pw_type), INTENT(IN), POINTER       :: density, v
     REAL(dp), INTENT(OUT)                    :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc', &
       routineP = moduleN//':'//routineN
@@ -2028,7 +1968,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
 ! E_H = \frac{1}{2} * \int \rho * v dr
-    ehartree = 0.5_dp * pw_integral_ab(density, v, error) 
+    ehartree = 0.5_dp * pw_integral_ab(density, v) 
 
     CALL timestop(handle)
 
@@ -2042,12 +1982,11 @@ CONTAINS
 !>                  and B^t is the transpose of the boundary operator
 !> \param v Hartree potential
 !> \param ehartree Hartree energy
-!> \param error cp2k error
 !> \par History
 !>       06.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE compute_ehartree_mixed_bc(dielectric, density, Btxlambda, v, ehartree, error)
+  SUBROUTINE compute_ehartree_mixed_bc(dielectric, density, Btxlambda, v, ehartree)
 
     TYPE(dielectric_type), INTENT(IN), &
       POINTER                                :: dielectric
@@ -2056,7 +1995,6 @@ CONTAINS
       DIMENSION(:, :, :), INTENT(IN)         :: Btxlambda
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     REAL(dp), INTENT(OUT)                    :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_mixed_bc', &
       routineP = moduleN//':'//routineN
@@ -2100,13 +2038,12 @@ CONTAINS
 !> \param QAinvxres_new \Delta^-1(res_new)
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE compute_error_periodic_bc(pw_pool, green, res_new, v_old, v_new,&
-                                       QAinvxres_new, pres_error, nabs_error, error)
+                                       QAinvxres_new, pres_error, nabs_error)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
@@ -2114,7 +2051,6 @@ CONTAINS
     TYPE(pw_type), INTENT(IN), POINTER       :: res_new, v_old, v_new
     TYPE(pw_type), INTENT(INOUT), POINTER    :: QAinvxres_new
     REAL(dp), INTENT(OUT)                    :: pres_error, nabs_error
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_error_periodic_bc', &
       routineP = moduleN//':'//routineN
@@ -2127,7 +2063,7 @@ CONTAINS
     vol = pw_pool%pw_grid%vol
 
 ! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) + Bt \lambda)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_new, QAinvxres_new, error)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
     pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
@@ -2158,14 +2094,13 @@ CONTAINS
 !> \param adjust_local_bounds whether or not to adjust local bounds
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE compute_error_mixed_bc(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, &
                                     dct_env, res_new, v_old, v_new, QAinvxres_new, &
-                                    adjust_local_bounds, pres_error, nabs_error, error)
+                                    adjust_local_bounds, pres_error, nabs_error)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
@@ -2177,7 +2112,6 @@ CONTAINS
     TYPE(pw_type), INTENT(INOUT), POINTER    :: QAinvxres_new
     LOGICAL, INTENT(in)                      :: adjust_local_bounds
     REAL(dp), INTENT(OUT)                    :: pres_error, nabs_error
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_error_mixed_bc', &
       routineP = moduleN//':'//routineN
@@ -2195,7 +2129,7 @@ CONTAINS
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_new, QAinvxres_new, error)
+                                    adjust_local_bounds, res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
     pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
@@ -2217,17 +2151,15 @@ CONTAINS
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
 !> \param outp_unit output unit
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
+  SUBROUTINE ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
 
     INTEGER, INTENT(IN)                      :: iter
     REAL(dp), INTENT(IN)                     :: pres_error, nabs_error
     INTEGER, INTENT(OUT)                     :: outp_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_output', &
       routineP = moduleN//':'//routineN
@@ -2237,7 +2169,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos .EQ. logger%para_env%source) THEN
        outp_unit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
     ELSE
@@ -2268,17 +2200,15 @@ CONTAINS
 !> \param ps_implicit_env the implicit poisson solver environment
 !> \param outp_unit output unit
 !> \param ehartree Hartree energy
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
+  SUBROUTINE ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
 
     TYPE(ps_implicit_type)                   :: ps_implicit_env
     INTEGER, INTENT(IN)                      :: outp_unit
     REAL(dp), INTENT(IN)                     :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_report_ehartree', &
       routineP = moduleN//':'//routineN
@@ -2297,15 +2227,13 @@ CONTAINS
 !> \param f  input funcition
 !> \param df derivative of f
 !> \param pw_pool pool of plane-wave grid
-!> \param error cp2k error
 ! *****************************************************************************
-  SUBROUTINE derive_fft(f, df, pw_pool, error)
+  SUBROUTINE derive_fft(f, df, pw_pool)
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
       INTENT(INOUT)                          :: df
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fft', &
       routineP = moduleN//':'//routineN
@@ -2319,21 +2247,20 @@ CONTAINS
     DO i = 1, 2
        NULLIFY (work_gs(i)%pw)
        CALL pw_pool_create_pw(pw_pool, work_gs(i)%pw, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
     END DO
 
-    CALL pw_transfer(f, work_gs(1)%pw, error=error)
+    CALL pw_transfer(f, work_gs(1)%pw)
     DO i = 1, 3
        nd(:) = 0
        nd(i) = 1
-       CALL pw_copy(work_gs(1)%pw, work_gs(2)%pw, error=error)
-       CALL pw_derive(work_gs(2)%pw, nd(:), error=error)
-       CALL pw_transfer(work_gs(2)%pw, df(i)%pw, error=error)
+       CALL pw_copy(work_gs(1)%pw, work_gs(2)%pw)
+       CALL pw_derive(work_gs(2)%pw, nd(:))
+       CALL pw_transfer(work_gs(2)%pw, df(i)%pw)
     END DO
 
     DO i = 1, 2
-       CALL pw_pool_give_back_pw(pw_pool, work_gs(i)%pw, error=error)
+       CALL pw_pool_give_back_pw(pw_pool, work_gs(i)%pw)
     END DO
 
     CALL timestop(handle)
@@ -2345,9 +2272,8 @@ CONTAINS
 !> \param idx_1dto3d mapping of indices
 !> \param arr1d input 1D array
 !> \param arr3d input 3D array
-!> \param error cp2k error
 ! *****************************************************************************
-  SUBROUTINE convert_1dto3d(idx_1dto3d, arr1d, arr3d, error)
+  SUBROUTINE convert_1dto3d(idx_1dto3d, arr1d, arr3d)
 
     INTEGER, DIMENSION(:), INTENT(IN), &
       POINTER                                :: idx_1dto3d
@@ -2355,7 +2281,6 @@ CONTAINS
       INTENT(IN)                             :: arr1d
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :), INTENT(INOUT)      :: arr3d
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_1dto3d', &
       routineP = moduleN//':'//routineN

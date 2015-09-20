@@ -57,11 +57,10 @@ CONTAINS
 !> \param globenv ...
 !> \param tmp ...
 !> \param check ...
-!> \param error ...
 !> \author
 ! *****************************************************************************
 
-  SUBROUTINE optimize_shell_core(force_env,particle_set,shell_particle_set,core_particle_set,globenv,tmp,check,error)
+  SUBROUTINE optimize_shell_core(force_env,particle_set,shell_particle_set,core_particle_set,globenv,tmp,check)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set, &
@@ -71,7 +70,6 @@ CONTAINS
     TYPE(tmp_variables_type), OPTIONAL, &
       POINTER                                :: tmp
     LOGICAL, INTENT(IN), OPTIONAL            :: check
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_shell_core', &
       routineP = moduleN//':'//routineN
@@ -92,17 +90,17 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
 
     NULLIFY (gopt_param,force_env_section,gopt_env,dvec_sc,dvec_sc_0,root_section,geo_section)
     root_section      => force_env%root_section
     force_env_section => force_env%force_env_section
-    geo_section       => section_vals_get_subs_vals(root_section,"MOTION%SHELL_OPT",error=error)
+    geo_section       => section_vals_get_subs_vals(root_section,"MOTION%SHELL_OPT")
 
-    CALL section_vals_get(geo_section, explicit=explicit, error=error)
+    CALL section_vals_get(geo_section, explicit=explicit)
     IF(.NOT. explicit) RETURN
 
     CALL timeset(routineN,handle)
@@ -112,10 +110,10 @@ CONTAINS
     IF(PRESENT(check)) my_check = check
     IF(my_check) THEN
         NULLIFY(subsys, para_env, atomic_kinds, local_particles)
-        CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env, error=error)
-        CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
+        CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env)
+        CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, local_particles=local_particles)
         CALL check_shell_core_distance(atomic_kinds,local_particles,particle_set,shell_particle_set,&
-             core_particle_set,para_env,optimize,error=error)
+             core_particle_set,para_env,optimize)
 
         IF(.NOT. optimize) THEN
            CALL timestop(handle)
@@ -125,9 +123,9 @@ CONTAINS
 
     nshell = SIZE(shell_particle_set)
     ALLOCATE(dvec_sc(3*nshell), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(dvec_sc_0(3*nshell), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i= 1,nshell
       dvec_sc(1+3*(i-1)) = core_particle_set(i)%r(1)-shell_particle_set(i)%r(1)
       dvec_sc(2+3*(i-1)) = core_particle_set(i)%r(2)-shell_particle_set(i)%r(2)
@@ -136,14 +134,14 @@ CONTAINS
     dvec_sc_0 = dvec_sc
 
 
-    CALL gopt_param_read(gopt_param, geo_section, type_id=default_shellcore_method_id, error=error)
+    CALL gopt_param_read(gopt_param, geo_section, type_id=default_shellcore_method_id)
     CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,&
-         geo_opt_section=geo_section, error=error)
+         geo_opt_section=geo_section)
 
-    CALL cp_add_iter_level(logger%iter_info,"SHELL_OPT",error=error)
+    CALL cp_add_iter_level(logger%iter_info,"SHELL_OPT")
     gopt_env%eval_opt_geo = .FALSE.
     CALL geoopt_cg  (force_env,gopt_param,globenv,&
-    geo_section, gopt_env, dvec_sc, do_update=do_update,  error=error)
+    geo_section, gopt_env, dvec_sc, do_update=do_update)
     IF(.NOT.do_update) THEN
       DO i= 1,nshell
         shell_particle_set(i)%r(1) = -dvec_sc_0(1+3*(i-1)) + core_particle_set(i)%r(1)
@@ -151,14 +149,14 @@ CONTAINS
         shell_particle_set(i)%r(3) = -dvec_sc_0(3+3*(i-1)) + core_particle_set(i)%r(3)
       END DO
     END IF
-    CALL cp_rm_iter_level(logger%iter_info,"SHELL_OPT",error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"SHELL_OPT")
 
-    CALL gopt_f_release(gopt_env, error=error)
-    CALL gopt_param_release(gopt_param, error=error)
+    CALL gopt_f_release(gopt_env)
+    CALL gopt_param_release(gopt_param)
     DEALLOCATE(dvec_sc, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(dvec_sc_0, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF(PRESENT(tmp)) THEN
       DO i=1,nshell
@@ -188,14 +186,13 @@ CONTAINS
 !> \param core_particle_set ...
 !> \param para_env ...
 !> \param optimize ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (October 2008)
 !>     I soliti ignoti
 ! *****************************************************************************
  SUBROUTINE check_shell_core_distance(atomic_kinds,local_particles,particle_set,&
-            shell_particle_set,core_particle_set,para_env,optimize,error)
+            shell_particle_set,core_particle_set,para_env,optimize)
 
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -205,7 +202,6 @@ CONTAINS
                                                 core_particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(INOUT)                   :: optimize
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_shell_core_distance', &
       routineP = moduleN//':'//routineN

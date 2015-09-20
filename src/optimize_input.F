@@ -102,14 +102,12 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE run_optimize_input(input_declaration, root_section, para_env, error)
+  SUBROUTINE run_optimize_input(input_declaration, root_section, para_env)
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_input', &
       routineP = moduleN//':'//routineN
@@ -126,30 +124,30 @@ CONTAINS
 
     oi_env%start_time=m_walltime()
 
-    CALL parse_input(oi_env,root_section,error)
+    CALL parse_input(oi_env,root_section)
 
     ! if we have been asked to randomize the variables, we do this.
     IF (oi_env%randomize_variables.NE.0.0_dp) THEN
        NULLIFY(rng_stream)
        seed=REAL(oi_env%seed,KIND=dp)
-       CALL create_rng_stream(rng_stream,"run_optimize_input",distribution_type=UNIFORM,seed=seed,error=error)
+       CALL create_rng_stream(rng_stream,"run_optimize_input",distribution_type=UNIFORM,seed=seed)
        DO i_var=1,SIZE(oi_env%variables,1)
           IF (.NOT.oi_env%variables(i_var)%fixed) THEN
              ! change with a random percentage the variable
-             random_number   = next_random_number(rng_stream,error=error)
+             random_number   = next_random_number(rng_stream)
              oi_env%variables(i_var)%value=oi_env%variables(i_var)%value* &
                             (1.0_dp+(2*random_number-1.0_dp)*oi_env%randomize_variables/100.0_dp)
           ENDIF
        ENDDO
-       CALL delete_rng_stream(rng_stream,error=error)
+       CALL delete_rng_stream(rng_stream)
     ENDIF
 
     ! proceed to actual methods
     SELECT CASE(oi_env%method)
     CASE(opt_force_matching)
-      CALL force_matching(oi_env,input_declaration,root_section,para_env,error)
+      CALL force_matching(oi_env,input_declaration,root_section,para_env)
     CASE DEFAULT
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     CALL timestop(handle)
@@ -162,15 +160,13 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE force_matching(oi_env,input_declaration,root_section,para_env, error)
+  SUBROUTINE force_matching(oi_env,input_declaration,root_section,para_env)
     TYPE(oi_env_type)                        :: oi_env
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_matching', &
       routineP = moduleN//':'//routineN
@@ -201,8 +197,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger=>cp_error_get_logger(error)
-    CALL cp_add_iter_level(logger%iter_info,"POWELL_OPT",error=error)
+    logger=>cp_get_default_logger()
+    CALL cp_add_iter_level(logger%iter_info,"POWELL_OPT")
     output_unit = cp_logger_get_default_io_unit(logger)
 
     IF (output_unit>0) THEN
@@ -211,7 +207,7 @@ CONTAINS
 
     ! do IO of ref traj / frc / cell
     NULLIFY(cell_traj_read,force_traj_read,pos_traj_read,energy_traj_read)
-    CALL read_reference_data(oi_env,para_env,force_traj_read,pos_traj_read,energy_traj_read,cell_traj_read,error)
+    CALL read_reference_data(oi_env,para_env,force_traj_read,pos_traj_read,energy_traj_read,cell_traj_read)
     n_atom=SIZE(pos_traj_read,2)
 
     ! adjust read data with respect to start/stop/stride
@@ -328,7 +324,7 @@ CONTAINS
       ! if required get the energy of this set of params
       IF (state == 2) THEN
 
-         CALL cp_iterate(logger%iter_info,last=.FALSE.,error=error)
+         CALL cp_iterate(logger%iter_info,last=.FALSE.)
 
          ! create a new force env, updating the free vars as needed
          DO i_free_var=1,n_free_var
@@ -408,16 +404,15 @@ CONTAINS
 
          ! the history file with the trajectory of the parameters
          history_unit=cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%HISTORY", &
-                                           extension=".dat",error=error)
+                                           extension=".dat")
          IF (history_unit>0) THEN
             WRITE (UNIT=history_unit,FMT="(I20,F20.12,1000F20.12)") oi_env%iter_start_val + ostate%nf, ostate%f, free_vars
          END IF
-         CALL cp_print_key_finished_output(history_unit,logger,root_section,"OPTIMIZE_INPUT%HISTORY", &
-                                           error=error)
+         CALL cp_print_key_finished_output(history_unit,logger,root_section,"OPTIMIZE_INPUT%HISTORY")
 
          ! the energy profile for all frames
          energies_unit=cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_ENERGIES", &
-                                           file_position="REWIND",extension=".dat",error=error)
+                                           file_position="REWIND",extension=".dat")
          IF (energies_unit>0) THEN
             WRITE (UNIT=energies_unit,FMT="(A20,A20,A20,A20)") "#frame","ref","fit","diff"
             DO i_frame=1,n_frames
@@ -426,12 +421,11 @@ CONTAINS
                WRITE (UNIT=energies_unit,FMT="(I20,F20.12,F20.12,F20.12)") i_frame,e1,e2,e1-e2
             ENDDO
          END IF
-         CALL cp_print_key_finished_output(energies_unit,logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_ENERGIES", &
-                                           error=error)
+         CALL cp_print_key_finished_output(energies_unit,logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_ENERGIES")
 
          ! the force profile for all frames
          energies_unit=cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_FORCES", &
-                                           file_position="REWIND",extension=".dat",error=error)
+                                           file_position="REWIND",extension=".dat")
          IF (energies_unit>0) THEN
             WRITE (UNIT=energies_unit,FMT="(A20,A20,A20,A20)") "#frame","normalized diff","diff","ref","ref sum"
             DO i_frame=1,n_frames
@@ -442,31 +436,30 @@ CONTAINS
                WRITE (UNIT=energies_unit,FMT="(I20,F20.12,F20.12,F20.12,2F20.12)") i_frame,e1/e2,e1,e2,e3,e4
             ENDDO
          END IF
-         CALL cp_print_key_finished_output(energies_unit,logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_FORCES", &
-                                           error=error)
+         CALL cp_print_key_finished_output(energies_unit,logger,root_section,"OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_FORCES")
 
 
          ! a restart file with the current values of the parameters
          restart_unit = cp_print_key_unit_nr(logger,root_section,"OPTIMIZE_INPUT%RESTART", extension=".restart",&
-                                     file_position="REWIND", do_backup=.TRUE., error=error)
+                                     file_position="REWIND", do_backup=.TRUE.)
          IF (restart_unit>0) THEN
-            oi_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_INPUT",error=error)
-            CALL section_vals_val_set(oi_section,"ITER_START_VAL",i_val=oi_env%iter_start_val + ostate%nf,error=error)
-            variable_section  => section_vals_get_subs_vals(oi_section,"VARIABLE",error=error)
+            oi_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_INPUT")
+            CALL section_vals_val_set(oi_section,"ITER_START_VAL",i_val=oi_env%iter_start_val + ostate%nf)
+            variable_section  => section_vals_get_subs_vals(oi_section,"VARIABLE")
             DO i_free_var=1,n_free_var
                CALL section_vals_val_set(variable_section,"VALUE",i_rep_section=free_var_index(i_free_var), &
-                                         r_val=free_vars(i_free_var),error=error)
+                                         r_val=free_vars(i_free_var))
             ENDDO
             CALL write_restart_header(restart_unit)
-            CALL section_vals_write(root_section,unit_nr=restart_unit,hide_root=.TRUE., error=error)
+            CALL section_vals_write(root_section,unit_nr=restart_unit,hide_root=.TRUE.)
          ENDIF
-         CALL cp_print_key_finished_output(restart_unit,logger,root_section,"OPTIMIZE_INPUT%RESTART", error=error)
+         CALL cp_print_key_finished_output(restart_unit,logger,root_section,"OPTIMIZE_INPUT%RESTART")
 
       ENDIF
 
       IF ( state == -1 ) EXIT
 
-      CALL external_control(should_stop,"OPTIMIZE_INPUT",target_time=oi_env%target_time,start_time=oi_env%start_time,error=error)
+      CALL external_control(should_stop,"OPTIMIZE_INPUT",target_time=oi_env%target_time,start_time=oi_env%start_time)
 
       IF (should_stop) EXIT
 
@@ -497,7 +490,7 @@ CONTAINS
        ENDDO
     ENDIF
 
-    CALL cp_rm_iter_level(logger%iter_info,"POWELL_OPT",error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"POWELL_OPT")
 
     ! deallocate for cleanup
     IF (ASSOCIATED(cell_traj)) DEALLOCATE(cell_traj)
@@ -518,10 +511,9 @@ CONTAINS
 !> \param pos_traj position 
 !> \param energy_traj energies, as extracted from the forces file
 !> \param cell_traj cell parameters, as extracted from a CP2K cell file 
-!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE read_reference_data(oi_env,para_env,force_traj,pos_traj,energy_traj,cell_traj,error)
+  SUBROUTINE read_reference_data(oi_env,para_env,force_traj,pos_traj,energy_traj,cell_traj)
     TYPE(oi_env_type)                        :: oi_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -529,7 +521,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_traj
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: cell_traj
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_reference_data', &
       routineP = moduleN//':'//routineN
@@ -558,9 +549,9 @@ CONTAINS
             "The reference trajectory file name is empty"//&
             CPSourceFileRef,&
             only_ionode=.TRUE.)
-    CALL parser_create(local_parser,filename,para_env=para_env,error=error)
+    CALL parser_create(local_parser,filename,para_env=para_env)
     DO
-       CALL parser_read_line(local_parser,1,at_end=at_end,error=error)
+       CALL parser_read_line(local_parser,1,at_end=at_end)
        IF (at_end) EXIT
        READ(local_parser%input_line,FMT="(I8)") nread
        n_frames=n_frames+1
@@ -571,17 +562,17 @@ CONTAINS
        ENDIF
 
        ! title line
-       CALL parser_read_line(local_parser,1,error=error)
+       CALL parser_read_line(local_parser,1)
 
        ! actual coordinates
        DO i = 1,nread
-          CALL parser_read_line(local_parser,1,error=error)
+          CALL parser_read_line(local_parser,1)
           READ(local_parser%input_line(1:LEN_TRIM(local_parser%input_line)),*) AA,vec
           pos_traj(:,i,n_frames)=vec*bohr
        END DO
 
     ENDDO
-    CALL parser_release(local_parser,error=error)
+    CALL parser_release(local_parser)
 
     n_frames_current=n_frames
     CALL reallocate(energy_traj,1,n_frames_current)
@@ -594,14 +585,14 @@ CONTAINS
             "The reference force file name is empty"//&
             CPSourceFileRef,&
             only_ionode=.TRUE.)
-    CALL parser_create(local_parser,filename,para_env=para_env,error=error)
+    CALL parser_create(local_parser,filename,para_env=para_env)
     DO iframe=1,n_frames
-       CALL parser_read_line(local_parser,1,error=error)
+       CALL parser_read_line(local_parser,1)
        READ(local_parser%input_line,FMT="(I8)") nread
 
        ! title line
        test_ok = .FALSE.
-       CALL parser_read_line(local_parser,1,error=error)
+       CALL parser_read_line(local_parser,1)
        READ(local_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)",ERR=999) trj_itimes, trj_time, trj_epot
        test_ok = .TRUE.
 999    CONTINUE
@@ -615,25 +606,25 @@ CONTAINS
 
        ! actual forces, in a.u.
        DO i = 1,nread
-          CALL parser_read_line(local_parser,1,error=error)
+          CALL parser_read_line(local_parser,1)
           READ(local_parser%input_line(1:LEN_TRIM(local_parser%input_line)),*) AA,vec
           force_traj(:,i,iframe)=vec
        END DO
     ENDDO
-    CALL parser_release(local_parser,error=error)
+    CALL parser_release(local_parser)
 
 
     ! and cell, which is optional
     NULLIFY(cell_traj)
     filename=oi_env%fm_env%ref_cell_file_name
     IF (filename.NE."") THEN
-       CALL parser_create(local_parser,filename,para_env=para_env,error=error)
+       CALL parser_create(local_parser,filename,para_env=para_env)
        ALLOCATE(cell_traj(3,3,n_frames))
        DO iframe=1,n_frames
-          CALL parser_read_line(local_parser,1,error=error)
-          CALL parse_cell_line(local_parser%input_line, cell_itimes, cell_time, cell_traj(:,:,iframe), vol, error)
+          CALL parser_read_line(local_parser,1)
+          CALL parse_cell_line(local_parser%input_line, cell_itimes, cell_time, cell_traj(:,:,iframe), vol)
        ENDDO
-       CALL parser_release(local_parser,error=error)
+       CALL parser_release(local_parser)
     ENDIF
 
     CALL timestop(handle)
@@ -644,13 +635,11 @@ CONTAINS
 !> \brief parses the input section, and stores in the optimize input environment
 !> \param oi_env optimize input environment
 !> \param root_section ...
-!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE parse_input(oi_env,root_section,error)
+  SUBROUTINE parse_input(oi_env,root_section)
     TYPE(oi_env_type)                        :: oi_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parse_input', &
       routineP = moduleN//':'//routineN
@@ -663,54 +652,54 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=oi_env%project_name,error=error)
-    CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=oi_env%seed,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=oi_env%project_name)
+    CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=oi_env%seed)
     CALL cp2k_get_walltime(section=root_section, keyword_name="GLOBAL%WALLTIME", &
-                             walltime=oi_env%target_time, error=error)
+                             walltime=oi_env%target_time)
 
-    oi_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_INPUT",error=error)
-    variable_section  => section_vals_get_subs_vals(oi_section,"VARIABLE",error=error)
+    oi_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_INPUT")
+    variable_section  => section_vals_get_subs_vals(oi_section,"VARIABLE")
 
-    CALL section_vals_val_get(oi_section,"ACCURACY", r_val=oi_env%rhoend, error=error)
-    CALL section_vals_val_get(oi_section,"STEP_SIZE", r_val=oi_env%rhobeg, error=error)
-    CALL section_vals_val_get(oi_section,"MAX_FUN", i_val=oi_env%maxfun, error=error)
-    CALL section_vals_val_get(oi_section,"ITER_START_VAL", i_val=oi_env%iter_start_val, error=error)
-    CALL section_vals_val_get(oi_section,"RANDOMIZE_VARIABLES", r_val=oi_env%randomize_variables, error=error)
+    CALL section_vals_val_get(oi_section,"ACCURACY", r_val=oi_env%rhoend)
+    CALL section_vals_val_get(oi_section,"STEP_SIZE", r_val=oi_env%rhobeg)
+    CALL section_vals_val_get(oi_section,"MAX_FUN", i_val=oi_env%maxfun)
+    CALL section_vals_val_get(oi_section,"ITER_START_VAL", i_val=oi_env%iter_start_val)
+    CALL section_vals_val_get(oi_section,"RANDOMIZE_VARIABLES", r_val=oi_env%randomize_variables)
 
-    CALL section_vals_get(variable_section,explicit=explicit, n_repetition=n_var, error=error)
+    CALL section_vals_get(variable_section,explicit=explicit, n_repetition=n_var)
     IF (explicit) THEN
        ALLOCATE(oi_env%variables(1:n_var))
        DO ivar=1,n_var
           CALL section_vals_val_get(variable_section,"VALUE",i_rep_section=ivar, &
-                r_val=oi_env%variables(ivar)%value, error=error)
+                r_val=oi_env%variables(ivar)%value)
           CALL section_vals_val_get(variable_section,"FIXED",i_rep_section=ivar, &
-                l_val=oi_env%variables(ivar)%fixed, error=error)
+                l_val=oi_env%variables(ivar)%fixed)
           CALL section_vals_val_get(variable_section,"LABEL",i_rep_section=ivar, &
-                c_val=oi_env%variables(ivar)%label, error=error)
+                c_val=oi_env%variables(ivar)%label)
        ENDDO
     ENDIF
 
-    CALL section_vals_val_get(oi_section,"METHOD",i_val=oi_env%method,error=error)
+    CALL section_vals_val_get(oi_section,"METHOD",i_val=oi_env%method)
     SELECT CASE(oi_env%method)
     CASE(opt_force_matching)
-       fm_section => section_vals_get_subs_vals(oi_section,"FORCE_MATCHING",error=error)
-       CALL section_vals_val_get(fm_section,"REF_TRAJ_FILE_NAME",c_val=oi_env%fm_env%ref_traj_file_name,error=error)
-       CALL section_vals_val_get(fm_section,"REF_FORCE_FILE_NAME",c_val=oi_env%fm_env%ref_force_file_name,error=error)
-       CALL section_vals_val_get(fm_section,"REF_CELL_FILE_NAME",c_val=oi_env%fm_env%ref_cell_file_name,error=error)
-       CALL section_vals_val_get(fm_section,"OPTIMIZE_FILE_NAME",c_val=oi_env%fm_env%optimize_file_name,error=error)
-       CALL section_vals_val_get(fm_section,"FRAME_START",i_val=oi_env%fm_env%frame_start,error=error)
-       CALL section_vals_val_get(fm_section,"FRAME_STOP",i_val=oi_env%fm_env%frame_stop,error=error)
-       CALL section_vals_val_get(fm_section,"FRAME_STRIDE",i_val=oi_env%fm_env%frame_stride,error=error)
-       CALL section_vals_val_get(fm_section,"FRAME_COUNT",i_val=oi_env%fm_env%frame_count,error=error)
+       fm_section => section_vals_get_subs_vals(oi_section,"FORCE_MATCHING")
+       CALL section_vals_val_get(fm_section,"REF_TRAJ_FILE_NAME",c_val=oi_env%fm_env%ref_traj_file_name)
+       CALL section_vals_val_get(fm_section,"REF_FORCE_FILE_NAME",c_val=oi_env%fm_env%ref_force_file_name)
+       CALL section_vals_val_get(fm_section,"REF_CELL_FILE_NAME",c_val=oi_env%fm_env%ref_cell_file_name)
+       CALL section_vals_val_get(fm_section,"OPTIMIZE_FILE_NAME",c_val=oi_env%fm_env%optimize_file_name)
+       CALL section_vals_val_get(fm_section,"FRAME_START",i_val=oi_env%fm_env%frame_start)
+       CALL section_vals_val_get(fm_section,"FRAME_STOP",i_val=oi_env%fm_env%frame_stop)
+       CALL section_vals_val_get(fm_section,"FRAME_STRIDE",i_val=oi_env%fm_env%frame_stride)
+       CALL section_vals_val_get(fm_section,"FRAME_COUNT",i_val=oi_env%fm_env%frame_count)
 
-       CALL section_vals_val_get(fm_section,"GROUP_SIZE",i_val=oi_env%fm_env%group_size,error=error)
+       CALL section_vals_val_get(fm_section,"GROUP_SIZE",i_val=oi_env%fm_env%group_size)
 
-       CALL section_vals_val_get(fm_section,"ENERGY_WEIGHT",r_val=oi_env%fm_env%energy_weight,error=error)
-       CALL section_vals_val_get(fm_section,"SHIFT_MM",r_val=oi_env%fm_env%shift_mm,error=error)
-       CALL section_vals_val_get(fm_section,"SHIFT_QM",r_val=oi_env%fm_env%shift_qm,error=error)
-       CALL section_vals_val_get(fm_section,"SHIFT_AVERAGE",l_val=oi_env%fm_env%shift_average,error=error)
+       CALL section_vals_val_get(fm_section,"ENERGY_WEIGHT",r_val=oi_env%fm_env%energy_weight)
+       CALL section_vals_val_get(fm_section,"SHIFT_MM",r_val=oi_env%fm_env%shift_mm)
+       CALL section_vals_val_get(fm_section,"SHIFT_QM",r_val=oi_env%fm_env%shift_qm)
+       CALL section_vals_val_get(fm_section,"SHIFT_AVERAGE",l_val=oi_env%fm_env%shift_average)
     CASE DEFAULT
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     CALL timestop(handle)

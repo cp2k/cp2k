@@ -38,14 +38,12 @@ CONTAINS
 !> \brief Handles the multiple_unit_cell for the atomic coordinates..
 !> \param topology ...
 !> \param subsys_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
-  SUBROUTINE topology_muc(topology, subsys_section, error)
+  SUBROUTINE topology_muc(topology, subsys_section)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_muc', &
       routineP = moduleN//':'//routineN
@@ -64,7 +62,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(multiple_unit_cell,iwork,cell)
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
-                              i_vals=multiple_unit_cell, error=error)
+                              i_vals=multiple_unit_cell)
     ! Fail is one of the value is set to zero..
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
@@ -73,7 +71,7 @@ CPSourceFileRef)
     IF (ANY(multiple_unit_cell/=1)) THEN
        ! Check that the setup between CELL and TOPOLOGY is the same..
        CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
-                                 i_vals=iwork, error=error)
+                                 i_vals=iwork)
        CALL cp_assert(ALL(iwork==multiple_unit_cell),cp_fatal_level,cp_assertion_failed,routineP,&
          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "//&
          "setup to two different values!! Correct this error!!"//&
@@ -82,10 +80,10 @@ CPSourceFileRef)
        natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 
        ! Check, if velocities are provided, that they are consistent in number with the atoms...
-       work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-       CALL section_vals_get(work_section,explicit=explicit,error=error)
+       work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY")
+       CALL section_vals_get(work_section,explicit=explicit)
        IF (explicit) THEN
-          CALL section_vals_val_get(work_section,'_DEFAULT_KEYWORD_',n_rep_val=nrep,error=error)
+          CALL section_vals_val_get(work_section,'_DEFAULT_KEYWORD_',n_rep_val=nrep)
           check = nrep==natoms
           CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
                "Number of available entries in VELOCITY section is not compatible with the number "//&
@@ -134,16 +132,16 @@ CPSourceFileRef)
        topology%natoms            = natoms
 
        ! Deallocate the coordinate section (will be rebuilt later with the whole atomic set)
-       work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-       CALL section_vals_get(work_section,explicit=explicit,error=error)
+       work_section => section_vals_get_subs_vals(subsys_section,"COORD")
+       CALL section_vals_get(work_section,explicit=explicit)
        IF (explicit) THEN
-          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
        END IF
-       CALL section_vals_remove_values(work_section, error)
+       CALL section_vals_remove_values(work_section)
        IF (explicit) THEN
-          CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
-          CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+          CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str)
+          CALL section_vals_val_set(work_section,"SCALED",l_val=scale)
        END IF
     END IF
     CALL timestop(handle)

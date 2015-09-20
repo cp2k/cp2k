@@ -213,12 +213,10 @@ MODULE qs_local_rho_types
 ! *****************************************************************************
 !> \brief ...
 !> \param local_rho_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE local_rho_set_create(local_rho_set, error)
+  SUBROUTINE local_rho_set_create(local_rho_set)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create', &
       routineP = moduleN//':'//routineN
@@ -229,7 +227,7 @@ MODULE qs_local_rho_types
     failure=.FALSE.
 
     ALLOCATE(local_rho_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY (local_rho_set%rho_atom_set)
     NULLIFY (local_rho_set%rho0_atom_set)
@@ -241,12 +239,10 @@ MODULE qs_local_rho_types
 ! *****************************************************************************
 !> \brief ...
 !> \param local_rho_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE local_rho_set_release(local_rho_set,error)
+  SUBROUTINE local_rho_set_release(local_rho_set)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release', &
       routineP = moduleN//':'//routineN
@@ -263,7 +259,7 @@ MODULE qs_local_rho_types
       END IF
 
       IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
-        CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole,error=error)
+        CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
       END IF
 
       IF(ASSOCIATED(local_rho_set%rhoz_set)) THEN
@@ -271,7 +267,7 @@ MODULE qs_local_rho_types
       ENDIF
 
       DEALLOCATE(local_rho_set,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
 
   END SUBROUTINE local_rho_set_release
@@ -283,10 +279,9 @@ MODULE qs_local_rho_types
 !> \param rho0_atom_set ...
 !> \param rho0_mpole ...
 !> \param rhoz_set ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,rho0_mpole,&
-       rhoz_set, error)
+       rhoz_set)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -296,7 +291,6 @@ MODULE qs_local_rho_types
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_local_rho', &
       routineP = moduleN//':'//routineN
@@ -317,7 +311,7 @@ MODULE qs_local_rho_types
 
     IF (PRESENT(rho0_mpole)) THEN
        IF(ASSOCIATED(local_rho_set%rho0_mpole)) THEN
-         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole,error=error)
+         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
        ENDIF
        local_rho_set%rho0_mpole => rho0_mpole
     END IF

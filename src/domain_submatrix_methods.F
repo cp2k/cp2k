@@ -83,13 +83,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param subm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_submatrices_0d(subm,error)
+  SUBROUTINE init_submatrices_0d(subm)
 
     TYPE(domain_submatrix_type), &
       INTENT(INOUT)                          :: subm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     subm%domain=-1
     subm%nbrows=-1
@@ -104,13 +102,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param subm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_submatrices_1d(subm,error)
+  SUBROUTINE init_submatrices_1d(subm)
 
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(INOUT)            :: subm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     subm(:)%domain=-1
     subm(:)%nbrows=-1
@@ -125,13 +121,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param subm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_submatrices_2d(subm,error)
+  SUBROUTINE init_submatrices_2d(subm)
 
     TYPE(domain_submatrix_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: subm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     subm(:,:)%domain=-1
     subm(:,:)%nbrows=-1
@@ -148,16 +142,14 @@ CONTAINS
 !> \param original ...
 !> \param copy ...
 !> \param copy_data ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE copy_submatrix_array(original,copy,copy_data,error)
+  SUBROUTINE copy_submatrix_array(original,copy,copy_data)
 
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: original
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(INOUT)            :: copy
     LOGICAL, INTENT(IN)                      :: copy_data
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_array', &
       routineP = moduleN//':'//routineN
@@ -170,12 +162,12 @@ CONTAINS
 
     ndomains=SIZE(original)
     ndomainsB=SIZE(copy)
-    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,failure)
     copy(:)%nnodes=original(:)%nnodes
     copy(:)%groupid=original(:)%groupid
     DO idomain = 1, ndomains
        IF (original(idomain)%domain.gt.0) THEN
-          CALL copy_submatrix(original(idomain),copy(idomain),copy_data,error)
+          CALL copy_submatrix(original(idomain),copy(idomain),copy_data)
        ENDIF
     ENDDO ! loop over domains
 
@@ -188,15 +180,13 @@ CONTAINS
 !> \param original ...
 !> \param copy ...
 !> \param copy_data ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE copy_submatrix(original,copy,copy_data,error)
+  SUBROUTINE copy_submatrix(original,copy,copy_data)
 
     TYPE(domain_submatrix_type), INTENT(IN)  :: original
     TYPE(domain_submatrix_type), &
       INTENT(INOUT)                          :: copy
     LOGICAL, INTENT(IN)                      :: copy_data
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix', &
       routineP = moduleN//':'//routineN
@@ -260,7 +250,7 @@ CONTAINS
        ENDDO
    
        IF (copy_data) THEN
-          CALL copy_submatrix_data(original%mdata,copy,error)
+          CALL copy_submatrix_data(original%mdata,copy)
        ENDIF
 
     ENDIF ! do not copy empty submatrix
@@ -273,15 +263,13 @@ CONTAINS
 !> \brief ...
 !> \param array ...
 !> \param copy ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE copy_submatrix_data(array,copy,error)
+  SUBROUTINE copy_submatrix_data(array,copy)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: array
     TYPE(domain_submatrix_type), &
       INTENT(INOUT)                          :: copy
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_data', &
       routineP = moduleN//':'//routineN
@@ -291,7 +279,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(copy%domain.gt.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(copy%domain.gt.0,cp_failure_level,routineP,failure)
 
     ds1=SIZE(array,1)
     ds2=SIZE(array,2)
@@ -317,14 +305,12 @@ CONTAINS
 !> \brief ...
 !> \param submatrices ...
 !> \param scalar ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE set_submatrix_array(submatrices,scalar,error)
+  SUBROUTINE set_submatrix_array(submatrices,scalar)
 
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(INOUT)            :: submatrices
     REAL(KIND=dp), INTENT(IN)                :: scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_submatrix_array', &
       routineP = moduleN//':'//routineN
@@ -336,7 +322,7 @@ CONTAINS
     ndomains=SIZE(submatrices)
     DO idomain = 1, ndomains
        IF (submatrices(idomain)%domain.gt.0) THEN
-          CALL set_submatrix(submatrices(idomain),scalar,error)
+          CALL set_submatrix(submatrices(idomain),scalar)
        ENDIF
     ENDDO ! loop over domains
 
@@ -348,14 +334,12 @@ CONTAINS
 !> \brief ...
 !> \param submatrix ...
 !> \param scalar ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE set_submatrix(submatrix,scalar,error)
+  SUBROUTINE set_submatrix(submatrix,scalar)
 
     TYPE(domain_submatrix_type), &
       INTENT(INOUT)                          :: submatrix
     REAL(KIND=dp), INTENT(IN)                :: scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_submatrix', &
       routineP = moduleN//':'//routineN
@@ -365,9 +349,9 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(submatrix%domain.gt.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(submatrix%nrows.gt.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(submatrix%ncols.gt.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(submatrix%domain.gt.0,cp_failure_level,routineP,failure)
+    CPPrecondition(submatrix%nrows.gt.0,cp_failure_level,routineP,failure)
+    CPPrecondition(submatrix%ncols.gt.0,cp_failure_level,routineP,failure)
 
     ds1=submatrix%nrows
     ds2=submatrix%ncols
@@ -392,13 +376,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param subm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_submatrix_array(subm,error)
+  SUBROUTINE release_submatrix_array(subm)
 
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(INOUT)            :: subm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_submatrix_array', &
       routineP = moduleN//':'//routineN
@@ -409,7 +391,7 @@ CONTAINS
 
     ndomains=SIZE(subm)
     DO idomain = 1, ndomains
-       CALL release_submatrix(subm(idomain),error)
+       CALL release_submatrix(subm(idomain))
     ENDDO ! loop over domains
 
     CALL timestop(handle)
@@ -419,13 +401,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param subm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_submatrix(subm,error)
+  SUBROUTINE release_submatrix(subm)
 
     TYPE(domain_submatrix_type), &
       INTENT(INOUT)                          :: subm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_submatrix', &
       routineP = moduleN//':'//routineN
@@ -472,9 +452,8 @@ CONTAINS
 !> \param B ...
 !> \param beta ...
 !> \param C ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE multiply_submatrices_once(transA,transB,alpha,A,B,beta,C,error)
+  SUBROUTINE multiply_submatrices_once(transA,transB,alpha,A,B,beta,C)
 
     CHARACTER, INTENT(IN)                    :: transA, transB
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -482,7 +461,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(domain_submatrix_type), &
       INTENT(INOUT)                          :: C
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'multiply_submatrices_once', &
       routineP = moduleN//':'//routineN
@@ -494,9 +472,9 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     
-    CPPrecondition(A%domain.gt.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(B%domain.gt.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(C%domain.gt.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(A%domain.gt.0,cp_failure_level,routineP,failure)
+    CPPrecondition(B%domain.gt.0,cp_failure_level,routineP,failure)
+    CPPrecondition(C%domain.gt.0,cp_failure_level,routineP,failure)
 
     LDA = SIZE(A%mdata,1)
     LDB = SIZE(B%mdata,1)
@@ -525,7 +503,7 @@ CONTAINS
     ENDIF
 
     ! these checks are for debugging only
-    CPPrecondition(K.eq.K1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(K.eq.K1,cp_failure_level,routineP,failure)
    
     ! conform C matrix 
     C%nrows=M
@@ -571,14 +549,14 @@ CONTAINS
 
     IF (.NOT.ALLOCATED(C%mdata)) THEN
        !!! cannot use non-zero beta if C is not allocated
-       CPPrecondition(beta.eq.0.0_dp,cp_failure_level,routineP,error,failure)
+       CPPrecondition(beta.eq.0.0_dp,cp_failure_level,routineP,failure)
        ALLOCATE(C%mdata(C%nrows,C%ncols))
     ELSE
        cs1=SIZE(C%mdata,1)
        cs2=SIZE(C%mdata,2)
        IF ((C%nrows.ne.cs1).OR.(C%ncols.ne.cs2)) THEN
           !!! cannot deallocate data if beta is non-zero
-          CPPrecondition(beta.eq.0.0_dp,cp_failure_level,routineP,error,failure)
+          CPPrecondition(beta.eq.0.0_dp,cp_failure_level,routineP,failure)
           DEALLOCATE(C%mdata)
           ALLOCATE(C%mdata(C%nrows,C%ncols))
        ENDIF
@@ -604,9 +582,8 @@ CONTAINS
 !> \param B ...
 !> \param beta ...
 !> \param C ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE multiply_submatrices_array(transA,transB,alpha,A,B,beta,C,error)
+  SUBROUTINE multiply_submatrices_array(transA,transB,alpha,A,B,beta,C)
 
     CHARACTER, INTENT(IN)                    :: transA, transB
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -615,7 +592,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(INOUT)            :: C
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'multiply_submatrices_array', &
       routineP = moduleN//':'//routineN
@@ -631,21 +607,21 @@ CONTAINS
     ndomainsB=SIZE(B)
     ndomainsC=SIZE(C)
 
-    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ndomainsB.eq.ndomainsC,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,failure)
+    CPPrecondition(ndomainsB.eq.ndomainsC,cp_failure_level,routineP,failure)
     
     DO idomain = 1, ndomains
 
        idomainA = A(idomain)%domain
        idomainB = B(idomain)%domain
        
-       CPPrecondition(idomainA.eq.idomainB,cp_failure_level,routineP,error,failure)
+       CPPrecondition(idomainA.eq.idomainB,cp_failure_level,routineP,failure)
        
        C(idomain)%domain = idomainA
 
        ! check if the submatrix exists
        IF (idomainA.gt.0) THEN
-          CALL multiply_submatrices_once(transA,transB,alpha,A(idomain),B(idomain),beta,C(idomain),error)
+          CALL multiply_submatrices_once(transA,transB,alpha,A(idomain),B(idomain),beta,C(idomain))
        ENDIF ! submatrix for the domain exists
 
     ENDDO ! loop over domains
@@ -662,9 +638,8 @@ CONTAINS
 !> \param beta ...
 !> \param B ...
 !> \param transB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE add_submatrices_once(alpha,A,beta,B,transB,error)
+  SUBROUTINE add_submatrices_once(alpha,A,beta,B,transB)
 
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(domain_submatrix_type), &
@@ -672,7 +647,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(domain_submatrix_type), INTENT(IN)  :: B
     CHARACTER, INTENT(IN)                    :: transB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_submatrices_once', &
       routineP = moduleN//':'//routineN
@@ -682,8 +656,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(A%domain.gt.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(B%domain.gt.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(A%domain.gt.0,cp_failure_level,routineP,failure)
+    CPPrecondition(B%domain.gt.0,cp_failure_level,routineP,failure)
     
     R1 = A%nrows
     C1 = A%ncols
@@ -699,8 +673,8 @@ CONTAINS
     ENDIF
 
     ! these checks are for debugging only
-    CPPrecondition(C1.eq.C2,cp_failure_level,routineP,error,failure)
-    CPPrecondition(R1.eq.R2,cp_failure_level,routineP,error,failure)
+    CPPrecondition(C1.eq.C2,cp_failure_level,routineP,failure)
+    CPPrecondition(R1.eq.R2,cp_failure_level,routineP,failure)
    
     IF (NOTB) THEN
        DO icol = 1, C1
@@ -723,9 +697,8 @@ CONTAINS
 !> \param beta ...
 !> \param B ...
 !> \param transB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE add_submatrices_array(alpha,A,beta,B,transB,error)
+  SUBROUTINE add_submatrices_array(alpha,A,beta,B,transB)
 
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(domain_submatrix_type), &
@@ -734,7 +707,6 @@ CONTAINS
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: B
     CHARACTER, INTENT(IN)                    :: transB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_submatrices_array', &
       routineP = moduleN//':'//routineN
@@ -748,18 +720,18 @@ CONTAINS
     ndomains=SIZE(A)
     ndomainsB=SIZE(B)
 
-    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,failure)
     
     DO idomain = 1, ndomains
 
        idomainA = A(idomain)%domain
        idomainB = B(idomain)%domain
        
-       CPPrecondition(idomainA.eq.idomainB,cp_failure_level,routineP,error,failure)
+       CPPrecondition(idomainA.eq.idomainB,cp_failure_level,routineP,failure)
        
        ! check if the submatrix exists
        IF (idomainA.gt.0) THEN
-          CALL add_submatrices_once(alpha,A(idomain),beta,B(idomain),transB,error)
+          CALL add_submatrices_once(alpha,A(idomain),beta,B(idomain),transB)
        ENDIF ! submatrix for the domain exists
 
     ENDDO ! loop over domains
@@ -772,17 +744,15 @@ CONTAINS
 !> \brief Computes the max norm of the collection of submatrices
 !> \param submatrices ...
 !> \param norm ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE maxnorm_submatrices(submatrices,norm,error)
+  SUBROUTINE maxnorm_submatrices(submatrices,norm)
     
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: submatrices
     REAL(KIND=dp), INTENT(OUT)               :: norm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'maxnorm_submatrices', &
       routineP = moduleN//':'//routineN
@@ -826,17 +796,15 @@ CONTAINS
 !> \param A ...
 !> \param B ...
 !> \param trace ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE trace_submatrices(A,B,trace,error)
+  SUBROUTINE trace_submatrices(A,B,trace)
     
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: A, B
     REAL(KIND=dp), INTENT(OUT)               :: trace
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'trace_submatrices', &
       routineP = moduleN//':'//routineN
@@ -856,20 +824,20 @@ CONTAINS
     ndomainsA=SIZE(A)
     ndomainsB=SIZE(B)
 
-    CPPrecondition(ndomainsA.eq.ndomainsB,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ndomainsA.eq.ndomainsB,cp_failure_level,routineP,failure)
     
     DO idomain = 1, ndomainsA
 
        domainA = A(idomain)%domain
        domainB = B(idomain)%domain
        
-       CPPrecondition(domainA.eq.domainB,cp_failure_level,routineP,error,failure)
+       CPPrecondition(domainA.eq.domainB,cp_failure_level,routineP,failure)
 
        ! check if the submatrix is local
        IF (domainA.gt.0) THEN
 
-          CPPrecondition(A(idomain)%nrows.eq.B(idomain)%nrows,cp_failure_level,routineP,error,failure)
-          CPPrecondition(A(idomain)%ncols.eq.B(idomain)%ncols,cp_failure_level,routineP,error,failure)
+          CPPrecondition(A(idomain)%nrows.eq.B(idomain)%nrows,cp_failure_level,routineP,failure)
+          CPPrecondition(A(idomain)%ncols.eq.B(idomain)%ncols,cp_failure_level,routineP,failure)
           
           curr_trace=SUM(A(idomain)%mdata(:,:)*B(idomain)%mdata(:,:))
           send_trace=send_trace+curr_trace
@@ -899,13 +867,12 @@ CONTAINS
 !> \param domain_map ...
 !> \param node_of_domain ...
 !> \param job_type ...
-!> \param error ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE construct_submatrices(matrix,submatrix,distr_pattern,domain_map,&
-     node_of_domain,job_type,error)
+     node_of_domain,job_type)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     TYPE(domain_submatrix_type), &
@@ -914,7 +881,6 @@ CONTAINS
     TYPE(domain_map_type), INTENT(IN)        :: domain_map
     INTEGER, DIMENSION(:), INTENT(IN)        :: node_of_domain
     INTEGER, INTENT(IN)                      :: job_type
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_submatrices', &
       routineP = moduleN//':'//routineN
@@ -1024,11 +990,11 @@ CONTAINS
     !           row_size=row_size,col_size=col_size)
     !   DO idomain = 1, ndomains
     !      IF (job_type==select_row_col) THEN
-    !         domain_needs_block=(qblk_exists(domain_map,col,idomain,error)&
-    !            .AND.qblk_exists(domain_map,row,idomain,error))
+    !         domain_needs_block=(qblk_exists(domain_map,col,idomain)&
+    !            .AND.qblk_exists(domain_map,row,idomain))
     !      ELSE
     !         domain_needs_block=(idomain==col&
-    !            .AND.qblk_exists(domain_map,row,idomain,error))
+    !            .AND.qblk_exists(domain_map,row,idomain))
     !      ENDIF
     !      IF (domain_needs_block) THEN
     !         transp=.FALSE.
@@ -1173,11 +1139,11 @@ CONTAINS
     !           row_size=row_size,col_size=col_size)
     !   DO idomain = 1, ndomains
     !      IF (job_type==select_row_col) THEN
-    !         domain_needs_block=(qblk_exists(domain_map,col,idomain,error)&
-    !            .AND.qblk_exists(domain_map,row,idomain,error))
+    !         domain_needs_block=(qblk_exists(domain_map,col,idomain)&
+    !            .AND.qblk_exists(domain_map,row,idomain))
     !      ELSE
     !         domain_needs_block=(idomain==col&
-    !            .AND.qblk_exists(domain_map,row,idomain,error))
+    !            .AND.qblk_exists(domain_map,row,idomain))
     !      ENDIF
     !      IF (domain_needs_block) THEN
     !         transp=.FALSE.
@@ -1228,10 +1194,10 @@ CONTAINS
 !    subm_col_size(:)=0
     ndomains2=SIZE(submatrix)
     IF (ndomains2.ne.ndomains) THEN
-       CPErrorMessage(cp_failure_level,routineP,"wrong submatrix size",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"wrong submatrix size")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
-    CALL release_submatrices(submatrix,error)
+    CALL release_submatrices(submatrix)
     submatrix(:)%nnodes=nNodes
     submatrix(:)%groupID=GroupID
     submatrix(:)%nrows=0
@@ -1257,7 +1223,7 @@ CONTAINS
           DO index_row=index_sr, index_er
              row = domain_map%pairs(index_row,1)
           !DO row = 1, nblkrows_tot
-          !   IF (qblk_exists(domain_map,row,idomain,error)) THEN
+          !   IF (qblk_exists(domain_map,row,idomain)) THEN
              first_row(row)=submatrix(idomain)%nrows+1
              submatrix(idomain)%nrows=submatrix(idomain)%nrows+row_blk_size(row)
              submatrix(idomain)%nbrows=submatrix(idomain)%nbrows+1
@@ -1300,7 +1266,7 @@ CONTAINS
              ENDIF
           !DO col = 1, nblkcols_tot
           !   IF (job_type==select_row_col) THEN
-          !      domain_needs_block=(qblk_exists(domain_map,col,idomain,error))
+          !      domain_needs_block=(qblk_exists(domain_map,col,idomain))
           !   ELSE
           !      domain_needs_block=(col==idomain) ! RZK-warning col belongs to the domain
           !   ENDIF
@@ -1380,8 +1346,8 @@ CONTAINS
                          ENDDO
                       ELSE IF (matrix_type==dbcsr_type_no_symmetry) THEN
                       ELSE
-                         CPErrorMessage(cp_failure_level,routineP,"matrix type is NYI",error)
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPErrorMessage(cp_failure_level,routineP,"matrix type is NYI")
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                       ENDIF
                    ENDIF
                 ENDIF
@@ -1407,19 +1373,16 @@ CONTAINS
 !> \param matrix ...
 !> \param submatrix ...
 !> \param distr_pattern ...
-!> \param error ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE construct_dbcsr_from_submatrices(matrix,submatrix,distr_pattern,&
-     error)
+  SUBROUTINE construct_dbcsr_from_submatrices(matrix,submatrix,distr_pattern)
     
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: submatrix
     TYPE(cp_dbcsr_type), INTENT(IN)          :: distr_pattern
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'construct_dbcsr_from_submatrices', &
@@ -1447,7 +1410,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -1461,8 +1424,8 @@ CONTAINS
     ndomains2 = SIZE(submatrix)
 
     IF (ndomains.ne.ndomains2) THEN
-       CPErrorMessage(cp_failure_level,routineP,"domain mismatch",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"domain mismatch")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(&
@@ -1474,8 +1437,8 @@ CONTAINS
 
     matrix_type=cp_dbcsr_get_matrix_type(matrix)
     IF (matrix_type.ne.dbcsr_type_no_symmetry) THEN
-       CPErrorMessage(cp_failure_level,routineP,"only non-symmetric matrices so far",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"only non-symmetric matrices so far")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
    
     ! remove all blocks from the dbcsr matrix   
@@ -1485,10 +1448,9 @@ CONTAINS
        block_p(:,:)=0.0_dp
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
-    CALL cp_dbcsr_filter(matrix,0.1_dp,error=error)
+    CALL cp_dbcsr_filter(matrix,0.1_dp)
 
-    CALL cp_dbcsr_work_create(matrix,work_mutable=.TRUE.,&
-            error=error)
+    CALL cp_dbcsr_work_create(matrix,work_mutable=.TRUE.)
 
     ldesc=2
     ALLOCATE(send_descriptor(ldesc,nNodes))
@@ -1503,16 +1465,16 @@ CONTAINS
           DO irow_subm = 1, submatrix(idomain)%nbrows
           
              IF (submatrix(idomain)%nbcols.ne.1) THEN
-                CPErrorMessage(cp_failure_level,routineP,"corrupt submatrix structure",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"corrupt submatrix structure")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
 
              row = submatrix(idomain)%dbcsr_row(irow_subm)
              col = submatrix(idomain)%dbcsr_col(1)
 
              IF (col.ne.idomain) THEN
-                CPErrorMessage(cp_failure_level,routineP,"corrupt submatrix structure",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"corrupt submatrix structure")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
 
              transp=.FALSE.
@@ -1657,7 +1619,7 @@ CONTAINS
           !IF (.NOT.found) THEN
           NULLIFY (block_p)
           CALL cp_dbcsr_reserve_block2d(matrix,row,col,block_p)
-          CPPostcondition(ASSOCIATED(block_p),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(block_p),cp_failure_level,routineP,failure)
           !ENDIF
           ! copy data from the received array into the matrix block
           start_data=recv_offset_cpu(iNode)+block_offset+1
@@ -1675,7 +1637,7 @@ CONTAINS
     DEALLOCATE(recv_data)
     DEALLOCATE(recv_data2)
        
-    CALL cp_dbcsr_finalize(matrix,error=error)
+    CALL cp_dbcsr_finalize(matrix)
     
     CALL timestop(handle)
   
@@ -1685,14 +1647,12 @@ CONTAINS
 !> \brief ...
 !> \param submatrices ...
 !> \param mpgroup ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE print_submatrices(submatrices,mpgroup,error)
+  SUBROUTINE print_submatrices(submatrices,mpgroup)
     
     TYPE(domain_submatrix_type), &
       DIMENSION(:), INTENT(IN)               :: submatrices
     INTEGER, INTENT(IN)                      :: mpgroup
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_submatrices', &
       routineP = moduleN//':'//routineN
@@ -1729,17 +1689,15 @@ CONTAINS
 !> \param map ...
 !> \param row ...
 !> \param col ...
-!> \param error ...
 !> \retval qblk_exists ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  FUNCTION qblk_exists(map,row,col,error)
+  FUNCTION qblk_exists(map,row,col)
   
     TYPE(domain_map_type), INTENT(IN)        :: map
     INTEGER, INTENT(IN)                      :: row, col
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: qblk_exists
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qblk_exists', &

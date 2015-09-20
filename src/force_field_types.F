@@ -216,12 +216,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief 1. Just NULLIFY and zero all the stuff
 !> \param ff_type ...
-!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
-  SUBROUTINE init_ff_type (ff_type,error)
+  SUBROUTINE init_ff_type (ff_type)
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_ff_type', &
       routineP = moduleN//':'//routineN
@@ -236,13 +234,13 @@ CONTAINS
     !-----------------------------------------------------------------------------
     NULLIFY(ff_type%inp_info,ff_type%chm_info,ff_type%amb_info,ff_type%gro_info)
     ALLOCATE(ff_type%inp_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ff_type%chm_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ff_type%gro_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ff_type%amb_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     !-----------------------------------------------------------------------------
     ! 2. Initialize and Nullify things in ff_type%inp_info
@@ -444,11 +442,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief 1. Just DEALLOCATE all the stuff
 !> \param ff_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_ff_type (ff_type,error)
+  SUBROUTINE deallocate_ff_type (ff_type)
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_ff_type', &
       routineP = moduleN//':'//routineN
@@ -461,41 +457,41 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. DEALLOCATE things in ff_type%inp_info
     !-----------------------------------------------------------------------------
-    CALL deallocate_inp_info(ff_type%inp_info, error=error)
+    CALL deallocate_inp_info(ff_type%inp_info)
 
     !-----------------------------------------------------------------------------
     ! 2. DEALLOCATE things in ff_type%chm_info
     !-----------------------------------------------------------------------------
-    CALL deallocate_chm_info(ff_type%chm_info,error)
+    CALL deallocate_chm_info(ff_type%chm_info)
 
     !-----------------------------------------------------------------------------
     ! 3. DEALLOCATE things in ff_type%gro_info
     !-----------------------------------------------------------------------------
-    CALL deallocate_gromos_info(ff_type%gro_info,error)
+    CALL deallocate_gromos_info(ff_type%gro_info)
 
     !-----------------------------------------------------------------------------
     ! 4. DEALLOCATE things in ff_type%amb_info
     !-----------------------------------------------------------------------------
-    CALL deallocate_amb_info(ff_type%amb_info,error)
+    CALL deallocate_amb_info(ff_type%amb_info)
 
     !-----------------------------------------------------------------------------
     ! 5. DEALLOCATE things in ff_type
     !-----------------------------------------------------------------------------
     IF(ASSOCIATED(ff_type%inp_info)) THEN
        DEALLOCATE(ff_type%inp_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(ff_type%chm_info)) THEN
        DEALLOCATE(ff_type%chm_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(ff_type%gro_info)) THEN
        DEALLOCATE(ff_type%gro_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(ff_type%amb_info)) THEN
        DEALLOCATE(ff_type%amb_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_ff_type
@@ -503,12 +499,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specific function to deallocate the gro_info
 !> \param gro_info ...
-!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
-  SUBROUTINE deallocate_gromos_info(gro_info,error)
+  SUBROUTINE deallocate_gromos_info(gro_info)
     TYPE(gromos_info_type), POINTER          :: gro_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gromos_info', &
       routineP = moduleN//':'//routineN
@@ -519,71 +513,71 @@ CONTAINS
     failure = .FALSE.
     IF(ASSOCIATED(gro_info%solvent_k)) THEN
        DEALLOCATE(gro_info%solvent_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%solvent_r0)) THEN
        DEALLOCATE(gro_info%solvent_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%bond_k)) THEN
        DEALLOCATE(gro_info%bond_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%bond_r0)) THEN
        DEALLOCATE(gro_info%bond_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%bend_k)) THEN
        DEALLOCATE(gro_info%bend_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%bend_theta0)) THEN
        DEALLOCATE(gro_info%bend_theta0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%torsion_k)) THEN
        DEALLOCATE(gro_info%torsion_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%torsion_m)) THEN
        DEALLOCATE(gro_info%torsion_m,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%torsion_phi0)) THEN
        DEALLOCATE(gro_info%torsion_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%impr_k)) THEN
        DEALLOCATE(gro_info%impr_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%impr_phi0)) THEN
        DEALLOCATE(gro_info%impr_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%nonbond_a)) THEN
        DEALLOCATE(gro_info%nonbond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%nonbond_c6)) THEN
        DEALLOCATE(gro_info%nonbond_c6,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%nonbond_c12)) THEN
        DEALLOCATE(gro_info%nonbond_c12,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
        DEALLOCATE(gro_info%nonbond_a_14,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%nonbond_c6_14)) THEN
        DEALLOCATE(gro_info%nonbond_c6_14,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(gro_info%nonbond_c12_14)) THEN
        DEALLOCATE(gro_info%nonbond_c12_14,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_gromos_info
@@ -591,14 +585,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specific function to deallocate the chm_info
 !> \param chm_info ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE deallocate_chm_info(chm_info,error)
+  SUBROUTINE deallocate_chm_info(chm_info)
     TYPE(charmm_info_type), POINTER          :: chm_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_chm_info', &
       routineP = moduleN//':'//routineN
@@ -609,135 +601,135 @@ CONTAINS
     failure = .FALSE.
     IF(ASSOCIATED(chm_info%bond_a)) THEN
        DEALLOCATE(chm_info%bond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bond_b)) THEN
        DEALLOCATE(chm_info%bond_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bond_k)) THEN
        DEALLOCATE(chm_info%bond_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bond_r0)) THEN
        DEALLOCATE(chm_info%bond_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bend_a)) THEN
        DEALLOCATE(chm_info%bend_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bend_b)) THEN
        DEALLOCATE(chm_info%bend_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bend_c)) THEN
        DEALLOCATE(chm_info%bend_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bend_k)) THEN
        DEALLOCATE(chm_info%bend_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%bend_theta0)) THEN
        DEALLOCATE(chm_info%bend_theta0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%ub_a)) THEN
        DEALLOCATE(chm_info%ub_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%ub_b)) THEN
        DEALLOCATE(chm_info%ub_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%ub_c)) THEN
        DEALLOCATE(chm_info%ub_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%ub_k)) THEN
        DEALLOCATE(chm_info%ub_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%ub_r0)) THEN
        DEALLOCATE(chm_info%ub_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_a)) THEN
        DEALLOCATE(chm_info%torsion_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_b)) THEN
        DEALLOCATE(chm_info%torsion_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_c)) THEN
        DEALLOCATE(chm_info%torsion_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_d)) THEN
        DEALLOCATE(chm_info%torsion_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_k)) THEN
        DEALLOCATE(chm_info%torsion_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_m)) THEN
        DEALLOCATE(chm_info%torsion_m,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%torsion_phi0)) THEN
        DEALLOCATE(chm_info%torsion_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_a)) THEN
        DEALLOCATE(chm_info%impr_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_b)) THEN
        DEALLOCATE(chm_info%impr_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_c)) THEN
        DEALLOCATE(chm_info%impr_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_d)) THEN
        DEALLOCATE(chm_info%impr_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_k)) THEN
        DEALLOCATE(chm_info%impr_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_phi0)) THEN
        DEALLOCATE(chm_info%impr_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%nonbond_a)) THEN
        DEALLOCATE(chm_info%nonbond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%nonbond_eps)) THEN
        DEALLOCATE(chm_info%nonbond_eps,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%nonbond_rmin2)) THEN
        DEALLOCATE(chm_info%nonbond_rmin2,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
        DEALLOCATE(chm_info%nonbond_a_14,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%nonbond_eps_14)) THEN
        DEALLOCATE(chm_info%nonbond_eps_14,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(chm_info%nonbond_rmin2_14)) THEN
        DEALLOCATE(chm_info%nonbond_rmin2_14,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_chm_info
@@ -745,14 +737,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specific function to deallocate the chm_info
 !> \param amb_info ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE deallocate_amb_info(amb_info,error)
+  SUBROUTINE deallocate_amb_info(amb_info)
     TYPE(amber_info_type), POINTER           :: amb_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_amb_info', &
       routineP = moduleN//':'//routineN
@@ -763,79 +753,79 @@ CONTAINS
     failure = .FALSE.
     IF(ASSOCIATED(amb_info%bond_a)) THEN
        DEALLOCATE(amb_info%bond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bond_b)) THEN
        DEALLOCATE(amb_info%bond_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bond_k)) THEN
        DEALLOCATE(amb_info%bond_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bond_r0)) THEN
        DEALLOCATE(amb_info%bond_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bend_a)) THEN
        DEALLOCATE(amb_info%bend_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bend_b)) THEN
        DEALLOCATE(amb_info%bend_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bend_c)) THEN
        DEALLOCATE(amb_info%bend_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bend_k)) THEN
        DEALLOCATE(amb_info%bend_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%bend_theta0)) THEN
        DEALLOCATE(amb_info%bend_theta0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_a)) THEN
        DEALLOCATE(amb_info%torsion_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_b)) THEN
        DEALLOCATE(amb_info%torsion_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_c)) THEN
        DEALLOCATE(amb_info%torsion_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_d)) THEN
        DEALLOCATE(amb_info%torsion_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_k)) THEN
        DEALLOCATE(amb_info%torsion_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_m)) THEN
        DEALLOCATE(amb_info%torsion_m,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%torsion_phi0)) THEN
        DEALLOCATE(amb_info%torsion_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%nonbond_a)) THEN
        DEALLOCATE(amb_info%nonbond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%nonbond_eps)) THEN
        DEALLOCATE(amb_info%nonbond_eps,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(amb_info%nonbond_rmin2)) THEN
        DEALLOCATE(amb_info%nonbond_rmin2,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_amb_info
@@ -843,14 +833,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specific function to deallocate the inp_info
 !> \param inp_info ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE deallocate_inp_info(inp_info, error)
+  SUBROUTINE deallocate_inp_info(inp_info)
     TYPE(input_info_type), POINTER           :: inp_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_inp_info', &
       routineP = moduleN//':'//routineN
@@ -861,224 +849,224 @@ CONTAINS
     failure = .FALSE.
     IF(ASSOCIATED(inp_info%charge_atm)) THEN
        DEALLOCATE(inp_info%charge_atm,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%charge)) THEN
        DEALLOCATE(inp_info%charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%apol_atm)) THEN
        DEALLOCATE(inp_info%apol_atm,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%apol)) THEN
        DEALLOCATE(inp_info%apol,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%cpol_atm)) THEN
        DEALLOCATE(inp_info%cpol_atm,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%cpol)) THEN
        DEALLOCATE(inp_info%cpol,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_kind)) THEN
        DEALLOCATE(inp_info%bond_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_a)) THEN
        DEALLOCATE(inp_info%bond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_b)) THEN
        DEALLOCATE(inp_info%bond_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_k)) THEN
        DEALLOCATE(inp_info%bond_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_r0)) THEN
        DEALLOCATE(inp_info%bond_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_cs)) THEN
        DEALLOCATE(inp_info%bond_cs,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_kind)) THEN
        DEALLOCATE(inp_info%bend_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_a)) THEN
        DEALLOCATE(inp_info%bend_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_b)) THEN
        DEALLOCATE(inp_info%bend_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_c)) THEN
        DEALLOCATE(inp_info%bend_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_k)) THEN
        DEALLOCATE(inp_info%bend_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_theta0)) THEN
        DEALLOCATE(inp_info%bend_theta0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_cb)) THEN
        DEALLOCATE(inp_info%bend_cb,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_r012)) THEN
        DEALLOCATE(inp_info%bend_r012,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_r032)) THEN
        DEALLOCATE(inp_info%bend_r032,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_kbs12)) THEN
        DEALLOCATE(inp_info%bend_kbs12,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_kbs32)) THEN
        DEALLOCATE(inp_info%bend_kbs32,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%bend_kss)) THEN
        DEALLOCATE(inp_info%bend_kss,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%ub_kind)) THEN
        DEALLOCATE(inp_info%ub_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%ub_a)) THEN
        DEALLOCATE(inp_info%ub_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%ub_b)) THEN
        DEALLOCATE(inp_info%ub_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%ub_c)) THEN
        DEALLOCATE(inp_info%ub_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%ub_k)) THEN
        DEALLOCATE(inp_info%ub_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%ub_r0)) THEN
        DEALLOCATE(inp_info%ub_r0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_kind)) THEN
        DEALLOCATE(inp_info%torsion_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_a)) THEN
        DEALLOCATE(inp_info%torsion_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_b)) THEN
        DEALLOCATE(inp_info%torsion_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_c)) THEN
        DEALLOCATE(inp_info%torsion_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_d)) THEN
        DEALLOCATE(inp_info%torsion_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_k)) THEN
        DEALLOCATE(inp_info%torsion_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_m)) THEN
        DEALLOCATE(inp_info%torsion_m,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%torsion_phi0)) THEN
        DEALLOCATE(inp_info%torsion_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_kind)) THEN
        DEALLOCATE(inp_info%impr_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_a)) THEN
        DEALLOCATE(inp_info%impr_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_b)) THEN
        DEALLOCATE(inp_info%impr_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_c)) THEN
        DEALLOCATE(inp_info%impr_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_d)) THEN
        DEALLOCATE(inp_info%impr_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_k)) THEN
        DEALLOCATE(inp_info%impr_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_phi0)) THEN
        DEALLOCATE(inp_info%impr_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_kind)) THEN
        DEALLOCATE(inp_info%opbend_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_a)) THEN
        DEALLOCATE(inp_info%opbend_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_b)) THEN
        DEALLOCATE(inp_info%opbend_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_c)) THEN
        DEALLOCATE(inp_info%opbend_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_d)) THEN
        DEALLOCATE(inp_info%opbend_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_k)) THEN
        DEALLOCATE(inp_info%opbend_k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%opbend_phi0)) THEN
        DEALLOCATE(inp_info%opbend_phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(inp_info%nonbonded)) THEN
-       CALL pair_potential_p_release(inp_info%nonbonded,error=error)
+       CALL pair_potential_p_release(inp_info%nonbonded)
     END IF
     IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-       CALL pair_potential_p_release(inp_info%nonbonded14,error=error)
+       CALL pair_potential_p_release(inp_info%nonbonded14)
     END IF
     IF(ASSOCIATED(inp_info%shell_list)) THEN
-       CALL shell_p_release(inp_info%shell_list,error=error)
+       CALL shell_p_release(inp_info%shell_list)
     END IF
     IF(ASSOCIATED(inp_info%damping_list)) THEN
        DEALLOCATE(inp_info%damping_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_inp_info

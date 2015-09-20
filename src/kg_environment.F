@@ -76,17 +76,14 @@ CONTAINS
 !> \brief Allocates and intitializes kg_env
 !> \param kg_env the object to create
 !> \param input ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! *****************************************************************************
-  SUBROUTINE kg_env_create(kg_env, input, error)
+  SUBROUTINE kg_env_create(kg_env, input)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
@@ -97,24 +94,22 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(kg_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL init_kg_env(kg_env, input, error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL init_kg_env(kg_env, input)
   END SUBROUTINE kg_env_create
 
 ! *****************************************************************************
 !> \brief Initializes kg_env
 !> \param kg_env ...
 !> \param input ...
-!> \param error ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! *****************************************************************************
-  SUBROUTINE init_kg_env(kg_env, input, error)
+  SUBROUTINE init_kg_env(kg_env, input)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kg_env', &
       routineP = moduleN//':'//routineN
@@ -138,87 +133,83 @@ CONTAINS
     kg_env%nsubsets=0
 
     ! get coloring method settings
-    CALL section_vals_val_get(input,"DFT%KG_METHOD%COLORING_METHOD",i_val=kg_env%coloring_method,error=error)
+    CALL section_vals_val_get(input,"DFT%KG_METHOD%COLORING_METHOD",i_val=kg_env%coloring_method)
     ! get method for nonadditive kinetic energy embedding potential
-    CALL section_vals_val_get(input,"DFT%KG_METHOD%TNADD_METHOD",i_val=kg_env%tnadd_method,error=error)
+    CALL section_vals_val_get(input,"DFT%KG_METHOD%TNADD_METHOD",i_val=kg_env%tnadd_method)
 
     IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
        ! generate a new XC section with only the KE functional
        NULLIFY(xc_fun_section_kg, xc_section_kg)
 
-       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
-       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL",error=error)
+       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
 
-       CALL section_vals_duplicate(xc_section, xc_section_kg, error=error)
+       CALL section_vals_duplicate(xc_section, xc_section_kg)
 
        ! test for TF, TFW, KE_GGA, and KE_LIBXC sections in turn
        ke_sections = 0
        NULLIFY(kef_section)
-       kef_section => section_vals_get_subs_vals(xc_fun_section,"TF",error=error)
-       CALL section_vals_get(kef_section, explicit=is_set, error=error)
+       kef_section => section_vals_get_subs_vals(xc_fun_section,"TF")
+       CALL section_vals_get(kef_section, explicit=is_set)
        IF(is_set) THEN
          NULLIFY(xc_fun_section_kg)
-         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
-              error=error)
+         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section)
          CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
-              i_val=xc_funct_no_shortcut,error=error)
+              i_val=xc_funct_no_shortcut)
          CALL section_vals_set_subs_vals(xc_fun_section_kg,"TF",&
-              kef_section,error=error)
+              kef_section)
          CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
-              xc_fun_section_kg,error=error)
+              xc_fun_section_kg)
          ke_sections = ke_sections + 1
        END IF
 
        NULLIFY(kef_section)
-       kef_section => section_vals_get_subs_vals(xc_fun_section,"TFW",error=error)
-       CALL section_vals_get(kef_section, explicit=is_set, error=error)
+       kef_section => section_vals_get_subs_vals(xc_fun_section,"TFW")
+       CALL section_vals_get(kef_section, explicit=is_set)
        IF(is_set) THEN
          NULLIFY(xc_fun_section_kg)
-         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
-              error=error)
+         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section)
          CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
-              i_val=xc_funct_no_shortcut,error=error)
+              i_val=xc_funct_no_shortcut)
          CALL section_vals_set_subs_vals(xc_fun_section_kg,"TFW",&
-              kef_section,error=error)
+              kef_section)
          CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
-              xc_fun_section_kg,error=error)
+              xc_fun_section_kg)
          ke_sections = ke_sections + 1
        END IF
 
        NULLIFY(kef_section)
-       kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_GGA",error=error)
-       CALL section_vals_get(kef_section, explicit=is_set, error=error)
+       kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_GGA")
+       CALL section_vals_get(kef_section, explicit=is_set)
        IF(is_set) THEN
          NULLIFY(xc_fun_section_kg)
-         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
-              error=error)
+         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section)
          CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
-              i_val=xc_funct_no_shortcut,error=error)
+              i_val=xc_funct_no_shortcut)
          CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_GGA",&
-              kef_section,error=error)
+              kef_section)
          CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
-              xc_fun_section_kg,error=error)
+              xc_fun_section_kg)
          ke_sections = ke_sections + 1
        END IF
 
        NULLIFY(kef_section)
-       kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_LIBXC",error=error)
-       CALL section_vals_get(kef_section, explicit=is_set, error=error)
+       kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_LIBXC")
+       CALL section_vals_get(kef_section, explicit=is_set)
        IF(is_set) THEN
          NULLIFY(xc_fun_section_kg)
-         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
-              error=error)
+         CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section)
          CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
-              i_val=xc_funct_no_shortcut,error=error)
+              i_val=xc_funct_no_shortcut)
          CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_LIBXC",&
-              kef_section,error=error)
+              kef_section)
          CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
-              xc_fun_section_kg,error=error)
+              xc_fun_section_kg)
          ke_sections = ke_sections + 1
        END IF
 
        ! stop if there is more than one kinetic energy functional section present
-       !CPPostcondition(ke_sections==1,cp_failure_level,routineP,error,failure)
+       !CPPostcondition(ke_sections==1,cp_failure_level,routineP,failure)
        CALL cp_assert(ke_sections==1, cp_fatal_level, cp_assertion_failed, routineP, &
           "KG runs require a kinetic energy functional. Exactly one of the following "// &
           "subsections of XC_FUNCTIONAL needs to be present: KE_GGA, TF, TFW, or KE_LIBXC.") 
@@ -227,12 +218,12 @@ CONTAINS
 
        NULLIFY(kef_section, xc_fun_section)
 
-       CALL section_vals_release(xc_fun_section_kg, error=error)
+       CALL section_vals_release(xc_fun_section_kg)
     
     ELSEIF(kg_env%tnadd_method == kg_tnadd_atomic) THEN
        NULLIFY(kg_env%xc_section_kg)
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
     CALL timestop(handle)
@@ -248,20 +239,18 @@ CONTAINS
 !> \param molecular if false, the full neighborlist is build
 !> \param subset_of_mol the molecular subsets
 !> \param current_subset the subset of which the neighborlist is to be build
-!> \param error ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! *****************************************************************************
   SUBROUTINE kg_build_neighborlist(qs_env, sab_orb, sac_kin,&
-             molecular, subset_of_mol, current_subset, error)
+             molecular, subset_of_mol, current_subset)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_kin
     LOGICAL, OPTIONAL                        :: molecular
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: subset_of_mol
     INTEGER, OPTIONAL                        :: current_subset
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_neighborlist', &
       routineP = moduleN//':'//routineN
@@ -304,32 +293,31 @@ CONTAINS
                     molecule_set=molecule_set,&
                     local_particles=distribution_1d,&
                     particle_set=particle_set,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
     ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
     ALLOCATE (orb_radius(nkind),tpot_radius(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     orb_radius(:) = 0.0_dp
     tpot_radius(:) = 0.0_dp
     ALLOCATE (orb_present(nkind),tpot_present(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (pair_radius(nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (atom2d(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
+    CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells)
 
     IF (PRESENT(subset_of_mol)) THEN
       CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
                      atomic_kind_set,qs_kind_set,molecule_set,molecule_only,kg=.FALSE.,&
-                     dftb=.FALSE.,particle_set=particle_set,error=error)
+                     dftb=.FALSE.,particle_set=particle_set)
     ELSE
       CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
                      atomic_kind_set,qs_kind_set,molecule_set,molecule_only,kg=.TRUE.,&
-                     dftb=.FALSE.,particle_set=particle_set,error=error)
+                     dftb=.FALSE.,particle_set=particle_set)
     END IF
 
     DO ikind=1,nkind
@@ -339,26 +327,26 @@ CONTAINS
     IF (PRESENT(sab_orb)) THEN
 
        ! Build the orbital-orbital overlap neighbor list
-       CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
+       CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius)
 
        IF (PRESENT(subset_of_mol)) THEN
          CALL build_neighbor_lists(sab_orb,particle_set,atom2d,cell,pair_radius,&
                                 mic=.FALSE.,subcells=subcells,molecular=molecule_only,subset_of_mol=subset_of_mol,&
-                                current_subset=current_subset,name="sab_orb",error=error)
+                                current_subset=current_subset,name="sab_orb")
        ELSE
          CALL build_neighbor_lists(sab_orb,particle_set,atom2d,cell,pair_radius,&
-                                mic=.FALSE.,subcells=subcells,molecular=molecule_only,name="sab_orb",error=error)
+                                mic=.FALSE.,subcells=subcells,molecular=molecule_only,name="sab_orb")
        END IF
 
        ! Print out the neighborlist
-       neighbor_list_section => section_vals_get_subs_vals(qs_env%input,"DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS",error=error) 
+       neighbor_list_section => section_vals_get_subs_vals(qs_env%input,"DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS") 
 
        IF (molecule_only) THEN
          CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
-              "/SAB_ORB_MOLECULAR","sab_orb","MOLECULAR SUBSET NEIGHBORLIST",error)
+              "/SAB_ORB_MOLECULAR","sab_orb","MOLECULAR SUBSET NEIGHBORLIST")
        ELSE
          CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
-              "/SAB_ORB_FULL","sab_orb","FULL NEIGHBORLIST",error)
+              "/SAB_ORB_FULL","sab_orb","FULL NEIGHBORLIST")
        END IF
 
     END IF
@@ -366,31 +354,31 @@ CONTAINS
     IF (PRESENT(sac_kin)) THEN
        DO ikind=1,nkind
           tpot_present(ikind) = .FALSE.
-          CALL get_qs_kind(qs_kind_set(ikind),tnadd_potential=tnadd_potential, error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),tnadd_potential=tnadd_potential)
           IF (ASSOCIATED(tnadd_potential)) THEN
              CALL get_potential(potential=tnadd_potential,radius=tpot_radius(ikind))
              tpot_present(ikind) = .TRUE.
           END IF
        END DO
-       CALL pair_radius_setup(orb_present,tpot_present,orb_radius,tpot_radius,pair_radius,error)
+       CALL pair_radius_setup(orb_present,tpot_present,orb_radius,tpot_radius,pair_radius)
        CALL build_neighbor_lists(sac_kin,particle_set,atom2d,cell,pair_radius,&
-            subcells=subcells,operator_type="ABC",name="sac_kin",error=error)
+            subcells=subcells,operator_type="ABC",name="sac_kin")
        neighbor_list_section => section_vals_get_subs_vals(qs_env%input,&
-                                         "DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS",error=error) 
+                                         "DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS") 
        CALL write_neighbor_lists(sac_kin,particle_set,cell,para_env,neighbor_list_section,&
-              "/SAC_KIN","sac_kin","ORBITAL kin energy potential",error)
+              "/SAC_KIN","sac_kin","ORBITAL kin energy potential")
     END IF
 
     ! Release work storage
-    CALL atom2d_cleanup(atom2d,error)
+    CALL atom2d_cleanup(atom2d)
     DEALLOCATE (atom2d,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (orb_present,tpot_present,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (orb_radius,tpot_radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (pair_radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -460,13 +448,11 @@ CONTAINS
 !>        for an edge (w,v) the fields W and V specify its endpoints
 !> \param pairs ...
 !> \param nnodes the total number of nodes
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_to_file(pairs, nnodes, error)
+  SUBROUTINE write_to_file(pairs, nnodes)
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :), INTENT(IN)            :: pairs
     INTEGER, INTENT(IN)                      :: nnodes
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_to_file', &
       routineP = moduleN//':'//routineN
@@ -506,7 +492,7 @@ CONTAINS
     CALL kg_remove_duplicates(sorted_pairs, npairs)
 
     ! should now be half as much pairs as before
-    CPPostcondition(npairs==SIZE(pairs,2)/2,cp_failure_level,routineP,error,failure)
+    CPPostcondition(npairs==SIZE(pairs,2)/2,cp_failure_level,routineP,failure)
 
     CALL open_file(unit_number=unit_nr, file_name="graph.col")
 
@@ -529,12 +515,10 @@ CONTAINS
 !> \brief ...
 !> \param kg_env ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_build_subsets(kg_env, para_env, error)
+  SUBROUTINE kg_build_subsets(kg_env, para_env)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_subsets', &
       routineP = moduleN//':'//routineN
@@ -665,11 +649,11 @@ CONTAINS
 
       ! write to file, nnodes = number of molecules
       IF (.FALSE.) THEN
-         CALL write_to_file(pairs, SIZE(kg_env%molecule_set), error)
+         CALL write_to_file(pairs, SIZE(kg_env%molecule_set))
       ENDIF
 
       ! vertex coloring algorithm
-      CALL kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node, error)
+      CALL kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node)
 
       DEALLOCATE(pairs)
 
@@ -706,7 +690,7 @@ CONTAINS
 
           DEALLOCATE(kg_env%subset(isub)%sab_orb)
      
-          CALL deallocate_task_list(kg_env%subset(isub)%task_list, error)
+          CALL deallocate_task_list(kg_env%subset(isub)%task_list)
 
         END DO
 

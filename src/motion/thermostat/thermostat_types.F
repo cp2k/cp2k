@@ -102,15 +102,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param thermostats ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE allocate_thermostats(thermostats, error )
+  SUBROUTINE allocate_thermostats(thermostats)
     TYPE(thermostats_type), POINTER          :: thermostats
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermostats', &
       routineP = moduleN//':'//routineN
@@ -120,25 +117,25 @@ CONTAINS
 
     failure =.FALSE.
     check = .NOT.ASSOCIATED(thermostats)
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    CPPrecondition(check,cp_failure_level,routineP,failure)
 
     ! Preliminary allocation for thermostats
     ALLOCATE(thermostats, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     last_thermostats_id_nr = last_thermostats_id_nr + 1
     thermostats%id_nr = last_thermostats_id_nr
     thermostats%ref_count =  1
 
     ! Thermostats Info
     ALLOCATE(thermostats%thermostat_info_part, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 !cjm
     ALLOCATE(thermostats%thermostat_info_fast, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(thermostats%thermostat_info_slow, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 !cjm
 
     NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
@@ -159,14 +156,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the  full set of thermostats
 !> \param thermostats ...
-!> \param error ...
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE retain_thermostats(thermostats,error)
+  SUBROUTINE retain_thermostats(thermostats)
     TYPE(thermostats_type), POINTER          :: thermostats
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_thermostats', &
       routineP = moduleN//':'//routineN
@@ -176,7 +171,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(thermostats)) THEN
-       CPPrecondition(thermostats%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(thermostats%ref_count>0,cp_failure_level,routineP,failure)
        thermostats%ref_count=thermostats%ref_count+1
     END IF
 
@@ -185,15 +180,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param thermostats ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE release_thermostats(thermostats, error)
+  SUBROUTINE release_thermostats(thermostats)
     TYPE(thermostats_type), POINTER          :: thermostats
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostats', &
       routineP = moduleN//':'//routineN
@@ -205,35 +197,35 @@ CONTAINS
     check = ASSOCIATED(thermostats)
     IF (check) THEN
        check = thermostats%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPPrecondition(check,cp_failure_level,routineP,failure)
        thermostats%ref_count=thermostats%ref_count-1
        IF (thermostats%ref_count<1) THEN
-          CALL release_thermostat_info(thermostats%thermostat_info_part, error)
-          CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
+          CALL release_thermostat_info(thermostats%thermostat_info_part)
+          CALL release_thermostat_info(thermostats%thermostat_info_shell)
 !cjm
-          CALL release_thermostat_info(thermostats%thermostat_info_fast, error)
-          CALL release_thermostat_info(thermostats%thermostat_info_slow, error)
+          CALL release_thermostat_info(thermostats%thermostat_info_fast)
+          CALL release_thermostat_info(thermostats%thermostat_info_slow)
           IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
-             CALL release_thermostat_type(thermostats%thermostat_fast, error)
+             CALL release_thermostat_type(thermostats%thermostat_fast)
           END IF
           IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
-             CALL release_thermostat_type(thermostats%thermostat_slow, error)
+             CALL release_thermostat_type(thermostats%thermostat_slow)
           END IF
 !cjm
           IF (ASSOCIATED(thermostats%thermostat_part)) THEN
-             CALL release_thermostat_type(thermostats%thermostat_part, error)
+             CALL release_thermostat_type(thermostats%thermostat_part)
           END IF
           IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
-             CALL release_thermostat_type(thermostats%thermostat_shell, error)
+             CALL release_thermostat_type(thermostats%thermostat_shell)
           END IF
           IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
-             CALL release_thermostat_type(thermostats%thermostat_baro, error)
+             CALL release_thermostat_type(thermostats%thermostat_baro)
           END IF
           IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
-             CALL release_thermostat_type(thermostats%thermostat_coef, error)
+             CALL release_thermostat_type(thermostats%thermostat_coef)
           END IF
           DEALLOCATE(thermostats, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE release_thermostats
@@ -245,18 +237,16 @@ CONTAINS
 !> \param section ...
 !> \param skip_region ...
 !> \param label ...
-!> \param error ...
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label, error)
+  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(section_vals_type), POINTER         :: section
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_region
     CHARACTER(LEN=*), INTENT(IN)             :: label
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_type', &
       routineP = moduleN//':'//routineN
@@ -270,7 +260,7 @@ CONTAINS
     skip_region_loc = .FALSE.
     IF (PRESENT(skip_region)) skip_region_loc = skip_region
     ALLOCATE(thermostat, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     last_thermostat_id_nr = last_thermostat_id_nr + 1
     thermostat%id_nr = last_thermostat_id_nr
     thermostat%ref_count =  1
@@ -282,34 +272,34 @@ CONTAINS
     NULLIFY(thermostat%csvr)
     NULLIFY(thermostat%al)
     NULLIFY(thermostat%gle)
-    CALL section_vals_val_get(section,"TYPE",i_val=thermostat%type_of_thermostat,error=error)
-    IF (.NOT.skip_region_loc) CALL section_vals_val_get(section,"REGION",i_val=region,error=error)
+    CALL section_vals_val_get(section,"TYPE",i_val=thermostat%type_of_thermostat)
+    IF (.NOT.skip_region_loc) CALL section_vals_val_get(section,"REGION",i_val=region)
     IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
-       nose_section => section_vals_get_subs_vals(section,"NOSE",error=error)
+       nose_section => section_vals_get_subs_vals(section,"NOSE")
        ALLOCATE(thermostat%nhc, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL lnhc_init(thermostat%nhc, nose_section, error=error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CALL lnhc_init(thermostat%nhc, nose_section)
        thermostat%nhc%region = region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
-       csvr_section => section_vals_get_subs_vals(section,"CSVR",error=error)
+       csvr_section => section_vals_get_subs_vals(section,"CSVR")
        ALLOCATE(thermostat%csvr, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL csvr_init(thermostat%csvr, simpar, csvr_section, error=error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CALL csvr_init(thermostat%csvr, simpar, csvr_section)
        thermostat%csvr%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
-       al_section => section_vals_get_subs_vals(section,"AD_LANGEVIN",error=error)
+       al_section => section_vals_get_subs_vals(section,"AD_LANGEVIN")
        ALLOCATE(thermostat%al, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL al_init(thermostat%al, simpar, al_section, error=error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CALL al_init(thermostat%al, simpar, al_section)
        thermostat%al%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
-       gle_section => section_vals_get_subs_vals(section,"GLE",error=error)
+       gle_section => section_vals_get_subs_vals(section,"GLE")
        ALLOCATE(thermostat%gle, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL gle_init(thermostat%gle, dt=simpar%dt, temp=simpar%temp_ext, &
-     section=gle_section, error=error)
+     section=gle_section)
        thermostat%gle%region=region
-       CPPostcondition(region==do_region_massive,cp_failure_level,routineP,error,failure)
+       CPPostcondition(region==do_region_massive,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE create_thermostat_type
@@ -317,15 +307,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param thermostat_info ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE release_thermostat_info(thermostat_info, error)
+  SUBROUTINE release_thermostat_info(thermostat_info)
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_info', &
       routineP = moduleN//':'//routineN
@@ -337,25 +324,22 @@ CONTAINS
     IF (ASSOCIATED(thermostat_info)) THEN
        IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
           DEALLOCATE(thermostat_info%map_loc_thermo_gen, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE(thermostat_info, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE release_thermostat_info
 
 ! *****************************************************************************
 !> \brief ...
 !> \param thermostat ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE release_thermostat_type(thermostat, error)
+  SUBROUTINE release_thermostat_type(thermostat)
     TYPE(thermostat_type), POINTER           :: thermostat
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_type', &
       routineP = moduleN//':'//routineN
@@ -367,24 +351,24 @@ CONTAINS
     check = ASSOCIATED(thermostat)
     IF (check) THEN
        check = thermostat%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPPrecondition(check,cp_failure_level,routineP,failure)
        thermostat%ref_count=thermostat%ref_count-1
        IF (thermostat%ref_count<1) THEN
           NULLIFY(thermostat%section)
           IF (ASSOCIATED(thermostat%nhc)) THEN
-             CALL lnhc_dealloc(thermostat%nhc,error=error)
+             CALL lnhc_dealloc(thermostat%nhc)
           END IF
           IF (ASSOCIATED(thermostat%csvr)) THEN
-             CALL csvr_dealloc(thermostat%csvr,error=error)
+             CALL csvr_dealloc(thermostat%csvr)
           END IF
           IF (ASSOCIATED(thermostat%al)) THEN
-             CALL al_dealloc(thermostat%al,error=error)
+             CALL al_dealloc(thermostat%al)
           END IF
           IF (ASSOCIATED(thermostat%gle)) THEN
-             CALL gle_dealloc(thermostat%gle,error=error)
+             CALL gle_dealloc(thermostat%gle)
           END IF
           DEALLOCATE(thermostat, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE release_thermostat_type
@@ -393,15 +377,13 @@ CONTAINS
 !> \brief access internal structures of thermostats
 !> \param thermostats ...
 !> \param dt_fact ...
-!> \param error ...
 !> \par History
 !>      10.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE set_thermostats(thermostats, dt_fact, error)
+  SUBROUTINE set_thermostats(thermostats, dt_fact)
     TYPE(thermostats_type), POINTER          :: thermostats
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: dt_fact
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_thermostats', &
       routineP = moduleN//':'//routineN

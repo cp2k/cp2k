@@ -36,13 +36,11 @@ CONTAINS
 !> \param particles ...
 !> \param velocity ...
 !> \param conv_factor ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, conv_factor, error)
+  SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, conv_factor)
 
     TYPE(section_vals_type), POINTER         :: velocity_section
     TYPE(particle_list_type), OPTIONAL, &
@@ -50,8 +48,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: velocity
     REAL(KIND=dp)                            :: conv_factor
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
@@ -67,37 +63,37 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(velocity_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,failure)
+    CPPrecondition(velocity_section%ref_count>0,cp_failure_level,routineP,failure)
     section => velocity_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
 
     ! At least one of the two arguments must be present..
     check = PRESENT(particles).NEQV.PRESENT(velocity)
-    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    CPPostcondition(check,cp_failure_level,routineP,failure)
     IF(PRESENT(particles)) nloop = particles%n_els
     IF(PRESENT(velocity))  nloop = SIZE(velocity,2)
 
     DO
        IF (SIZE(velocity_section%values,2)==1) EXIT
-       CALL section_vals_add_values(velocity_section,error=error)
+       CALL section_vals_add_values(velocity_section)
     END DO
     vals  => velocity_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nloop
        ALLOCATE(vel(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Always stored in A.U.
        IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)*conv_factor
        IF(PRESENT(velocity))  vel = velocity(1:3,irk)*conv_factor
 
-       CALL val_create(my_val,r_vals_ptr=vel,error=error)
+       CALL val_create(my_val,r_vals_ptr=vel)
 
        IF (Nlist /= 0) THEN
           IF (irk==1) THEN
@@ -106,16 +102,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF

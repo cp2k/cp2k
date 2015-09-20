@@ -49,15 +49,12 @@ CONTAINS
 !> \brief returns extended filename for global and sub trees
 !> \param tmc_params param environment for creating the file name
 !> \param ind index of the subtree (0 = global tree)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval filename ...
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  FUNCTION get_dot_file_name(tmc_params, ind, error) RESULT(filename)
+  FUNCTION get_dot_file_name(tmc_params, ind) RESULT(filename)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     INTEGER                                  :: ind
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=50)                        :: filename
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dot_file_name', &
@@ -68,30 +65,27 @@ CONTAINS
     failure = .FALSE.
     filename = ""
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ind.GE.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ind.LE.SIZE(tmc_params%Temp),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ind.GE.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,failure)
+    CPPrecondition(ind.LE.SIZE(tmc_params%Temp),cp_failure_level,routineP,failure)
 
     IF(ind.EQ.0) THEN
-      filename = TRIM(expand_file_name_char(tmc_params%dot_file_name,"global",error))
+      filename = TRIM(expand_file_name_char(tmc_params%dot_file_name,"global"))
     ELSE
       filename = TRIM(expand_file_name_temp(file_name=tmc_params%dot_file_name,&
-                                            rvalue=tmc_params%Temp(ind),error=error))
+                                            rvalue=tmc_params%Temp(ind)))
     END IF
 
-    CPPostcondition(filename.NE."",cp_failure_level,routineP,error,failure)
+    CPPostcondition(filename.NE."",cp_failure_level,routineP,failure)
   END FUNCTION get_dot_file_name
 ! *****************************************************************************
 !> \brief initializes the dot files (open and write headers)
 !> \param tmc_params param environment for creating the file name
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE init_draw_trees(tmc_params, error)
+  SUBROUTINE init_draw_trees(tmc_params)
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_draw_trees', &
       routineP = moduleN//':'//routineN
@@ -100,23 +94,23 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! global tree
-    CALL open_file(file_name=get_dot_file_name(tmc_params, 0, error), file_status="REPLACE", &
+    CALL open_file(file_name=get_dot_file_name(tmc_params, 0), file_status="REPLACE", &
                    file_action="WRITE", unit_number=file_ptr)
     WRITE(file_ptr,*)"digraph G {"
     WRITE(file_ptr,*)'  size="8.27,11.69"'
-    CALL write_legend(file_ptr, error)
+    CALL write_legend(file_ptr)
     CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
  
     ! subtrees
     DO i=1, SIZE(tmc_params%Temp)
-       CALL open_file(file_name=get_dot_file_name(tmc_params, i, error), file_status="REPLACE", &
+       CALL open_file(file_name=get_dot_file_name(tmc_params, i), file_status="REPLACE", &
                    file_action="WRITE", unit_number=file_ptr)
        WRITE(file_ptr,*)"digraph G {"
        WRITE(file_ptr,*)'  size="8.27,11.69"'
-       CALL write_legend(file_ptr, error)
+       CALL write_legend(file_ptr)
        CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
     END DO
   END SUBROUTINE init_draw_trees
@@ -124,13 +118,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief close the dot files (write tails)
 !> \param tmc_params param environment for creating the file name
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE finalize_draw_tree(tmc_params, error)
+  SUBROUTINE finalize_draw_tree(tmc_params)
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_draw_tree', &
       routineP = moduleN//':'//routineN
@@ -139,17 +130,17 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! global tree
-    CALL open_file(file_name=get_dot_file_name(tmc_params, 0, error), &
+    CALL open_file(file_name=get_dot_file_name(tmc_params, 0), &
                    file_status="OLD", file_action="WRITE", &
                    file_position="APPEND", unit_number=file_ptr)
     WRITE(file_ptr,*)"}"
     CALL close_file(unit_number=file_ptr)
 
     DO i=1, SIZE(tmc_params%Temp)
-      CALL open_file(file_name=get_dot_file_name(tmc_params, i, error), file_status="OLD", &
+      CALL open_file(file_name=get_dot_file_name(tmc_params, i), file_status="OLD", &
                      file_action="WRITE", file_position="APPEND", unit_number=file_ptr)
       WRITE(file_ptr,*)"}"
       CALL close_file(unit_number=file_ptr)
@@ -159,13 +150,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes the legend in the file
 !> \param file_ptr file pointer 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE write_legend(file_ptr, error)
+  SUBROUTINE write_legend(file_ptr)
     INTEGER, INTENT(IN)                      :: file_ptr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_legend', &
       routineP = moduleN//':'//routineN
@@ -173,7 +161,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_ptr.GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(file_ptr.GT.0,cp_failure_level,routineP,failure)
 
     WRITE(file_ptr,*)'//LEGEND'
     WRITE(file_ptr,*)'subgraph clusterLegend {'
@@ -215,14 +203,11 @@ CONTAINS
 !> \param node_nr the index of the tree node
 !> \param stat tree element status
 !> \param filename the filename for the grapgviz dot files
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE write_color(node_nr, stat, filename, error)
+  SUBROUTINE write_color(node_nr, stat, filename)
     INTEGER                                  :: node_nr, stat
     CHARACTER(LEN=50)                        :: filename
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_color', &
       routineP = moduleN//':'//routineN
@@ -232,8 +217,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(filename.NE."",cp_failure_level,routineP,error,failure)
-    CPPrecondition(node_nr.GE.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(filename.NE."",cp_failure_level,routineP,failure)
+    CPPrecondition(node_nr.GE.0,cp_failure_level,routineP,failure)
 
     CALL open_file(file_name=filename, file_status="OLD", &
                    file_action="WRITE", file_position="APPEND", unit_number=file_ptr)
@@ -273,7 +258,7 @@ CONTAINS
       WRITE(file_ptr,*) TRIM(label),'style=filled, color=peru]'
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"element status"//cp_to_string(stat),error,failure)
+              routineP,"element status"//cp_to_string(stat),failure)
     END SELECT
     CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
   END SUBROUTINE write_color
@@ -285,16 +270,13 @@ CONTAINS
 !> \param acc flag for accepted or not accepted branch (left,right)
 !> \param tmc_params param environment for creating the file name
 !> \param tree index of the tree (0=global tree)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_dot_branch(parent_nr,child_nr,acc,tmc_params,tree,error)
+  SUBROUTINE create_dot_branch(parent_nr,child_nr,acc,tmc_params,tree)
     INTEGER                                  :: parent_nr, child_nr
     LOGICAL                                  :: acc
     TYPE(tmc_param_type), POINTER            :: tmc_params
     INTEGER                                  :: tree
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot_branch', &
       routineP = moduleN//':'//routineN
@@ -303,9 +285,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
-    CALL open_file(file_name=get_dot_file_name(tmc_params, tree, error), &
+    CALL open_file(file_name=get_dot_file_name(tmc_params, tree), &
                    file_status="OLD", file_action="WRITE", &
                    file_position="APPEND", unit_number=file_ptr)
     IF(acc) THEN
@@ -321,15 +303,12 @@ CONTAINS
 !> \param new_element the actual subtree element
 !> \param conf the subtree index and hence the index for filename
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_dot(new_element, conf, tmc_params, error)
+  SUBROUTINE create_dot(new_element, conf, tmc_params)
     TYPE(tree_type), POINTER                 :: new_element
     INTEGER                                  :: conf
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot', &
       routineP = moduleN//':'//routineN
@@ -337,14 +316,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(new_element),cp_failure_level,routineP,error,failure)
-    CPPrecondition(conf.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(new_element),cp_failure_level,routineP,failure)
+    CPPrecondition(conf.GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     CALL create_dot_branch(parent_nr=new_element%parent%nr,&
                            child_nr=new_element%nr,&
                            acc=ASSOCIATED(new_element%parent%acc,new_element), &
-                           tmc_params=tmc_params, tree=conf, error=error)
+                           tmc_params=tmc_params, tree=conf)
   END SUBROUTINE create_dot
 
 ! *****************************************************************************
@@ -352,14 +331,11 @@ CONTAINS
 !>        additional handling of nodes with swaped elements
 !> \param new_element the actual global element
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_global_tree_dot(new_element, tmc_params, error)
+  SUBROUTINE create_global_tree_dot(new_element, tmc_params)
     TYPE(global_tree_type), POINTER          :: new_element
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot', &
       routineP = moduleN//':'//routineN
@@ -372,8 +348,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_pt_list_elem)
 
-    CPPrecondition(ASSOCIATED(new_element),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(new_element),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! creating list with configuration numbers (of subtrees)
     list_of_nr = ""
@@ -409,16 +385,15 @@ CONTAINS
       CALL cp_assert(new_element%nr.LE.1,&
                     cp_warning_level,cp_assertion_failed,routineP,&
                     "try to create dot, but no parent on node "//&
-                    cp_to_string(new_element%nr)//"exists",&
-                    error)
+                    cp_to_string(new_element%nr)//"exists")
     ELSE
       CALL create_dot_branch(parent_nr=new_element%parent%nr,&
                              child_nr=new_element%nr,&
                              acc=ASSOCIATED(new_element%parent%acc,new_element),&
-                             tmc_params=tmc_params, tree=0, error=error)
+                             tmc_params=tmc_params, tree=0)
     END IF
     ! write in dot file
-    CALL open_file(file_name=get_dot_file_name(tmc_params, 0, error), &
+    CALL open_file(file_name=get_dot_file_name(tmc_params, 0), &
                    file_status="OLD", file_action="WRITE", &
                    file_position="APPEND", unit_number=file_ptr)
     IF(new_element%swaped)THEN
@@ -438,14 +413,11 @@ CONTAINS
 !>        on the basis of the element status
 !> \param tree_element the actual global element
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_dot_color(tree_element, tmc_params, error)
+  SUBROUTINE create_dot_color(tree_element, tmc_params)
     TYPE(tree_type), POINTER                 :: tree_element
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot_color', &
       routineP = moduleN//':'//routineN
@@ -456,8 +428,8 @@ CONTAINS
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_element),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tree_element),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     IF(DEBUG.GT.8)THEN
       list_of_nr = ""
@@ -479,7 +451,7 @@ CONTAINS
     END IF
 
     CALL write_color(node_nr=tree_element%nr, stat=tree_element%stat, &
-             filename=get_dot_file_name(tmc_params,tree_element%sub_tree_nr,error), error=error)
+             filename=get_dot_file_name(tmc_params,tree_element%sub_tree_nr))
   END SUBROUTINE create_dot_color
 
 ! *****************************************************************************
@@ -487,14 +459,11 @@ CONTAINS
 !>        on the basis of the element status
 !> \param gt_tree_element the actual global element
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_global_tree_dot_color(gt_tree_element, tmc_params, error)
+  SUBROUTINE create_global_tree_dot_color(gt_tree_element, tmc_params)
     TYPE(global_tree_type), POINTER          :: gt_tree_element
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot_color', &
       routineP = moduleN//':'//routineN
@@ -502,12 +471,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_tree_element),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gt_tree_element),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
      IF(DEBUG.GT.8) WRITE(*,*)"mark global tree node color", gt_tree_element%nr, gt_tree_element%stat
      CALL write_color(node_nr=gt_tree_element%nr, stat=gt_tree_element%stat, &
-                      filename=get_dot_file_name(tmc_params,0,error), error=error)
+                      filename=get_dot_file_name(tmc_params,0))
    END SUBROUTINE create_global_tree_dot_color
 
 !! *****************************************************************************
@@ -518,16 +487,15 @@ CONTAINS
 !!>        see module cp_error_handling
 !!> \author Mandes 12.2012
 !! *****************************************************************************
-!  RECURSIVE SUBROUTINE create_tree(current, conf, filename, error)
+!  RECURSIVE SUBROUTINE create_tree(current, conf, filename)
 !    TYPE (tree_type), POINTER                :: current
 !    INTEGER                                  :: conf
 !    CHARACTER(LEN=*)                         :: filename
-!    TYPE(cp_error_type), INTENT(inout)       :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_tree', &
 !      routineP = moduleN//':'//routineN
 !
-!    CALL create_dot_color(current, tmc_params, error)
+!    CALL create_dot_color(current, tmc_params)
 !    IF(ASSOCIATED(current%acc))THEN
 !       CALL create_dot_branch(parent_nr=current%nr, child_nr=current%acc%nr, &
 !                              acc=.TRUE.,tmc_params=tmc_params, file_single_tree_ptr)

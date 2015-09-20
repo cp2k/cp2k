@@ -187,16 +187,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Destructor routine for a set of qs kinds
 !> \param qs_kind_set ...
-!> \param error ...
 !> \date    02.01.2002
 !> \author  Matthias Krack (MK)
 !> \version 2.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_qs_kind_set(qs_kind_set,error)
+  SUBROUTINE deallocate_qs_kind_set(qs_kind_set)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_kind_set', &
       routineP = moduleN//':'//routineN
@@ -211,79 +209,79 @@ CONTAINS
 
        DO ikind=1,nkind
           IF (ASSOCIATED(qs_kind_set(ikind)%all_potential)) THEN
-             CALL deallocate_potential(qs_kind_set(ikind)%all_potential,error)
+             CALL deallocate_potential(qs_kind_set(ikind)%all_potential)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%tnadd_potential)) THEN
-             CALL deallocate_potential(qs_kind_set(ikind)%tnadd_potential,error)
+             CALL deallocate_potential(qs_kind_set(ikind)%tnadd_potential)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
-             CALL deallocate_potential(qs_kind_set(ikind)%gth_potential,error)
+             CALL deallocate_potential(qs_kind_set(ikind)%gth_potential)
           ENDIF
           IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
-             CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter,error)
+             CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%dftb_parameter)) THEN
-             CALL deallocate_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter,error)
+             CALL deallocate_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%scptb_parameter)) THEN
-             CALL deallocate_scptb_parameter(qs_kind_set(ikind)%scptb_parameter,error)
+             CALL deallocate_scptb_parameter(qs_kind_set(ikind)%scptb_parameter)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%soft_basis_set).AND.&
                qs_kind_set(ikind)%paw_atom) THEN
-             CALL deallocate_gto_basis_set(qs_kind_set(ikind)%soft_basis_set,error)
+             CALL deallocate_gto_basis_set(qs_kind_set(ikind)%soft_basis_set)
           ELSEIF(ASSOCIATED(qs_kind_set(ikind)%soft_basis_set).AND.&
                (.NOT.qs_kind_set(ikind)%paw_atom)) THEN
              NULLIFY (qs_kind_set(ikind)%soft_basis_set)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
-             CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set,error)
+             CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%harmonics)) THEN
-             CALL deallocate_harmonics_atom(qs_kind_set(ikind)%harmonics,error)
+             CALL deallocate_harmonics_atom(qs_kind_set(ikind)%harmonics)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%grid_atom)) THEN
-             CALL deallocate_grid_atom(qs_kind_set(ikind)%grid_atom,error)
+             CALL deallocate_grid_atom(qs_kind_set(ikind)%grid_atom)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%elec_conf)) THEN
              DEALLOCATE (qs_kind_set(ikind)%elec_conf,STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
 
           IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) THEN
              IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%orbitals)) THEN
                 DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%orbitals,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              DEALLOCATE (qs_kind_set(ikind)%dft_plus_u,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
 
           IF (ASSOCIATED(qs_kind_set(ikind)%dispersion)) THEN
              DEALLOCATE (qs_kind_set(ikind)%dispersion,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%addel)) THEN
              DEALLOCATE (qs_kind_set(ikind)%addel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%naddel)) THEN
              DEALLOCATE (qs_kind_set(ikind)%naddel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%laddel)) THEN
              DEALLOCATE (qs_kind_set(ikind)%laddel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%reltmat)) THEN
              DEALLOCATE (qs_kind_set(ikind)%reltmat,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
 
-          CALL remove_basis_set_container(qs_kind_set(ikind)%basis_sets,error)
+          CALL remove_basis_set_container(qs_kind_set(ikind)%basis_sets)
 
        END DO
        DEALLOCATE (qs_kind_set,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer qs_kind_set is not associated and "//&
@@ -350,7 +348,6 @@ CONTAINS
 !> \param ghost ...
 !> \param name ...
 !> \param element_symbol ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_qs_kind(qs_kind, &
        basis_set, basis_type, ncgf, nsgf, &
@@ -365,8 +362,7 @@ CONTAINS
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, &
        bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
        max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
-       init_u_ramping_each_scf, reltmat, ghost, name, element_symbol, &
-       error)
+       init_u_ramping_each_scf, reltmat, ghost, name, element_symbol)
 
     TYPE(qs_kind_type)                       :: qs_kind
     TYPE(gto_basis_set_type), OPTIONAL, &
@@ -427,7 +423,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -453,13 +448,13 @@ CONTAINS
           basis_set => qs_kind%soft_basis_set
        ELSE
           CALL get_basis_from_container(qs_kind%basis_sets,basis_set=basis_set,&
-               basis_type=my_basis_type,error=error)
+               basis_type=my_basis_type)
        END IF
     END IF
 
     IF (PRESENT(ncgf)) THEN
        CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis_set,&
-            basis_type=my_basis_type,error=error)
+            basis_type=my_basis_type)
        IF(ASSOCIATED(tmp_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=tmp_basis_set,ncgf=ncgf)
        ELSE IF(ASSOCIATED(qs_kind%dftb_parameter)) THEN
@@ -472,7 +467,7 @@ CONTAINS
 
     IF (PRESENT(nsgf)) THEN
        CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis_set,&
-            basis_type=my_basis_type,error=error)
+            basis_type=my_basis_type)
        IF(ASSOCIATED(tmp_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=tmp_basis_set,nsgf=nsgf)
        ELSE IF(ASSOCIATED(qs_kind%dftb_parameter)) THEN
@@ -696,7 +691,6 @@ CONTAINS
 !> \param maxg_iso_not0 ...
 !> \param lmax_rho0 ...
 !> \param basis_type ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_qs_kind_set(qs_kind_set,&
              all_potential_present, tnadd_potential_present, gth_potential_present,&
@@ -704,7 +698,7 @@ CONTAINS
              maxcgf, maxsgf, maxco, maxco_proj, maxgtops, maxlgto, maxlprj, maxnset, maxsgf_set,&
              ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl,&
              nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0,&
-             basis_type, error)
+             basis_type)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -718,7 +712,6 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: max_ngrid_rad, max_sph_harm, &
                                                 maxg_iso_not0, lmax_rho0
     CHARACTER(len=*), OPTIONAL               :: basis_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind_set', &
       routineP = moduleN//':'//routineN
@@ -787,8 +780,7 @@ CONTAINS
                max_iso_not0=max_iso_not0,&
                paw_atom=paw_atom,&
                dft_plus_u_atom=dft_plus_u_atom,&
-               lmax_rho0=lmax_rho0_kind,&
-               error=error)
+               lmax_rho0=lmax_rho0_kind)
 
           IF (PRESENT(maxlppl).AND.ASSOCIATED(gth_potential)) THEN
              CALL get_potential(potential=gth_potential,nexp_ppl=n)
@@ -821,7 +813,7 @@ CONTAINS
           END IF
 
           CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis_set,&
-               basis_type=my_basis_type,error=error)
+               basis_type=my_basis_type)
 
           IF (PRESENT(maxcgf)) THEN
              IF(ASSOCIATED(tmp_basis_set)) THEN
@@ -1004,13 +996,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialise an atomic kind data set.
 !> \param qs_kind ...
-!> \param error ... 
 !> \author Creation (11.01.2002,MK)
 !>                20.09.2002 adapted for pol/kg use, gtb
 ! *****************************************************************************
-  SUBROUTINE init_qs_kind(qs_kind,error)
+  SUBROUTINE init_qs_kind(qs_kind)
     TYPE(qs_kind_type), POINTER              :: qs_kind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -1022,23 +1012,23 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(qs_kind),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_kind),cp_failure_level,routineP,failure)
 
     IF (ASSOCIATED(qs_kind%gth_potential)) THEN
-       CALL init_potential(qs_kind%gth_potential,error)
+       CALL init_potential(qs_kind%gth_potential)
     END IF
 
     DO i=1,SIZE(qs_kind%basis_sets,1)
        NULLIFY(tmp_basis_set)
        CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis_set,&
-            inumbas=i,basis_type=basis_type,error=error)
+            inumbas=i,basis_type=basis_type)
        IF(basis_type=="") CYCLE
        IF(basis_type=="AUX") THEN
           IF(tmp_basis_set%norm_type < 0) tmp_basis_set%norm_type = 1
-          CALL init_aux_basis_set(tmp_basis_set,error)
+          CALL init_aux_basis_set(tmp_basis_set)
        ELSE
           IF(tmp_basis_set%norm_type < 0) tmp_basis_set%norm_type = 2
-          CALL init_orb_basis_set(tmp_basis_set,error)
+          CALL init_orb_basis_set(tmp_basis_set)
        END IF
     END DO
 
@@ -1049,15 +1039,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialise an atomic kind set data set.
 !> \param qs_kind_set ...
-!> \param error ...
 !> \author - Creation (17.01.2002,MK)
 !>      - 20.09.2002 para_env passed (gt)
 ! *****************************************************************************
-  SUBROUTINE init_qs_kind_set(qs_kind_set,error)
+  SUBROUTINE init_qs_kind_set(qs_kind_set)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_kind_set', &
       routineP = moduleN//':'//routineN
@@ -1072,7 +1060,7 @@ CONTAINS
 
     DO ikind=1, SIZE(qs_kind_set)
        qs_kind => qs_kind_set(ikind)
-       CALL init_qs_kind(qs_kind, error)
+       CALL init_qs_kind(qs_kind)
     END DO
 
     CALL timestop(handle)
@@ -1084,16 +1072,13 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param qs_control ...
 !> \param force_env_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_gapw_basis_set(qs_kind_set,qs_control,force_env_section,&
-       error)
+  SUBROUTINE init_gapw_basis_set(qs_kind_set,qs_control,force_env_section)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_basis_set', &
       routineP = moduleN//':'//routineN
@@ -1114,35 +1099,35 @@ CONTAINS
 
           qs_kind => qs_kind_set(ikind)
 
-          CALL allocate_gto_basis_set(qs_kind%soft_basis_set,error)
+          CALL allocate_gto_basis_set(qs_kind%soft_basis_set)
 
           ! The hard_basis points to the orb_basis
-          CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+          CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
           qs_kind%hard_basis_set => orb_basis
 
           CALL get_qs_kind(qs_kind=qs_kind,hard_radius=rc,&
-               max_rad_local=max_rad_local_type,gpw_type_forced=gpw,error=error)
+               max_rad_local=max_rad_local_type,gpw_type_forced=gpw)
 
           CALL create_soft_basis(orb_basis,qs_kind%soft_basis_set,&
                qs_control%gapw_control%eps_fit,rc,paw_atom,&
-               qs_control%gapw_control%force_paw,gpw,error)
+               qs_control%gapw_control%force_paw,gpw)
 
-          CALL set_qs_kind(qs_kind=qs_kind,paw_atom=paw_atom,error=error)
+          CALL set_qs_kind(qs_kind=qs_kind,paw_atom=paw_atom)
 
           IF (paw_atom) THEN
-             CALL allocate_paw_proj_set(qs_kind%paw_proj_set,error)
-             CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj,error=error)
+             CALL allocate_paw_proj_set(qs_kind%paw_proj_set)
+             CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj)
 
              CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
-                  force_env_section,error)
+                  force_env_section)
           ELSE
              qs_control%gapw_control%non_paw_atoms = .TRUE.
           END IF
 
           ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
           NULLIFY(qs_kind%grid_atom,qs_kind%harmonics)
-          CALL allocate_grid_atom(qs_kind%grid_atom,error)
-          CALL allocate_harmonics_atom(qs_kind%harmonics,error)
+          CALL allocate_grid_atom(qs_kind%grid_atom)
+          CALL allocate_harmonics_atom(qs_kind%harmonics)
        END DO
 
        IF(qs_control%gapw_control%non_paw_atoms) THEN
@@ -1165,14 +1150,13 @@ CONTAINS
 !> \param force_env_section ...
 !> \param no_fail ...
 !> \param method_id ...
-!> \param error ...
 !> \par History
 !>      - Creation (09.02.2002,MK)
 !>      - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
 !>      - 05.03.2010: split elp_potential into fist_potential and kg_potential
 ! *****************************************************************************
   SUBROUTINE read_qs_kind(qs_kind,kind_section,para_env,force_env_section,&
-       no_fail, method_id, error)
+       no_fail, method_id)
 
     TYPE(qs_kind_type), INTENT(INOUT)        :: qs_kind
     TYPE(section_vals_type), POINTER         :: kind_section
@@ -1180,7 +1164,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: no_fail
     INTEGER, INTENT(IN)                      :: method_id
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -1225,15 +1208,15 @@ CONTAINS
     kgpot_type = ""
     z = -1
     zeff_correction = 0.0_dp
-    dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
-    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+    dft_section => section_vals_get_subs_vals(force_env_section,"DFT")
+    CALL section_vals_get(kind_section,n_repetition=n_rep)
     k_rep=-1
     akind_name=qs_kind%name
     CALL uppercase(akind_name)
     ! First we use the atom_name to find out the proper KIND section
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-            c_val=keyword,i_rep_section=i_rep,error=error)
+            c_val=keyword,i_rep_section=i_rep)
        CALL uppercase(keyword)
        IF (keyword==akind_name) THEN
           k_rep=i_rep
@@ -1250,7 +1233,7 @@ CONTAINS
           CALL uppercase(akind_name)
           DO i_rep=1,n_rep
              CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-                  c_val=keyword,i_rep_section=i_rep,error=error)
+                  c_val=keyword,i_rep_section=i_rep)
              CALL uppercase(keyword)
              IF (keyword==akind_name) THEN
                 k_rep=i_rep
@@ -1267,7 +1250,7 @@ CONTAINS
        CALL uppercase(element_symbol)
        DO i_rep=1,n_rep
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-               c_val=keyword,i_rep_section=i_rep,error=error)
+               c_val=keyword,i_rep_section=i_rep)
           CALL uppercase(keyword)
           IF (keyword==element_symbol) THEN
              k_rep=i_rep
@@ -1280,7 +1263,7 @@ CONTAINS
     IF (k_rep<1) THEN
        DO i_rep=1,n_rep
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-               c_val=keyword,i_rep_section=i_rep,error=error)
+               c_val=keyword,i_rep_section=i_rep)
           CALL uppercase(keyword)
           IF (keyword=="DEFAULT") THEN
              k_rep=i_rep
@@ -1304,12 +1287,12 @@ CONTAINS
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
                              keyword_name="BASIS_SET",&
                              explicit=explicit,&
-                             n_rep_val=nb_rep,error=error)
+                             n_rep_val=nb_rep)
        IF(.NOT.explicit) nb_rep = 0
-       CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,error,failure)
+       CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
        DO i=1,nb_rep
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="BASIS_SET",i_rep_val=i,c_vals=tmpstringlist,error=error)
+               keyword_name="BASIS_SET",i_rep_val=i,c_vals=tmpstringlist)
           IF(SIZE(tmpstringlist)==1) THEN
              ! default is orbital type
              basis_set_type(i) = "ORB"
@@ -1318,7 +1301,7 @@ CONTAINS
              basis_set_type(i) = tmpstringlist(1)
              basis_set_name(i) = tmpstringlist(2)
           ELSE
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
           END IF
        END DO
 
@@ -1330,55 +1313,55 @@ CONTAINS
           END IF
        END DO
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name,error=error)
+            keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name)
        IF(aux_fit_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
           basis_set_type(nb_rep) = "AUX_FIT"
           basis_set_name(nb_rep) = aux_fit_basis_set_name
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name,error=error)
+            keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name)
        IF(aux_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
           basis_set_type(nb_rep) = "AUX"
           basis_set_name(nb_rep) = aux_basis_set_name
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="LRI_BASIS_SET", c_val=lri_basis_set_name,error=error)
+            keyword_name="LRI_BASIS_SET", c_val=lri_basis_set_name)
        IF(lri_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
           basis_set_type(nb_rep) = "LRI"
           basis_set_name(nb_rep) = lri_basis_set_name
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name,error=error)
+            keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name)
        IF(ri_aux_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
           basis_set_type(nb_rep) = "RI_AUX"
           basis_set_name(nb_rep) = ri_aux_basis_set_name
        END IF
        ! end of deprecated input
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="ELEC_CONF",n_rep_val=i,error=error)
+            keyword_name="ELEC_CONF",n_rep_val=i)
        IF (i>0) THEN
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="ELEC_CONF",i_vals=elec_conf,error=error)
-          CALL set_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+               keyword_name="ELEC_CONF",i_vals=elec_conf)
+          CALL set_qs_kind(qs_kind,elec_conf=elec_conf)
        ENDIF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="CORE_CORRECTION",r_val=zeff_correction,error=error)
+            keyword_name="CORE_CORRECTION",r_val=zeff_correction)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="POTENTIAL",c_val=potential_name,error=error)
+            keyword_name="POTENTIAL",c_val=potential_name)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="KG_POTENTIAL",c_val=kgpot_name,error=error)
+            keyword_name="KG_POTENTIAL",c_val=kgpot_name)
        ! assign atom dependent defaults, only H special case
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,n_rep_val=i,&
-            keyword_name="HARD_EXP_RADIUS",error=error)
+            keyword_name="HARD_EXP_RADIUS")
        IF (i==0) THEN
           IF (z==1) THEN
              qs_kind%hard_radius=1.2_dp
@@ -1387,77 +1370,75 @@ CONTAINS
           ENDIF
        ELSE
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="HARD_EXP_RADIUS",r_val=qs_kind%hard_radius,error=error)
+               keyword_name="HARD_EXP_RADIUS",r_val=qs_kind%hard_radius)
        ENDIF
 
        ! assign atom dependent defaults, only H special case
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,n_rep_val=i,&
-            keyword_name="RHO0_EXP_RADIUS",error=error)
+            keyword_name="RHO0_EXP_RADIUS")
        IF (i==0) THEN
           qs_kind%hard0_radius=qs_kind%hard_radius
        ELSE
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="RHO0_EXP_RADIUS",r_val=qs_kind%hard0_radius,error=error)
+               keyword_name="RHO0_EXP_RADIUS",r_val=qs_kind%hard0_radius)
        ENDIF
        CALL cp_assert(qs_kind%hard_radius>=qs_kind%hard0_radius,&
             cp_failure_level,cp_assertion_failed,routineP,&
-            "rc0 should be <= rc",error,failure)
+            "rc0 should be <= rc",failure)
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="MAX_RAD_LOCAL",r_val=qs_kind%max_rad_local,error=error)
+            keyword_name="MAX_RAD_LOCAL",r_val=qs_kind%max_rad_local)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="LEBEDEV_GRID",i_val=qs_kind%ngrid_ang,error=error)
+            keyword_name="LEBEDEV_GRID",i_val=qs_kind%ngrid_ang)
        CALL cp_assert(qs_kind%ngrid_ang > 0,&
             cp_failure_level,cp_assertion_failed,routineP,&
-            "# point lebedev grid < 0",error,failure)
+            "# point lebedev grid < 0",failure)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="RADIAL_GRID",i_val=qs_kind%ngrid_rad,error=error)
+            keyword_name="RADIAL_GRID",i_val=qs_kind%ngrid_rad)
        CALL cp_assert(qs_kind%ngrid_rad > 0,&
             cp_failure_level,cp_assertion_failed,routineP,&
-            "# point radial grid < 0",error,failure)
+            "# point radial grid < 0",failure)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="GPW_TYPE",l_val=qs_kind%gpw_type_forced,error=error)
+            keyword_name="GPW_TYPE",l_val=qs_kind%gpw_type_forced)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="GHOST",l_val=qs_kind%ghost,error=error)
+            keyword_name="GHOST",l_val=qs_kind%ghost)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="NO_OPTIMIZE",l_val=qs_kind%no_optimize,error=error)
+            keyword_name="NO_OPTIMIZE",l_val=qs_kind%no_optimize)
 
        ! DFTB3 param
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-                keyword_name="DFTB3_PARAM",r_val=qs_kind%dudq_dftb3,error=error)
+                keyword_name="DFTB3_PARAM",r_val=qs_kind%dudq_dftb3)
 
        ! MAOS
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-                keyword_name="MAO",i_val=qs_kind%mao,error=error)
+                keyword_name="MAO",i_val=qs_kind%mao)
 
        ! Read the BS subsection of the current atomic kind, if enabled
        NULLIFY(bs_section)
        bs_section => section_vals_get_subs_vals(kind_section,"BS",&
-            i_rep_section=k_rep,&
-            error=error)
+            i_rep_section=k_rep)
        section_enabled = .FALSE.
        CALL section_vals_val_get(bs_section,"_SECTION_PARAMETERS_",&
-            l_val=section_enabled,&
-            error=error)
+            l_val=section_enabled)
        IF (section_enabled) THEN
           qs_kind%bs_occupation = .TRUE.
           !Alpha spin
           NULLIFY(spin_section)
-          spin_section => section_vals_get_subs_vals(bs_section,"ALPHA",error=error)
-          CALL section_vals_get(spin_section, explicit=explicit, error=error)
+          spin_section => section_vals_get_subs_vals(bs_section,"ALPHA")
+          CALL section_vals_get(spin_section, explicit=explicit)
           IF(explicit) THEN
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
-                   keyword_name="NEL",i_vals=add_el,error=error)
-              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,error,failure)
+                   keyword_name="NEL",i_vals=add_el)
+              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,failure)
               ALLOCATE(qs_kind%addel(SIZE(add_el),2),STAT=stat)
               qs_kind%addel =0
               qs_kind%addel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
-                   keyword_name="L",i_vals=add_el,error=error)
-              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,error,failure)
-              CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,error,failure)
+                   keyword_name="L",i_vals=add_el)
+              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,failure)
+              CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,failure)
               ALLOCATE(qs_kind%laddel(SIZE(add_el),2),STAT=stat)
               qs_kind%laddel =0
               qs_kind%laddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
@@ -1465,10 +1446,10 @@ CONTAINS
               qs_kind%naddel =0
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
-                 keyword_name="N",n_rep_val=i,error=error)
+                 keyword_name="N",n_rep_val=i)
               IF(i>0) THEN
                 CALL section_vals_val_get(spin_section,&
-                     keyword_name="N",i_vals=add_el,error=error)
+                     keyword_name="N",i_vals=add_el)
                 IF(SIZE(add_el)==SIZE( qs_kind%addel,1)) THEN
                   qs_kind%naddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
                 END IF
@@ -1476,28 +1457,28 @@ CONTAINS
           END IF
           !Beta spin
           NULLIFY(spin_section)
-          spin_section => section_vals_get_subs_vals(bs_section,"BETA",error=error)
-          CALL section_vals_get(spin_section, explicit=explicit, error=error)
+          spin_section => section_vals_get_subs_vals(bs_section,"BETA")
+          CALL section_vals_get(spin_section, explicit=explicit)
           IF(explicit) THEN
 
             NULLIFY(add_el)
             CALL section_vals_val_get(spin_section,&
-                 keyword_name="NEL",i_vals=add_el,error=error)
-            CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,error,failure)
+                 keyword_name="NEL",i_vals=add_el)
+            CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,failure)
             qs_kind%addel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
             qs_kind%addel(:,:) = qs_kind%addel(:,:)
             NULLIFY(add_el)
             CALL section_vals_val_get(spin_section,&
-                 keyword_name="L",i_vals=add_el,error=error)
-            CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,error,failure)
+                 keyword_name="L",i_vals=add_el)
+            CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,failure)
             qs_kind%laddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
 
             CALL section_vals_val_get(spin_section,&
-                keyword_name="N",n_rep_val=i,error=error)
+                keyword_name="N",n_rep_val=i)
             IF(i>0) THEN
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
-                    keyword_name="N",i_vals=add_el,error=error)
+                    keyword_name="N",i_vals=add_el)
               IF(SIZE(add_el)==SIZE( qs_kind%addel,1)) THEN
                 qs_kind%naddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
               END IF
@@ -1510,38 +1491,32 @@ CONTAINS
        NULLIFY (dft_plus_u_section)
        dft_plus_u_section => section_vals_get_subs_vals(kind_section,&
                                                         subsection_name="DFT_PLUS_U",&
-                                                        i_rep_section=k_rep,&
-                                                        error=error)
+                                                        i_rep_section=k_rep)
        section_enabled = .FALSE.
        CALL section_vals_val_get(dft_plus_u_section,&
                                  keyword_name="_SECTION_PARAMETERS_",&
-                                 l_val=section_enabled,&
-                                 error=error)
+                                 l_val=section_enabled)
        IF (section_enabled) THEN
           ALLOCATE (qs_kind%dft_plus_u,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           NULLIFY (qs_kind%dft_plus_u%orbitals)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="L",&
-                                    i_val=l,&
-                                    error=error)
+                                    i_val=l)
           qs_kind%dft_plus_u%l = l
           CALL cp_assert((l >= 0),cp_failure_level,&
                          cp_assertion_failed,routineP,&
                          "DFT+U| Invalid orbital angular momentum quantum number specified: l < 0",&
-                         error,failure)
+                         failure)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="U_MINUS_J",&
-                                    r_val=qs_kind%dft_plus_u%u_minus_j_target,&
-                                    error=error)
+                                    r_val=qs_kind%dft_plus_u%u_minus_j_target)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="U_RAMPING",&
-                                    r_val=qs_kind%dft_plus_u%u_ramping,&
-                                    error=error)
+                                    r_val=qs_kind%dft_plus_u%u_ramping)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="INIT_U_RAMPING_EACH_SCF",&
-                                    l_val=qs_kind%dft_plus_u%init_u_ramping_each_scf,&
-                                    error=error)
+                                    l_val=qs_kind%dft_plus_u%init_u_ramping_each_scf)
           IF (qs_kind%dft_plus_u%u_ramping > 0.0_dp) THEN
              qs_kind%dft_plus_u%u_minus_j = 0.0_dp
           ELSE
@@ -1549,63 +1524,56 @@ CONTAINS
           END IF
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="EPS_U_RAMPING",&
-                                    r_val=qs_kind%dft_plus_u%eps_u_ramping,&
-                                    error=error)
+                                    r_val=qs_kind%dft_plus_u%eps_u_ramping)
 
           NULLIFY (enforce_occupation_section)
           enforce_occupation_section => section_vals_get_subs_vals(dft_plus_u_section,&
-                                                                   subsection_name="ENFORCE_OCCUPATION",&
-                                                                   error=error)
+                                                                   subsection_name="ENFORCE_OCCUPATION")
           subsection_enabled = .FALSE.
           CALL section_vals_val_get(enforce_occupation_section,&
                                     keyword_name="_SECTION_PARAMETERS_",&
-                                    l_val=subsection_enabled,&
-                                    error=error)
+                                    l_val=subsection_enabled)
           IF (subsection_enabled) THEN
              NULLIFY (orbitals)
              CALL section_vals_val_get(enforce_occupation_section,&
                                        keyword_name="ORBITALS",&
-                                       i_vals=orbitals,&
-                                       error=error)
+                                       i_vals=orbitals)
              norbitals = SIZE(orbitals)
              CALL cp_assert(((norbitals > 0).AND.(norbitals <= 2*l+1)),cp_failure_level,cp_assertion_failed,routineP,&
                             "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected",&
-                            error,failure)
+                            failure)
              ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              qs_kind%dft_plus_u%orbitals(:) = orbitals(:)
              NULLIFY (orbitals)
              DO m=1,norbitals
                 CALL cp_assert((qs_kind%dft_plus_u%orbitals(m) <= l),cp_failure_level,&
                                cp_assertion_failed,routineP,&
                                "DFT+U| Invalid orbital magnetic quantum number specified: m > l",&
-                               error,failure)
+                               failure)
                 CALL cp_assert((qs_kind%dft_plus_u%orbitals(m) >= -l),cp_failure_level,&
                                cp_assertion_failed,routineP,&
                                "DFT+U| Invalid orbital magnetic quantum number specified: m < -l",&
-                               error,failure)
+                               failure)
                 DO j=1,norbitals
                    IF (j /= m) THEN
                       CALL cp_assert((qs_kind%dft_plus_u%orbitals(j) /= qs_kind%dft_plus_u%orbitals(m)),&
                                      cp_failure_level,cp_assertion_failed,routineP,&
                                      "DFT+U| An orbital magnetic quantum number was specified twice",&
-                                     error,failure)
+                                     failure)
                    END IF
                 END DO
              END DO
              CALL section_vals_val_get(enforce_occupation_section,&
                                        keyword_name="EPS_SCF",&
-                                       r_val=qs_kind%dft_plus_u%eps_scf,&
-                                       error=error)
+                                       r_val=qs_kind%dft_plus_u%eps_scf)
              CALL section_vals_val_get(enforce_occupation_section,&
                                        keyword_name="MAX_SCF",&
-                                       i_val=i,&
-                                       error=error)
+                                       i_val=i)
              qs_kind%dft_plus_u%max_scf = MAX(-1,i)
              CALL section_vals_val_get(enforce_occupation_section,&
                                        keyword_name="SMEAR",&
-                                       l_val=qs_kind%dft_plus_u%smear,&
-                                       error=error)
+                                       l_val=qs_kind%dft_plus_u%smear)
           END IF ! subsection enabled
        END IF ! section enabled
 
@@ -1619,22 +1587,22 @@ CONTAINS
     explicit_basis = .FALSE.
     IF (k_rep>0) THEN
        basis_section  => section_vals_get_subs_vals(kind_section,"BASIS",i_rep_section=k_rep,&
-            can_return_null=.TRUE.,error=error)
-       CALL section_vals_get(basis_section,explicit=explicit_basis,error=error)
+            can_return_null=.TRUE.)
+       CALL section_vals_get(basis_section,explicit=explicit_basis)
     END IF
 
     explicit_potential = .FALSE.
     IF (k_rep>0) THEN
        potential_section  => section_vals_get_subs_vals(kind_section,"POTENTIAL",&
-            i_rep_section=k_rep,can_return_null=.TRUE.,error=error)
-       CALL section_vals_get(potential_section, explicit=explicit_potential,error=error)
+            i_rep_section=k_rep,can_return_null=.TRUE.)
+       CALL section_vals_get(potential_section, explicit=explicit_potential)
     END IF
 
     explicit_kgpot = .FALSE.
     IF (k_rep>0) THEN
        kgpot_section  => section_vals_get_subs_vals(kind_section,"KG_POTENTIAL",&
-            i_rep_section=k_rep,can_return_null=.TRUE.,error=error)
-       CALL section_vals_get(kgpot_section, explicit=explicit_kgpot,error=error)
+            i_rep_section=k_rep,can_return_null=.TRUE.)
+       CALL section_vals_get(kgpot_section, explicit=explicit_kgpot)
     END IF
 
     SELECT CASE(method_id)
@@ -1642,15 +1610,15 @@ CONTAINS
          do_method_pdg, do_method_pm3, do_method_pm6, do_method_mndod,&
          do_method_pnnl )
        ! Allocate all_potential
-       CALL allocate_potential(qs_kind%all_potential,error)
-       CALL set_default_all_potential(qs_kind%all_potential,z,zeff_correction,error)
-       CALL get_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+       CALL allocate_potential(qs_kind%all_potential)
+       CALL set_default_all_potential(qs_kind%all_potential,z,zeff_correction)
+       CALL get_qs_kind(qs_kind,elec_conf=elec_conf)
        IF (.NOT.ASSOCIATED(elec_conf)) THEN
           CALL get_potential(potential=qs_kind%all_potential,elec_conf=elec_conf)
-          CALL set_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+          CALL set_qs_kind(qs_kind,elec_conf=elec_conf)
        END IF
        IF (qs_kind%ghost) THEN
-          CALL get_qs_kind(qs_kind=qs_kind,elec_conf=elec_conf,error=error)
+          CALL get_qs_kind(qs_kind=qs_kind,elec_conf=elec_conf)
           elec_conf(:) = 0
           CALL get_potential(potential=qs_kind%all_potential,&
                elec_conf=elec_conf)
@@ -1666,33 +1634,32 @@ CONTAINS
              do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl )
           ! Setup proper semiempirical parameters
           check = .NOT.ASSOCIATED(qs_kind%se_parameter)
-          CPPostcondition(check, cp_failure_level, routineP, error, failure)
-          CALL semi_empirical_create(qs_kind%se_parameter,error)
+          CPPostcondition(check, cp_failure_level, routineP,failure)
+          CALL semi_empirical_create(qs_kind%se_parameter)
           ! Check if we allow p-orbitals on H
           SELECT CASE(z)
           CASE (1)
              IF (k_rep>0) THEN
                 CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-                     keyword_name="SE_P_ORBITALS_ON_H",l_val=qs_kind%se_parameter%p_orbitals_on_h,&
-                     error=error)
+                     keyword_name="SE_P_ORBITALS_ON_H",l_val=qs_kind%se_parameter%p_orbitals_on_h)
              END IF
           CASE DEFAULT
              ! No special cases for other elements..
           END SELECT
           ! Set default parameters
-          CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)
-          CALL se_param_set_default(qs_kind%se_parameter,z,method_id,error)
+          CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss)
+          CALL se_param_set_default(qs_kind%se_parameter,z,method_id)
           NULLIFY(tmp_basis_set)
-          CALL init_se_param(qs_kind%se_parameter,tmp_basis_set,ngauss,error=error)
-          CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,"ORB",error=error)
+          CALL init_se_param(qs_kind%se_parameter,tmp_basis_set,ngauss)
+          CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,"ORB")
           CALL init_potential ( qs_kind%all_potential, itype="BARE", &
-               zeff=qs_kind%se_parameter%zeff,zeff_correction=zeff_correction,error=error)
+               zeff=qs_kind%se_parameter%zeff,zeff_correction=zeff_correction)
           qs_kind%se_parameter%zeff=qs_kind%se_parameter%zeff-zeff_correction
        CASE (do_method_dftb,do_method_scptb)
           ! Do nothing at this stage.. The initialization of the parameters will be done
           ! later
        CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
        END SELECT
 
        check = ((potential_name /= '').OR.explicit_potential)
@@ -1715,40 +1682,40 @@ CONTAINS
        ! first external basis sets
        DO i=1,nb_rep
           NULLIFY(tmp_basis_set)
-          CALL allocate_gto_basis_set(tmp_basis_set,error)
+          CALL allocate_gto_basis_set(tmp_basis_set)
           CALL read_gto_basis_set(qs_kind%element_symbol,basis_set_name(i),&
-               tmp_basis_set,para_env,dft_section,error=error)
+               tmp_basis_set,para_env,dft_section)
           tmp=basis_set_type(i)
           CALL uppercase(tmp)
-          CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,tmp,error)
+          CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,tmp)
        END DO
        ! now explicit basis sets
        IF(explicit_basis) THEN
-          CALL section_vals_get(basis_section,n_repetition=nexp,error=error)
+          CALL section_vals_get(basis_section,n_repetition=nexp)
           DO i=1,nexp
              NULLIFY(tmp_basis_set)
-             CALL allocate_gto_basis_set(tmp_basis_set,error)
+             CALL allocate_gto_basis_set(tmp_basis_set)
              CALL read_gto_basis_set(qs_kind%element_symbol,basis_type,&
-                  tmp_basis_set,basis_section,i,error=error)
+                  tmp_basis_set,basis_section,i)
              tmp=basis_type
              CALL uppercase(tmp)
-             CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,tmp,error)
+             CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,tmp)
           END DO
        END IF
        ! combine multiple basis sets
        DO i=1,SIZE(qs_kind%basis_sets)
           NULLIFY(tmp_basis_set)
           CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis_set,&
-               inumbas=i,basis_type=basis_type,error=error)
+               inumbas=i,basis_type=basis_type)
           IF(basis_type=="") CYCLE
           DO j=i+1,SIZE(qs_kind%basis_sets)
              NULLIFY(sup_basis_set)
              CALL get_basis_from_container(qs_kind%basis_sets,basis_set=sup_basis_set,&
-                  inumbas=j,basis_type=tmp,error=error)
+                  inumbas=j,basis_type=tmp)
              IF(basis_type==tmp) THEN
                 ! we found a match, combine the basis sets and delete the second
-                CALL combine_basis_sets(tmp_basis_set,sup_basis_set,error=error)
-                CALL remove_basis_from_container(qs_kind%basis_sets,j,error=error)
+                CALL combine_basis_sets(tmp_basis_set,sup_basis_set)
+                CALL remove_basis_from_container(qs_kind%basis_sets,j)
              END IF
           END DO
           NULLIFY(sup_basis_set)
@@ -1760,7 +1727,7 @@ CONTAINS
        DO i=1,SIZE(qs_kind%basis_sets)
           NULLIFY(tmp_basis_set)
           CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis_set,&
-               inumbas=i,basis_type=basis_type,error=error)
+               inumbas=i,basis_type=basis_type)
           IF(basis_type == "ORB") nobasis = .FALSE.
        END DO
        IF (nobasis) THEN
@@ -1785,26 +1752,26 @@ CONTAINS
 
              SELECT CASE (TRIM(potential_type))
              CASE ("ALL")
-                CALL allocate_potential(qs_kind%all_potential,error)
+                CALL allocate_potential(qs_kind%all_potential)
                 CALL read_potential(qs_kind%element_symbol,potential_name,&
                      qs_kind%all_potential,zeff_correction,para_env,&
-                     dft_section,potential_section,error)
+                     dft_section,potential_section)
                 CALL set_potential(qs_kind%all_potential,z=z)
-                CALL get_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+                CALL get_qs_kind(qs_kind,elec_conf=elec_conf)
                 IF (.NOT.ASSOCIATED(elec_conf)) THEN
                    CALL get_potential(potential=qs_kind%all_potential,elec_conf=elec_conf)
-                   CALL set_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+                   CALL set_qs_kind(qs_kind,elec_conf=elec_conf)
                 END IF
              CASE ("GTH")
-                CALL allocate_potential(qs_kind%gth_potential,error)
+                CALL allocate_potential(qs_kind%gth_potential)
                 CALL read_potential(qs_kind%element_symbol,potential_name,&
                      qs_kind%gth_potential,zeff_correction,para_env,&
-                     dft_section,potential_section,error)
+                     dft_section,potential_section)
                 CALL set_potential(qs_kind%gth_potential,z=z)
-                CALL get_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+                CALL get_qs_kind(qs_kind,elec_conf=elec_conf)
                 IF (.NOT.ASSOCIATED(elec_conf)) THEN
                    CALL get_potential(potential=qs_kind%gth_potential,elec_conf=elec_conf)
-                   CALL set_qs_kind(qs_kind,elec_conf=elec_conf,error=error)
+                   CALL set_qs_kind(qs_kind,elec_conf=elec_conf)
                 END IF
              CASE DEFAULT
                 CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1830,10 +1797,10 @@ CONTAINS
 
              SELECT CASE (TRIM(kgpot_type))
              CASE ("TNADD")
-                CALL allocate_potential(qs_kind%tnadd_potential,error)
+                CALL allocate_potential(qs_kind%tnadd_potential)
                 CALL read_potential(qs_kind%element_symbol,kgpot_name,&
                      qs_kind%tnadd_potential,para_env,&
-                     dft_section,kgpot_section,error)
+                     dft_section,kgpot_section)
              CASE ("NONE")
                 NULLIFY(qs_kind%tnadd_potential)
              CASE DEFAULT
@@ -1858,9 +1825,8 @@ CONTAINS
 !> \param kind_section ...
 !> \param para_env ...
 !> \param force_env_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_qs_kind_set(qs_kind_set, atomic_kind_set,kind_section,para_env,force_env_section,error)
+  SUBROUTINE create_qs_kind_set(qs_kind_set, atomic_kind_set,kind_section,para_env,force_env_section)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -1869,7 +1835,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_kind_set', &
       routineP = moduleN//':'//routineN
@@ -1886,9 +1851,9 @@ CONTAINS
     no_fail = .FALSE.
 
     ! Between all methods only SE and DFTB may not need a KIND section.
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method,error=error)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method)
     IF (method==do_qs) THEN
-       CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=qs_method,error=error)
+       CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=qs_method)
        SELECT CASE (qs_method)
        CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6,&
              do_method_pdg,  do_method_rm1, do_method_mndod, do_method_pnnl )
@@ -1907,7 +1872,7 @@ CONTAINS
        qs_kind_set(ikind)%name = atomic_kind_set(ikind)%name
        qs_kind_set(ikind)%element_symbol = atomic_kind_set(ikind)%element_symbol
        qs_kind_set(ikind)%natom = atomic_kind_set(ikind)%natom
-       CALL read_qs_kind(qs_kind_set(ikind), kind_section, para_env, force_env_section, no_fail, qs_method, error)
+       CALL read_qs_kind(qs_kind_set(ikind), kind_section, para_env, force_env_section, no_fail, qs_method)
     END DO
 
     CALL timestop(handle)
@@ -1920,14 +1885,12 @@ CONTAINS
 !> \param qs_kind ...
 !> \param dft_control ...
 !> \param subsys_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE check_qs_kind(qs_kind,dft_control,subsys_section,error)
+  SUBROUTINE check_qs_kind(qs_kind,dft_control,subsys_section)
 
     TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -1938,23 +1901,23 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_parameter
 
     IF (dft_control%qs_control%semi_empirical) THEN
-       CALL get_qs_kind(qs_kind,se_parameter=se_parameter,error=error)
-       CPPostcondition(ASSOCIATED(se_parameter),cp_failure_level,routineP,error,failure)
+       CALL get_qs_kind(qs_kind,se_parameter=se_parameter)
+       CPPostcondition(ASSOCIATED(se_parameter),cp_failure_level,routineP,failure)
        CALL get_se_param(se_parameter,defined=defined)
-       CPPostcondition(defined,cp_failure_level,routineP,error,failure)
-       CALL write_se_param(se_parameter,subsys_section,error)
+       CPPostcondition(defined,cp_failure_level,routineP,failure)
+       CALL write_se_param(se_parameter,subsys_section)
     ELSE IF (dft_control%qs_control%dftb) THEN
-       CALL get_qs_kind(qs_kind,dftb_parameter=dftb_parameter,error=error)
-       CPPostcondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
-       CALL get_dftb_atom_param(dftb_parameter,defined=defined,error=error)
-       CPPostcondition(defined,cp_failure_level,routineP,error,failure)
-       CALL write_dftb_atom_param(dftb_parameter,subsys_section,error)
+       CALL get_qs_kind(qs_kind,dftb_parameter=dftb_parameter)
+       CPPostcondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
+       CALL get_dftb_atom_param(dftb_parameter,defined=defined)
+       CPPostcondition(defined,cp_failure_level,routineP,failure)
+       CALL write_dftb_atom_param(dftb_parameter,subsys_section)
     ELSE IF (dft_control%qs_control%scptb) THEN
-       CALL get_qs_kind(qs_kind,scptb_parameter=scptb_parameter,error=error)
-       CPPostcondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,error,failure)
-       CALL get_scptb_parameter(scptb_parameter,defined=defined,error=error)
-       CPPostcondition(defined,cp_failure_level,routineP,error,failure)
-       CALL write_scptb_parameter(scptb_parameter,subsys_section,error)
+       CALL get_qs_kind(qs_kind,scptb_parameter=scptb_parameter)
+       CPPostcondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,failure)
+       CALL get_scptb_parameter(scptb_parameter,defined=defined)
+       CPPostcondition(defined,cp_failure_level,routineP,failure)
+       CALL write_scptb_parameter(scptb_parameter,subsys_section)
     END IF
 
   END SUBROUTINE check_qs_kind
@@ -1965,16 +1928,14 @@ CONTAINS
 !> \param dft_control ...
 !> \param para_env ...
 !> \param subsys_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE check_qs_kind_set(qs_kind_set,dft_control,para_env,subsys_section,error)
+  SUBROUTINE check_qs_kind_set(qs_kind_set,dft_control,para_env,subsys_section)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_qs_kind_set', &
       routineP = moduleN//':'//routineN
@@ -1987,7 +1948,7 @@ CONTAINS
        nkind = SIZE(qs_kind_set)
        DO ikind=1,nkind
           qs_kind => qs_kind_set(ikind)
-          CALL check_qs_kind(qs_kind,dft_control,subsys_section,error)
+          CALL check_qs_kind(qs_kind,dft_control,subsys_section)
        END DO
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -2015,13 +1976,12 @@ CONTAINS
 !> \param dftb_parameter ...
 !> \param scptb_parameter ...
 !> \param elec_conf ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_qs_kind(qs_kind,paw_atom,ghost,hard_radius,hard0_radius,&
        soft_basis_set,hard_basis_set,lmax_rho0,zeff,&
        no_optimize,dispersion,u_minus_j,reltmat,&
        dftb_parameter, scptb_parameter,&
-       elec_conf,error)
+       elec_conf)
 
     TYPE(qs_kind_type), INTENT(INOUT)        :: qs_kind
     LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom, ghost
@@ -2042,7 +2002,6 @@ CONTAINS
       POINTER                                :: scptb_parameter
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: elec_conf
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -2090,15 +2049,13 @@ CONTAINS
 !> \param qs_kind ...
 !> \param kind_number ...
 !> \param output_unit ...
-!> \param error ...
 !> \par History
 !>      Creation (09.02.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE write_qs_kind(qs_kind,kind_number,output_unit,error)
+  SUBROUTINE write_qs_kind(qs_kind,kind_number,output_unit)
 
     TYPE(qs_kind_type), POINTER              :: qs_kind
     INTEGER, INTENT(in)                      :: kind_number, output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -2121,7 +2078,7 @@ CONTAINS
           DO ibas=1,SIZE(qs_kind%basis_sets,1)
              NULLIFY(tmp_basis)
              CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis,&
-                  inumbas=ibas,basis_type=basis_type,error=error)
+                  inumbas=ibas,basis_type=basis_type)
              IF(basis_type=="") CYCLE
              SELECT CASE (basis_type)
                 CASE DEFAULT
@@ -2138,7 +2095,7 @@ CONTAINS
                    bstring = "LRI Basis Set" 
              END SELECT
 
-             CALL write_orb_basis_set(tmp_basis,output_unit,bstring,error=error)
+             CALL write_orb_basis_set(tmp_basis,output_unit,bstring)
 
           END DO
 
@@ -2155,12 +2112,12 @@ CONTAINS
                   "Maximum GTO radius used for PAW projector construction:",&
                   qs_kind%max_rad_local
              CALL write_orb_basis_set(qs_kind%soft_basis_set,output_unit,&
-                  "GAPW Soft Basis Set",error=error)
+                  "GAPW Soft Basis Set")
           END IF
           ! Potentials
-          CALL write_potential(qs_kind%all_potential,output_unit,error)
-          CALL write_potential(qs_kind%gth_potential,output_unit,error)
-          CALL write_potential(qs_kind%tnadd_potential,output_unit,error)
+          CALL write_potential(qs_kind%all_potential,output_unit)
+          CALL write_potential(qs_kind%gth_potential,output_unit)
+          CALL write_potential(qs_kind%tnadd_potential,output_unit)
           IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
              WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
                "A DFT+U correction is applied to atoms of this atomic kind:",&
@@ -2195,7 +2152,7 @@ CONTAINS
              END IF
           END IF
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
 
     END IF
@@ -2206,15 +2163,13 @@ CONTAINS
 !> \brief Write an atomic kind set data set to the output unit.
 !> \param qs_kind_set ...
 !> \param subsys_section ...
-!> \param error ...
 !> \par History
 !>      Creation (09.02.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE write_qs_kind_set(qs_kind_set,subsys_section,error)
+  SUBROUTINE write_qs_kind_set(qs_kind_set,subsys_section)
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_kind_set', &
       routineP = moduleN//':'//routineN
@@ -2229,25 +2184,24 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-         "PRINT%KINDS",extension=".Log",&
-         error=error)
+         "PRINT%KINDS",extension=".Log")
     IF (output_unit > 0) THEN
        IF (ASSOCIATED(qs_kind_set)) THEN
           WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
           nkind = SIZE(qs_kind_set)
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
-             CALL write_qs_kind(qs_kind,ikind,output_unit,error)
+             CALL write_qs_kind(qs_kind,ikind,output_unit)
           END DO
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-         "PRINT%KINDS",error=error)
+         "PRINT%KINDS")
 
     CALL timestop(handle)
 
@@ -2259,16 +2213,14 @@ CONTAINS
 !>           database).
 !> \param qs_kind_set ...
 !> \param subsys_section ...
-!> \param error ...
 !> \par History
 !>      Creation (17.01.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE write_gto_basis_sets(qs_kind_set,subsys_section,error)
+  SUBROUTINE write_gto_basis_sets(qs_kind_set,subsys_section)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
       routineP = moduleN//':'//routineN
@@ -2285,10 +2237,10 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%KINDS/BASIS_SET",&
-         extension=".Log",error=error)
+         extension=".Log")
     IF (output_unit > 0) THEN
        IF (ASSOCIATED(qs_kind_set)) THEN
           WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -2302,7 +2254,7 @@ CONTAINS
              DO ibas=1,SIZE(qs_kind%basis_sets,1)
                 NULLIFY(tmp_basis)
                 CALL get_basis_from_container(qs_kind%basis_sets,basis_set=tmp_basis,&
-                     inumbas=ibas,basis_type=basis_type,error=error)
+                     inumbas=ibas,basis_type=basis_type)
                 IF(basis_type=="") CYCLE
                 SELECT CASE (basis_type)
                    CASE DEFAULT
@@ -2319,21 +2271,21 @@ CONTAINS
                       bstring = "LRI Basis Set"
                 END SELECT
 
-                CALL write_gto_basis_set(tmp_basis,output_unit,bstring,error)
+                CALL write_gto_basis_set(tmp_basis,output_unit,bstring)
    
              END DO
 
              CALL write_gto_basis_set(qs_kind%soft_basis_set,&
-                  output_unit,"GAPW Soft Basis Set",error)
+                  output_unit,"GAPW Soft Basis Set")
 
           END DO
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-         "PRINT%KINDS/BASIS_SET",error=error)
+         "PRINT%KINDS/BASIS_SET")
 
     CALL timestop(handle)
 
@@ -2349,15 +2301,13 @@ CONTAINS
 !> \param ncalc ...
 !> \param ncore ...
 !> \param nelem ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_atom_electronic_state (atomic_kind,qs_kind,ispin,ncalc,ncore,nelem,error)
+  SUBROUTINE init_atom_electronic_state (atomic_kind,qs_kind,ispin,ncalc,ncore,nelem)
     
     TYPE(atomic_kind_type), INTENT(IN)       :: atomic_kind
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, INTENT(IN)                      :: ispin
     INTEGER, DIMENSION(0:3, 10), INTENT(OUT) :: ncalc, ncore, nelem
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state', &
       routineP = moduleN//':'//routineN
@@ -2374,7 +2324,7 @@ CONTAINS
     CALL get_qs_kind(qs_kind,&
                      gth_potential=gth_potential,&
                      bs_occupation=bs_occupation,&
-                     addel=addel,laddel=laddel,naddel=naddel,error=error)
+                     addel=addel,laddel=laddel,naddel=naddel)
 
     ! electronic state
     nelem = 0

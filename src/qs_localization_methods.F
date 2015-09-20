@@ -85,15 +85,13 @@ CONTAINS
 !> \param eps ...
 !> \param converged ...
 !> \param sweeps ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE approx_l1_norm_sd( C, iterations, eps, converged, sweeps, error)
+  SUBROUTINE approx_l1_norm_sd( C, iterations, eps, converged, sweeps)
     TYPE(cp_fm_type), POINTER                :: C
     INTEGER, INTENT(IN)                      :: iterations
     REAL(KIND=dp), INTENT(IN)                :: eps
     LOGICAL, INTENT(INOUT)                   :: converged
     INTEGER, INTENT(INOUT)                   :: sweeps
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'approx_l1_norm_sd', &
       routineP = moduleN//':'//routineN
@@ -116,19 +114,19 @@ CONTAINS
 
     NULLIFY(logger,CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL cp_fm_struct_get(C%matrix_struct, nrow_global=n, ncol_global=k, &
                           nrow_local = nrow_local, ncol_local = ncol_local, &
-                          para_env=para_env, context=context,error=error)
+                          para_env=para_env, context=context)
     CALL cp_fm_struct_create(fm_struct_k_k, para_env=para_env, context=context, &
-                             nrow_global=k, ncol_global=k, error=error)
-    CALL cp_fm_create(CTmp, C%matrix_struct, error=error)
-    CALL cp_fm_create(U   , fm_struct_k_k, error=error)
-    CALL cp_fm_create(G   , fm_struct_k_k, error=error)
-    CALL cp_fm_create(Gp1 , fm_struct_k_k, error=error)
-    CALL cp_fm_create(Gp2 , fm_struct_k_k, error=error)
+                             nrow_global=k, ncol_global=k)
+    CALL cp_fm_create(CTmp, C%matrix_struct)
+    CALL cp_fm_create(U   , fm_struct_k_k)
+    CALL cp_fm_create(G   , fm_struct_k_k)
+    CALL cp_fm_create(Gp1 , fm_struct_k_k)
+    CALL cp_fm_create(Gp2 , fm_struct_k_k)
     !
     ! printing
     IF(output_unit>0) THEN
@@ -167,46 +165,46 @@ CONTAINS
              CTmp%local_data(i,p) = C%local_data(i,p) / SQRT( C%local_data(i,p)**2 + f2_eps )
           ENDDO
        ENDDO
-       CALL cp_gemm('T','N',k,k,n,1.0_dp,CTmp,C,0.0_dp,G,error=error)
+       CALL cp_gemm('T','N',k,k,n,1.0_dp,CTmp,C,0.0_dp,G)
        ! antisymmetrize
-       CALL cp_fm_transpose(G,U,error=error)
-       CALL cp_fm_scale_and_add(-0.5_dp,G,0.5_dp,U,error=error)
+       CALL cp_fm_transpose(G,U)
+       CALL cp_fm_scale_and_add(-0.5_dp,G,0.5_dp,U)
        !
        !-------------------------------------------------------------------
        !
-       CALL cp_fm_frobenius_norm(G,gnorm,error=error)
+       CALL cp_fm_frobenius_norm(G,gnorm)
        !write(*,*) 'qs_localize: norm(G)=',gnorm
        !
        ! rescale for steepest descent
-       CALL cp_fm_scale(-alpha, G, error=error)
+       CALL cp_fm_scale(-alpha, G)
        !
        ! compute unitary transform
        ! zeroth order
-       CALL cp_fm_set_all(U,0.0_dp,1.0_dp,error=error)
+       CALL cp_fm_set_all(U,0.0_dp,1.0_dp)
        ! first order
        expfactor = 1.0_dp
-       CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,G,error=error)
-       CALL cp_fm_frobenius_norm(G,tnorm,error=error)
+       CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,G)
+       CALL cp_fm_frobenius_norm(G,tnorm)
        !write(*,*) 'Taylor expansion i=',1,' norm(X^i)/i!=',tnorm
        IF(tnorm.GT.1.0E-10_dp) THEN
           ! other orders
-          CALL cp_fm_to_fm(G,Gp1,error=error)
+          CALL cp_fm_to_fm(G,Gp1)
           DO i = 2,taylor_order
              ! new power of G
-             CALL cp_gemm('N','N',k,k,k,1.0_dp,G,Gp1,0.0_dp,Gp2,error=error)
-             CALL cp_fm_to_fm(Gp2,Gp1,error=error)
+             CALL cp_gemm('N','N',k,k,k,1.0_dp,G,Gp1,0.0_dp,Gp2)
+             CALL cp_fm_to_fm(Gp2,Gp1)
              ! add to the taylor expansion so far
              expfactor = expfactor / REAL(i,KIND=dp)
-             CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,Gp1,error=error)
-             CALL cp_fm_frobenius_norm(Gp1,tnorm,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,Gp1)
+             CALL cp_fm_frobenius_norm(Gp1,tnorm)
              !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',tnorm*expfactor
              IF(tnorm*expfactor.LT.1.0E-10_dp) EXIT
           ENDDO
        ENDIF
        !
        ! incrementaly rotate the MOs
-       CALL cp_gemm('N','N',n,k,k,1.0_dp,C,U,0.0_dp,CTmp,error=error)
-       CALL cp_fm_to_fm(CTmp,C,error=error)
+       CALL cp_gemm('N','N',n,k,k,1.0_dp,C,U,0.0_dp,CTmp)
+       CALL cp_fm_to_fm(CTmp,C)
        !
        ! printing
        IF(output_unit.GT.0) THEN
@@ -245,12 +243,12 @@ CONTAINS
     !ENDDO
     !
     ! deallocate
-    CALL cp_fm_struct_release(fm_struct_k_k,error=error)
-    CALL cp_fm_release(CTmp,error=error)
-    CALL cp_fm_release(U   ,error=error)
-    CALL cp_fm_release(G   ,error=error)
-    CALL cp_fm_release(Gp1 ,error=error)
-    CALL cp_fm_release(Gp2 ,error=error)
+    CALL cp_fm_struct_release(fm_struct_k_k)
+    CALL cp_fm_release(CTmp)
+    CALL cp_fm_release(U)
+    CALL cp_fm_release(G)
+    CALL cp_fm_release(Gp1)
+    CALL cp_fm_release(Gp2)
 
     CALL timestop(handle)
 
@@ -291,12 +289,11 @@ CONTAINS
 !> \param out_each ...
 !> \param target_time ...
 !> \param start_time ...
-!> \param error ...
 !> \par History
 !> \author Joost VandeVondele (02.2010)
 ! *****************************************************************************
   SUBROUTINE jacobi_rotations(weights, zij, vectors, para_env, max_iter, eps_localization, &
-              sweeps, out_each, target_time, start_time, error)
+              sweeps, out_each, target_time, start_time)
 
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
@@ -307,13 +304,12 @@ CONTAINS
     INTEGER                                  :: sweeps
     INTEGER, INTENT(IN)                      :: out_each
     REAL(dp)                                 :: target_time, start_time
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF (para_env%num_pe==1) THEN
-        CALL jacobi_rotations_serial ( weights, zij, vectors, max_iter, eps_localization, sweeps, out_each, error)
+        CALL jacobi_rotations_serial ( weights, zij, vectors, max_iter, eps_localization, sweeps, out_each)
     ELSE
         CALL jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
-              sweeps, out_each, target_time, start_time, error)
+              sweeps, out_each, target_time, start_time)
     ENDIF
 
   END SUBROUTINE jacobi_rotations
@@ -328,9 +324,8 @@ CONTAINS
 !> \param eps_localization ...
 !> \param sweeps ...
 !> \param out_each ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE jacobi_rotations_serial ( weights, zij, vectors, max_iter, eps_localization, sweeps, out_each, error)
+  SUBROUTINE jacobi_rotations_serial ( weights, zij, vectors, max_iter, eps_localization, sweeps, out_each)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
@@ -338,7 +333,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
     INTEGER, INTENT(IN)                      :: out_each
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotations_serial', &
       routineP = moduleN//':'//routineN
@@ -362,24 +356,24 @@ CONTAINS
     dim2 = SIZE(zij,2)
     NULLIFY(rmat,c_rmat,c_zij)
     ALLOCATE(c_zij(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     NULLIFY(mii,mij,mjj)
     ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
-    CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_set_all ( rmat, 0._dp, 1._dp, error )
+    CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_set_all ( rmat, 0._dp, 1._dp)
 
-    CALL cp_cfm_create ( c_rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_set_all ( c_rmat, (0._dp,0._dp) , (1._dp,0._dp) ,error=error)
+    CALL cp_cfm_create ( c_rmat, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_set_all ( c_rmat, (0._dp,0._dp) , (1._dp,0._dp))
     DO idim=1,dim2
        NULLIFY(c_zij(idim)%matrix)
-       CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+       CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct)
        c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
                     zij(2,idim) % matrix % local_data, dp )
     ENDDO
 
-    CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
+    CALL cp_fm_get_info ( rmat , nrow_global = nstate)
     tolerance = 1.0e10_dp
     sweeps = 0
     unit_nr = -1
@@ -417,16 +411,16 @@ CONTAINS
     DO idim=1,dim2
        zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , dp )
        zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
-       CALL cp_cfm_release( c_zij(idim)%matrix ,error=error)
+       CALL cp_cfm_release( c_zij(idim)%matrix)
     ENDDO
     DEALLOCATE(c_zij,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mii,mij,mjj, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     rmat % local_data = REAL ( c_rmat%local_data, dp )
-    CALL cp_cfm_release( c_rmat ,error=error)
+    CALL cp_cfm_release( c_rmat)
     CALL rotate_orbitals ( rmat, vectors )
-    CALL cp_fm_release ( rmat ,error=error)
+    CALL cp_fm_release ( rmat)
 
     CALL timestop(handle)
 
@@ -445,7 +439,6 @@ CONTAINS
     TYPE ( cp_cfm_p_type ) :: zij ( : )
     REAL ( KIND = dp ), INTENT ( IN ) :: st, ct
 ! Locals
-    TYPE ( cp_error_type ) :: error
     INTEGER :: idim, nstate
     COMPLEX ( KIND = dp ) :: st_cmplx
 #if defined(__SCALAPACK)
@@ -455,7 +448,7 @@ CONTAINS
 #endif
 
     st_cmplx = CMPLX ( st, 0.0_dp, dp )
-    CALL cp_cfm_get_info ( zij ( 1 ) % matrix, nrow_global = nstate, error = error )
+    CALL cp_cfm_get_info ( zij ( 1 ) % matrix, nrow_global = nstate)
     DO  idim = 1, SIZE(zij,1)
 #if defined(__SCALAPACK)
       desc(:) = zij(idim) % matrix %matrix_struct%descriptor(:)
@@ -486,7 +479,6 @@ CONTAINS
     TYPE ( cp_cfm_type ), POINTER :: rmat
     REAL ( KIND = dp ), INTENT ( IN ) :: ct, st
 ! Locals
-    TYPE ( cp_error_type ) :: error
     INTEGER :: nstate
     COMPLEX ( KIND = dp ) :: st_cmplx
 #if defined(__SCALAPACK)
@@ -494,7 +486,7 @@ CONTAINS
 #endif
 
     st_cmplx = CMPLX ( st, 0.0_dp, dp )
-    CALL cp_cfm_get_info (  rmat, nrow_global = nstate, error = error )
+    CALL cp_cfm_get_info (  rmat, nrow_global = nstate)
 #if defined(__SCALAPACK)
     desc ( : ) = rmat % matrix_struct % descriptor(:)
     CALL pzrot( nstate , rmat % local_data (1,1) , 1 , istate,  desc, 1, &
@@ -565,7 +557,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(cp_error_type)                      :: error
     TYPE(cp_fm_type), POINTER                :: force
 
     CALL timeset(routineN,handle)
@@ -573,11 +564,11 @@ CONTAINS
 ! compute gradient at t=0
 
     NULLIFY ( force )
-    CALL cp_fm_create ( force, zij( 1 ) % matrix % matrix_struct, error = error  )
-    CALL cp_fm_set_all ( force, 0._dp, error=error )
+    CALL cp_fm_create ( force, zij( 1 ) % matrix % matrix_struct)
+    CALL cp_fm_set_all ( force, 0._dp)
     CALL grad_at_0 ( zij, weights, force )
-    CALL cp_fm_maxabsval ( force, tolerance, error = error )
-    CALL cp_fm_release ( force ,error=error)
+    CALL cp_fm_maxabsval ( force, tolerance)
+    CALL cp_fm_release ( force)
 
     CALL timestop(handle)
 
@@ -591,15 +582,14 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: rmat, vectors
 
     INTEGER                                  :: k, n
-    TYPE(cp_error_type)                      :: error
     TYPE(cp_fm_type), POINTER                :: wf
 
     NULLIFY ( wf )
-    CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
-    CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k ,error=error)
-    CALL cp_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf ,error=error)
-    CALL cp_fm_to_fm ( wf, vectors ,error=error)
-    CALL cp_fm_release ( wf ,error=error)
+    CALL cp_fm_create ( wf, vectors % matrix_struct)
+    CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k)
+    CALL cp_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf)
+    CALL cp_fm_to_fm ( wf, vectors)
+    CALL cp_fm_release ( wf)
   END SUBROUTINE rotate_orbitals
 ! *****************************************************************************
 !> \brief ...
@@ -621,11 +611,10 @@ CONTAINS
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: gradsq_ij
-    TYPE(cp_error_type)                      :: error
 
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, nrow_global = nrow_global, &
-                   row_indices = row_indices, col_indices = col_indices, error = error )
+                   row_indices = row_indices, col_indices = col_indices)
 
     DO istate = 1, nrow_local
       DO jstate = 1, ncol_local
@@ -660,12 +649,11 @@ CONTAINS
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: grad_ij
-    TYPE(cp_error_type)                      :: error
 
     NULLIFY(diag)
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, nrow_global = nrow_global, &
-                   row_indices = row_indices, col_indices = col_indices, error = error )
+                   row_indices = row_indices, col_indices = col_indices)
     dim_m = SIZE(matrix_p,1)
     ALLOCATE(diag(nrow_global,dim_m))
 
@@ -699,13 +687,11 @@ CONTAINS
 !> \param zij ...
 !> \param tolerance ...
 !> \param value ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE check_tolerance_new( weights, zij, tolerance, value, error)
+  SUBROUTINE check_tolerance_new( weights, zij, tolerance, value)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     REAL(KIND=dp)                            :: tolerance, value
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp)                         :: kii, kij, kjj
     COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -719,7 +705,7 @@ CONTAINS
     NULLIFY(diag)
     CALL cp_fm_get_info ( zij(1,1)%matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, nrow_global = nrow_global, &
-                   row_indices = row_indices, col_indices = col_indices,error=error)
+                   row_indices = row_indices, col_indices = col_indices)
     ALLOCATE(diag(nrow_global,SIZE(zij,2)))
     value=0.0_dp
     DO idim = 1,SIZE(zij,2)
@@ -766,10 +752,9 @@ CONTAINS
 !> \param eps_localization ...
 !> \param iterations ...
 !> \param converged ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE crazy_rotations( weights, zij, vectors,max_iter, max_crazy_angle, crazy_scale, crazy_use_diag, &
-                              eps_localization, iterations, converged, error )
+                              eps_localization, iterations, converged)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
@@ -780,7 +765,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
     LOGICAL, INTENT(out), OPTIONAL           :: converged
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'crazy_rotations', &
       routineP = moduleN//':'//routineN
@@ -811,49 +795,49 @@ CONTAINS
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global=nrow_global, &
                         ncol_global=ncol_global, &
                         row_indices=row_indices, col_indices=col_indices, &
-                        nrow_local=nrow_local, ncol_local=ncol_local,error=error)
+                        nrow_local=nrow_local, ncol_local=ncol_local)
 
     limit_crazy_angle=max_crazy_angle
 
     NULLIFY(diag_z,evals,evals_exp,mii,mij,mjj)
     dim2 = SIZE(zij,2)
     ALLOCATE(diag_z(nrow_global,dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(evals(nrow_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(evals_exp(nrow_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
-    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
-    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
-    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct)
 
-    CALL cp_fm_create ( mat_U, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
-    CALL cp_fm_create ( mat_t, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
-    CALL cp_fm_create ( mat_R, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_fm_create ( mat_U, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create ( mat_t, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create ( mat_R, zij ( 1, 1 ) % matrix % matrix_struct)
 
     NULLIFY(mat_theta)
-    CALL cp_fm_create ( mat_theta, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_fm_create ( mat_theta, zij ( 1, 1 ) % matrix % matrix_struct)
 
-    CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp ,error=error)
-    CALL cp_fm_set_all( mat_t, 0.0_dp,error=error)
+    CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp)
+    CALL cp_fm_set_all( mat_t, 0.0_dp)
     ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO idim=1,dim2
-       CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(1,idim) % matrix,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(2,idim) % matrix,error=error)
+       CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(1,idim) % matrix)
+       CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(2,idim) % matrix)
     ENDDO
-    CALL cp_fm_syevd(mat_t,mat_U,evals,error=error)
+    CALL cp_fm_syevd(mat_t,mat_U,evals)
     DO idim=1,dim2
        ! rotate z's
-       CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-       CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
-       CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-       CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
+       CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t)
+       CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix)
+       CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t)
+       CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix)
     ENDDO
     ! collect rotation matrix
-    CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
-    CALL cp_fm_to_fm(mat_t,mat_R,error=error)
+    CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t)
+    CALL cp_fm_to_fm(mat_t,mat_R)
 
     unit_nr=-1
     IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN
@@ -906,36 +890,36 @@ CONTAINS
       ! construct rotation matrix U based on A using diagonalization
       ! alternatively, exp based on repeated squaring could be faster
       IF (crazy_use_diag) THEN
-         CALL cp_cfm_heevd(cmat_A,cmat_R,evals,error=error)
+         CALL cp_cfm_heevd(cmat_A,cmat_R,evals)
          maxeval=MAXVAL(ABS(evals))
          evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-         CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
+         CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
          CALL cp_cfm_gemm('N','C',nrow_global,nrow_global,nrow_global,cone,&
-              cmat_t1,cmat_R,czero,cmat_A,error=error)
+              cmat_t1,cmat_R,czero,cmat_A)
          mat_U%local_data=REAL(cmat_A%local_data,KIND=dp) ! U is a real matrix
       ELSE
          do_emd=.FALSE.
          method=2
          eps_exp=1.0_dp*EPSILON(eps_exp)
-         CALL cp_fm_maxabsrownorm(mat_theta,norm,error)
+         CALL cp_fm_maxabsrownorm(mat_theta,norm)
          maxeval=norm ! an upper bound
-         CALL get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
-         CALL exp_pade_real(mat_U,mat_theta,nsquare,norder,error)
+         CALL get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd)
+         CALL exp_pade_real(mat_U,mat_theta,nsquare,norder)
       ENDIF
 
       DO idim=1,dim2
          ! rotate z's
-         CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-         CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
-         CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-         CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
+         CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t)
+         CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix)
+         CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t)
+         CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix)
       ENDDO
       ! collect rotation matrix
-      CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
-      CALL cp_fm_to_fm(mat_t,mat_R,error=error)
+      CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t)
+      CALL cp_fm_to_fm(mat_t,mat_R)
 
-      CALL check_tolerance_new ( weights, zij, tolerance, value ,error=error)
+      CALL check_tolerance_new ( weights, zij, tolerance, value)
 
       IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T2,A7,I6,1X,G20.15,E12.4,E12.4,E12.4)') &
@@ -947,20 +931,20 @@ CONTAINS
 
     IF (PRESENT(converged)) converged=(tolerance .LT. eps_localization)
 
-    CALL cp_cfm_release(cmat_A,error=error)
-    CALL cp_cfm_release(cmat_R,error=error)
-    CALL cp_cfm_release(cmat_T1,error=error)
+    CALL cp_cfm_release(cmat_A)
+    CALL cp_cfm_release(cmat_R)
+    CALL cp_cfm_release(cmat_T1)
 
-    CALL cp_fm_release(mat_U,error=error)
-    CALL cp_fm_release(mat_T,error=error)
-    CALL cp_fm_release(mat_theta,error=error)
+    CALL cp_fm_release(mat_U)
+    CALL cp_fm_release(mat_T)
+    CALL cp_fm_release(mat_theta)
 
     CALL rotate_orbitals(mat_R,vectors)
 
-    CALL cp_fm_release(mat_R,error=error)
+    CALL cp_fm_release(mat_R)
     DEALLOCATE(evals_exp,evals,diag_z,STAT=istat)
     DEALLOCATE(mii,mij,mjj,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -979,16 +963,14 @@ CONTAINS
 !> \param max_iter ...
 !> \param eps_localization ...
 !> \param iterations ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE direct_mini( weights, zij, vectors, max_iter ,eps_localization, iterations , error)
+  SUBROUTINE direct_mini( weights, zij, vectors, max_iter ,eps_localization, iterations)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER, INTENT(IN)                      :: max_iter
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'direct_mini', &
       routineP = moduleN//':'//routineN
@@ -1025,7 +1007,7 @@ CONTAINS
     NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     n = zij(1,1)%matrix%matrix_struct%nrow_global
@@ -1040,41 +1022,41 @@ CONTAINS
 
     ALLOCATE(evals(n),evals_exp(n),diag_z(n,ndim),fval(n),fvald(n))
     ALLOCATE(c_zij(ndim), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     ! create the three complex matrices Z
     DO idim=1,ndim
        NULLIFY(c_zij(idim)%matrix)
-       CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+       CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct)
        c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
                     zij(2,idim) % matrix % local_data, dp )
     ENDDO
 
-    CALL cp_fm_create  ( matrix_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_create  ( matrix_G, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_create  ( matrix_T, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_create  ( matrix_H, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_create  ( matrix_R, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_set_all(matrix_R,0.0_dp,1.0_dp,error=error)
+    CALL cp_fm_create  ( matrix_A, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create  ( matrix_G, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create  ( matrix_T, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create  ( matrix_H, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create  ( matrix_R, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_set_all(matrix_R,0.0_dp,1.0_dp)
 
-    CALL cp_fm_set_all(matrix_A,0.0_dp,error=error)
+    CALL cp_fm_set_all(matrix_A,0.0_dp)
 !    CALL cp_fm_init_random ( matrix_A )
 
-    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_create ( cmat_U, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_create ( cmat_t2, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_create ( cmat_B, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_create ( cmat_M, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_U, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_t2, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_B, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_M, zij ( 1, 1 ) % matrix % matrix_struct)
 
     CALL cp_cfm_get_info ( cmat_B, nrow_local=nrow_local, ncol_local=ncol_local, &
-                                   row_indices=row_indices, col_indices=col_indices ,error=error)
+                                   row_indices=row_indices, col_indices=col_indices)
 
-    CALL cp_fm_set_all(matrix_G_old,0.0_dp,error=error)
-    CALL cp_fm_set_all(matrix_G_search,0.0_dp,error=error)
+    CALL cp_fm_set_all(matrix_G_old,0.0_dp)
+    CALL cp_fm_set_all(matrix_G_search,0.0_dp)
     normg_old=1.0E30_dp
     ds_min=1.0_dp
     new_direction=.TRUE.
@@ -1085,40 +1067,40 @@ CONTAINS
          iterations = iterations + 1
          ! compute U,R,evals given A
          cmat_A % local_data = CMPLX ( 0.0_dp , matrix_A % local_data, dp ) ! cmat_A is hermitian, evals are reals
-         CALL cp_cfm_heevd(cmat_A,cmat_R,evals,error=error)
+         CALL cp_cfm_heevd(cmat_A,cmat_R,evals)
          evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-         CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
+         CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
-         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U,error=error)
+         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U)
          cmat_U%local_data=REAL(cmat_U%local_data,KIND=dp) ! enforce numerics, U is a real matrix
 
          IF ( new_direction .AND. MOD(line_searches,20).EQ.5 ) THEN ! reset with A .eq. 0
             DO idim=1,ndim
-               CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1,error=error)
-               CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix,error=error)
+               CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1)
+               CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix)
             ENDDO
             ! collect rotation matrix
             matrix_H%local_data=REAL(cmat_U%local_data,KIND=dp)
-            CALL cp_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
-            CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
+            CALL cp_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T)
+            CALL cp_fm_to_fm(matrix_T,matrix_R)
 
-            CALL cp_cfm_set_all(cmat_U,czero,cone,error=error)
-            CALL cp_cfm_set_all(cmat_R,czero,cone,error=error)
-            CALL cp_cfm_set_all(cmat_A,czero,error=error)
-            CALL cp_fm_set_all(matrix_A,0.0_dp,error=error)
+            CALL cp_cfm_set_all(cmat_U,czero,cone)
+            CALL cp_cfm_set_all(cmat_R,czero,cone)
+            CALL cp_cfm_set_all(cmat_A,czero)
+            CALL cp_fm_set_all(matrix_A,0.0_dp)
             evals(:)=0.0_dp
             evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-            CALL cp_fm_set_all(matrix_G_old,0.0_dp,error=error)
-            CALL cp_fm_set_all(matrix_G_search,0.0_dp,error=error)
+            CALL cp_fm_set_all(matrix_G_old,0.0_dp)
+            CALL cp_fm_set_all(matrix_G_search,0.0_dp)
             normg_old=1.0E30_dp
          ENDIF
 
          ! compute Omega and M
-         CALL cp_cfm_set_all(cmat_M,czero,error=error)
+         CALL cp_cfm_set_all(cmat_M,czero)
          omega = 0.0_dp
          DO idim=1,ndim
-            CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1,error=error) ! t1=ZU
-            CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2,error=error) ! t2=(U^T)ZU
+            CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) ! t1=ZU
+            CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2) ! t2=(U^T)ZU
             DO i=1,n
                CALL cp_cfm_get_element(cmat_t2,i,i,diag_z(i,idim))
                SELECT CASE (2) ! allows for selection of different spread functionals
@@ -1144,7 +1126,7 @@ CONTAINS
          IF (.TRUE.) THEN
             CALL gradsq_at_0(diag_z,weights,matrix_H,ndim)
          ELSE
-            CALL cp_fm_set_all(matrix_H,1.0_dp,error=error)
+            CALL cp_fm_set_all(matrix_H,1.0_dp)
          ENDIF
 
          ! compute B
@@ -1167,15 +1149,15 @@ CONTAINS
          ENDDO
          ! compute gradient matrix_G
 
-         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_M,cmat_R,czero,cmat_t1,error=error) ! t1=(M^T)(R^T)
-         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_R,cmat_t1,czero,cmat_t2,error=error) ! t2=(R)t1
-         CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1,error=error)
-         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2,error=error)
-         CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1,error=error)
+         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_M,cmat_R,czero,cmat_t1) ! t1=(M^T)(R^T)
+         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_R,cmat_t1,czero,cmat_t2) ! t2=(R)t1
+         CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1)
+         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2)
+         CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1)
          matrix_G%local_data=REAL(cmat_t1%local_data,KIND=dp)
-         CALL cp_fm_transpose(matrix_G,matrix_T,error=error)
-         CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T,error=error)
-         CALL cp_fm_maxabsval(matrix_G,tol,error=error)
+         CALL cp_fm_transpose(matrix_G,matrix_T)
+         CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T)
+         CALL cp_fm_maxabsval(matrix_G,tol)
 
          ! from here on, minimizing technology
          IF ( new_direction ) THEN
@@ -1196,7 +1178,7 @@ CONTAINS
             IF (tol<eps_localization .OR. iterations>max_iter)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
-                CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross,error=error)
+                CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)
                 normg_cross=normg_cross*0.5_dp ! takes into account the fact that A is antisymmetric
                 ! apply the preconditioner
                 DO icol=1,ncol_local
@@ -1204,23 +1186,23 @@ CONTAINS
                       matrix_G_old%local_data(irow,icol)=matrix_G%local_data(irow,icol)/matrix_H%local_data(irow,icol)
                    ENDDO
                 ENDDO
-                CALL cp_fm_trace(matrix_G,matrix_G_old,normg,error=error)
+                CALL cp_fm_trace(matrix_G,matrix_G_old,normg)
                 normg=normg*0.5_dp
                 beta_pr=(normg-normg_cross)/normg_old
                 normg_old=normg
                 beta_pr=MAX(beta_pr,0.0_dp)
-                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old,error=error)
-                CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross,error=error)
+                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old)
+                CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross)
                 IF (normg_cross .GE. 0) THEN ! back to SD
                    IF (matrix_A%matrix_struct%para_env%mepos .EQ. &
                        matrix_A%matrix_struct%para_env%source) THEN
                       WRITE(cp_logger_get_default_unit_nr(),*) "!"
                    ENDIF
                    beta_pr=0.0_dp
-                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old,error=error)
+                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old)
                 ENDIF
             ELSE ! SD
-                CALL cp_fm_scale_and_add(0.0_dp,matrix_G_search,-1.0_dp,matrix_G,error=error)
+                CALL cp_fm_scale_and_add(0.0_dp,matrix_G_search,-1.0_dp,matrix_G)
             ENDIF
             ! ds_min=1.0E-4_dp
             line_search_count=0
@@ -1235,7 +1217,7 @@ CONTAINS
            CASE (1)
               pos(1)=0.0_dp
               pos(2)=ds_min
-              CALL cp_fm_trace(matrix_G,matrix_G_search,grad(1),error=error)
+              CALL cp_fm_trace(matrix_G,matrix_G_search,grad(1))
               grad(1)=grad(1)/2.0_dp
               new_direction=.FALSE.
            CASE (2)
@@ -1344,36 +1326,36 @@ CONTAINS
          ! now go to the suggested point
          ds_min=pos(line_search_count+1)
          ds=pos(line_search_count+1)-pos(line_search_count)
-         CALL cp_fm_scale_and_add(1.0_dp,matrix_A,ds,matrix_G_search,error=error)
+         CALL cp_fm_scale_and_add(1.0_dp,matrix_A,ds,matrix_G_search)
     ENDDO
 
     ! collect rotation matrix
     matrix_H%local_data=REAL(cmat_U%local_data,KIND=dp)
-    CALL cp_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
-    CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
+    CALL cp_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T)
+    CALL cp_fm_to_fm(matrix_T,matrix_R)
     CALL rotate_orbitals(matrix_R,vectors)
-    CALL cp_fm_release  ( matrix_R,error=error)
+    CALL cp_fm_release  ( matrix_R)
 
-    CALL cp_fm_release  ( matrix_A,error=error)
-    CALL cp_fm_release  ( matrix_G,error=error)
-    CALL cp_fm_release  ( matrix_H,error=error)
-    CALL cp_fm_release  ( matrix_T,error=error)
-    CALL cp_fm_release  ( matrix_G_search,error=error)
-    CALL cp_fm_release  ( matrix_G_old,error=error)
-    CALL cp_cfm_release ( cmat_A,error=error)
-    CALL cp_cfm_release ( cmat_U,error=error)
-    CALL cp_cfm_release ( cmat_R,error=error)
-    CALL cp_cfm_release ( cmat_t1,error=error)
-    CALL cp_cfm_release ( cmat_t2,error=error)
-    CALL cp_cfm_release ( cmat_B,error=error)
-    CALL cp_cfm_release ( cmat_M,error=error)
+    CALL cp_fm_release  ( matrix_A)
+    CALL cp_fm_release  ( matrix_G)
+    CALL cp_fm_release  ( matrix_H)
+    CALL cp_fm_release  ( matrix_T)
+    CALL cp_fm_release  ( matrix_G_search)
+    CALL cp_fm_release  ( matrix_G_old)
+    CALL cp_cfm_release ( cmat_A)
+    CALL cp_cfm_release ( cmat_U)
+    CALL cp_cfm_release ( cmat_R)
+    CALL cp_cfm_release ( cmat_t1)
+    CALL cp_cfm_release ( cmat_t2)
+    CALL cp_cfm_release ( cmat_B)
+    CALL cp_cfm_release ( cmat_M)
 
     DEALLOCATE(evals,evals_exp,fval,fvald)
 
     DO idim=1,SIZE(c_zij)
        zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , dp )
        zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
-       CALL cp_cfm_release( c_zij(idim)%matrix ,error=error)
+       CALL cp_cfm_release( c_zij(idim)%matrix)
     ENDDO
     DEALLOCATE(c_zij)
     DEALLOCATE(diag_z)
@@ -1394,13 +1376,12 @@ CONTAINS
 !> \param out_each ...
 !> \param target_time ...
 !> \param start_time ...
-!> \param error ...
 !> \par History
 !>      use allgather for improved performance
 !> \author MI (11.2009)
 ! *****************************************************************************
   SUBROUTINE jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
-              sweeps, out_each, target_time, start_time, error)
+              sweeps, out_each, target_time, start_time)
 
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
@@ -1411,7 +1392,6 @@ CONTAINS
     INTEGER                                  :: sweeps
     INTEGER, INTENT(IN)                      :: out_each
     REAL(dp)                                 :: target_time, start_time
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rot_para', &
       routineP = moduleN//':'//routineN
@@ -1447,7 +1427,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     NULLIFY(rmat, cz_ij_loc, zdiag_all, zdiag_me)
@@ -1456,12 +1436,12 @@ CONTAINS
 
     dim2 = SIZE(zij,2)
     ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
-    CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_set_all ( rmat, 0._dp, 1._dp, error )
+    CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_set_all ( rmat, 0._dp, 1._dp)
 
-    CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
+    CALL cp_fm_get_info ( rmat , nrow_global = nstate)
 
     ALLOCATE(rcount(para_env%num_pe),STAT=istat)
     ALLOCATE(rdispl(para_env%num_pe),STAT=istat)
@@ -1473,13 +1453,13 @@ CONTAINS
     npair = (para_env%num_pe+1)/2
     nperm = para_env%num_pe - MOD( para_env%num_pe +1,2)
     ALLOCATE(list_pair(2,npair),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     ! Distribution of the states (XXXXX safe against more pe than states ??? XXXXX)
     xstate = REAL(nstate,dp)/REAL(para_env%num_pe,dp)
     nblock_max = 0
     ALLOCATE(ns_bound(0:para_env%num_pe-1,2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     Xlow=0.0D0
     Xup=0.0D0
     DO ip=1,para_env%num_pe
@@ -1501,20 +1481,20 @@ CONTAINS
 
     ! otbtain local part of the matrix (could be made faster, but is likely irrelevant).
     ALLOCATE(z_ij_loc_re(nstate,nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(z_ij_loc_im(nstate,nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(cz_ij_loc(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO idim = 1,dim2
       DO ip=0,para_env%num_pe-1
         nblock=ns_bound(ip,2)-ns_bound(ip,1)+1
-        CALL cp_fm_get_submatrix(zij(1,idim)%matrix,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock,error=error)
-        CALL cp_fm_get_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,ns_bound(ip,1),nstate,nblock,error=error)
+        CALL cp_fm_get_submatrix(zij(1,idim)%matrix,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock)
+        CALL cp_fm_get_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,ns_bound(ip,1),nstate,nblock)
         IF(para_env%mepos==ip) THEN
           ns_me = nblock
           ALLOCATE (cz_ij_loc(idim)%c_array(nstate,ns_me),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
           DO i=1,ns_me
             DO j = 1,nstate
               cz_ij_loc(idim)%c_array(j,i) = CMPLX(z_ij_loc_re(j,i),z_ij_loc_im(j,i),dp)
@@ -1524,14 +1504,14 @@ CONTAINS
       END DO ! ip
     END DO
     DEALLOCATE(z_ij_loc_re,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(z_ij_loc_im,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
 
     ! initialize rotation matrix
     ALLOCATE(rotmat(nstate,2*nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     rotmat=0.0_dp
     DO i =ns_bound(para_env%mepos,1),ns_bound(para_env%mepos,2)
        ii = i - ns_bound(para_env%mepos,1) + 1
@@ -1539,42 +1519,42 @@ CONTAINS
     END DO
 
     ALLOCATE(xyz_mix(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(xyz_mix_ns(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(zdiag_me(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(zdiag_all(dim2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     ns_me = ns_bound(para_env%mepos,2) - ns_bound(para_env%mepos,1) +1
     IF(ns_me/=0) THEN
       ALLOCATE(c_array_me(nstate,ns_me,dim2),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
       DO idim = 1,dim2
          ALLOCATE(xyz_mix_ns(idim)%c_array(nstate,ns_me),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
       END DO
       ALLOCATE(gmat(nstate,ns_me),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     DO idim = 1,dim2
        ALLOCATE(zdiag_me(idim)%c_array(nblock_max),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
        zdiag_me(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
        ALLOCATE(zdiag_all(idim)%c_array(para_env%num_pe*nblock_max),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
        zdiag_all(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
     END DO
     ALLOCATE(rmat_recv(nblock_max*2,nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(rmat_send(nblock_max*2,nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     ! buffer for message passing
     ALLOCATE(rmat_recv_all(nblock_max*2,nblock_max,0:para_env%num_pe-1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     IF(output_unit>0) THEN
       WRITE(output_unit,'(T10,A )') "Localization by iterative distributed Jacobi rotation"
@@ -1594,7 +1574,7 @@ CONTAINS
       DO iperm = 1,nperm
 
         ! fix partners for this permutation, and get the number of states
-        CALL eberlein(iperm,para_env,list_pair,error)
+        CALL eberlein(iperm,para_env,list_pair)
         ip_partner = -1
         ns_partner = 0
         DO ipair = 1,npair
@@ -1616,18 +1596,18 @@ CONTAINS
         IF(ns_partner*ns_me /= 0) THEN
 
           ALLOCATE(rmat_loc(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
           rmat_loc = 0.0_dp
           DO i = 1, ns_me+ns_partner
             rmat_loc(i,i) = 1.0_dp
           END DO
 
           ALLOCATE(c_array_partner(nstate,ns_partner,dim2),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
           DO idim = 1,dim2
             ALLOCATE(xyz_mix(idim)%c_array(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
             DO i = 1,ns_me
                c_array_me(1:nstate,i,idim) = cz_ij_loc(idim)%c_array(1:nstate,i)
             END DO
@@ -1739,7 +1719,7 @@ CONTAINS
           END DO  ! idim
 
           DEALLOCATE(c_array_partner,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
         ELSE ! save my data
           DO idim = 1,dim2
@@ -1855,10 +1835,10 @@ CONTAINS
 
         IF(ns_partner*ns_me /= 0) THEN
           DEALLOCATE(rmat_loc, STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
           DO idim = 1,dim2
             DEALLOCATE(xyz_mix(idim)%c_array,STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
           END DO
         END IF
 
@@ -1924,7 +1904,7 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
       IF(tolerance < eps_localization) EXIT
-      CALL external_control(should_stop,"LOC",target_time=target_time, start_time=start_time,error=error)
+      CALL external_control(should_stop,"LOC",target_time=target_time, start_time=start_time)
       IF(should_stop) EXIT
 
 
@@ -1932,53 +1912,53 @@ CONTAINS
 
     ! buffer for message passing
     DEALLOCATE(rmat_recv_all,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(rmat_recv, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(rmat_send, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     IF (ns_me>0) THEN
        DEALLOCATE(c_array_me,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
     DO idim = 1,dim2
       DEALLOCATE(zdiag_me(idim)%c_array, STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(zdiag_all(idim)%c_array, STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     END DO
     DEALLOCATE(zdiag_me, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(zdiag_all, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(xyz_mix,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO idim = 1,dim2
       IF(ns_me/=0) THEN
         DEALLOCATE(xyz_mix_ns(idim)%c_array,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
       ENDIF
     END DO
     DEALLOCATE(xyz_mix_ns,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     IF(ns_me/=0) THEN
       DEALLOCATE(gmat,STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
     DEALLOCATE(mii,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mij,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mjj,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     ilow1=ns_bound(para_env%mepos,1)
     ns_me=ns_bound(para_env%mepos,2)-ns_bound(para_env%mepos,1)+1
     ALLOCATE(z_ij_loc_re(nstate,nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(z_ij_loc_im(nstate,nblock_max),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO idim = 1,dim2
       DO ip = 0,para_env%num_pe-1
         z_ij_loc_re = 0.0_dp
@@ -1996,8 +1976,8 @@ CONTAINS
         END IF
         CALL mp_bcast(z_ij_loc_re,ip,para_env%group)
         CALL mp_bcast(z_ij_loc_im,ip,para_env%group)
-        CALL cp_fm_set_submatrix(zij(1,idim)%matrix,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock,error=error)
-        CALL cp_fm_set_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,ns_bound(ip,1),nstate,nblock,error=error)
+        CALL cp_fm_set_submatrix(zij(1,idim)%matrix,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock)
+        CALL cp_fm_set_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,ns_bound(ip,1),nstate,nblock)
       END DO ! ip
     END DO
 
@@ -2014,26 +1994,26 @@ CONTAINS
          END DO
       END IF
       CALL mp_bcast(z_ij_loc_re,ip,para_env%group)
-      CALL cp_fm_set_submatrix(rmat,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock,error=error)
+      CALL cp_fm_set_submatrix(rmat,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock)
     END DO
 
     DEALLOCATE(z_ij_loc_re,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(z_ij_loc_im,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO idim = 1,dim2
        DEALLOCATE(cz_ij_loc(idim)%c_array,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     END DO
     DEALLOCATE(cz_ij_loc,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL mp_sync(para_env%group)
     CALL rotate_orbitals ( rmat, vectors )
-    CALL cp_fm_release ( rmat ,error=error)
+    CALL cp_fm_release ( rmat)
 
     DEALLOCATE(rotmat,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(ns_bound, list_pair)
 
     CALL timestop(handle)
@@ -2045,13 +2025,11 @@ CONTAINS
 !> \param iperm ...
 !> \param para_env ...
 !> \param list_pair ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE eberlein(iperm,para_env,list_pair,error)
+  SUBROUTINE eberlein(iperm,para_env,list_pair)
     INTEGER, INTENT(IN)                      :: iperm
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, DIMENSION(:, :)                 :: list_pair
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eberlein', &
       routineP = moduleN//':'//routineN

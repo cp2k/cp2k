@@ -63,17 +63,14 @@ CONTAINS
 !> \param calc_force if also the forces should be calculated
 !> \param consistent_energies ...
 !> \param linres ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qmmm_calc_energy_force(qmmm_env,calc_force,consistent_energies,linres,error)
+  SUBROUTINE qmmm_calc_energy_force(qmmm_env,calc_force,consistent_energies,linres)
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
     LOGICAL, INTENT(IN)                      :: calc_force, &
                                                 consistent_energies, linres
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calc_energy_force', &
       routineP = moduleN//':'//routineN
@@ -105,30 +102,30 @@ CONTAINS
     qmmm_link        = .FALSE.
     qmmm_link_imomm  = .FALSE.
     qmmm_added_chrg  = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
     NULLIFY(subsys_mm, subsys_qm, subsys, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
     NULLIFY(force_env_section, print_key, results_qmmm, results_qm, results_mm)
 
-    CALL get_qs_env(qmmm_env%qs_env, input=force_env_section, error=error)
-    print_key => section_vals_get_subs_vals(force_env_section,"QMMM%PRINT%DIPOLE",error=error)
+    CALL get_qs_env(qmmm_env%qs_env, input=force_env_section)
+    print_key => section_vals_get_subs_vals(force_env_section,"QMMM%PRINT%DIPOLE")
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
 
-    CALL apply_qmmm_translate(qmmm_env,error)
+    CALL apply_qmmm_translate(qmmm_env)
 
-    CALL fist_env_get(qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm,error=error)
-    CALL get_qs_env(qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm,error=error)
+    CALL fist_env_get(qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm)
+    CALL get_qs_env(qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm)
     qm_atom_index   => qmmm_env%qm%qm_atom_index
     qmmm_link       =  qmmm_env%qm%qmmm_link
     qmmm_links      => qmmm_env%qm%qmmm_links
     qmmm_added_chrg =  (qmmm_env%qm%move_mm_charges .OR. qmmm_env%qm%add_mm_charges)
     IF (qmmm_link) THEN
-       CPPrecondition(ASSOCIATED(qmmm_links),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(qmmm_links),cp_failure_level,routineP,failure)
        IF (ASSOCIATED(qmmm_links%imomm)) qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
     END IF
-    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,failure)
 
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
@@ -145,69 +142,67 @@ CONTAINS
           CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
                   "QM/MM QM atoms must be fully contained in the same image of the QM box "//&
                   "- No wrapping of coordinates is allowed! "//&
-                  CPSourceFileRef,error)
+                  CPSourceFileRef)
        END DO
     END DO
 
     ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
-    IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index, error)
+    IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index)
 
     ! If add charges get their position NOW!
-    IF (qmmm_added_chrg) CALL qmmm_added_chrg_coord(qmmm_env%qm, particles_mm, error)
+    IF (qmmm_added_chrg) CALL qmmm_added_chrg_coord(qmmm_env%qm, particles_mm)
 
     ! Initialize ks_qmmm_env
-    CALL ks_qmmm_env_rebuild(qs_env=qmmm_env%qs_env, qmmm_env=qmmm_env%qm,error=error)
+    CALL ks_qmmm_env_rebuild(qs_env=qmmm_env%qs_env, qmmm_env=qmmm_env%qm)
 
     ! Compute the short range QM/MM Electrostatic Potential
     CALL qmmm_el_coupling(qs_env=qmmm_env%qs_env,&
          qmmm_env=qmmm_env%qm,&
          mm_particles=particles_mm,&
-         mm_cell=mm_cell,&
-         error=error)
+         mm_cell=mm_cell)
 
     ! Fist
-    CALL fist_calc_energy_force(qmmm_env%fist_env, error=error)
+    CALL fist_calc_energy_force(qmmm_env%fist_env)
 
     ! Print Out information on fist energy calculation...
-    CALL fist_env_get(qmmm_env%fist_env,thermo=fist_energy,error=error)
+    CALL fist_env_get(qmmm_env%fist_env,thermo=fist_energy)
     energy_mm = fist_energy%pot
-    CALL cp_subsys_get(subsys_mm, results=results_mm, error=error)
+    CALL cp_subsys_get(subsys_mm, results=results_mm)
 
     ! QS
-    CALL qs_calc_energy_force(qmmm_env%qs_env,calc_force,consistent_energies,linres,error)
+    CALL qs_calc_energy_force(qmmm_env%qs_env,calc_force,consistent_energies,linres)
 
     ! QM/MM Interaction Potential forces
     CALL qmmm_forces(qmmm_env%qs_env,&
                      qmmm_env%qm,particles_mm,&
                      mm_cell=mm_cell,&
-                     calc_force=calc_force,&
-                     error=error)
+                     calc_force=calc_force)
 
     ! Forces of quadratic wall on QM atoms
-    CALL apply_qmmm_walls(qmmm_env,error)
+    CALL apply_qmmm_walls(qmmm_env)
 
     ! Print Out information on QS energy calculation...
-    CALL get_qs_env(qmmm_env%qs_env, energy=qs_energy, error=error)
+    CALL get_qs_env(qmmm_env%qs_env, energy=qs_energy)
     energy_qm = qs_energy%total
-    CALL cp_subsys_get(subsys_qm, results=results_qm, error=error)
+    CALL cp_subsys_get(subsys_qm, results=results_qm)
 
     !TODO: is really results_qm == results_qmmm ???
-    CALL cp_subsys_get(subsys_qm, results=results_qmmm, error=error)
+    CALL cp_subsys_get(subsys_qm, results=results_qmmm)
 
     IF (calc_force) THEN
        ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
-       IF (qmmm_link_imomm) CALL qmmm_link_Imomm_forces(qmmm_links,particles_qm,qm_atom_index,error)
+       IF (qmmm_link_imomm) CALL qmmm_link_Imomm_forces(qmmm_links,particles_qm,qm_atom_index)
        particles_mm => subsys_mm%particles%els
        DO ip=1,SIZE(qm_atom_index)
           particles_mm(qm_atom_index(ip))%f=particles_mm(qm_atom_index(ip))%f+particles_qm(ip)%f
        END DO
        ! If add charges get rid of their derivatives right NOW!
-       IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(qmmm_env%qm, particles_mm, error)
+       IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(qmmm_env%qm, particles_mm)
     END IF
 
     ! Handle some output
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"QMMM%PRINT%DERIVATIVES",&
-             extension=".Log",error=error)
+             extension=".Log")
     IF (output_unit>0) THEN
        WRITE (unit=output_unit,fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
        IF (calc_force) THEN
@@ -218,31 +213,31 @@ CONTAINS
        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "QMMM%PRINT%DERIVATIVES",error=error)
+         "QMMM%PRINT%DERIVATIVES")
 
     ! Dipole
-    print_key => section_vals_get_subs_vals(force_env_section,"QMMM%PRINT%DIPOLE",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+    print_key => section_vals_get_subs_vals(force_env_section,"QMMM%PRINT%DIPOLE")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),&
          cp_p_file)) THEN
        description ='[DIPOLE]'
-       CALL get_results(results=results_qm,description=description,n_rep=nres,error=error)
-       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
-       CALL get_results(results=results_mm,description=description,n_rep=nres,error=error)
-       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
-       CALL get_results(results=results_qm,description=description,values=dip_qm,error=error)
-       CALL get_results(results=results_mm,description=description,values=dip_mm,error=error)
+       CALL get_results(results=results_qm,description=description,n_rep=nres)
+       CPPrecondition(nres<=1,cp_failure_level,routineP,failure)
+       CALL get_results(results=results_mm,description=description,n_rep=nres)
+       CPPrecondition(nres<=1,cp_failure_level,routineP,failure)
+       CALL get_results(results=results_qm,description=description,values=dip_qm)
+       CALL get_results(results=results_mm,description=description,values=dip_mm)
        dip_qmmm = dip_qm + dip_mm
-       CALL cp_results_erase(results=results_qmmm,description=description,error=error)
-       CALL put_results(results=results_qmmm,description=description,values=dip_qmmm,error=error)
+       CALL cp_results_erase(results=results_qmmm,description=description)
+       CALL put_results(results=results_qmmm,description=description,values=dip_qmmm)
 
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"QMMM%PRINT%DIPOLE",&
-                extension=".Dipole",error=error)
+                extension=".Dipole")
        IF (output_unit>0) THEN
              WRITE(unit=output_unit,fmt="(A)")"QMMM TOTAL DIPOLE"
              WRITE(unit=output_unit,fmt="(A,T31,A,T88,A)")&
                   "# iter_level","dipole(x,y,z)[atomic units]",&
                                  "dipole(x,y,z)[debye]"
-          iter=cp_iter_string(logger%iter_info,error=error)
+          iter=cp_iter_string(logger%iter_info)
           WRITE(unit=output_unit,fmt="(a,6(es18.8))")&
                   iter(1:15), dip_qmmm, dip_qmmm*debye
        END IF

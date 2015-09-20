@@ -73,8 +73,6 @@ CONTAINS
 !> \brief collects possible post - scf calculations and prints info / computes properties.
 !>        specific for Semi-empirical calculations
 !> \param qs_env the qs_env in which the qs_env lives
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2008 created [tlaino] - Splitted from qs_scf_post (general)
 !> \author tlaino
@@ -85,10 +83,9 @@ CONTAINS
 !>      change afterwards slightly the forces (hence small numerical differences between MD
 !>      with and without the debug print level). Ideally this should not happen...
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation_se(qs_env,error)
+  SUBROUTINE scf_post_calculation_se(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_se', &
       routineP = moduleN//':'//routineN
@@ -110,17 +107,17 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! Writes the data that is already available in qs_env
-    CALL write_available_results(qs_env,error)
+    CALL write_available_results(qs_env)
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
     NULLIFY(dft_control, mos, rho, &
          subsys, particles, input, print_key, para_env)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
     ! Here we start with data that needs a postprocessing...
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -128,87 +125,86 @@ CONTAINS
                     rho=rho,&
                     input=input,&
                     subsys=subsys,&
-                    para_env=para_env,&
-                    error=error)
-    CALL qs_subsys_get(subsys,particles=particles,error=error)
+                    para_env=para_env)
+    CALL qs_subsys_get(subsys,particles=particles)
 
     ! Compute Atomic Charges
-    CALL qs_scf_post_charges(input, logger, qs_env, rho, para_env, error)
+    CALL qs_scf_post_charges(input, logger, qs_env, rho, para_env)
 
     ! Moments of charge distribution
-    CALL qs_scf_post_moments(input, logger, qs_env, error)
+    CALL qs_scf_post_moments(input, logger, qs_env)
 
     ! MO_CUBES
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                   subsection_name="DFT%PRINT%MO_CUBES",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+                   subsection_name="DFT%PRINT%MO_CUBES")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
          message="Printing of MO cube files not implemented for Semi-Empirical method.", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! STM
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                   subsection_name="DFT%PRINT%STM",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+                   subsection_name="DFT%PRINT%STM")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
          message="STM not implemented for Semi-Empirical method.", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! DFT+U
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                   subsection_name="DFT%PRINT%PLUS_U",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+                   subsection_name="DFT%PRINT%PLUS_U")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
          message="DFT+U not available for Semi-Empirical method.", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! Kinetic Energy
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                   subsection_name="DFT%PRINT%KINETIC_ENERGY",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+                   subsection_name="DFT%PRINT%KINETIC_ENERGY")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
          message="Kinetic energy not available for Semi-Empirical method.", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! Wavefunction mixing
-    wfn_mix_section => section_vals_get_subs_vals(input,"DFT%PRINT%WFN_MIX",error=error)
-    CALL section_vals_get(wfn_mix_section,explicit=explicit,error=error)
+    wfn_mix_section => section_vals_get_subs_vals(input,"DFT%PRINT%WFN_MIX")
+    CALL section_vals_get(wfn_mix_section,explicit=explicit)
     IF(explicit.AND..NOT.qs_env%run_rtp) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
          message="Wavefunction mixing not implemented for Semi-Empirical  method.", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! Print coherent X-ray diffraction spectrum
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                 subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+                 subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
          message="XRAY_DIFFRACTION_SPECTRUM  not implemented for Semi-Empirical calculations!!", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! Calculation of Electric Field Gradients
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                 subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+                 subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
          message="ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!!", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
     ! Calculation of EPR Hyperfine Coupling Tensors
     print_key => section_vals_get_subs_vals(section_vals=input,&
-                 subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+                 subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),&
            cp_p_file)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
          message="HYPERFINE_COUPLING_TENSOR  not implemented for Semi-Empirical calculations!!", &
-         error=error, error_level=cp_warning_level)
+         error_level=cp_warning_level)
     END IF
 
 
@@ -225,14 +221,11 @@ CONTAINS
 !> \param input ...
 !> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_moments(input, logger, qs_env, error)
+  SUBROUTINE qs_scf_post_moments(input, logger, qs_env)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments', &
       routineP = moduleN//':'//routineN
@@ -269,20 +262,20 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_key
     TYPE(semi_empirical_type), POINTER       :: se_kind
 
-    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MOMENTS", error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MOMENTS")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
        ! Dipole Moments
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MOMENTS",&
-               extension=".data",middle_name="se_dipole",log_filename=.FALSE.,error=error)
+               extension=".data",middle_name="se_dipole",log_filename=.FALSE.)
 
        ! Reference point
-       reference = section_get_ival(print_key,keyword_name="REFERENCE",error=error)
+       reference = section_get_ival(print_key,keyword_name="REFERENCE")
        NULLIFY(ref_point)
        description='[DIPOLE]'
-       CALL section_vals_val_get(print_key,"REF_POINT",r_vals=ref_point,error=error)
-       CALL section_vals_val_get(print_key,"PERIODIC",l_val=do_berry,error=error)
+       CALL section_vals_val_get(print_key,"REF_POINT",r_vals=ref_point)
+       CALL section_vals_val_get(print_key,"PERIODIC",l_val=do_berry)
        CALL get_reference_point(rcc,drcc,qs_env=qs_env,reference=reference,&
-                                ref_point=ref_point,error=error)
+                                ref_point=ref_point)
        !
        NULLIFY(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
@@ -292,20 +285,19 @@ CONTAINS
                        natom=natom,&
                        qs_kind_set=qs_kind_set,&
                        particle_set=particle_set,&
-                       dft_control=dft_control,&
-                       error=error)
+                       dft_control=dft_control)
 
 
-       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       CALL qs_rho_get(rho, rho_ao=matrix_p)
        nspin = SIZE(matrix_p)
        nkind = SIZE(atomic_kind_set)
        ! net charges
        ALLOCATE (ncharge(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ncharge = 0.0_dp
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
           CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
           DO iatom=1,nat
              iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -383,20 +375,20 @@ CONTAINS
        ! No contribution to dipole derivatives
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set,error=error)
-          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
           CALL get_se_param(se_kind,natorb=natorb)
           ALLOCATE (mom(natorb,natorb,3),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           mom = 0.0_dp
-          CALL atomic_moments(mom,basis_set,error)
+          CALL atomic_moments(mom,basis_set)
           DO iatom=1,nat
              iat = atomic_kind_set(ikind)%atom_list(iatom)
              DO i=1,nspin
                 CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
                   block=pblock,found=found)
                 IF(found) THEN
-                  CPPostcondition(natorb==SIZE(pblock,1),cp_failure_level,routineP,error,failure)
+                  CPPostcondition(natorb==SIZE(pblock,1),cp_failure_level,routineP,failure)
                   ix=coset(1,0,0) - 1
                   dipole(1)=dipole(1) + SUM(pblock*mom(:,:,ix))
                   ix=coset(0,1,0) - 1
@@ -407,14 +399,14 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE (mom,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END DO
        IF(unit_nr>0)THEN
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(Debye)|",dipole*debye
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|",dipole_deriv
        END IF
-       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+       CALL cp_print_key_finished_output(unit_nr,logger,print_key)
     END IF
 
   END SUBROUTINE qs_scf_post_moments
@@ -423,13 +415,10 @@ CONTAINS
 !> \brief Computes the dipole integrals for an atom (a|x|b), a,b on atom A
 !> \param mom ...
 !> \param basis_set ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE atomic_moments(mom,basis_set,error)
+  SUBROUTINE atomic_moments(mom,basis_set)
     REAL(KIND=dp), DIMENSION(:, :, :)        :: mom
     TYPE(gto_basis_set_type), POINTER        :: basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atomic_moments', &
       routineP = moduleN//':'//routineN
@@ -465,7 +454,7 @@ CONTAINS
       nm = MAX(nm,ncoa)
     END DO
     ALLOCATE (mab(nm,nm,4),work(nm,nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DO iset=1,nset
       ncoa = npgf(iset)*ncoset(la_max(iset))
@@ -486,7 +475,7 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE (mab,work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE atomic_moments
 ! *****************************************************************************
@@ -496,17 +485,14 @@ CONTAINS
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param rho ...
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, &
-                                 para_env, error)
+                                 para_env)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
       routineP = moduleN//':'//routineN
@@ -540,25 +526,24 @@ CONTAINS
                     natom=natom,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     ! Compute the mulliken charges
-    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
-                                    middle_name="",log_filename=.FALSE.,error=error)
-       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+                                    middle_name="",log_filename=.FALSE.)
+       CALL qs_rho_get(rho, rho_ao=matrix_p)
        nspin = SIZE(matrix_p)
        ALLOCATE (charges(natom,nspin),mcharge(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        charges = 0.0_dp
        mcharge = 0.0_dp
        ! calculate atomic charges
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
           CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
           DO iatom=1,nat
              iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -585,7 +570,7 @@ CONTAINS
                     " # Atom   Element   Kind        Atomic population"," Net charge"
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
+                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
                 CALL get_se_param(se_kind,name=aname)
                 ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                 DO iatom=1,nat
@@ -603,7 +588,7 @@ CONTAINS
                     "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
+                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
                 CALL get_se_param(se_kind,name=aname)
                 ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                 DO iatom=1,nat
@@ -619,26 +604,26 @@ CONTAINS
           END IF
        END IF
 
-       CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
+       CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN")
 
        DEALLOCATE (charges,mcharge,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     ! Compute the Lowdin charges
-    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN", error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP,&
             message="Lowdin charges not available for semi-empirical calculations!", &
-            error=error, error_level=cp_warning_level)
+            error_level=cp_warning_level)
     END IF
 
     ! Hirshfeld charges
-    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD", error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Hirshfeld charges not available for semi-empirical calculations!", &
-            error=error, error_level=cp_warning_level)
+            error_level=cp_warning_level)
     END IF
 
   END SUBROUTINE qs_scf_post_charges
@@ -646,12 +631,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Write QS results always available (if switched on through the print_keys)
 !> \param qs_env the qs_env in which the qs_env lives
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE write_available_results(qs_env,error)
+  SUBROUTINE write_available_results(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
@@ -683,10 +665,10 @@ CONTAINS
     NULLIFY(cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
          ks_rmpv, dft_section, input, &
          particles, subsys, para_env, rho_ao)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,&
                        dft_control=dft_control,&
@@ -699,106 +681,105 @@ CONTAINS
                        input=input,&
                        cell=cell,&
                        subsys=subsys,&
-                       para_env=para_env,&
-                       error=error)
-       CALL qs_subsys_get(subsys,particles=particles,error=error)
+                       para_env=para_env)
+       CALL qs_subsys_get(subsys,particles=particles)
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
-       dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+       dft_section => section_vals_get_subs_vals(input,"DFT")
        IF (dft_control%nspins == 2) THEN
          CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
-                           dft_section,spin="ALPHA",last=.TRUE.,error=error)
+                           dft_section,spin="ALPHA",last=.TRUE.)
          CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
-                           dft_section,spin="BETA",last=.TRUE.,error=error)
+                           dft_section,spin="BETA",last=.TRUE.)
        ELSE
          CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
-                           dft_section,last=.TRUE.,error=error)
+                           dft_section,last=.TRUE.)
        END IF
 
        ! *** at the end of scf print out the projected dos per kind
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS",&
-           error=error),cp_p_file) ) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS")&
+           ,cp_p_file) ) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="PDOS not implemented for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        ENDIF
 
        ! Print the total density (electronic + core charge)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
+            "DFT%PRINT%TOT_DENSITY_CUBE"),cp_p_file)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        END IF
 
        ! Write cube file with electron density
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%E_DENSITY_CUBE",error=error),cp_p_file)) THEN
+                 "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="E_DENSITY_CUBE not implemented for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        END IF ! print key
 
        ! Write cube file with EFIELD 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%EFIELD_CUBE",error=error),cp_p_file)) THEN
+                 "DFT%PRINT%EFIELD_CUBE"),cp_p_file)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="EFIELD_CUBE not implemented for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        END IF ! print key
 
        ! Write cube file with ELF
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%ELF_CUBE",error=error),cp_p_file)) THEN
+                 "DFT%PRINT%ELF_CUBE"),cp_p_file)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="ELF function not implemented for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        END IF ! print key
 
        ! Print the hartree potential
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
+            "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        ENDIF
 
        ! Print the XC potential
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%V_XC_CUBE",error=error),cp_p_file)) THEN
+            "DFT%PRINT%V_XC_CUBE"),cp_p_file)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="V_XC_CUBE not available for Semi-Empirical calculations!!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        ENDIF
 
        ! Write the density matrix
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+                 "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
-               extension=".Log",error=error)
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+               extension=".Log")
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
           after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
              CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
-                  para_env,output_unit=iw,error=error)
+                  para_env,output_unit=iw)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
-               "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
+               "DFT%PRINT%AO_MATRICES/DENSITY")
        END IF
 
        ! The Kohn-Sham matrix itself
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
-          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., error=error)
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX"),cp_p_file)) THEN
+          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-               extension=".Log",error=error)
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+               extension=".Log")
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
           after = MIN(MAX(after,1),16)
-          CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
+          CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
           CALL cp_print_key_finished_output(iw,logger,input,&
-               "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
+               "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
        END IF
     END IF
 

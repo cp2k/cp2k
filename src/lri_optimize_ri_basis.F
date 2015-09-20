@@ -85,13 +85,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief optimizes the lri basis set
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE optimize_lri_basis(qs_env,error)
+  SUBROUTINE optimize_lri_basis(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_lri_basis', &
       routineP = moduleN//':'//routineN
@@ -117,28 +114,28 @@ CONTAINS
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,input=input,&
                     lri_env=lri_env,lri_density=lri_density,nkind=nkind,&
-                    para_env=para_env,rho=rho_struct,error=error)
+                    para_env=para_env,rho=rho_struct)
 
     ! density matrix
-    CALL qs_rho_get(rho_struct, rho_ao=pmatrix, error=error)
+    CALL qs_rho_get(rho_struct, rho_ao=pmatrix)
 
-    logger => cp_error_get_logger(error)
-    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+    logger => cp_get_default_logger()
+    dft_section => section_vals_get_subs_vals(input,"DFT")
     lri_optbas_section => section_vals_get_subs_vals(input,&
-                          "DFT%QS%OPTIMIZE_LRI_BASIS",error=error)
+                          "DFT%QS%OPTIMIZE_LRI_BASIS")
     iunit=cp_print_key_unit_nr(logger,input,"PRINT%PROGRAM_RUN_INFO",&
-                               extension=".opt",error=error)
+                               extension=".opt")
 
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'(/," POWELL| Start optimization procedure")')
     ENDIF
 
     ! *** initialization
-    CALL create_lri_opt(lri_opt,error)
+    CALL create_lri_opt(lri_opt)
     CALL init_optimization(lri_env,lri_opt,lri_optbas_section,&
-                           opt_state,lri_opt%x,lri_opt%zet_init,nkind,iunit,error)
+                           opt_state,lri_opt%x,lri_opt%zet_init,nkind,iunit)
 
-    CALL calculate_lri_overlap_aabb(lri_env,qs_env,error)
+    CALL calculate_lri_overlap_aabb(lri_env,qs_env)
 
     ! *** ======================= START optimization ===================== 
     opt_state%state = 0
@@ -146,13 +143,13 @@ CONTAINS
       IF ( opt_state%state == 2 ) THEN
         CALL calc_lri_integrals_get_objective(lri_env,lri_density,qs_env,&
                                               lri_opt,opt_state,pmatrix,para_env,&
-                                              nkind,error)
+                                              nkind)
       ENDIF
 
       IF ( opt_state%state == -1 ) EXIT
 
       CALL powell_optimize (opt_state%nvar, lri_opt%x, opt_state)
-      CALL update_exponents(lri_env,lri_opt,lri_opt%x,lri_opt%zet_init,nkind,error)
+      CALL update_exponents(lri_env,lri_opt,lri_opt%x,lri_opt%zet_init,nkind)
       CALL print_optimization_update(opt_state,lri_opt,iunit)
     ENDDO
     ! *** ======================= END optimization =======================
@@ -160,10 +157,10 @@ CONTAINS
     ! *** get final optimized parameters
     opt_state%state = 8
     CALL powell_optimize (opt_state%nvar, lri_opt%x, opt_state)
-    CALL update_exponents(lri_env,lri_opt,lri_opt%x,lri_opt%zet_init,nkind,error)
+    CALL update_exponents(lri_env,lri_opt,lri_opt%x,lri_opt%zet_init,nkind)
 
     CALL write_optimized_lri_basis(lri_env,dft_section,nkind,lri_opt,&
-         atomic_kind_set,error)
+         atomic_kind_set)
 
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') opt_state%nf
@@ -172,9 +169,9 @@ CONTAINS
     ENDIF
 
     CALL cp_print_key_finished_output(iunit,logger,input,&
-                    "PRINT%PROGRAM_RUN_INFO", error=error)
+                    "PRINT%PROGRAM_RUN_INFO")
 
-    CALL deallocate_lri_opt(lri_opt,error)
+    CALL deallocate_lri_opt(lri_opt)
 
   END SUBROUTINE optimize_lri_basis
 
@@ -189,11 +186,9 @@ CONTAINS
 !> \param zet_init initial values of the exponents
 !> \param nkind number of atom kinds
 !> \param iunit output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE init_optimization(lri_env,lri_opt,lri_optbas_section,opt_state,&
-                               x,zet_init,nkind,iunit,error)
+                               x,zet_init,nkind,iunit)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_opt_type), POINTER              :: lri_opt
@@ -201,7 +196,6 @@ CONTAINS
     TYPE(opt_state_type)                     :: opt_state
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x, zet_init
     INTEGER, INTENT(IN)                      :: nkind, iunit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_optimization', &
       routineP = moduleN//':'//routineN
@@ -219,11 +213,11 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(lri_opt%ri_gcc_orig(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! *** get parameters 
     CALL get_optimization_parameter(lri_opt,lri_optbas_section,&
-                                    opt_state,error)
+                                    opt_state)
 
     opt_state%nvar =0
     opt_state%nf = 0
@@ -257,7 +251,7 @@ CONTAINS
       ! *** constraints on exponents
       IF(lri_opt%use_constraints) THEN
         ALLOCATE(zet_init(SIZE(x)),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         zet_init(:)=x 
       ELSE
         x(:)=SQRT(x)
@@ -268,7 +262,7 @@ CONTAINS
     DO ikind=1,nkind
       fbas => lri_env%ri_basis(ikind)%gto_basis_set
       CALL get_original_gcc(lri_opt%ri_gcc_orig(ikind)%gcc_orig,fbas,&
-                            lri_opt,error)
+                            lri_opt)
     ENDDO
 
     ! *** init coefficients
@@ -279,7 +273,7 @@ CONTAINS
         CALL get_gto_basis_set(gto_basis_set=fbas,&
              npgf=npgf,nset=nset,nshell=nshell,zet=zet)
         ! *** Gram Schmidt orthonormalization
-        CALL orthonormalize_gcc(gcc_orig,fbas,lri_opt,error)
+        CALL orthonormalize_gcc(gcc_orig,fbas,lri_opt)
         n=opt_state%nvar
         DO iset=1,nset
           DO ishell=1,nshell(iset)
@@ -309,16 +303,13 @@ CONTAINS
 !> \param lri_opt optimization environmnet
 !> \param lri_optbas_section ...
 !> \param opt_state state of the optimizer
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE get_optimization_parameter(lri_opt,lri_optbas_section,&
-                                       opt_state,error)
+                                       opt_state)
 
     TYPE(lri_opt_type), POINTER              :: lri_opt
     TYPE(section_vals_type), POINTER         :: lri_optbas_section
     TYPE(opt_state_type)                     :: opt_state
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_optimization_parameter', &
       routineP = moduleN//':'//routineN
@@ -330,15 +321,15 @@ CONTAINS
 
     ! *** parameter for POWELL optimizer
     CALL section_vals_val_get(lri_optbas_section,"ACCURACY",&
-                              r_val=opt_state%rhoend, error=error)
+                              r_val=opt_state%rhoend)
     CALL section_vals_val_get(lri_optbas_section,"STEP_SIZE",&
-                              r_val=opt_state%rhobeg, error=error)
+                              r_val=opt_state%rhobeg)
     CALL section_vals_val_get(lri_optbas_section,"MAX_FUN",&
-                              i_val=opt_state%maxfun, error=error)
+                              i_val=opt_state%maxfun)
 
     ! *** parameters which are optimized, i.e. exps or coeff or both
     CALL section_vals_val_get(lri_optbas_section,"DEGREES_OF_FREEDOM",&
-                              i_val=degree_freedom, error=error)
+                              i_val=degree_freedom)
 
     SELECT CASE(degree_freedom)
     CASE(do_lri_opt_all)
@@ -356,23 +347,22 @@ CONTAINS
 
     ! *** restraint
     CALL section_vals_val_get(lri_optbas_section,"USE_CONDITION_NUMBER",&
-                              l_val=lri_opt%use_condition_number,error=error)
+                              l_val=lri_opt%use_condition_number)
     CALL section_vals_val_get(lri_optbas_section,"CONDITION_WEIGHT",&
-                              r_val=lri_opt%cond_weight,error=error)
+                              r_val=lri_opt%cond_weight)
     CALL section_vals_val_get(lri_optbas_section,"GEOMETRIC_SEQUENCE",&
-                              l_val=lri_opt%use_geometric_seq,error=error)
+                              l_val=lri_opt%use_geometric_seq)
 
     ! *** get constraint info
     constrain_exp_section  => section_vals_get_subs_vals(lri_optbas_section,&
-                              "CONSTRAIN_EXPONENTS",error=error)
-    CALL section_vals_get(constrain_exp_section,explicit=lri_opt%use_constraints,&
-                          error=error)
+                              "CONSTRAIN_EXPONENTS")
+    CALL section_vals_get(constrain_exp_section,explicit=lri_opt%use_constraints)
 
     IF(lri_opt%use_constraints) THEN
       CALL section_vals_val_get(constrain_exp_section,"SCALE",&
-                                r_val=lri_opt%scale_exp, error=error)
+                                r_val=lri_opt%scale_exp)
       CALL section_vals_val_get(constrain_exp_section,"FERMI_EXP",&
-                                r_val=lri_opt%fermi_exp, error=error)
+                                r_val=lri_opt%fermi_exp)
     ENDIF
 
   END SUBROUTINE get_optimization_parameter
@@ -384,16 +374,13 @@ CONTAINS
 !> \param x optimization parameters
 !> \param zet_init initial values of the exponents
 !> \param nkind number of atomic kinds
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE update_exponents(lri_env,lri_opt,x,zet_init,nkind,error)
+  SUBROUTINE update_exponents(lri_env,lri_opt,x,zet_init,nkind)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_opt_type), POINTER              :: lri_opt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x, zet_init
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_exponents', &
       routineP = moduleN//':'//routineN
@@ -414,13 +401,13 @@ CONTAINS
     ! nvar_exp: number of exponents that are variables
     nvar_exp= SIZE(x) - lri_opt%ncoeff
     ALLOCATE(zet_trans(nvar_exp),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
    
     ! *** update exponents 
     IF(lri_opt%opt_exps) THEN
       IF (lri_opt%use_constraints) THEN
         zet => x(1:nvar_exp)
-        CALL transfer_exp(lri_opt,zet,zet_init,zet_trans,nvar_exp,error)
+        CALL transfer_exp(lri_opt,zet,zet_init,zet_trans,nvar_exp)
       ELSE
         zet_trans(:) = x(1:nvar_exp)**2.0_dp
       ENDIF
@@ -458,12 +445,12 @@ CONTAINS
           ENDDO
         ENDDO
         ! *** Gram Schmidt orthonormalization
-        CALL orthonormalize_gcc(gcc_orig,fbas,lri_opt,error)
+        CALL orthonormalize_gcc(gcc_orig,fbas,lri_opt)
       ENDDO
     ENDIF
 
     DEALLOCATE(zet_trans,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE update_exponents
 
 ! *****************************************************************************
@@ -473,15 +460,12 @@ CONTAINS
 !> \param zet_init intial value of the eponents
 !> \param zet_trans transferred exponents
 !> \param nvar number of optimized exponents 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE transfer_exp(lri_opt,zet,zet_init,zet_trans,nvar,error)
+  SUBROUTINE transfer_exp(lri_opt,zet,zet_init,zet_trans,nvar)
 
     TYPE(lri_opt_type), POINTER              :: lri_opt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet, zet_init, zet_trans
     INTEGER, INTENT(IN)                      :: nvar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_exp', &
       routineP = moduleN//':'//routineN
@@ -493,7 +477,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(zet_max(nvar),zet_min(nvar),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     
     zet_min(:) = zet_init(:)*(1.0_dp-lri_opt%scale_exp)
     zet_max(:) = zet_init(:)*(1.0_dp+lri_opt%scale_exp)
@@ -503,7 +487,7 @@ CONTAINS
     zet_trans= zet_min + (zet_max-zet_min)/(1+EXP(-a*(zet-zet_init)))
 
     DEALLOCATE(zet_max,zet_min,STAT=stat) 
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 
   END SUBROUTINE transfer_exp
@@ -548,12 +532,10 @@ CONTAINS
 !> \param pmatrix density matrix
 !> \param para_env ...
 !> \param nkind number of atomic kinds
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calc_lri_integrals_get_objective(lri_env,lri_density,qs_env,&
                                               lri_opt,opt_state,pmatrix,para_env,&
-                                              nkind,error)
+                                              nkind)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -564,7 +546,6 @@ CONTAINS
       POINTER                                :: pmatrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calc_lri_integrals_get_objective', &
@@ -582,16 +563,16 @@ CONTAINS
       CALL get_gto_basis_set(gto_basis_set=fbas,npgf=npgf,nset=nset)
       !build new sphi
       fbas%gcc = lri_opt%ri_gcc_orig(ikind)%gcc_orig
-      CALL init_orb_basis_set(fbas,error)
+      CALL init_orb_basis_set(fbas)
     ENDDO
-    CALL lri_basis_init(lri_env,error)
-    CALL calculate_lri_integrals(lri_env,qs_env,calculate_forces=.FALSE.,error=error)
-    CALL calculate_avec(lri_env,lri_density,qs_env,pmatrix,error=error)
+    CALL lri_basis_init(lri_env)
+    CALL calculate_lri_integrals(lri_env,qs_env,calculate_forces=.FALSE.)
+    CALL calculate_avec(lri_env,lri_density,qs_env,pmatrix)
     IF(lri_opt%use_condition_number) THEN 
-      CALL get_condition_number_of_overlap(lri_env,error)
+      CALL get_condition_number_of_overlap(lri_env)
     ENDIF
     CALL calculate_objective(lri_env,lri_density,lri_opt,pmatrix,para_env,&
-                             opt_state%f,error)
+                             opt_state%f)
 
 
   END SUBROUTINE calc_lri_integrals_get_objective
@@ -606,11 +587,9 @@ CONTAINS
 !> \param pmatrix density matrix
 !> \param para_env ...
 !> \param fobj objective function
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_objective(lri_env,lri_density,lri_opt,pmatrix,para_env,&
-                                 fobj,error)
+                                 fobj)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -619,7 +598,6 @@ CONTAINS
       POINTER                                :: pmatrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(OUT)               :: fobj
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_objective', &
       routineP = moduleN//':'//routineN
@@ -690,7 +668,7 @@ CONTAINS
             CALL cp_dbcsr_get_block_p(matrix=pmat,row=jatom,col=iatom,block=pbij,found=found)
             trans = .TRUE.
           END IF
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
  
           ! *** calculate integral of the square of exact density rhoexact_sq
           IF (trans) THEN  
@@ -778,13 +756,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief get condition number of overlap matrix
 !> \param lri_env lri environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE get_condition_number_of_overlap(lri_env,error)
+  SUBROUTINE get_condition_number_of_overlap(lri_env)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'get_condition_number_of_overlap', &
@@ -825,10 +800,10 @@ CONTAINS
        ! build the overlap matrix
        IF(iatom == jatom) THEN
         ALLOCATE(smat(nfa,nfa),STAT=stat) 
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ELSE
         ALLOCATE(smat(nn,nn),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
        smat(1:nfa,1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
        IF(iatom /= jatom) THEN
@@ -840,7 +815,7 @@ CONTAINS
 
        IF(iatom==jatom) nn=nfa
        ALLOCATE(diag(nn),off_diag(nn-1),tau(nn-1),work(1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        diag=0.0_dp
        off_diag=0.0_dp
        tau=0.0_dp
@@ -857,7 +832,7 @@ CONTAINS
        lrii%cond_num=MAXVAL(ABS(diag))/MINVAL(ABS(diag))
        
        DEALLOCATE(diag,off_diag,smat,tau,work)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO 
 
     CALL neighbor_list_iterator_release(nl_iterator)
@@ -909,11 +884,9 @@ CONTAINS
 !> \param nkind ...
 !> \param lri_opt ...
 !> \param atomic_kind_set ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE write_optimized_lri_basis(lri_env,dft_section,nkind,lri_opt,&
-                                       atomic_kind_set,error)
+                                       atomic_kind_set)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -921,7 +894,6 @@ CONTAINS
     TYPE(lri_opt_type), POINTER              :: lri_opt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_optimized_lri_basis', &
       routineP = moduleN//':'//routineN
@@ -942,25 +914,23 @@ CONTAINS
 
     !*** do the printing 
     print_key => section_vals_get_subs_vals(dft_section,&
-                                            "PRINT%OPTIMIZE_LRI_BASIS",&
-                                            error=error)
-    logger => cp_error_get_logger(error)
+                                            "PRINT%OPTIMIZE_LRI_BASIS")
+    logger => cp_get_default_logger()
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              dft_section,"PRINT%OPTIMIZE_LRI_BASIS",error=error),&
+              dft_section,"PRINT%OPTIMIZE_LRI_BASIS"),&
               cp_p_file)) THEN
       output_file=cp_print_key_unit_nr(logger,dft_section,&
                                        "PRINT%OPTIMIZE_LRI_BASIS",&
                                        extension=".opt",&
                                        file_status="REPLACE",&
                                        file_action="WRITE",&
-                                       file_form="FORMATTED",& 
-                                       error=error)
+                                       file_form="FORMATTED") 
 
       IF(output_file>0) THEN
 
         filename = cp_print_key_generate_filename(logger,&
                    print_key,extension=".opt", &
-                   my_local=.TRUE.,error=error) 
+                   my_local=.TRUE.) 
         
         DO ikind =1, nkind
           fbas  => lri_env%ri_basis(ikind)%gto_basis_set
@@ -1004,7 +974,7 @@ CONTAINS
       ENDIF
  
       CALL cp_print_key_finished_output(output_file,logger,dft_section,&
-                        "PRINT%OPTIMIZE_LRI_BASIS", error=error)
+                        "PRINT%OPTIMIZE_LRI_BASIS")
     ENDIF
 
   END SUBROUTINE write_optimized_lri_basis

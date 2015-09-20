@@ -74,12 +74,11 @@ CONTAINS
 !> \param first_col ...
 !> \param last_col ...
 !> \param output_unit ...
-!> \param error ...
 !> \author Creation (12.06.2001,MK)
 !>       Allow for printing of a sub-matrix (01.07.2003,MK)
 ! *****************************************************************************
   SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,para_env,&
-       first_row,last_row,first_col,last_col,output_unit,error)
+       first_row,last_row,first_col,last_col,output_unit)
 
     TYPE(cp_fm_type), POINTER                :: blacs_matrix
     INTEGER, INTENT(IN)                      :: before, after
@@ -88,7 +87,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_with_basis_info', &
       routineP = moduleN//':'//routineN
@@ -106,15 +104,15 @@ CONTAINS
     group = para_env%group
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,&
-         ncol_global=ncol_global,error=error)
+         ncol_global=ncol_global)
 
     ALLOCATE(matrix(nrow_global,ncol_global),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_fm_get_submatrix(blacs_matrix,matrix,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_fm_get_submatrix(blacs_matrix,matrix)
 
     ! *** Get the matrix dimension and check the optional arguments ***
-    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf,error=error)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
     IF (PRESENT(first_row)) THEN
       row1 = MAX(1,first_row)
@@ -141,12 +139,12 @@ CONTAINS
     END IF
 
     CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
-         row1,row2,col1,col2,output_unit,error=error)
+         row1,row2,col1,col2,output_unit)
 
     ! *** Release work storage ***
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE write_fm_with_basis_info
@@ -164,11 +162,10 @@ CONTAINS
 !> \param last_col ...
 !> \param scale ...
 !> \param output_unit ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                       first_row,last_row,first_col,last_col,scale,&
-                                       output_unit,error)
+                                       output_unit)
 
     TYPE(cp_dbcsr_type)                      :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
@@ -178,7 +175,6 @@ CONTAINS
                                                 first_col, last_col
     REAL(dp), INTENT(IN), OPTIONAL           :: scale
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_sparse_matrix', &
       routineP = moduleN//':'//routineN
@@ -196,7 +192,7 @@ CONTAINS
 
     NULLIFY (matrix)
 
-    CALL copy_repl_dbcsr_to_repl_fm(sparse_matrix,matrix,error)
+    CALL copy_repl_dbcsr_to_repl_fm(sparse_matrix,matrix)
 
     CALL mp_sum(matrix,group)
 
@@ -214,7 +210,7 @@ CONTAINS
     END SELECT
 
     ! *** Get the matrix dimension and check the optional arguments ***
-    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set)
     dim_row = SIZE(matrix,1)
     dim_col = SIZE(matrix,2)
 
@@ -249,15 +245,15 @@ CONTAINS
     matrix_name = cp_dbcsr_name(sparse_matrix)
     IF (print_sym) THEN
        CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
-            row1,row2,col1,col2, output_unit,error=error)
+            row1,row2,col1,col2, output_unit)
     ELSE
        CALL write_matrix_gen(matrix,matrix_name,before,after,para_env,&
-            row1,row2,col1,col2, output_unit,error=error)
+            row1,row2,col1,col2, output_unit)
     END IF
 
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE cp_dbcsr_write_sparse_matrix
@@ -266,13 +262,11 @@ CONTAINS
 !> \brief ...
 !> \param sparse_matrix ...
 !> \param fm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm,error)
+  SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm)
 
     TYPE(cp_dbcsr_type)                      :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_repl_dbcsr_to_repl_fm', &
       routineP = moduleN//':'//routineN
@@ -301,7 +295,7 @@ CONTAINS
 
     !> this should be precomputed somewhere else
     ALLOCATE(r_offset(nblkrows_total),c_offset(nblkcols_total),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     r_offset(1) = 1
     DO row = 2,nblkrows_total
@@ -316,7 +310,7 @@ CONTAINS
     !<
 
     ALLOCATE (fm(nr,nc),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     fm(:,:) = 0.0_dp
 
@@ -332,7 +326,7 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE(r_offset,c_offset,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -351,11 +345,10 @@ CONTAINS
 !> \param first_col ...
 !> \param last_col ...
 !> \param output_unit ...
-!> \param error ...
 !> \author Creation (01.07.2003,MK)
 ! *****************************************************************************
   SUBROUTINE write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
-                          first_row,last_row,first_col,last_col,output_unit,error)
+                          first_row,last_row,first_col,last_col,output_unit)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
@@ -365,7 +358,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
                                                 first_col, last_col, &
                                                 output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_matrix_sym', &
       routineP = moduleN//':'//routineN
@@ -398,19 +390,19 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       qs_kind_set=qs_kind_set,&
                       atomic_kind_set=atomic_kind_set,&
-                      particle_set=particle_set,error=error)
+                      particle_set=particle_set)
 
       natom = SIZE(particle_set)
 
-      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf,error=error)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
       ALLOCATE (first_sgf(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE (last_sgf(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       CALL get_particle_set(particle_set, qs_kind_set,&
                             first_sgf=first_sgf,&
-                            last_sgf=last_sgf,error=error)
+                            last_sgf=last_sgf)
 
       ! *** Definition of the variable formats ***
       fmtstr1 = "(/,T2,23X,  (  X,I5,  X))"
@@ -446,7 +438,7 @@ CONTAINS
             NULLIFY(orb_basis_set)
             CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
                  kind_number=ikind, element_symbol=element_symbol)
-            CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,error=error)
+            CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set)
             IF ( ASSOCIATED(orb_basis_set) ) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                     nset=nset,nshell=nshell,l=lshell,sgf_symbol=sgf_symbol)
@@ -486,9 +478,9 @@ CONTAINS
 
       WRITE (UNIT=output_unit,FMT="(/)")
       DEALLOCATE (first_sgf,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       DEALLOCATE (last_sgf,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL mp_sync(group)
@@ -508,11 +500,10 @@ CONTAINS
 !> \param first_col ...
 !> \param last_col ...
 !> \param output_unit ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE write_matrix_gen(matrix,matrix_name,before,after,para_env,&
-       first_row,last_row,first_col,last_col,output_unit,error)
+       first_row,last_row,first_col,last_col,output_unit)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
@@ -521,7 +512,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
                                                 first_col, last_col, &
                                                 output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_matrix_gen', &
       routineP = moduleN//':'//routineN
@@ -589,15 +579,13 @@ CONTAINS
 !> \param matrix ...
 !> \param output_unit ...
 !> \param para_env ...
-!> \param error ...
 !> \par History
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_write_matrix_dist(matrix,output_unit,para_env,error)
+  SUBROUTINE cp_dbcsr_write_matrix_dist(matrix,output_unit,para_env)
     TYPE(cp_dbcsr_type)                      :: matrix
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_matrix_dist', &
       routineP = moduleN//':'//routineN
@@ -618,7 +606,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL timeset(routineN,handle)
 
@@ -629,11 +617,11 @@ CONTAINS
 
     ! *** Allocate work storage ***
     ALLOCATE (nblock(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     nelement(:) = 0
 
     nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
@@ -700,10 +688,10 @@ CONTAINS
 
     ! *** Release work storage ***
     DEALLOCATE (nblock,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (nelement,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 

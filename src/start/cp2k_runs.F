@@ -179,7 +179,6 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: m_memory_max_mpi
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
-    TYPE(cp_error_type)                      :: error, suberror
     TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -194,7 +193,7 @@ CONTAINS
     was_present = .FALSE.
     NULLIFY(para_env, f_env, dft_control)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
-         owns_group=.FALSE.,error=error)
+         owns_group=.FALSE.)
 
     IF(acc_get_ndevices() > 0) &
       CALL acc_set_active_device(MOD(para_env%mepos, acc_get_ndevices()))
@@ -203,7 +202,7 @@ CONTAINS
 
     CALL pw_cuda_init()
 
-    CALL cp_dbcsr_init_lib (error=error)
+    CALL cp_dbcsr_init_lib ()
 
     NULLIFY(globenv, force_env)
 
@@ -211,65 +210,64 @@ CONTAINS
 
     ! parse the input
     input_file => read_input(input_declaration,input_file_name,initial_variables=empty_initial_variables, &
-                                            para_env=para_env,error=error)
+                                            para_env=para_env)
 
     CALL mp_sync(para_env%group)
 
-    glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
-    CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
-         error=error)
-    logger => cp_error_get_logger(error)
+    glob_section => section_vals_get_subs_vals(input_file,"GLOBAL")
+    CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input)
+    logger => cp_get_default_logger()
     IF (echo_input) THEN
        CALL section_vals_write(input_file,&
             unit_nr=cp_logger_get_default_io_unit(logger),&
-            hide_root=.TRUE., hide_defaults=.FALSE., error=error)
+            hide_root=.TRUE., hide_defaults=.FALSE.)
     END IF
 
-    CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=output_unit,error=error)
+    CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=output_unit)
     root_section=>input_file
     CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",&
-         i_val=prog_name_id,error=error)
+         i_val=prog_name_id)
     CALL section_vals_val_get(input_file,"GLOBAL%RUN_TYPE",&
-         i_val=run_type_id,error=error)
+         i_val=run_type_id)
 
     IF (prog_name_id/=do_cp2k) THEN
        ! initial setup (cp2k does in in the creation of the force_env)
-       CALL globenv_create(globenv, error=error)
+       CALL globenv_create(globenv)
        ! XXXXXXXXX
        ! root_section => input_file
        ! XXXXXXXXX
-       CALL section_vals_retain(input_file,error=error)
+       CALL section_vals_retain(input_file)
        CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
-       CALL cp2k_read(root_section,para_env,globenv,error=error)
-       CALL cp2k_setup(root_section,para_env, globenv,suberror)
+       CALL cp2k_read(root_section,para_env,globenv)
+       CALL cp2k_setup(root_section,para_env, globenv)
     END IF
 
-    CALL cp_dbcsr_config (root_section, error)
+    CALL cp_dbcsr_config (root_section)
     IF (output_unit > 0 .AND.&
          cp_logger_would_log(logger, cp_note_level)) THEN
-       CALL cp_dbcsr_print_config (unit_nr=output_unit, error=error)
+       CALL cp_dbcsr_print_config (unit_nr=output_unit)
        WRITE (UNIT=output_unit,FMT='()')
     ENDIF
 
     SELECT CASE (prog_name_id)
     CASE (do_atom)
        globenv%run_type_id = none_run
-       CALL atom_code(root_section,suberror)
+       CALL atom_code(root_section)
     CASE (do_optimize_input)
-       CALL run_optimize_input(input_declaration,root_section, para_env, suberror)
+       CALL run_optimize_input(input_declaration,root_section, para_env)
     CASE (do_swarm)
-       CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name, suberror)
+       CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name)
     CASE (do_farming)
        ! Hack: DBCSR should be uninitialized when entering farming.
        ! But, we don't want to change the public f77_interface.
        ! TODO: refactor cp2k's startup code
-       CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
+       CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0)
        CALL pw_cuda_finalize()
-       CALL farming_run(input_declaration, root_section, para_env, suberror )
-       CALL cp_dbcsr_init_lib(error=error)
+       CALL farming_run(input_declaration, root_section, para_env)
+       CALL cp_dbcsr_init_lib()
        CALL pw_cuda_init()
     CASE (do_opt_basis)
-       CALL run_optimize_basis (input_declaration, root_section, para_env, suberror)
+       CALL run_optimize_basis (input_declaration, root_section, para_env)
        globenv%run_type_id = none_run
     CASE(do_cp2k)
        CALL create_force_env(new_env_id,&
@@ -279,32 +277,32 @@ CONTAINS
             output_unit=output_unit,&
             owns_out_unit=.FALSE.,&
             input=input_file,ierr=ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-       CALL f_env_add_defaults(new_env_id,f_env,new_error=suberror,&
+       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CALL f_env_add_defaults(new_env_id,f_env,&
             failure=failure,handle=f_env_handle)
        force_env => f_env%force_env
-       CALL force_env_get(force_env,globenv=globenv,error=suberror)
-       CALL globenv_retain(globenv,error=suberror)
-       CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id,error=error)
+       CALL force_env_get(force_env,globenv=globenv)
+       CALL globenv_retain(globenv)
+       CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id)
 
     CASE (do_test)
-       CALL lib_test(root_section,para_env,globenv,suberror)
+       CALL lib_test(root_section,para_env,globenv)
     CASE (do_tree_mc) ! TMC entry point
-       CALL do_tmc (input_declaration, root_section, para_env, globenv, error=suberror)
+       CALL do_tmc (input_declaration, root_section, para_env, globenv)
     CASE (do_tree_mc_ana)
-       CALL do_analyze_files(input_declaration, root_section, para_env, error=suberror )
+       CALL do_analyze_files(input_declaration, root_section, para_env)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
-    CALL section_vals_release(input_file,error=suberror)
+    CALL section_vals_release(input_file)
 
     SELECT CASE (globenv%run_type_id)
     CASE (pint_run)
-       CALL do_pint_run( para_env, root_section, input_declaration, globenv, error=suberror )
+       CALL do_pint_run( para_env, root_section, input_declaration, globenv)
     CASE (none_run, tree_mc_run)
        ! do nothing
     CASE (driver_run)
-       CALL run_driver (force_env, globenv, error=suberror)
+       CALL run_driver (force_env, globenv)
     CASE (energy_run, energy_force_run)
        IF(  method_name_id /= do_qs .AND.&
             method_name_id /= do_qmmm .AND.&
@@ -313,102 +311,98 @@ CONTAINS
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "Energy/Force run not available for all methods "//&
             CPSourceFileRef,&
-            suberror,failure)
+            failure)
 
-       sublogger => cp_error_get_logger(error)
+       sublogger => cp_get_default_logger()
        CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
-            n_rlevel_new=iter_level,&
-            error=suberror)
+            n_rlevel_new=iter_level)
        
        ! loop over molecules to generate a molecular guess
        ! this procedure is initiated here to avoid passing globenv deep down
        ! the subroutine stack
-       IF (do_mol_loop(force_env=force_env,error=suberror)) &
-          CALL loop_over_molecules(globenv,force_env,error=suberror)
+       IF (do_mol_loop(force_env=force_env)) &
+          CALL loop_over_molecules(globenv,force_env)
 
        SELECT CASE(globenv%run_type_id)
        CASE (energy_run)
-          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
+          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
        CASE(energy_force_run)
-          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=suberror)
+          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
        CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
-       CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level,&
-            error=suberror)
+       CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level)
     CASE (mol_dyn_run)
-       CALL qs_mol_dyn ( force_env, globenv, error=suberror )
+       CALL qs_mol_dyn ( force_env, globenv)
     CASE (geo_opt_run)
-       CALL cp_geo_opt(force_env,globenv,error=suberror)
+       CALL cp_geo_opt(force_env,globenv)
     CASE (cell_opt_run)
-       CALL cp_cell_opt(force_env,globenv,error=suberror)
+       CALL cp_cell_opt(force_env,globenv)
     CASE (mon_car_run)
-       CALL do_mon_car(force_env, globenv, input_declaration, input_file_name, error=suberror)
+       CALL do_mon_car(force_env, globenv, input_declaration, input_file_name)
     CASE (do_tamc)
-       CALL qs_tamc ( force_env, globenv, error=suberror )
+       CALL qs_tamc ( force_env, globenv)
     CASE (electronic_spectra_run)
        IF(method_name_id /= do_qs) &
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "Electron spectra available only with Quickstep. "//&
             CPSourceFileRef,&
-            suberror,failure)
-       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-            error=suberror)
-       CALL tddfpt_calculation(force_env%qs_env, error=error)
+            failure)
+       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
+       CALL tddfpt_calculation(force_env%qs_env)
     CASE (real_time_propagation)
        IF(method_name_id /= do_qs) &
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "Real time propagation needs METHOD QS. "//&
             CPSourceFileRef,&
-            suberror,failure)
-       CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+            failure)
+       CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
        dft_control%rtp_control%fixed_ions=.TRUE.
-       CALL rt_prop_setup(force_env,error)
+       CALL rt_prop_setup(force_env)
     CASE (ehrenfest)
        IF(method_name_id /= do_qs) &
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "Ehrenfest dynamics needs METHOD QS "//&
             CPSourceFileRef,&
-            suberror,failure)
-       CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+            failure)
+       CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
        dft_control%rtp_control%fixed_ions=.FALSE.
-       CALL qs_mol_dyn ( force_env, globenv, error=suberror )
+       CALL qs_mol_dyn ( force_env, globenv)
     CASE (bsse_run)
-       CALL do_bsse_calculation(force_env, globenv, error=suberror)
+       CALL do_bsse_calculation(force_env, globenv)
     CASE (linear_response_run)
        IF(method_name_id /= do_qs .AND. &
           method_name_id /= do_qmmm) &
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Property calculations by Linear Response only within the QS or QMMM program "//&
                CPSourceFileRef,&
-               suberror,failure)
+               failure)
        ! The Ground State is needed, it can be read from Restart
-       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,linres=.TRUE.,&
-                                        error=suberror)
-       CALL linres_calculation(force_env, error=suberror)
+       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,linres=.TRUE.)
+       CALL linres_calculation(force_env)
     CASE (debug_run)
        SELECT CASE(method_name_id)
        CASE(do_qs, do_qmmm, do_fist)
-          CALL cp2k_debug_energy_and_forces(force_env, error=suberror)
+          CALL cp2k_debug_energy_and_forces(force_env)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Debug run available only with QS, FIST, and QMMM program "//&
                CPSourceFileRef,&
-               suberror,failure)
+               failure)
        END SELECT
     CASE (vib_anal)
-       CALL vb_anal(root_section,input_declaration,para_env,globenv,error=suberror)
+       CALL vb_anal(root_section,input_declaration,para_env,globenv)
     CASE (do_band)
-       CALL neb(root_section,input_declaration,para_env,globenv,error=suberror)
+       CALL neb(root_section,input_declaration,para_env,globenv)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     !sample peak memory
     CALL m_memory()
 
     CALL pw_cuda_finalize()
-    CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
+    CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit)
 
     m_memory_max_mpi=m_memory_max
     CALL mp_max(m_memory_max_mpi,mpi_comm)
@@ -420,24 +414,24 @@ CONTAINS
 
     IF (prog_name_id==do_cp2k) THEN
        f_env%force_env => force_env ! for mc
-       CALL globenv_retain(globenv,error=error)!mc
-       CALL globenv_release(force_env%globenv,error=error) !mc
+       CALL globenv_retain(globenv)!mc
+       CALL globenv_release(force_env%globenv) !mc
        force_env%globenv => globenv !mc
-       CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
+       CALL f_env_rm_defaults(f_env,ierr=ierr,&
             handle=f_env_handle)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       CPAssert(ierr==0,cp_failure_level,routineP,failure)
        CALL destroy_force_env(new_env_id,ierr=ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-       CALL globenv_release(globenv,error=error)
+       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CALL globenv_release(globenv)
     ELSE
        I_was_ionode=para_env%ionode
-       CALL cp2k_finalize(root_section,para_env,globenv,error=error)
-       CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
-       CALL section_vals_release(root_section,error=error)
-       CALL globenv_release(globenv,error=error)
+       CALL cp2k_finalize(root_section,para_env,globenv)
+       CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP)
+       CALL section_vals_release(root_section)
+       CALL globenv_release(globenv)
     END IF
 
-    CALL cp_para_env_release(para_env,error=error)
+    CALL cp_para_env_release(para_env)
     cp2k_run_OK = .NOT. failure
 
   END FUNCTION cp2k_run
@@ -447,17 +441,15 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param error ...
 !> \author Joost VandeVondele
 !> \note
 !>      needs to be part of this module as the cp2k_run -> farming_run -> cp2k_run
 !>      calling style creates a hard circular dependency
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE farming_run(input_declaration,root_section,para_env, error)
+  RECURSIVE SUBROUTINE farming_run(input_declaration,root_section,para_env)
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
       routineP = moduleN//':'//routineN
@@ -492,18 +484,18 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,root_section,"FARMING%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
+                                         extension=".log")
 
     IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
     ALLOCATE(farming_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
-    CALL farming_parse_input(farming_env,root_section,para_env,error)
+    CALL farming_parse_input(farming_env,root_section,para_env)
 
     ! the full mpi group is first split in a slave group and a master group, the latter being at most 1 process
     slave=.TRUE.
@@ -514,7 +506,7 @@ CONTAINS
        ALLOCATE(master_slave_partition(0:1))
        master_slave_partition=(/1,para_env%num_pe-1/)
        ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        CALL mp_comm_split(para_env%group,slave_group,ngroups,group_distribution,&
                    n_subgroups=2, group_partition=master_slave_partition)
@@ -527,11 +519,11 @@ CONTAINS
            master=.TRUE.
            ! on the master node, num_slaves corresponds to the size of the master group
            ! due to the mp_environ call.
-           CPPostcondition(num_slaves==1,cp_failure_level,routineP,error,failure)
+           CPPostcondition(num_slaves==1,cp_failure_level,routineP,failure)
            num_slaves=para_env%num_pe-1
            slave_rank=-1
        ENDIF
-       CPPostcondition(num_slaves==para_env%num_pe-1,cp_failure_level,routineP,error,failure)
+       CPPostcondition(num_slaves==para_env%num_pe-1,cp_failure_level,routineP,failure)
     ELSE
        ! all processes are slaves
        IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| using a slave-only setup"
@@ -542,7 +534,7 @@ CONTAINS
 
     ! keep track of which para_env rank is which slave/master
     ALLOCATE(slave_distribution(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     slave_distribution=0
     slave_distribution(para_env%mepos)=slave_rank
     CALL mp_sum(slave_distribution,para_env%group)
@@ -555,7 +547,7 @@ CONTAINS
     ! split the current communicator for the slaves
     ! in a new_group, new_size and new_rank according to the number of groups required according to the input
     ALLOCATE(group_distribution(0:num_slaves-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     group_distribution=-1
     IF (slave) THEN
         IF (farming_env%group_size_wish_set) THEN
@@ -567,7 +559,7 @@ CONTAINS
                    n_subgroups=farming_env%ngroup_wish,&
                    group_partition=farming_env%group_partition)
         ELSE
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
         ENDIF
         CALL mp_environ(new_size,new_rank,new_group)
     ENDIF
@@ -613,11 +605,11 @@ CONTAINS
 
     ! and write the restart now, that's the point where the next job starts, even if this one is running
     iunit=cp_print_key_unit_nr(logger,root_section,"FARMING%RESTART",&
-         extension=".restart",error=error)
+         extension=".restart")
     IF (iunit>0) THEN
        WRITE(iunit,*) i_job_to_restart
     ENDIF
-    CALL cp_print_key_finished_output(iunit,logger,root_section,"FARMING%RESTART",error=error)
+    CALL cp_print_key_finished_output(iunit,logger,root_section,"FARMING%RESTART")
 
 
     ! this is the job range to be executed.
@@ -671,7 +663,7 @@ CONTAINS
           ENDDO
        ELSE ! master
           ALLOCATE(slave_status(0:ngroups-1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           slave_status=slave_status_wait
           ijob_current=ijob_start-1
 
@@ -718,14 +710,14 @@ CONTAINS
                       WRITE(output_unit,FMT=*) ""
                       CALL m_flush(output_unit)
                    ENDIF
-                   CPPostcondition(todo.NE.do_deadlock,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(todo.NE.do_deadlock,cp_failure_level,routineP,failure)
                ENDIF
              ENDIF
 
           ENDDO
 
           DEALLOCATE(slave_status,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        ENDIF
     ELSE
@@ -784,15 +776,15 @@ CONTAINS
 
     ! and message passing deallocate structures
     DEALLOCATE(group_distribution,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(slave_distribution,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! clean the farming env
     CALL deallocate_farming_env(farming_env)
 
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-               "FARMING%PROGRAM_RUN_INFO", error=error)
+               "FARMING%PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 
@@ -807,7 +799,7 @@ CONTAINS
 ! change to the new working directory
 
        CALL m_chdir(TRIM(farming_env%Job(i)%cwd),ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
        ! generate a fresh call to cp2k_run
        IF (new_rank == 0) THEN
@@ -815,26 +807,25 @@ CONTAINS
           IF (farming_env%Job(i)%output=="") THEN
              ! generate the output file
              WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-             CALL parser_create(my_parser,file_name=TRIM(farming_env%Job(i)%input),error=error)
+             CALL parser_create(my_parser,file_name=TRIM(farming_env%Job(i)%input))
              label="&GLOBAL"
-             CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
+             CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found)
              IF (found) THEN
-                CALL create_global_section(g_section,error=error)
-                CALL section_vals_create(g_data,g_section,error=error)
-                CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-                CALL section_vals_parse(g_data,my_parser,default_units,&
-                     error=error)
-                CALL cp_unit_set_release(default_units,error=error)
+                CALL create_global_section(g_section)
+                CALL section_vals_create(g_data,g_section)
+                CALL cp_unit_set_create(default_units, "OUTPUT")
+                CALL section_vals_parse(g_data,my_parser,default_units)
+                CALL cp_unit_set_release(default_units)
                 CALL section_vals_val_get(g_data,"PROJECT",&
-                     c_val=str, error=error)
+                     c_val=str)
                 IF (str.NE."") output_file=TRIM(str)//".out"
                 CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
-                        c_val=str,error=error)
+                        c_val=str)
                 IF (str.NE."") output_file=str
-                CALL section_vals_release(g_data,error=error)
-                CALL section_release(g_section,error=error)
+                CALL section_vals_release(g_data)
+                CALL section_release(g_section)
              END IF
-             CALL parser_release(my_parser,error=error)
+             CALL parser_release(my_parser)
           ELSE
              output_file=farming_env%Job(i)%output
           ENDIF
@@ -857,19 +848,16 @@ CONTAINS
 
        ! change to the original working directory
        CALL m_chdir(TRIM(farming_env%cwd),ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
      END SUBROUTINE execute_job
   END SUBROUTINE farming_run
 
 ! *****************************************************************************
 !> \brief writes a small html description of the cp2k input
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author joost [fawzi]
 ! *****************************************************************************
-  SUBROUTINE write_cp2k_html_manual(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE write_cp2k_html_manual()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_cp2k_html_manual', &
       routineP = moduleN//':'//routineN
@@ -881,11 +869,11 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(root_section)
-    CALL create_cp2k_root_section(root_section,error=error)
+    CALL create_cp2k_root_section(root_section)
     ! remove the default keyword that ignores things outside the section
-    CALL keyword_release(root_section%keywords(0)%keyword,error=error)
+    CALL keyword_release(root_section%keywords(0)%keyword)
 
-    CALL section_describe_html(root_section,"InputReference",0,default_output_unit,error=error)
+    CALL section_describe_html(root_section,"InputReference",0,default_output_unit)
 
     CALL open_file(unit_number=unit_nr,file_name="index.html",&
          file_action="WRITE", file_status="REPLACE")
@@ -984,13 +972,13 @@ CONTAINS
     WRITE(unit_nr,FMT='(A)') "A description of each section, and a list of keywords can be obtained clicking on the links. "
     WRITE(unit_nr,FMT='(A)') "<BR><UL>"
 
-    CALL section_describe_index_html(root_section,"InputReference",unit_nr,error=error)
+    CALL section_describe_index_html(root_section,"InputReference",unit_nr)
 
     WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
 
     CALL close_file(unit_nr)
-    CALL section_release(root_section,error=error)
+    CALL section_release(root_section)
 
     ! References
     CALL open_file(unit_number=unit_nr,file_name="references.html",&
@@ -1016,11 +1004,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_xml_file(error)
+  SUBROUTINE write_xml_file()
 
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file', &
       routineP = moduleN//':'//routineN
@@ -1031,8 +1017,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(root_section)
-    CALL create_cp2k_root_section(root_section,error=error)
-    CALL keyword_release(root_section%keywords(0)%keyword,error)
+    CALL create_cp2k_root_section(root_section)
+    CALL keyword_release(root_section%keywords(0)%keyword)
     CALL open_file(unit_number=unit_number,&
                    file_name="cp2k_input.xml",&
                    file_action="WRITE",&
@@ -1050,9 +1036,9 @@ CONTAINS
       "<!DOCTYPE documentElement["
     DO i=1,SIZE(html_entity_table),2
        is = INDEX(html_entity_table(i),"&") + 1
-       CPPostcondition((is > 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((is > 0),cp_failure_level,routineP,failure)
        ie = INDEX(html_entity_table(i),";") - 1
-       CPPostcondition((ie >= is),cp_failure_level,routineP,error,failure)
+       CPPostcondition((ie >= is),cp_failure_level,routineP,failure)
        WRITE (UNIT=unit_number,FMT="(A)")&
         "<!ENTITY "//html_entity_table(i)(is:ie)//" """//TRIM(html_entity_table(i+1))//""">"
     END DO
@@ -1067,13 +1053,13 @@ CONTAINS
       " <COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
       " <COMPILE_REVISION>"//TRIM(compile_revision)//"</COMPILE_REVISION>"
     DO i=1,root_section%n_subsections
-       CALL write_section_xml(root_section%subsections(i)%section,1,unit_number,error)
+       CALL write_section_xml(root_section%subsections(i)%section,1,unit_number)
     END DO
     ! Append HTML entity and tag tables
     CALL write_html_tables(unit_number)
     WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
     CALL close_file(unit_number=unit_number)
-    CALL section_release(root_section,error=error)
+    CALL section_release(root_section)
 
     ! References
     CALL open_file(unit_number=unit_number,file_name="references.html",&
@@ -1122,16 +1108,15 @@ CONTAINS
 
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure, success
-    TYPE(cp_error_type)                      :: error
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
-       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error) !XXXXXXXXXXXX uninitiliased error
+       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.) !XXXXXXXXXXXX uninitiliased error
     ELSE
        para_env => f77_default_para_env
-       CALL cp_para_env_retain(para_env,error=error) !XXXXXXXXXXXX uninitiliased error
+       CALL cp_para_env_retain(para_env) !XXXXXXXXXXXX uninitiliased error
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
@@ -1150,7 +1135,7 @@ CONTAINS
     ELSE
        ierr=0
     END IF
-    CALL cp_para_env_release(para_env,error=error) !XXXXXXXXXXXX uninitiliased error
+    CALL cp_para_env_release(para_env) !XXXXXXXXXXXX uninitiliased error
   END SUBROUTINE run_input
 
 END MODULE cp2k_runs

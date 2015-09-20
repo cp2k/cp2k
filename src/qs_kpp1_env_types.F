@@ -91,15 +91,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases a kpp1_env (see doc/ReferenceCounting.html)
 !> \param kpp1_env the environement to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE kpp1_release(kpp1_env,error)
+  SUBROUTINE kpp1_release(kpp1_env)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_release', &
       routineP = moduleN//':'//routineN
@@ -110,51 +107,51 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(kpp1_env)) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
        kpp1_env%ref_count=kpp1_env%ref_count-1
        IF (kpp1_env%ref_count<1) THEN
           IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
              DO ispin=1,SIZE(kpp1_env%v_rspace)
-                CALL pw_release(kpp1_env%v_rspace(ispin)%pw,error=error)
+                CALL pw_release(kpp1_env%v_rspace(ispin)%pw)
              END DO
              DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
              DO ispin=1,SIZE(kpp1_env%v_ao)
                 IF (ASSOCIATED(kpp1_env%v_ao(ispin)%matrix)) THEN
-                   CALL cp_dbcsr_deallocate_matrix(kpp1_env%v_ao(ispin)%matrix,error=error)
+                   CALL cp_dbcsr_deallocate_matrix(kpp1_env%v_ao(ispin)%matrix)
                 END IF
              END DO
              DEALLOCATE(kpp1_env%v_ao, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (ASSOCIATED(kpp1_env%drho_r)) THEN
              DEALLOCATE(kpp1_env%drho_r, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
-             CALL xc_dset_release(kpp1_env%deriv_set, error=error)
+             CALL xc_dset_release(kpp1_env%deriv_set)
              NULLIFY(kpp1_env%deriv_set)
           END IF
           IF (ASSOCIATED(kpp1_env%rho_set)) THEN
-             CALL xc_rho_set_release(kpp1_env%rho_set, error=error)
+             CALL xc_rho_set_release(kpp1_env%rho_set)
              NULLIFY(kpp1_env%rho_set)
           END IF
           IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
              DEALLOCATE(kpp1_env%spin_pot, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
              DEALLOCATE(kpp1_env%grad_pot, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
              DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           DEALLOCATE(kpp1_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY(kpp1_env)
@@ -163,15 +160,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains a kpp1_env (see doc/ReferenceCounting.html)
 !> \param kpp1_env the environement to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE kpp1_retain(kpp1_env,error)
+  SUBROUTINE kpp1_retain(kpp1_env)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_retain', &
       routineP = moduleN//':'//routineN
@@ -180,8 +174,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
     kpp1_env%ref_count=kpp1_env%ref_count+1
   END SUBROUTINE kpp1_retain
 
@@ -194,19 +188,15 @@ CONTAINS
 !>        (defaults to false)
 !> \param local if the unit is a local unit or a global unit
 !>        (defaults to false, i.e. global)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE kpp1_write(kpp1_env, particles, unit_nr, long_description, local,&
-       error)
+  SUBROUTINE kpp1_write(kpp1_env, particles, unit_nr, long_description, local)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN
@@ -223,7 +213,7 @@ CONTAINS
 
     IF (PRESENT(local)) my_local=local
     IF (PRESENT(long_description)) my_long_description=long_description
-    logger=>cp_error_get_logger(error)
+    logger=>cp_get_default_logger()
     para_env=>logger%para_env
     should_w=my_local .OR. para_env%mepos==para_env%source
     my_unit_nr=unit_nr
@@ -262,7 +252,7 @@ CONTAINS
                    CALL cp_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         unit_nr=file_unit,&
                         particles=particles,&
-                        title="v_rspace",error=error)
+                        title="v_rspace")
                    CALL close_file(file_unit)
                 END DO
                 WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_rspace=*written to ",&
@@ -283,7 +273,7 @@ CONTAINS
 !FM                        fromWhere=routineP,iter=kpp1_env%print_count,&
 !FM                        matrix=kpp1_env%v_ao(ispin)%matrix,&
 !FM                        para_env=logger%para_env,&
-!FM                        error=error)
+!FM                        
 !FM                END DO
 !FM                WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
 !FM                     filename,"*"
@@ -311,7 +301,7 @@ CONTAINS
                       CALL cp_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            unit_nr=file_unit,&
                            particles=particles,&
-                           title="drho_r",error=error)
+                           title="drho_r")
                       CALL close_file(file_unit)
                    END DO
                 END DO
@@ -330,7 +320,7 @@ CONTAINS
 !FM                     outputName=base_filename//"%deriv_set%data", &
 !FM                     fromWhere=routineP, iter=kpp1_env%print_count,&
 !FM                     array=kpp1_env%deriv_set%data,&
-!FM                     local=my_local, error=error)
+!FM                     local=my_local)
 !FM             ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " deriv_xc=*associated*,"
 !FM             END IF
@@ -342,7 +332,7 @@ CONTAINS
              IF (my_long_description) THEN
                 WRITE (unit=my_unit_nr,fmt="(a)") " spin_pot=("
                 CALL cp_2d_i_write(array=kpp1_env%spin_pot,&
-                     unit_nr=my_unit_nr, error=error)
+                     unit_nr=my_unit_nr)
                 WRITE (unit=my_unit_nr,fmt="(a)") " ),"
              ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " spin_pot=*associated*,"
@@ -355,7 +345,7 @@ CONTAINS
              IF (my_long_description) THEN
                 WRITE (unit=my_unit_nr,fmt="(a)") " grad_pot=("
                 CALL cp_2d_logical_write(array=kpp1_env%grad_pot,&
-                     unit_nr=my_unit_nr, error=error)
+                     unit_nr=my_unit_nr)
                 WRITE (unit=my_unit_nr,fmt="(a)") " ),"
              ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " grad_pot=*associated*,"
@@ -369,7 +359,7 @@ CONTAINS
              IF (my_long_description) THEN
                 WRITE (unit=my_unit_nr,fmt="(a)") " ndiag_term=("
                 CALL cp_1d_logical_write(array=kpp1_env%ndiag_term,&
-                     unit_nr=my_unit_nr, error=error)
+                     unit_nr=my_unit_nr)
                 WRITE (unit=my_unit_nr,fmt="(a)") " ),"
              ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " ndiag_term=*associated*"

@@ -187,11 +187,10 @@ CONTAINS
 !> \param pw_pool ...
 !> \param mt_super_ref_pw_grid ...
 !> \param dct_pw_grid ...
-!> \param error ...
 !> \author Fawzi, based on previous functions by JGH and Teo
 ! *****************************************************************************
   SUBROUTINE pw_green_create ( green, poisson_params, cell_hmat, pw_pool, &
-       mt_super_ref_pw_grid, dct_pw_grid, error )
+       mt_super_ref_pw_grid, dct_pw_grid)
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_poisson_parameter_type), &
       INTENT(IN)                             :: poisson_params
@@ -200,7 +199,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid, &
                                                 dct_pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
       routineP = moduleN//':'//routineN
@@ -216,9 +214,9 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: dct_gf, gf
 
     failure = .FALSE.
-    CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,failure)
     ALLOCATE(green, stat=stat)
-    CPPostcondition(stat == 0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat == 0,cp_fatal_level,routineP,failure)
     green%p3m=.FALSE.
     green%special_dimension = 0
     green%radius = 0.0_dp
@@ -242,7 +240,7 @@ CONTAINS
     NULLIFY (green%dct_influence_fn)
     NULLIFY (green%screen_fn)
 
-    !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
+    !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,failure)
     DO i=1,3
        abc(i)=cell_hmat(i,i)
     END DO
@@ -254,14 +252,14 @@ CONTAINS
        IF (dim /= 3) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Illegal combination of periodicity and Poisson solver periodic3d",&
-               error=error,failure=failure)
+               failure=failure)
        END IF
     CASE (pw_poisson_multipole)
        green%method = MULTIPOLE0D
        IF (dim /= 0) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Illegal combination of periodicity and Poisson solver mulipole0d",&
-               error=error,failure=failure)
+               failure=failure)
        END IF
     CASE (pw_poisson_analytic)
        SELECT CASE (dim)
@@ -284,7 +282,7 @@ CONTAINS
        CASE (3)
           green%method = PERIODIC3D
        CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
     CASE (pw_poisson_mt)
        green%MT_rel_cutoff = poisson_params%mt_rel_cutoff
@@ -310,22 +308,22 @@ CONTAINS
        CASE (3)
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Illegal combination of periodicity and Poisson solver (MT)",&
-               error=error,failure=failure)
+               failure=failure)
        CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
     CASE (pw_poisson_implicit)
        green%method = PS_IMPLICIT
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "An unknown Poisson solver was specified",error,failure)
+            "An unknown Poisson solver was specified",failure)
     END SELECT
 
     ! allocate influence function,...
     SELECT CASE ( green % method )
     CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT )
        CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
-            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
+            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
        IF (poisson_params%ewald_type==do_ewald_spme) THEN
           green%p3m = .TRUE.
@@ -333,11 +331,11 @@ CONTAINS
           green%p3m_alpha = poisson_params%ewald_alpha
           n=green % p3m_order
           ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ), stat = stat )
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
           CALL spme_coeff_calculate ( n,  green%p3m_coeff )
           CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
-               in_space=RECIPROCALSPACE,error=error)
-          CALL influence_factor ( green ,error=error)
+               in_space=RECIPROCALSPACE)
+          CALL influence_factor ( green)
           CALL calc_p3m_charge(green)
        ELSE
           green % p3m = .FALSE.
@@ -348,19 +346,19 @@ CONTAINS
           CALL MTin_create_screen_fn(green%screen_fn,pw_pool=pw_pool,method=green%method,&
                alpha=green%MT_alpha, &
                special_dimension=green%special_dimension, slab_size=green%slab_size, &
-               super_ref_pw_grid=mt_super_ref_pw_grid, error=error)
+               super_ref_pw_grid=mt_super_ref_pw_grid)
        CASE(PS_IMPLICIT)
           IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
               (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
-             CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
+             CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
              CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
-                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-             CALL pw_pool_release(pw_pool_xpndd, error=error)
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+             CALL pw_pool_release(pw_pool_xpndd)
           END IF
        END SELECT
 
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     ! initialize influence function
@@ -455,7 +453,7 @@ CONTAINS
        END IF
 
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE pw_green_create
@@ -463,12 +461,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the type
 !> \param gftype ...
-!> \param error ...
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE pw_green_retain(gftype,error)
+  SUBROUTINE pw_green_retain(gftype)
     TYPE(greens_fn_type), POINTER            :: gftype
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
       routineP = moduleN//':'//routineN
@@ -477,8 +473,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,error,failure)
-    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,failure)
+    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,failure)
     gftype%ref_count=gftype%ref_count+1
   END SUBROUTINE pw_green_retain
 
@@ -486,16 +482,14 @@ CONTAINS
 !> \brief destroys the type (deallocates data)
 !> \param gftype ...
 !> \param pw_pool ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Joost VandeVondele
 !>      Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE pw_green_release ( gftype, pw_pool, error )
+  SUBROUTINE pw_green_release ( gftype, pw_pool)
     TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
       routineP = moduleN//':'//routineN
@@ -505,32 +499,32 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(gftype)) THEN
-       CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,failure)
        gftype%ref_count=gftype%ref_count-1
        IF (gftype%ref_count==0) THEN
           can_give_back=PRESENT(pw_pool)
           IF (can_give_back) can_give_back=ASSOCIATED(pw_pool)
           IF (can_give_back) THEN
              CALL pw_pool_give_back_pw(pw_pool,gftype%influence_fn,&
-                  accept_non_compatible=.TRUE.,error=error)
+                  accept_non_compatible=.TRUE.)
              CALL pw_pool_give_back_pw(pw_pool,gftype%dct_influence_fn,&
-                  accept_non_compatible=.TRUE.,error=error)
+                  accept_non_compatible=.TRUE.)
              CALL pw_pool_give_back_pw(pw_pool,gftype%screen_fn,&
-                  accept_non_compatible=.TRUE.,error=error)
+                  accept_non_compatible=.TRUE.)
              CALL pw_pool_give_back_pw(pw_pool,gftype%p3m_charge,&
-                  accept_non_compatible=.TRUE.,error=error)
+                  accept_non_compatible=.TRUE.)
           ELSE
-             CALL pw_release(gftype%influence_fn,error=error)
-             CALL pw_release(gftype%dct_influence_fn,error=error)
-             CALL pw_release(gftype%screen_fn,error=error)
-             CALL pw_release(gftype % p3m_charge, error=error)
+             CALL pw_release(gftype%influence_fn)
+             CALL pw_release(gftype%dct_influence_fn)
+             CALL pw_release(gftype%screen_fn)
+             CALL pw_release(gftype % p3m_charge)
           END IF
           IF (ASSOCIATED(gftype % p3m_bm2)) &
                DEALLOCATE ( gftype % p3m_bm2 )
           IF (ASSOCIATED(gftype % p3m_coeff)) &
                DEALLOCATE ( gftype % p3m_coeff )
           DEALLOCATE(gftype, stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
        END IF
     END IF
     NULLIFY(gftype)
@@ -540,14 +534,12 @@ CONTAINS
 !> \brief Calculates the influence_factor for the
 !>      SPME Green's function in reciprocal space'''
 !> \param gftype ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author DH (29-Mar-2001)
 ! *****************************************************************************
-  SUBROUTINE influence_factor ( gftype, error )
+  SUBROUTINE influence_factor ( gftype)
     TYPE(greens_fn_type), POINTER            :: gftype
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'influence_factor', &
       routineP = moduleN//':'//routineN
@@ -561,8 +553,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_assign
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,error,failure)
-    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,failure)
+    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,failure)
     n = gftype % p3m_order
 
     ! calculate the assignment function values
@@ -573,16 +565,16 @@ CONTAINS
        IF (LBOUND(gftype % p3m_bm2,2)/=MINVAL(lb(:)).OR.&
             UBOUND(gftype % p3m_bm2,2)/=MAXVAL(ub(:))) THEN
           DEALLOCATE(gftype % p3m_bm2,stat=ierr)
-          CPPostcondition(ierr==0,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
        END IF
     END IF
     IF (.NOT.ASSOCIATED(gftype % p3m_bm2)) THEN
        ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb(:)):MAXVAL(ub(:)) ), STAT = ierr )
-       CPPostcondition(ierr==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
     END IF
 
     ALLOCATE ( m_assign ( 0:n-2 ), STAT = ierr )
-    CPPostcondition(ierr==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
     m_assign = 0.0_dp
     DO k = 0, n-2
        j = -(n-1) + 2 * k
@@ -610,7 +602,7 @@ CONTAINS
     END DO
 
     DEALLOCATE ( m_assign, STAT = ierr )
-    CPPostconditionNoFail(ierr==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(ierr==0,cp_warning_level,routineP)
   END SUBROUTINE influence_factor
 
 ! *****************************************************************************
@@ -651,15 +643,13 @@ END SUBROUTINE calc_p3m_charge
 !>      pw_poisson_solver
 !>      Call pw_poisson_release when you have finished
 !> \param poisson_env ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (12-Mar-2001)
 ! *****************************************************************************
-  SUBROUTINE pw_poisson_create ( poisson_env, error )
+  SUBROUTINE pw_poisson_create ( poisson_env)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
       routineP = moduleN//':'//routineN
@@ -669,9 +659,9 @@ END SUBROUTINE calc_p3m_charge
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
     ALLOCATE(poisson_env,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
     last_poisson_id=last_poisson_id+1
     poisson_env%id_nr=last_poisson_id
     poisson_env%ref_count=1
@@ -693,13 +683,10 @@ END SUBROUTINE calc_p3m_charge
 ! *****************************************************************************
 !> \brief retains the pw_poisson_env
 !> \param poisson_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_poisson_retain(poisson_env,error)
+  SUBROUTINE pw_poisson_retain(poisson_env)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
       routineP = moduleN//':'//routineN
@@ -708,23 +695,21 @@ END SUBROUTINE calc_p3m_charge
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(poisson_env%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(poisson_env%ref_count>0,cp_failure_level,routineP)
     poisson_env%ref_count=poisson_env%ref_count+1
   END SUBROUTINE pw_poisson_retain
 
 ! *****************************************************************************
 !> \brief releases the poisson solver
 !> \param poisson_env ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author fawzi (11.2002)
 ! *****************************************************************************
-  SUBROUTINE pw_poisson_release ( poisson_env, error)
+  SUBROUTINE pw_poisson_release ( poisson_env)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
       routineP = moduleN//':'//routineN
@@ -734,22 +719,22 @@ END SUBROUTINE calc_p3m_charge
 
     failure=.FALSE.
     IF (ASSOCIATED(poisson_env)) THEN
-       CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,failure)
        poisson_env%ref_count=poisson_env%ref_count-1
        IF (poisson_env%ref_count==0) THEN
           IF (ASSOCIATED(poisson_env%pw_pools)) THEN
-             CALL pw_pools_dealloc(poisson_env%pw_pools,error=error)
+             CALL pw_pools_dealloc(poisson_env%pw_pools)
           END IF
 
-          CALL pw_green_release(poisson_env%green_fft,error=error)
-          CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid,error=error)
-          CALL ps_wavelet_release(poisson_env%wavelet,error=error)
-          CALL ps_implicit_release(poisson_env%implicit_env,error=error)
-          CALL pw_grid_release(poisson_env%dct_pw_grid,error=error)
-          CALL pw_grid_release(poisson_env%dct_aux_pw_grid,error=error)
-          CALL rs_grid_release(poisson_env%diel_rs_grid,error=error)
+          CALL pw_green_release(poisson_env%green_fft)
+          CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid)
+          CALL ps_wavelet_release(poisson_env%wavelet)
+          CALL ps_implicit_release(poisson_env%implicit_env)
+          CALL pw_grid_release(poisson_env%dct_pw_grid)
+          CALL pw_grid_release(poisson_env%dct_aux_pw_grid)
+          CALL rs_grid_release(poisson_env%diel_rs_grid)
           DEALLOCATE(poisson_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
        END IF
     END IF

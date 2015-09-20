@@ -66,19 +66,17 @@ CONTAINS
 !> \param qs_env ...
 !> \param matrix_so ...
 !> \param rc ...
-!> \param error ...
 !> \date    27.02.2009
 !> \author  VW
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_pso_matrix(qs_env,matrix_so,rc,error)
+  SUBROUTINE build_pso_matrix(qs_env,matrix_so,rc)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_so
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_pso_matrix', &
       routineP = moduleN//':'//routineN
@@ -124,7 +122,7 @@ CONTAINS
     NULLIFY(cell,sab_orb,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -132,8 +130,7 @@ CONTAINS
                     neighbor_list_id=neighbor_list_id,&
                     para_env=para_env,&
                     sab_orb=sab_orb,&
-                    cell=cell,&
-                    error=error)
+                    cell=cell)
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
@@ -144,7 +141,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
-                             maxsgf=maxsgf, error=error)
+                             maxsgf=maxsgf)
 
     ldai = ncoset(maxlgto+1)
     CALL init_orbital_pointers(ldai)
@@ -174,7 +171,7 @@ CONTAINS
                                      "basis_set_list",nkind)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -262,7 +259,7 @@ CONTAINS
                       rpgfa(:,iset),zeta(:,iset),&
                       lb_max(jset),lb_min(jset),npgfb(jset),&
                       rpgfb(:,jset),zetb(:,jset),&
-                      rac,rbc,rab,soab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work,error)
+                      rac,rbc,rab,soab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work)
 
              ! *** Contraction step ***
 
@@ -320,16 +317,16 @@ CONTAINS
 !   *** Print the spin orbit matrix, if requested ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-        qs_env%input,"DFT%PRINT%AO_MATRICES/PSO",error=error),cp_p_file)) THEN
+        qs_env%input,"DFT%PRINT%AO_MATRICES/PSO"),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/PSO",&
-            extension=".Log",error=error)
-       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+            extension=".Log")
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
        after = MIN(MAX(after,1),16)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_so(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_so(2)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_so(3)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_so(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_so(2)%matrix,4,after,qs_env,para_env,output_unit=iw)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_so(3)%matrix,4,after,qs_env,para_env,output_unit=iw)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/PSO", error=error)
+            "DFT%PRINT%AO_MATRICES/PSO")
     END IF
 
     CALL timestop(handle)

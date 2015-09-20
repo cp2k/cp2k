@@ -99,9 +99,8 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param pp_section ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env,error)
+  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -110,7 +109,6 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: pp_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_pairpot_init', &
       routineP = moduleN//':'//routineN
@@ -152,21 +150,21 @@ CONTAINS
                 dispersion_env%max_elem = max_elem
                 dispersion_env%maxc     = maxc
                 ALLOCATE(dispersion_env%maxci(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(dispersion_env%c6ab(max_elem,max_elem,maxc,maxc,3),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(dispersion_env%r0ab(max_elem,max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(dispersion_env%rcov(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(dispersion_env%r2r4(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                 ALLOCATE(dispersion_env%cn(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
                 ! get filename of parameter file
                 filename = dispersion_env%parameter_file_name
-                CALL dftd3_c6_param(dispersion_env%c6ab,dispersion_env%maxci,filename,para_env,error)
+                CALL dftd3_c6_param(dispersion_env%c6ab,dispersion_env%maxci,filename,para_env)
                 CALL setr0ab(dispersion_env%r0ab,dispersion_env%rcov,dispersion_env%r2r4)
                 ! the default coordination numbers
                 CALL setcn(dispersion_env%cn)
@@ -202,17 +200,17 @@ CONTAINS
     DO ikind = 1, nkind
        CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol,z=elem)
        ALLOCATE(disp,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        SELECT CASE (vdw_type)
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        CASE (xc_vdw_fun_none)
           disp%defined = .FALSE.
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
           SELECT CASE (dispersion_env%pp_type)
           CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
           CASE (vdw_pairpot_dftd2)
              CALL cite_reference(Grimme2006)
              disp%type = dftd2_pp
@@ -221,10 +219,10 @@ CONTAINS
              ! check for local parameters
              found = .FALSE.
              IF (PRESENT(pp_section)) THEN
-                CALL section_vals_val_get(pp_section,"ATOMPARM",n_rep_val=n_rep,error=error)
+                CALL section_vals_val_get(pp_section,"ATOMPARM",n_rep_val=n_rep)
                 DO i=1,n_rep
                    CALL section_vals_val_get(pp_section,"ATOMPARM", i_rep_val=i,&
-                        c_vals=tmpstringlist, error=error)
+                        c_vals=tmpstringlist)
                    IF ( TRIM(tmpstringlist(1)) == TRIM(symbol) ) THEN
                       ! we assume the parameters are in atomic units!
                       READ(tmpstringlist(2),*) disp%c6
@@ -236,30 +234,30 @@ CONTAINS
              END IF
              IF ( .NOT. found ) THEN
                 ! check for internal parameters
-                CALL dftd2_param(elem,disp%c6,disp%vdw_radii,found,error)
+                CALL dftd2_param(elem,disp%c6,disp%vdw_radii,found)
              END IF
              IF ( .NOT. found ) THEN
                 ! check on file
                 INQUIRE (FILE=filename,EXIST=is_available)
                 IF (is_available) THEN
                    NULLIFY(parser)
-                   CALL parser_create(parser,filename,para_env=para_env,error=error)
+                   CALL parser_create(parser,filename,para_env=para_env)
                    DO
                       at_end = .FALSE.
-                      CALL parser_get_next_line(parser,1,at_end,error=error)
+                      CALL parser_get_next_line(parser,1,at_end)
                       IF ( at_end ) EXIT
-                      CALL parser_get_object(parser,aname,error=error)
+                      CALL parser_get_object(parser,aname)
                       IF ( TRIM(aname) == TRIM(symbol) ) THEN
-                         CALL parser_get_object(parser,disp%c6,error=error)
+                         CALL parser_get_object(parser,disp%c6)
                          ! we have to change the units J*nm^6*mol^-1 -> Hartree*Bohr^6
                          disp%c6 = disp%c6 * 1000._dp*bohr**6/kjmol
-                         CALL parser_get_object(parser,disp%vdw_radii,error=error)
+                         CALL parser_get_object(parser,disp%vdw_radii)
                          disp%vdw_radii = disp%vdw_radii*bohr
                          found = .TRUE.
                          EXIT
                       END IF
                    END DO
-                   CALL parser_release(parser,error=error)
+                   CALL parser_release(parser)
                 END IF
              END IF
              IF ( found ) THEN
@@ -277,27 +275,27 @@ CONTAINS
 
              ! Check for coordination numbers
              IF (PRESENT(pp_section)) THEN
-                CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
+                CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep)
                 IF (n_rep > 0) THEN
                    ALLOCATE(dispersion_env%cnkind(n_rep),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
-                        c_vals=tmpstringlist, error=error)
+                        c_vals=tmpstringlist)
                       READ(tmpstringlist(1),*) dispersion_env%cnkind(i)%cnum
                       READ(tmpstringlist(2),*) dispersion_env%cnkind(i)%kind
                    END DO
                 END IF
-                CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
+                CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep)
                 IF (n_rep > 0) THEN
                    ALLOCATE(dispersion_env%cnlist(n_rep),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", i_rep_val=i,&
-                        c_vals=tmpstringlist, error=error)
+                        c_vals=tmpstringlist)
                       nl = SIZE(tmpstringlist)
                       ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                       dispersion_env%cnlist(i)%natom = nl-1
                       READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum
                       DO j=1,nl-1
@@ -315,8 +313,8 @@ CONTAINS
             "Please provide a valid set of parameters through the input section or "//&
             "through an external file! "//&
  CPSourceFileRef,&
-            error=error,failure=failure)
-       CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp,error=error)
+            failure=failure)
+       CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp)
     END DO
 
     CALL timestop(handle)
@@ -329,12 +327,10 @@ CONTAINS
 !> \brief ...
 !> \param scaling ...
 !> \param vdw_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scaling_init(scaling,vdw_section,error)
+  SUBROUTINE qs_scaling_init(scaling,vdw_section)
     REAL(KIND=dp), INTENT(inout)             :: scaling
     TYPE(section_vals_type), POINTER         :: vdw_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_init', &
       routineP = moduleN//':'//routineN
@@ -344,14 +340,14 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional,error=error)
+    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
     SELECT CASE (TRIM(functional))
        CASE DEFAULT
           ! unknown functional
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="No DFT-D2 s6 value available for this functional:"//TRIM(functional), &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        CASE ("BLYP")
           scaling = 1.20_dp
        CASE ("B3LYP")
@@ -380,12 +376,10 @@ CONTAINS
 !> \param sr6 ...
 !> \param s8 ...
 !> \param vdw_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scaling_dftd3(s6,sr6,s8,vdw_section,error)
+  SUBROUTINE qs_scaling_dftd3(s6,sr6,s8,vdw_section)
     REAL(KIND=dp), INTENT(inout)             :: s6, sr6, s8
     TYPE(section_vals_type), POINTER         :: vdw_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3', &
       routineP = moduleN//':'//routineN
@@ -395,7 +389,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional,error=error)
+    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
     ! values for different functionals from:
     ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionals.html
@@ -404,7 +398,7 @@ CONTAINS
        ! unknown functional
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="No DFT-D3 values available for this functional:"//TRIM(functional), &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     CASE ("B1B95")
        s6  = 1.000_dp
        sr6 = 1.613_dp
@@ -622,12 +616,10 @@ CONTAINS
 !> \param s8 ...
 !> \param a2 ...
 !> \param vdw_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scaling_dftd3bj(s6,a1,s8,a2,vdw_section,error)
+  SUBROUTINE qs_scaling_dftd3bj(s6,a1,s8,a2,vdw_section)
     REAL(KIND=dp), INTENT(inout)             :: s6, a1, s8, a2
     TYPE(section_vals_type), POINTER         :: vdw_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3bj', &
       routineP = moduleN//':'//routineN
@@ -637,7 +629,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional,error=error)
+    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
     ! values for different functionals from:
     ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html
@@ -646,7 +638,7 @@ CONTAINS
        ! unknown functional
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="No DFT-D3(BJ) values available for this functional:"//TRIM(functional), &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     CASE ("B1B95")
        s6  = 1.0000_dp
        a1  = 0.2092_dp
@@ -852,15 +844,13 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param energy ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_dispersion_pairpot(qs_env,dispersion_env,energy,calculate_forces,error)
+  SUBROUTINE calculate_dispersion_pairpot(qs_env,dispersion_env,energy,calculate_forces)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     REAL(KIND=dp), INTENT(OUT)               :: energy
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot', &
       routineP = moduleN//':'//routineN
@@ -928,7 +918,7 @@ CONTAINS
        NULLIFY (atomic_kind_set,qs_kind_set,sab_cn,sab_vdw)
 
        CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-            cell=cell, virial=virial, para_env=para_env, atprop=atprop, error=error)
+            cell=cell, virial=virial, para_env=para_env, atprop=atprop)
 
        debugx = dispersion_env%verbose
        debugall = debugx
@@ -936,10 +926,10 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
 
        NULLIFY(logger)
-       logger => cp_error_get_logger(error)
+       logger => cp_get_default_logger()
        IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
           unit_nr = cp_print_key_unit_nr(logger,dispersion_env%dftd_section,"PRINT_DFTD",&
-                                         extension=".dftd",error=error)
+                                         extension=".dftd")
        ELSE
           unit_nr = -1
        END IF
@@ -948,9 +938,9 @@ CONTAINS
        atenergy = atprop%energy
        IF (atenergy) THEN
           NULLIFY (particle_set)
-          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
           natom = SIZE(particle_set)
-          CALL atprop_array_init(atprop%atevdw,natom,error)
+          CALL atprop_array_init(atprop%atevdw,natom)
           atener => atprop%atevdw
        END IF
        atstress = atprop%stress
@@ -971,13 +961,13 @@ CONTAINS
        END IF
 
        NULLIFY (particle_set)
-       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
        natom = SIZE(particle_set)
        IF (calculate_forces .OR. debugall) THEN
           NULLIFY (force)
-          CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+          CALL get_qs_env(qs_env=qs_env,force=force)
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
           IF (use_virial .AND. debugall) THEN
@@ -986,15 +976,15 @@ CONTAINS
        ELSE IF ( ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
                    dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc ) THEN
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
        END IF
 
        ALLOCATE (dodisp(nkind),ghost(nkind),atomnumber(nkind),c6d2(nkind),radd2(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
           dodisp(ikind)=disp_a%defined
           ghost(ikind)=ghost_a
           atomnumber(ikind)=za
@@ -1002,7 +992,7 @@ CONTAINS
           radd2(ikind)=disp_a%vdw_radii
        END DO
        ALLOCATE (rcpbc(3,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DO iatom=1,natom
          rcpbc(:,iatom) = pbc(particle_set(iatom)%r(:),cell)
        END DO
@@ -1058,18 +1048,18 @@ CONTAINS
           END IF
           ! Calculate coordination numbers
           NULLIFY (particle_set)
-          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
           natom = SIZE (particle_set)
           ALLOCATE (cnumbers(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           cnumbers = 0._dp
           IF(calculate_forces .OR. debugall) THEN
             ALLOCATE (dcnum(natom),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             dcnum(:)%neighbors=0
             DO iatom=1,natom
               ALLOCATE (dcnum(iatom)%nlist(10),dcnum(iatom)%dvals(10),dcnum(iatom)%rik(3,10),STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             END DO
           END IF
           sab_cn => dispersion_env%sab_cn
@@ -1118,7 +1108,7 @@ CONTAINS
           CALL mp_sum(cnumbers,para_env%group)
           ! for parallel runs we have to update dcnum on all processors
           IF(calculate_forces .OR. debugall) THEN
-            CALL dcnum_distribute(dcnum,para_env,error)
+            CALL dcnum_distribute(dcnum,para_env)
             IF (unit_nr>0 .AND. SIZE(dcnum)>0) THEN
               WRITE(unit_nr,*)
               WRITE(unit_nr,*) "  ATOM       Coordination   Neighbors"
@@ -1149,7 +1139,7 @@ CONTAINS
           IF (dispersion_env%c9cnst) THEN
             IF (unit_nr>0) WRITE(unit_nr,*) " Use reference coordination numbers for C9 term"
             ALLOCATE (cnumfix(natom),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             cnumfix = 0._dp
             ! first use the default values
             DO iatom=1,natom
@@ -1162,8 +1152,8 @@ CONTAINS
               DO i=1,SIZE(dispersion_env%cnkind)
                 ikind=dispersion_env%cnkind(i)%kind
                 cnum=dispersion_env%cnkind(i)%cnum
-                CPPrecondition(ikind <= nkind,cp_failure_level,routineP,error,failure)
-                CPPrecondition(ikind > 0,cp_failure_level,routineP,error,failure)
+                CPPrecondition(ikind <= nkind,cp_failure_level,routineP,failure)
+                CPPrecondition(ikind > 0,cp_failure_level,routineP,failure)
                 CALL get_atomic_kind(atomic_kind_set(ikind), natom=na,atom_list=atom_list)
                 DO ia=1,na
                   iatom=atom_list(ia)
@@ -1226,11 +1216,11 @@ CONTAINS
                    force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdij(:)
                    force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) + fdij(:)
                    IF ( use_virial ) THEN
-                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
+                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij)
                    END IF
                    IF(atstress) THEN
-                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rij, error)
-                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij, error)
+                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rij)
+                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij)
                    END IF
                 END IF
                 IF(atenergy) THEN
@@ -1264,7 +1254,7 @@ CONTAINS
                 ELSE
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Unknown DFT-D3 damping function:", &
-                        error=error, error_level=cp_failure_level)
+                        error_level=cp_failure_level)
                 END IF
                 evdw = evdw - e6 - e8
                 e6tot = e6tot - e6
@@ -1286,7 +1276,7 @@ CONTAINS
                    ELSE
                       CALL cp_unimplemented_error(fromWhere=routineP, &
                            message="Unknown DFT-D3 damping function:", &
-                           error=error, error_level=cp_failure_level)
+                           error_level=cp_failure_level)
                    END IF
                    fdij(:) = (de6+de8) * rij(:)/dr * fac
                    atom_a = atom_of_kind(iatom)
@@ -1294,11 +1284,11 @@ CONTAINS
                    force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdij(:)
                    force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) + fdij(:)
                    IF ( use_virial ) THEN
-                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
+                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij)
                    END IF
                    IF(atstress) THEN
-                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rij, error)
-                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij, error)
+                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rij)
+                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij)
                    END IF
                    ! forces from the r-dependence of the coordination numbers
                    IF(idmp==1) THEN
@@ -1316,7 +1306,7 @@ CONTAINS
                    ELSE
                       CALL cp_unimplemented_error(fromWhere=routineP, &
                            message="Unknown DFT-D3 damping function:", &
-                           error=error, error_level=cp_failure_level)
+                           error_level=cp_failure_level)
                    END IF
                    DO i=1,dcnum(iatom)%neighbors
                      katom=dcnum(iatom)%nlist(i)
@@ -1328,11 +1318,11 @@ CONTAINS
                      force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdik(:)
                      force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) + fdik(:)
                      IF ( use_virial ) THEN
-                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                      END IF
                      IF(atstress) THEN
-                        CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdik, rik, error)
-                        CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdik, rik, error)
+                        CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdik, rik)
                      END IF
                    END DO
                    DO i=1,dcnum(jatom)%neighbors
@@ -1345,17 +1335,17 @@ CONTAINS
                      force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) - fdik(:)
                      force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) + fdik(:)
                      IF ( use_virial ) THEN
-                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                       CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                      END IF
                      IF(atstress) THEN
-                        CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdik, rik, error)
-                        CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdik, rik, error)
+                        CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdik, rik)
                      END IF
                    END DO
                 END IF
                 IF (dispersion_env%doabc) THEN
                    CALL get_iterator_info(nl_iterator,cell=cell_b)
-                   hashb = cellhash(cell_b,ncell,error)
+                   hashb = cellhash(cell_b,ncell)
                    is000 = (ALL(cell_b == 0))
                    rb0(:) = MATMUL(cell%hmat,cell_b)
                    ra(:) = pbc(particle_set(iatom)%r(:),cell)
@@ -1367,7 +1357,7 @@ CONTAINS
                            cell_c(1) = icx
                            cell_c(2) = icy
                            cell_c(3) = icz
-                           hashc = cellhash(cell_c,ncell,error)
+                           hashc = cellhash(cell_c,ncell)
                            IF(is000 .AND. (ALL(cell_c == 0))) THEN
                               ! CASE 1: all atoms in (000), use only ordered triples
                               kstart=MAX(jatom+1,iatom+1)
@@ -1453,11 +1443,11 @@ CONTAINS
                                    force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdij(:)
                                    force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) + fdij(:)
                                    IF ( use_virial ) THEN
-                                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rab, error)
+                                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rab)
                                    END IF
                                    IF(atstress) THEN
-                                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rab, error)
-                                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rab, error)
+                                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rab)
+                                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rab)
                                    END IF
                                    fdij(:) = de91*rbc(:)/r2bc
                                    fdij(:) = fdij(:) + dea*s1*s2*s3 * rbc(:)/r2bc
@@ -1465,11 +1455,11 @@ CONTAINS
                                    force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) - fdij(:)
                                    force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) + fdij(:)
                                    IF ( use_virial ) THEN
-                                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rbc, error)
+                                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rbc)
                                    END IF
                                    IF(atstress) THEN
-                                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rbc, error)
-                                      CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdij, rbc, error)
+                                      CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rbc)
+                                      CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdij, rbc)
                                    END IF
                                    fdij(:) = de91*rca(:)/r2ca
                                    fdij(:) = fdij(:) + dea*s1*s2*s3 * rca(:)/r2ca
@@ -1477,11 +1467,11 @@ CONTAINS
                                    force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) - fdij(:)
                                    force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) + fdij(:)
                                    IF ( use_virial ) THEN
-                                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rca, error)
+                                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rca)
                                    END IF
                                    IF(atstress) THEN
-                                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rca, error)
-                                      CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdij, rca, error)
+                                      CALL virial_pair_force ( atstr(:,:,iatom), -0.5_dp, fdij, rca)
+                                      CALL virial_pair_force ( atstr(:,:,katom), -0.5_dp, fdij, rca)
                                    END IF
                                    IF (.NOT. dispersion_env%c9cnst) THEN
                                      ! forces from the r-dependence of the coordination numbers
@@ -1501,7 +1491,7 @@ CONTAINS
                                        force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdik(:)
                                        force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
                                        IF ( use_virial ) THEN
-                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                                        END IF
                                      END DO
                                      DO i=1,dcnum(jatom)%neighbors
@@ -1516,7 +1506,7 @@ CONTAINS
                                        force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) - fdik(:)
                                        force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
                                        IF ( use_virial ) THEN
-                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                                        END IF
                                      END DO
 
@@ -1535,7 +1525,7 @@ CONTAINS
                                        force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) - fdik(:)
                                        force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
                                        IF ( use_virial ) THEN
-                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                                        END IF
                                      END DO
                                      DO i=1,dcnum(katom)%neighbors
@@ -1550,7 +1540,7 @@ CONTAINS
                                        force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) - fdik(:)
                                        force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
                                        IF ( use_virial ) THEN
-                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                                        END IF
                                      END DO
 
@@ -1569,7 +1559,7 @@ CONTAINS
                                        force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) - fdik(:)
                                        force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
                                        IF ( use_virial ) THEN
-                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                                        END IF
                                      END DO
                                      DO i=1,dcnum(iatom)%neighbors
@@ -1584,7 +1574,7 @@ CONTAINS
                                        force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdik(:)
                                        force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
                                        IF ( use_virial ) THEN
-                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik, error)
+                                         CALL virial_pair_force ( virial%pv_virial, -1._dp, fdik, rik)
                                        END IF
                                      END DO
                                    END IF
@@ -1611,7 +1601,7 @@ CONTAINS
           ! Long range correction (atomic contributions not implemented)
           IF (dispersion_env%lrc) THEN
              ALLOCATE (cnkind(nkind),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
              cnkind = 0._dp
              ! first use the default values
              DO ikind=1,nkind
@@ -1627,11 +1617,11 @@ CONTAINS
              END IF
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
-                CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a,error=error)
+                CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
                 IF (.NOT.disp_a%defined .OR. ghost_a) CYCLE
                 DO jkind=1,nkind
                    CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
-                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b,error=error)
+                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b)
                    IF (.NOT.disp_b%defined .OR. ghost_b) CYCLE
                    CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                       cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
@@ -1641,7 +1631,7 @@ CONTAINS
                    IF (dispersion_env%doabc) THEN
                       DO kkind=1,nkind
                          CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
-                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c,error=error)
+                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c)
                          IF (.NOT.disp_c%defined .OR. ghost_c) CYCLE
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                             cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
@@ -1661,25 +1651,25 @@ CONTAINS
                END DO
              END IF
              DEALLOCATE (cnkind,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           END IF
        END IF
 
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
             dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           DEALLOCATE (cnumbers,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           IF ( dispersion_env%doabc .AND. dispersion_env%c9cnst ) THEN
             DEALLOCATE (cnumfix,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           END IF
           IF(calculate_forces .OR. debugall) THEN
             DO iatom=1,natom
               DEALLOCATE (dcnum(iatom)%nlist,dcnum(iatom)%dvals,dcnum(iatom)%rik,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             END DO
             DEALLOCATE (dcnum,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           END IF
        END IF
 
@@ -1751,15 +1741,15 @@ CONTAINS
 
        IF(calculate_forces .OR. debugall .OR. dispersion_env%doabc) THEN
           DEALLOCATE(atom_of_kind,kind_of,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END IF
 
        DEALLOCATE (dodisp,ghost,atomnumber,rcpbc,radd2,c6d2,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
           CALL cp_print_key_finished_output(unit_nr,logger,dispersion_env%dftd_section,&
-                                            "PRINT_DFTD", error=error)
+                                            "PRINT_DFTD")
        END IF
 
     END IF
@@ -1772,12 +1762,10 @@ CONTAINS
 !> \brief ...
 !> \param cell ...
 !> \param ncell ...
-!> \param error ...
 !> \retval hash ...
 ! *****************************************************************************
-  FUNCTION cellhash(cell,ncell,error) RESULT(hash)
+  FUNCTION cellhash(cell,ncell) RESULT(hash)
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell, ncell
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: hash
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cellhash', &
@@ -1787,7 +1775,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ALL(ABS(cell)<=ncell),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ALL(ABS(cell)<=ncell),cp_failure_level,routineP,failure)
 
     ix = cell(1)
     IF (ix/=0) THEN
@@ -1815,14 +1803,12 @@ CONTAINS
 !> \param c6 ...
 !> \param r ...
 !> \param found ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dftd2_param(z,c6,r,found,error)
+  SUBROUTINE dftd2_param(z,c6,r,found)
 
     INTEGER, INTENT(in)                      :: z
     REAL(KIND=dp), INTENT(inout)             :: c6, r
     LOGICAL, INTENT(inout)                   :: found
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd2_param', &
       routineP = moduleN//':'//routineN
@@ -1872,15 +1858,13 @@ CONTAINS
 !> \param maxci ...
 !> \param filename ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dftd3_c6_param(c6ab,maxci,filename,para_env,error)
+  SUBROUTINE dftd3_c6_param(c6ab,maxci,filename,para_env)
 
     REAL(KIND=dp), DIMENSION(:, :, :, :, :)  :: c6ab
     INTEGER, DIMENSION(:)                    :: maxci
     CHARACTER(LEN=*)                         :: filename
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dftd3_c6_param', &
       routineP = moduleN//':'//routineN
@@ -1899,7 +1883,7 @@ CONTAINS
     CALL mp_bcast(nl,para_env%source,para_env%group)
     CALL mp_bcast(nlines,para_env%source,para_env%group)
     ALLOCATE(pars(nl),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(para_env%source==para_env%mepos) THEN
       READ(funit,*) pars(1:nl)
       CALL close_file(unit_number=funit)
@@ -1927,7 +1911,7 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(pars,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE dftd3_c6_param
 
@@ -2973,13 +2957,11 @@ CONTAINS
 !> \brief ...
 !> \param dcnum ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dcnum_distribute(dcnum,para_env,error)
+  SUBROUTINE dcnum_distribute(dcnum,para_env)
 
     TYPE(dcnum_type), DIMENSION(:)           :: dcnum
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dcnum_distribute', &
       routineP = moduleN//':'//routineN
@@ -3000,7 +2982,7 @@ CONTAINS
       natom=SIZE(dcnum)
       !pack my dcnum data
       ALLOCATE (nloc(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       DO ia=1,natom
         nloc(ia)=dcnum(ia)%neighbors
       END DO
@@ -3008,7 +2990,7 @@ CONTAINS
       ntmax = ntot
       CALL mp_max(ntmax,group)
       ALLOCATE (list(ntmax),dvals(ntmax),rik(3,ntmax),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       list=0
       dvals=0._dp
       rik=0._dp
@@ -3048,9 +3030,9 @@ CONTAINS
         END DO
       END DO
       DEALLOCATE (nloc,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       DEALLOCATE (list,dvals,rik,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE dcnum_distribute

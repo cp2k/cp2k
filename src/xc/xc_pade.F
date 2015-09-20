@@ -101,16 +101,14 @@ CONTAINS
 !> \param lsd ...
 !> \param needs ...
 !> \param max_deriv ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pade_info ( reference, shortform, lsd, needs, max_deriv, error )
+  SUBROUTINE pade_info ( reference, shortform, lsd, needs, max_deriv)
 
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     LOGICAL, INTENT(IN), OPTIONAL            :: lsd
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_info', &
       routineP = moduleN//':'//routineN
@@ -143,16 +141,14 @@ CONTAINS
 !> \param rho ...
 !> \param pot ...
 !> \param order ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pade_lda(derivative_set, rho, pot, order, error)
+  SUBROUTINE pade_lda(derivative_set, rho, pot, order)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda', &
       routineP = moduleN//':'//routineN
@@ -172,7 +168,7 @@ CONTAINS
 
     n = SIZE ( rho )
     ALLOCATE ( rs(n), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL calc_rs ( rho, rs )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -195,7 +191,7 @@ CONTAINS
     END IF
 
     DEALLOCATE ( rs, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE pade_lda
 
@@ -204,14 +200,12 @@ CONTAINS
 !> \param deriv_set ...
 !> \param rho_set ...
 !> \param order ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order, error)
+  SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda_pw_eval', &
       routineP = moduleN//':'//routineN
@@ -230,43 +224,43 @@ CONTAINS
 
     n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
     ALLOCATE ( rs(n), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL calc_rs_pw ( rho_set%rho, rs, n )
     IF ( calc(0) .AND. calc(1) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
-                                     allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+                                     allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
        deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
-                                     allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_r,error=error)
+                                     allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_r)
        CALL pade_lda_01(n, rho_set%rho, rs, e_0, e_r)
     ELSE IF ( calc(0) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
-                                     allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+                                     allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
        CALL pade_lda_0(n, rho_set%rho, rs, e_0)
     ELSE IF ( calc(1) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
-                                     allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_r,error=error)
+                                     allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_r)
        CALL pade_lda_1(n, rho_set%rho, rs, e_r)
     END IF
     IF ( calc(2) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
-                                      allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rr,error=error)
+                                      allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rr)
        CALL pade_lda_2(n, rho_set%rho, rs, e_rr)
     END IF
     IF ( calc(3) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rrr,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rrr)
        CALL pade_lda_3(n, rho_set%rho, rs, e_rrr)
     END IF
 
     DEALLOCATE ( rs, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE pade_lda_pw_eval
 
@@ -349,14 +343,12 @@ CONTAINS
 !> \param deriv_set ...
 !> \param rho_set ...
 !> \param order ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pade_lsd_pw_eval ( deriv_set, rho_set, order, error )
+  SUBROUTINE pade_lsd_pw_eval ( deriv_set, rho_set, order)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: calc(0:4)
@@ -374,41 +366,41 @@ CONTAINS
 
     IF (calc(0)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (calc(1)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ra,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ra)
        deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rb,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rb)
     END IF
     IF (calc(2)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rara,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rara)
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rarb,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rarb)
        deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rbrb,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rbrb)
     END IF
     IF (calc(3)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhoa)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rarara,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rarara)
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhob)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rararb,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rararb)
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)(rhob)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rarbrb,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rarbrb)
        deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)(rhob)", &
-                                       allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rbrbrb,error=error)
+                                       allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rbrbrb)
     END IF
 
 !$omp parallel do private(i,j,k,fx,rhoa,rhob,rs) default(none)&

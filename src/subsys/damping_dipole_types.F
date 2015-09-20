@@ -60,13 +60,11 @@ CONTAINS
 !> \brief Creates Data-structure that contains damping information
 !> \param damping ...
 !> \param nkinds ...
-!> \param error ...
 !> \author Rodolphe Vuilleumier
 ! *****************************************************************************
-  SUBROUTINE damping_p_create(damping,nkinds,error)
+  SUBROUTINE damping_p_create(damping,nkinds)
     TYPE(damping_p_type), POINTER            :: damping
     INTEGER, INTENT(IN)                      :: nkinds
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'damping_p_create', &
       routineP = moduleN//':'//routineN
@@ -75,11 +73,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
      failure=.FALSE.
-     CPPostcondition(.NOT.ASSOCIATED(damping),cp_failure_level,routineP,error,failure)
+     CPPostcondition(.NOT.ASSOCIATED(damping),cp_failure_level,routineP,failure)
      ALLOCATE ( damping, stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE ( damping%damp( nkinds ), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DO i = 1, nkinds
         CALL init_damping ( damping%damp(i) )
      END DO
@@ -89,12 +87,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Release Data-structure that contains damping information
 !> \param damping ...
-!> \param error ...
 !> \author Rodolphe Vuilleumier [RV]
 ! *****************************************************************************
-  SUBROUTINE damping_p_release(damping,error)
+  SUBROUTINE damping_p_release(damping)
     TYPE(damping_p_type), POINTER            :: damping
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'damping_p_release', &
       routineP = moduleN//':'//routineN
@@ -106,10 +102,10 @@ CONTAINS
     IF(ASSOCIATED(damping)) THEN
       IF (ASSOCIATED(damping%damp)) THEN
          DEALLOCATE(damping%damp,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
       DEALLOCATE(damping,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     NULLIFY(damping)
 

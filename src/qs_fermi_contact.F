@@ -67,19 +67,17 @@ CONTAINS
 !> \param qs_env ...
 !> \param matrix_fc ...
 !> \param rc ...
-!> \param error ...
 !> \date    27.02.2009
 !> \author  VW
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_fermi_contact_matrix(qs_env,matrix_fc,rc,error)
+  SUBROUTINE build_fermi_contact_matrix(qs_env,matrix_fc,rc)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_fc
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fermi_contact_matrix', &
       routineP = moduleN//':'//routineN
@@ -122,15 +120,14 @@ CONTAINS
     NULLIFY(cell,sab_orb,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     para_env=para_env,&
                     sab_orb=sab_orb,&
-                    cell=cell,&
-                    error=error)
+                    cell=cell)
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
@@ -140,7 +137,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
-                             maxsgf=maxsgf, error=error)
+                             maxsgf=maxsgf)
 
     ldai = ncoset(maxlgto)
     CALL init_orbital_pointers(ldai)
@@ -166,7 +163,7 @@ CONTAINS
                                      "basis_set_list",nkind)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -307,14 +304,14 @@ CONTAINS
 !   *** Print the Fermi contact matrix, if requested ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",error=error),cp_p_file)) THEN
+         qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT"),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",&
-            extension=".Log",error=error)
-       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+            extension=".Log")
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
        after = MIN(MAX(after,1),16)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_fc(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_fc(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/FERMI_CONTACT", error=error)
+            "DFT%PRINT%AO_MATRICES/FERMI_CONTACT")
     END IF
 
     CALL timestop(handle)

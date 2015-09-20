@@ -32,13 +32,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the ATOMIC section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author JHU
 ! *****************************************************************************
-  SUBROUTINE create_atprop_section(section,error)
+  SUBROUTINE create_atprop_section(section)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atprop_section', &
       routineP = moduleN//':'//routineN
@@ -48,13 +45,12 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
     CALL section_create(section,name="ATOMIC",&
          description="Controls the calculation of atomic properties. "//&
                      "Printing is controled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO",&
          repeats=.FALSE., &
-         citations=(/Kikuchi2009/),&
-         error=error)
+         citations=(/Kikuchi2009/))
 
     NULLIFY(keyword)
 
@@ -64,10 +60,9 @@ CONTAINS
          repeats=.FALSE.,&
          n_var=1,&
          default_l_val=.FALSE.,&
-         lone_keyword_l_val=.TRUE.,&
-         error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="PRESSURE",&
          description="Calculate atomic pressure tensors ",&
@@ -75,10 +70,9 @@ CONTAINS
          repeats=.FALSE.,&
          n_var=1,&
          default_l_val=.FALSE.,&
-         lone_keyword_l_val=.TRUE.,&
-         error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
   END SUBROUTINE create_atprop_section
 

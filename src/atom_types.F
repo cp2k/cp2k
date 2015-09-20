@@ -271,7 +271,6 @@ CONTAINS
 !> \param basis_section ...
 !> \param zval ...
 !> \param btyp ...
-!> \param error ...
 !> \note  Highly accurate relativistic universal Gaussian basis set: Dirac-Fock-Coulomb calculations
 !>        for atomic systems up to nobelium
 !>        J. Chem. Phys. 101, 6829 (1994); DOI:10.1063/1.468311
@@ -294,12 +293,11 @@ CONTAINS
 !>        by Parpia, Mohanty, and Clementi [J. Phys. B 25, 1 (1992)]. The accuracy of our calculations is
 !>        estimated to be within a few parts in 109 for all the atomic systems studied.
 ! *****************************************************************************
-  SUBROUTINE init_atom_basis(basis,basis_section,zval,btyp,error)
+  SUBROUTINE init_atom_basis(basis,basis_section,zval,btyp)
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     TYPE(section_vals_type), POINTER         :: basis_section
     INTEGER, INTENT(IN)                      :: zval
     CHARACTER(LEN=2)                         :: btyp
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis', &
       routineP = moduleN//':'//routineN
@@ -338,11 +336,11 @@ CONTAINS
     NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid
-    CALL allocate_grid_atom(basis%grid,error)
-    CALL section_vals_val_get(basis_section,"QUADRATURE",i_val=quadtype,error=error)
-    CALL section_vals_val_get(basis_section,"GRID_POINTS",i_val=ngp,error=error)
+    CALL allocate_grid_atom(basis%grid)
+    CALL section_vals_val_get(basis_section,"QUADRATURE",i_val=quadtype)
+    CALL section_vals_val_get(basis_section,"GRID_POINTS",i_val=ngp)
     CALL cp_assert(ngp > 0,cp_failure_level,cp_assertion_failed,routineP,&
-                   "# point radial grid < 0",error,failure)
+                   "# point radial grid < 0",failure)
     CALL create_grid_atom(basis%grid,ngp,1,1,0,quadtype)
     basis%grid%nr = ngp
     basis%geometrical = .FALSE.
@@ -350,15 +348,15 @@ CONTAINS
     basis%cval  = 0._dp
     basis%start = 0
 
-    CALL section_vals_val_get(basis_section,"BASIS_TYPE",i_val=basistype,error=error)
-    CALL section_vals_val_get(basis_section,"EPS_EIGENVALUE",r_val=basis%eps_eig,error=error)
+    CALL section_vals_val_get(basis_section,"BASIS_TYPE",i_val=basistype)
+    CALL section_vals_val_get(basis_section,"EPS_EIGENVALUE",r_val=basis%eps_eig)
     SELECT CASE (basistype)
       CASE DEFAULT
-         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
       CASE (gaussian)
          basis%basis_type = GTO_BASIS
          NULLIFY(num_gto)
-         CALL section_vals_val_get(basis_section,"NUM_GTO",i_vals=num_gto,error=error)
+         CALL section_vals_val_get(basis_section,"NUM_GTO",i_vals=num_gto)
          IF ( num_gto(1) < 1 ) THEN
            ! use default basis
            IF ( btyp == "AE" ) THEN
@@ -371,7 +369,7 @@ CONTAINS
            basis%nbas = nu
            basis%nprim = nu
            ALLOCATE (basis%am(nu,0:3),STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+           CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
            basis%am(1:nu,0) = ugbs(1:nu)
            basis%am(1:nu,1) = ugbs(1:nu)
            basis%am(1:nu,2) = ugbs(1:nu)
@@ -384,36 +382,36 @@ CONTAINS
            basis%nprim = basis%nbas
            m  = MAXVAL(basis%nbas)
            ALLOCATE (basis%am(m,0:3),STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+           CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
            basis%am = 0._dp
            IF ( basis%nbas(0) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"S_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(0), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"S_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(0), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(0)
                basis%am(i,0) = expo(i)
              END DO
            END IF
            IF ( basis%nbas(1) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"P_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(1), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"P_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(1), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(1)
                basis%am(i,1) = expo(i)
              END DO
            END IF
            IF ( basis%nbas(2) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"D_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(2), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"D_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(2), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(2)
                basis%am(i,2) = expo(i)
              END DO
            END IF
            IF ( basis%nbas(3) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"F_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(3), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"F_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(3), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(3)
                basis%am(i,3) = expo(i)
              END DO
@@ -423,9 +421,9 @@ CONTAINS
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -442,16 +440,16 @@ CONTAINS
       CASE (geometrical_gto)
          basis%basis_type = GTO_BASIS
          NULLIFY(num_gto)
-         CALL section_vals_val_get(basis_section,"NUM_GTO",i_vals=num_gto,error=error)
+         CALL section_vals_val_get(basis_section,"NUM_GTO",i_vals=num_gto)
          IF ( num_gto(1) < 1 ) THEN
            IF ( btyp == "AE" ) THEN
              ! use the Clementi extra large basis
-             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti)
            ELSEIF ( btyp == "PP" ) THEN
              ! use the Clementi extra large basis
-             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti)
            ELSEIF ( btyp == "AA" ) THEN
-             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti)
              amax = cval**(basis%nbas(0)-1)
              basis%nbas(0) = NINT((LOG(amax)/LOG(1.6_dp)))
              cval = 1.6_dp
@@ -460,14 +458,14 @@ CONTAINS
              basis%nbas(2) = basis%nbas(0) - 8
              basis%nbas(3) = basis%nbas(0) -12
            ELSEIF ( btyp == "AP" ) THEN
-             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti)
              amax = 500._dp/aval
              basis%nbas = NINT((LOG(amax)/LOG(1.6_dp)))
              cval = 1.6_dp
              starti = 0
            ELSE
              ! use the Clementi extra large basis
-             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti)
            ENDIF
            basis%nprim = basis%nbas
          ELSE
@@ -477,18 +475,18 @@ CONTAINS
            END DO
            basis%nprim = basis%nbas
            NULLIFY(sindex)
-           CALL section_vals_val_get(basis_section,"START_INDEX",i_vals=sindex,error=error)
+           CALL section_vals_val_get(basis_section,"START_INDEX",i_vals=sindex)
            starti = 0
            DO i=1,SIZE(sindex)
              starti(i-1) = sindex(i)
-             CPPostcondition(sindex(i)>=0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(sindex(i)>=0, cp_failure_level, routineP,failure)
            END DO
-           CALL section_vals_val_get(basis_section,"GEOMETRICAL_FACTOR",r_val=cval,error=error)
-           CALL section_vals_val_get(basis_section,"GEO_START_VALUE",r_val=aval,error=error)
+           CALL section_vals_val_get(basis_section,"GEOMETRICAL_FACTOR",r_val=cval)
+           CALL section_vals_val_get(basis_section,"GEO_START_VALUE",r_val=aval)
          END IF
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%am(m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          basis%am = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
@@ -506,9 +504,9 @@ CONTAINS
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -524,19 +522,19 @@ CONTAINS
          END DO
       CASE (contracted_gto)
          basis%basis_type = CGTO_BASIS
-         CALL section_vals_val_get(basis_section,"BASIS_SET_FILE_NAME",c_val=basis_fn,error=error)
-         CALL section_vals_val_get(basis_section,"BASIS_SET",c_val=basis_name,error=error)
-         gto_basis_section => section_vals_get_subs_vals(basis_section,"BASIS",error=error)
+         CALL section_vals_val_get(basis_section,"BASIS_SET_FILE_NAME",c_val=basis_fn)
+         CALL section_vals_val_get(basis_section,"BASIS_SET",c_val=basis_name)
+         gto_basis_section => section_vals_get_subs_vals(basis_section,"BASIS")
          CALL read_basis_set(ptable(zval)%symbol,basis,basis_name,basis_fn,&
-                             gto_basis_section,error)
+                             gto_basis_section)
 
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -556,9 +554,9 @@ CONTAINS
       CASE (slater)
          basis%basis_type = STO_BASIS
          NULLIFY(num_slater)
-         CALL section_vals_val_get(basis_section,"NUM_SLATER",i_vals=num_slater,error=error)
+         CALL section_vals_val_get(basis_section,"NUM_SLATER",i_vals=num_slater)
          IF ( num_slater(1) < 1 ) THEN
-           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
          ELSE
            basis%nbas = 0
            DO i=1,SIZE(num_slater)
@@ -567,61 +565,61 @@ CONTAINS
            basis%nprim = basis%nbas
            m  = MAXVAL(basis%nbas)
            ALLOCATE (basis%as(m,0:3),basis%ns(m,0:3),STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+           CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
            basis%as = 0._dp
            basis%ns = 0
            IF ( basis%nbas(0) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"S_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(0), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"S_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(0), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(0)
                basis%as(i,0) = expo(i)
              END DO
              NULLIFY(nqm)
-             CALL section_vals_val_get(basis_section,"S_QUANTUM_NUMBERS",i_vals=nqm,error=error)
-             CPPostcondition(SIZE(nqm)>=basis%nbas(0), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"S_QUANTUM_NUMBERS",i_vals=nqm)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(0), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(0)
                basis%ns(i,0) = nqm(i)
              END DO
            END IF
            IF ( basis%nbas(1) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"P_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(1), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"P_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(1), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(1)
                basis%as(i,1) = expo(i)
              END DO
              NULLIFY(nqm)
-             CALL section_vals_val_get(basis_section,"P_QUANTUM_NUMBERS",i_vals=nqm,error=error)
-             CPPostcondition(SIZE(nqm)>=basis%nbas(1), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"P_QUANTUM_NUMBERS",i_vals=nqm)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(1), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(1)
                basis%ns(i,1) = nqm(i)
              END DO
            END IF
            IF ( basis%nbas(2) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"D_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(2), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"D_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(2), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(2)
                basis%as(i,2) = expo(i)
              END DO
              NULLIFY(nqm)
-             CALL section_vals_val_get(basis_section,"D_QUANTUM_NUMBERS",i_vals=nqm,error=error)
-             CPPostcondition(SIZE(nqm)>=basis%nbas(2), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"D_QUANTUM_NUMBERS",i_vals=nqm)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(2), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(2)
                basis%ns(i,2) = nqm(i)
              END DO
            END IF
            IF ( basis%nbas(3) > 0 ) THEN
              NULLIFY(expo)
-             CALL section_vals_val_get(basis_section,"F_EXPONENTS",r_vals=expo,error=error)
-             CPPostcondition(SIZE(expo)>=basis%nbas(3), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"F_EXPONENTS",r_vals=expo)
+             CPPostcondition(SIZE(expo)>=basis%nbas(3), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(3)
                basis%as(i,3) = expo(i)
              END DO
              NULLIFY(nqm)
-             CALL section_vals_val_get(basis_section,"F_QUANTUM_NUMBERS",i_vals=nqm,error=error)
-             CPPostcondition(SIZE(nqm)>=basis%nbas(3), cp_failure_level, routineP, error, failure)
+             CALL section_vals_val_get(basis_section,"F_QUANTUM_NUMBERS",i_vals=nqm)
+             CPPostcondition(SIZE(nqm)>=basis%nbas(3), cp_failure_level, routineP,failure)
              DO i=1,basis%nbas(3)
                basis%ns(i,3) = nqm(i)
              END DO
@@ -631,9 +629,9 @@ CONTAINS
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -651,7 +649,7 @@ CONTAINS
          END DO
       CASE (numerical)
          basis%basis_type = NUM_BASIS
-         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE init_atom_basis
@@ -659,11 +657,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_atom_basis(basis,error)
+  SUBROUTINE release_atom_basis(basis)
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis', &
       routineP = moduleN//':'//routineN
@@ -675,30 +671,30 @@ CONTAINS
 
     IF(ASSOCIATED(basis%am)) THEN
        DEALLOCATE (basis%am,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     IF(ASSOCIATED(basis%cm)) THEN
        DEALLOCATE (basis%cm,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     IF(ASSOCIATED(basis%as)) THEN
        DEALLOCATE (basis%as,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     IF(ASSOCIATED(basis%ns)) THEN
        DEALLOCATE (basis%ns,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     IF(ASSOCIATED(basis%bf)) THEN
        DEALLOCATE (basis%bf,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     IF(ASSOCIATED(basis%dbf)) THEN
        DEALLOCATE (basis%dbf,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
 
-    CALL deallocate_grid_atom(basis%grid,error)
+    CALL deallocate_grid_atom(basis%grid)
 
   END SUBROUTINE release_atom_basis
 ! *****************************************************************************
@@ -706,11 +702,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param atom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_atom_type(atom,error)
+  SUBROUTINE create_atom_type(atom)
     TYPE(atom_type), POINTER                 :: atom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_type', &
       routineP = moduleN//':'//routineN
@@ -720,10 +714,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPAssert(.NOT.ASSOCIATED(atom),cp_failure_level,routineP,error,failure)
+    CPAssert(.NOT.ASSOCIATED(atom),cp_failure_level,routineP,failure)
 
     ALLOCATE(atom,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     NULLIFY(atom%zmp_section)
     NULLIFY(atom%xc_section)
@@ -737,11 +731,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param atom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_atom_type(atom,error)
+  SUBROUTINE release_atom_type(atom)
     TYPE(atom_type), POINTER                 :: atom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_type', &
       routineP = moduleN//':'//routineN
@@ -751,21 +743,21 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPAssert(ASSOCIATED(atom),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(atom),cp_failure_level,routineP,failure)
 
     NULLIFY(atom%basis)
     NULLIFY(atom%integrals)
     IF(ASSOCIATED(atom%state)) THEN
       DEALLOCATE(atom%state,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(atom%state)
     END IF
     IF(ASSOCIATED(atom%orbitals)) THEN
-      CALL release_atom_orbs(atom%orbitals,error)
+      CALL release_atom_orbs(atom%orbitals)
     END IF
 
     DEALLOCATE(atom,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     NULLIFY(atom)
 
   END SUBROUTINE release_atom_type
@@ -788,10 +780,9 @@ CONTAINS
 !> \param relativistic ...
 !> \param coulomb_integral_type ...
 !> \param exchange_integral_type ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,do_zmp,doread,&
-    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
+    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
     TYPE(atom_state), OPTIONAL, POINTER      :: state
@@ -805,7 +796,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
                                                 coulomb_integral_type, &
                                                 exchange_integral_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atom', &
       routineP = moduleN//':'//routineN
@@ -814,7 +804,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPAssert(ASSOCIATED(atom),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(atom),cp_failure_level,routineP,failure)
 
     IF(PRESENT(basis)) atom%basis => basis
     IF(PRESENT(state)) atom%state => state
@@ -840,12 +830,10 @@ CONTAINS
 !> \param orbs ...
 !> \param mbas ...
 !> \param mo ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_atom_orbs(orbs,mbas,mo,error)
+  SUBROUTINE create_atom_orbs(orbs,mbas,mo)
     TYPE(atom_orbitals), POINTER             :: orbs
     INTEGER, INTENT(IN)                      :: mbas, mo
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_orbs', &
       routineP = moduleN//':'//routineN
@@ -855,49 +843,49 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPAssert(.NOT.ASSOCIATED(orbs),cp_failure_level,routineP,error,failure)
+    CPAssert(.NOT.ASSOCIATED(orbs),cp_failure_level,routineP,failure)
 
     ALLOCATE(orbs,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     ALLOCATE(orbs%wfn(mbas,mo,0:3),orbs%wfna(mbas,mo,0:3),orbs%wfnb(mbas,mo,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%wfn = 0._dp
     orbs%wfna = 0._dp
     orbs%wfnb = 0._dp
 
     ALLOCATE(orbs%pmat(mbas,mbas,0:3),orbs%pmata(mbas,mbas,0:3),orbs%pmatb(mbas,mbas,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%pmat = 0._dp
     orbs%pmata = 0._dp
     orbs%pmatb = 0._dp
 
     ALLOCATE(orbs%ener(mo,0:3),orbs%enera(mo,0:3),orbs%enerb(mo,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%ener = 0._dp
     orbs%enera = 0._dp
     orbs%enerb = 0._dp
 
     ALLOCATE(orbs%refene(mo,0:3,2),orbs%refchg(mo,0:3,2),orbs%refnod(mo,0:3,2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%refene = 0._dp
     orbs%refchg = 0._dp
     orbs%refnod = 0._dp
     ALLOCATE(orbs%wrefene(mo,0:3,2),orbs%wrefchg(mo,0:3,2),orbs%wrefnod(mo,0:3,2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%wrefene = 0._dp
     orbs%wrefchg = 0._dp
     orbs%wrefnod = 0._dp
     ALLOCATE(orbs%crefene(mo,0:3,2),orbs%crefchg(mo,0:3,2),orbs%crefnod(mo,0:3,2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%crefene = 0._dp
     orbs%crefchg = 0._dp
     orbs%crefnod = 0._dp
     ALLOCATE(orbs%rcmax(mo,0:3,2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%rcmax = 0._dp
     ALLOCATE(orbs%wpsir0(mo,2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     orbs%wpsir0 = 0._dp
 
   END SUBROUTINE create_atom_orbs
@@ -905,11 +893,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param orbs ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_atom_orbs(orbs,error)
+  SUBROUTINE release_atom_orbs(orbs)
     TYPE(atom_orbitals), POINTER             :: orbs
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_orbs', &
       routineP = moduleN//':'//routineN
@@ -919,81 +905,81 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPAssert(ASSOCIATED(orbs),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(orbs),cp_failure_level,routineP,failure)
 
     IF(ASSOCIATED(orbs%wfn)) THEN
       DEALLOCATE(orbs%wfn,orbs%wfna,orbs%wfnb,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%wfn,orbs%wfna,orbs%wfnb)
     END IF
     IF(ASSOCIATED(orbs%pmat)) THEN
       DEALLOCATE(orbs%pmat,orbs%pmata,orbs%pmatb,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%pmat,orbs%pmata,orbs%pmatb)
     END IF
     IF(ASSOCIATED(orbs%ener)) THEN
       DEALLOCATE(orbs%ener,orbs%enera,orbs%enerb,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%ener,orbs%enera,orbs%enerb)
     END IF
     IF(ASSOCIATED(orbs%refene)) THEN
       DEALLOCATE(orbs%refene,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%refene)
     END IF
     IF(ASSOCIATED(orbs%refchg)) THEN
       DEALLOCATE(orbs%refchg,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%refchg)
     END IF
     IF(ASSOCIATED(orbs%refnod)) THEN
       DEALLOCATE(orbs%refnod,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%refnod)
     END IF
     IF(ASSOCIATED(orbs%wrefene)) THEN
       DEALLOCATE(orbs%wrefene,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%wrefene)
     END IF
     IF(ASSOCIATED(orbs%wrefchg)) THEN
       DEALLOCATE(orbs%wrefchg,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%wrefchg)
     END IF
     IF(ASSOCIATED(orbs%wrefnod)) THEN
       DEALLOCATE(orbs%wrefnod,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%wrefnod)
     END IF
     IF(ASSOCIATED(orbs%crefene)) THEN
       DEALLOCATE(orbs%crefene,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%crefene)
     END IF
     IF(ASSOCIATED(orbs%crefchg)) THEN
       DEALLOCATE(orbs%crefchg,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%crefchg)
     END IF
     IF(ASSOCIATED(orbs%crefnod)) THEN
       DEALLOCATE(orbs%crefnod,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%crefnod)
     END IF
     IF(ASSOCIATED(orbs%rcmax)) THEN
       DEALLOCATE(orbs%rcmax,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%rcmax)
     END IF
     IF(ASSOCIATED(orbs%wpsir0)) THEN
       DEALLOCATE(orbs%wpsir0,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
       NULLIFY(orbs%wpsir0)
     END IF
 
     DEALLOCATE(orbs,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     NULLIFY(orbs)
 
   END SUBROUTINE release_atom_orbs
@@ -1002,12 +988,10 @@ CONTAINS
 !> \brief ...
 !> \param opmat ...
 !> \param n ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_opmat(opmat,n,error)
+  SUBROUTINE create_opmat(opmat,n)
     TYPE(opmat_type), POINTER                :: opmat
     INTEGER, DIMENSION(0:3), INTENT(IN)      :: n
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opmat', &
       routineP = moduleN//':'//routineN
@@ -1018,14 +1002,14 @@ CONTAINS
     failure = .FALSE.
     m=MAXVAL(n)
 
-    CPPrecondition(.NOT.ASSOCIATED(opmat), cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(opmat), cp_failure_level, routineP,failure)
 
     ALLOCATE(opmat,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     opmat%n = n
     ALLOCATE(opmat%op(m,m,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     opmat%op = 0._dp
 
   END SUBROUTINE create_opmat
@@ -1033,11 +1017,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param opmat ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_opmat(opmat,error)
+  SUBROUTINE release_opmat(opmat)
     TYPE(opmat_type), POINTER                :: opmat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opmat', &
       routineP = moduleN//':'//routineN
@@ -1046,14 +1028,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(opmat), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(opmat), cp_failure_level, routineP,failure)
 
     opmat%n = 0
     DEALLOCATE(opmat%op,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     DEALLOCATE(opmat,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
   END SUBROUTINE release_opmat
 
@@ -1061,12 +1043,10 @@ CONTAINS
 !> \brief ...
 !> \param opgrid ...
 !> \param grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_opgrid(opgrid,grid,error)
+  SUBROUTINE create_opgrid(opgrid,grid)
     TYPE(opgrid_type), POINTER               :: opgrid
     TYPE(grid_atom_type), POINTER            :: grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opgrid', &
       routineP = moduleN//':'//routineN
@@ -1075,17 +1055,17 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(opgrid), cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(opgrid), cp_failure_level, routineP,failure)
 
     ALLOCATE(opgrid,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     opgrid%grid => grid
 
     nr = grid%nr
 
     ALLOCATE(opgrid%op(nr),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     opgrid%op = 0._dp
 
   END SUBROUTINE create_opgrid
@@ -1093,11 +1073,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param opgrid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_opgrid(opgrid,error)
+  SUBROUTINE release_opgrid(opgrid)
     TYPE(opgrid_type), POINTER               :: opgrid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opgrid', &
       routineP = moduleN//':'//routineN
@@ -1106,14 +1084,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(opgrid), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(opgrid), cp_failure_level, routineP,failure)
 
     NULLIFY(opgrid%grid)
     DEALLOCATE(opgrid%op,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     DEALLOCATE(opgrid,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
   END SUBROUTINE release_opgrid
 
@@ -1124,13 +1102,11 @@ CONTAINS
 !> \param aval ...
 !> \param ngto ...
 !> \param ival ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE Clementi_geobas(zval,cval,aval,ngto,ival,error)
+  SUBROUTINE Clementi_geobas(zval,cval,aval,ngto,ival)
     INTEGER, INTENT(IN)                      :: zval
     REAL(dp), INTENT(OUT)                    :: cval, aval
     INTEGER, DIMENSION(0:3), INTENT(OUT)     :: ngto, ival
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
       routineP = moduleN//':'//routineN
@@ -1145,7 +1121,7 @@ CONTAINS
 
     SELECT CASE (zval)
       CASE DEFAULT
-        CPPrecondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CPPrecondition(.FALSE., cp_failure_level, routineP,failure)
       CASE (1)   ! this is from the general geometrical basis and extended
         cval = 2.0_dp
         aval = 0.016_dp
@@ -1889,16 +1865,14 @@ CONTAINS
 !> \param basis_set_name ...
 !> \param basis_set_file ...
 !> \param basis_section ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_basis_set(element_symbol,basis,basis_set_name,basis_set_file,&
-                            basis_section,error)
+                            basis_section)
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     CHARACTER(LEN=*), INTENT(IN)             :: basis_set_name, basis_set_file
     TYPE(section_vals_type), POINTER         :: basis_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_basis_set', &
       routineP = moduleN//':'//routineN
@@ -1943,21 +1917,21 @@ CONTAINS
     gcc = 0._dp
 
     read_from_input = .FALSE.
-    CALL section_vals_get(basis_section,explicit=read_from_input, error=error)
+    CALL section_vals_get(basis_section,explicit=read_from_input)
     IF (read_from_input) THEN
       NULLIFY(list,val)
-      CALL section_vals_list_get(basis_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+      CALL section_vals_list_get(basis_section,"_DEFAULT_KEYWORD_",list=list)
       CALL uppercase(symbol)
       CALL uppercase(bsname)
-      is_ok=cp_sll_val_next(list,val,error=error)
-      CPPrecondition(is_ok, cp_failure_level, routineP, error, failure)
-      CALL val_get(val,c_val=line_att,error=error)
+      is_ok=cp_sll_val_next(list,val)
+      CPPrecondition(is_ok, cp_failure_level, routineP,failure)
+      CALL val_get(val,c_val=line_att)
       READ(line_att,*) nset
-      CPPrecondition(nset <= maxset, cp_failure_level, routineP, error, failure)
+      CPPrecondition(nset <= maxset, cp_failure_level, routineP,failure)
       DO iset=1,nset
-        is_ok=cp_sll_val_next(list,val,error=error)
-        CPPrecondition(is_ok, cp_failure_level, routineP, error, failure)
-        CALL val_get(val,c_val=line_att,error=error)
+        is_ok=cp_sll_val_next(list,val)
+        CPPrecondition(is_ok, cp_failure_level, routineP,failure)
+        CALL val_get(val,c_val=line_att)
         READ(line_att,*) n(iset)
         CALL remove_word(line_att)
         READ(line_att,*) lmin(iset)
@@ -1966,7 +1940,7 @@ CONTAINS
         CALL remove_word(line_att)
         READ(line_att,*) npgf(iset)
         CALL remove_word(line_att)
-        CPPrecondition(npgf(iset) <= maxpri, cp_failure_level, routineP, error, failure)
+        CPPrecondition(npgf(iset) <= maxpri, cp_failure_level, routineP,failure)
         nshell(iset) = 0
         DO lshell=lmin(iset),lmax(iset)
           nmin = n(iset) + lshell - lmin(iset)
@@ -1977,21 +1951,21 @@ CONTAINS
             l(nshell(iset)-ishell+i,iset) = lshell
           END DO
         END DO
-        CPPrecondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP, error, failure)
+        CPPrecondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP,failure)
         DO ipgf=1,npgf(iset)
-          is_ok=cp_sll_val_next(list,val,error=error)
-          CPPrecondition(is_ok, cp_failure_level, routineP, error, failure)
-          CALL val_get(val,c_val=line_att,error=error)
+          is_ok=cp_sll_val_next(list,val)
+          CPPrecondition(is_ok, cp_failure_level, routineP,failure)
+          CALL val_get(val,c_val=line_att)
           READ(line_att,*) zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
         END DO
       END DO
     ELSE
       NULLIFY(parser)
-      CALL parser_create(parser,basis_set_file,error=error)
+      CALL parser_create(parser,basis_set_file)
       ! Search for the requested basis set in the basis set file
       ! until the basis set is found or the end of file is reached
       search_loop: DO
-        CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line,error=error)
+        CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line)
         IF (found) THEN
           CALL uppercase(symbol)
           CALL uppercase(bsname)
@@ -2009,27 +1983,27 @@ CONTAINS
 
           IF (match) THEN
             ! Read the basis set information
-            CALL parser_get_object(parser,nset,newline=.TRUE.,error=error)
-            CPPrecondition(nset <= maxset, cp_failure_level, routineP, error, failure)
+            CALL parser_get_object(parser,nset,newline=.TRUE.)
+            CPPrecondition(nset <= maxset, cp_failure_level, routineP,failure)
             DO iset=1,nset
-              CALL parser_get_object(parser,n(iset),newline=.TRUE.,error=error)
-              CALL parser_get_object(parser,lmin(iset),error=error)
-              CALL parser_get_object(parser,lmax(iset),error=error)
-              CALL parser_get_object(parser,npgf(iset),error=error)
-              CPPrecondition(npgf(iset) <= maxpri, cp_failure_level, routineP, error, failure)
+              CALL parser_get_object(parser,n(iset),newline=.TRUE.)
+              CALL parser_get_object(parser,lmin(iset))
+              CALL parser_get_object(parser,lmax(iset))
+              CALL parser_get_object(parser,npgf(iset))
+              CPPrecondition(npgf(iset) <= maxpri, cp_failure_level, routineP,failure)
               nshell(iset) = 0
               DO lshell=lmin(iset),lmax(iset)
                 nmin = n(iset) + lshell - lmin(iset)
-                CALL parser_get_object(parser,ishell,error=error)
+                CALL parser_get_object(parser,ishell)
                 nshell(iset) = nshell(iset) + ishell
                 DO i=1,ishell
                   l(nshell(iset)-ishell+i,iset) = lshell
                 END DO
               END DO
               DO ipgf=1,npgf(iset)
-                CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.,error=error)
+                CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.)
                 DO ishell=1,nshell(iset)
-                  CALL parser_get_object(parser,gcc(ipgf,ishell,iset),error=error)
+                  CALL parser_get_object(parser,gcc(ipgf,ishell,iset))
                 END DO
               END DO
             END DO
@@ -2039,12 +2013,12 @@ CONTAINS
           END IF
         ELSE
           ! Stop program, if the end of file is reached
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
         END IF
 
       END DO search_loop
 
-      CALL parser_release(parser,error=error)
+      CALL parser_release(parser)
     END IF
 
     ! fill in the basis data structures
@@ -2063,10 +2037,10 @@ CONTAINS
     nj = MAXVAL(basis%nprim)
     ns = MAXVAL(basis%nbas)
     ALLOCATE (basis%am(nj,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     basis%am = 0._dp
     ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
     basis%cm = 0._dp
 
     DO j=0,3
@@ -2109,13 +2083,11 @@ CONTAINS
 !> \brief ...
 !> \param optimization ...
 !> \param opt_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_atom_opt_section(optimization,opt_section,error)
+  SUBROUTINE read_atom_opt_section(optimization,opt_section)
     TYPE(atom_optimization_type), &
       INTENT(INOUT)                          :: optimization
     TYPE(section_vals_type), POINTER         :: opt_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_atom_opt_section', &
       routineP = moduleN//':'//routineN
@@ -2123,11 +2095,11 @@ CONTAINS
     INTEGER                                  :: miter, ndiis
     REAL(KIND=dp)                            :: damp, eps_diis, eps_scf
 
-    CALL section_vals_val_get(opt_section,"MAX_ITER",i_val=miter,error=error)
-    CALL section_vals_val_get(opt_section,"EPS_SCF",r_val=eps_scf,error=error)
-    CALL section_vals_val_get(opt_section,"N_DIIS",i_val=ndiis,error=error)
-    CALL section_vals_val_get(opt_section,"EPS_DIIS",r_val=eps_diis,error=error)
-    CALL section_vals_val_get(opt_section,"DAMPING",r_val=damp,error=error)
+    CALL section_vals_val_get(opt_section,"MAX_ITER",i_val=miter)
+    CALL section_vals_val_get(opt_section,"EPS_SCF",r_val=eps_scf)
+    CALL section_vals_val_get(opt_section,"N_DIIS",i_val=ndiis)
+    CALL section_vals_val_get(opt_section,"EPS_DIIS",r_val=eps_diis)
+    CALL section_vals_val_get(opt_section,"DAMPING",r_val=damp)
 
     optimization%max_iter = miter
     optimization%eps_scf  = eps_scf
@@ -2141,13 +2113,11 @@ CONTAINS
 !> \param potential ...
 !> \param potential_section ...
 !> \param zval ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_atom_potential(potential,potential_section,zval,error)
+  SUBROUTINE init_atom_potential(potential,potential_section,zval)
     TYPE(atom_potential_type), INTENT(INOUT) :: potential
     TYPE(section_vals_type), POINTER         :: potential_section
     INTEGER, INTENT(IN)                      :: zval
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_potential', &
       routineP = moduleN//':'//routineN
@@ -2160,19 +2130,19 @@ CONTAINS
     failure = .FALSE.
 
     IF ( zval > 0 ) THEN
-      CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type,error=error)
+      CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type)
 
       SELECT CASE (potential%ppot_type)
         CASE (gth_pseudo)
-           CALL section_vals_val_get(potential_section,"POTENTIAL_FILE_NAME",c_val=pseudo_fn,error=error)
-           CALL section_vals_val_get(potential_section,"POTENTIAL_NAME",c_val=pseudo_name,error=error)
-           gth_potential_section => section_vals_get_subs_vals(potential_section,"GTH_POTENTIAL",error=error)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_FILE_NAME",c_val=pseudo_fn)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_NAME",c_val=pseudo_name)
+           gth_potential_section => section_vals_get_subs_vals(potential_section,"GTH_POTENTIAL")
            CALL read_gth_potential(ptable(zval)%symbol,potential%gth_pot,&
-                 pseudo_name,pseudo_fn,gth_potential_section,error)
+                 pseudo_name,pseudo_fn,gth_potential_section)
         CASE (no_pseudo)
           ! do nothing
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
       END SELECT
     ELSE
       potential%ppot_type = no_pseudo
@@ -2180,7 +2150,7 @@ CONTAINS
 
     ! confinement
     NULLIFY(convals)
-    CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals,error=error)
+    CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
     IF ( SIZE (convals) >= 1 ) THEN
       IF ( convals(1) > 0.0_dp ) THEN
         potential%confinement = .TRUE.
@@ -2206,11 +2176,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param potential ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_atom_potential(potential,error)
+  SUBROUTINE release_atom_potential(potential)
     TYPE(atom_potential_type), INTENT(INOUT) :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_potential', &
       routineP = moduleN//':'//routineN
@@ -2225,16 +2193,14 @@ CONTAINS
 !> \param pseudo_name ...
 !> \param pseudo_file ...
 !> \param potential_section ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_gth_potential(element_symbol,potential,pseudo_name,pseudo_file,&
-                            potential_section,error)
+                            potential_section)
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol
     TYPE(atom_gthpot_type), INTENT(INOUT)    :: potential
     CHARACTER(LEN=*), INTENT(IN)             :: pseudo_name, pseudo_file
     TYPE(section_vals_type), POINTER         :: potential_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential', &
       routineP = moduleN//':'//routineN
@@ -2280,16 +2246,16 @@ CONTAINS
     potential%nexp_nlcc = 0
 
     read_from_input = .FALSE.
-    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    CALL section_vals_get(potential_section,explicit=read_from_input)
     IF (read_from_input) THEN
-      CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+      CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list)
       CALL uppercase(symbol)
       CALL uppercase(apname)
       ! Read the electronic configuration, not used here
       l = 0
-      is_ok=cp_sll_val_next(list,val,error=error)
-      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-      CALL val_get(val,c_val=line_att,error=error)
+      is_ok=cp_sll_val_next(list,val)
+      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+      CALL val_get(val,c_val=line_att)
       READ(line_att,*) elec_conf(l)
       CALL remove_word(line_att)
       DO WHILE (LEN_TRIM(line_att) /= 0)
@@ -2300,9 +2266,9 @@ CONTAINS
       potential%econf(0:3) = elec_conf(0:3)
       potential%zion = REAL ( SUM(elec_conf), dp )
       ! Read r(loc) to define the exponent of the core charge
-      is_ok=cp_sll_val_next(list,val,error=error)
-      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-      CALL val_get(val,c_val=line_att,error=error)
+      is_ok=cp_sll_val_next(list,val)
+      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+      CALL val_get(val,c_val=line_att)
       READ(line_att,*) potential%rc
       CALL remove_word(line_att)
       ! Read the parameters for the local part of the GTH pseudopotential (ppl)
@@ -2314,17 +2280,17 @@ CONTAINS
       END DO
       ! Check for the next entry: LPOT, NLCC, LSD, or ppnl
       DO
-        is_ok=cp_sll_val_next(list,val,error=error)
-        CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-        CALL val_get(val,c_val=line_att,error=error)
+        is_ok=cp_sll_val_next(list,val)
+        CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+        CALL val_get(val,c_val=line_att)
         IF(INDEX(line_att,"LPOT") /= 0) THEN
           potential%lpotextended = .TRUE.
           CALL remove_word(line_att)
           READ(line_att,*) potential%nexp_lpot
           DO ipot=1,potential%nexp_lpot
-             is_ok=cp_sll_val_next(list,val,error=error)
-             CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-             CALL val_get(val,c_val=line_att,error=error)
+             is_ok=cp_sll_val_next(list,val)
+             CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+             CALL val_get(val,c_val=line_att)
              READ(line_att,*) potential%alpha_lpot(ipot)
              CALL remove_word(line_att)
              READ(line_att,*) potential%nct_lpot(ipot)
@@ -2339,9 +2305,9 @@ CONTAINS
           CALL remove_word(line_att)
           READ(line_att,*) potential%nexp_nlcc
           DO ipot=1,potential%nexp_nlcc
-             is_ok=cp_sll_val_next(list,val,error=error)
-             CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-             CALL val_get(val,c_val=line_att,error=error)
+             is_ok=cp_sll_val_next(list,val)
+             CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+             CALL val_get(val,c_val=line_att)
              READ(line_att,*) potential%alpha_nlcc(ipot)
              CALL remove_word(line_att)
              READ(line_att,*) potential%nct_nlcc(ipot)
@@ -2358,9 +2324,9 @@ CONTAINS
           CALL remove_word(line_att)
           READ(line_att,*) potential%nexp_lsd
           DO ipot=1,potential%nexp_lsd
-             is_ok=cp_sll_val_next(list,val,error=error)
-             CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-             CALL val_get(val,c_val=line_att,error=error)
+             is_ok=cp_sll_val_next(list,val)
+             CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+             CALL val_get(val,c_val=line_att)
              READ(line_att,*) potential%alpha_lsd(ipot)
              CALL remove_word(line_att)
              READ(line_att,*) potential%nct_lsd(ipot)
@@ -2380,9 +2346,9 @@ CONTAINS
       IF (nlmax > 0) THEN
         ! Load the parameter for nlmax non-local projectors
         DO l=0,nlmax-1
-          is_ok=cp_sll_val_next(list,val,error=error)
-          CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-          CALL val_get(val,c_val=line_att,error=error)
+          is_ok=cp_sll_val_next(list,val)
+          CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+          CALL val_get(val,c_val=line_att)
           READ(line_att,*) potential%rcnl(l)
           CALL remove_word(line_att)
           READ(line_att,*) potential%nl(l)
@@ -2392,10 +2358,10 @@ CONTAINS
               READ(line_att,*) potential%hnl(1,1,l)
               CALL remove_word(line_att)
             ELSE
-              CPPostcondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP, error, failure)
-              is_ok=cp_sll_val_next(list,val,error=error)
-              CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-              CALL val_get(val,c_val=line_att,error=error)
+              CPPostcondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP,failure)
+              is_ok=cp_sll_val_next(list,val)
+              CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+              CALL val_get(val,c_val=line_att)
               READ(line_att,*) potential%hnl(i,i,l)
               CALL remove_word(line_att)
             END IF
@@ -2405,15 +2371,15 @@ CONTAINS
               CALL remove_word(line_att)
             END DO
           END DO
-          CPPostcondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP,failure)
         END DO
       END IF
     ELSE
       NULLIFY(parser)
-      CALL parser_create(parser,pseudo_file,error=error)
+      CALL parser_create(parser,pseudo_file)
 
       search_loop: DO
-        CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+        CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
         IF (found) THEN
           CALL uppercase(symbol)
           CALL uppercase(apname)
@@ -2432,47 +2398,47 @@ CONTAINS
           IF (match) THEN
              ! Read the electronic configuration
              l = 0
-             CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
-             DO WHILE (parser_test_next_token(parser,error=error) == "INT")
+             CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
+             DO WHILE (parser_test_next_token(parser) == "INT")
                l = l + 1
-               CALL parser_get_object(parser,elec_conf(l),error=error)
+               CALL parser_get_object(parser,elec_conf(l))
              END DO
              potential%econf(0:3) = elec_conf(0:3)
              potential%zion = REAL ( SUM(elec_conf), dp )
              ! Read r(loc) to define the exponent of the core charge
-             CALL parser_get_object(parser,potential%rc,newline=.TRUE.,error=error)
+             CALL parser_get_object(parser,potential%rc,newline=.TRUE.)
              ! Read the parameters for the local part of the GTH pseudopotential (ppl)
-             CALL parser_get_object(parser,potential%ncl,error=error)
+             CALL parser_get_object(parser,potential%ncl)
              DO i=1,potential%ncl
-               CALL parser_get_object(parser,potential%cl(i),error=error)
+               CALL parser_get_object(parser,potential%cl(i))
              END DO
              ! Extended type input
              DO
-               CALL parser_get_next_line(parser,1,error=error)
-               IF(parser_test_next_token(parser,error=error) == "INT") THEN
+               CALL parser_get_next_line(parser,1)
+               IF(parser_test_next_token(parser) == "INT") THEN
                  EXIT
-               ELSEIF(parser_test_next_token(parser,error=error) == "STR") THEN
-                 CALL parser_get_object(parser,line,error=error)
+               ELSEIF(parser_test_next_token(parser) == "STR") THEN
+                 CALL parser_get_object(parser,line)
                  IF(INDEX(LINE,"LPOT") /= 0) THEN
                    ! local potential
                    potential%lpotextended = .TRUE.
-                   CALL parser_get_object(parser,potential%nexp_lpot,error=error)
+                   CALL parser_get_object(parser,potential%nexp_lpot)
                    DO ipot=1,potential%nexp_lpot
-                     CALL parser_get_object(parser,potential%alpha_lpot(ipot),newline=.TRUE.,error=error)
-                     CALL parser_get_object(parser,potential%nct_lpot(ipot),error=error)
+                     CALL parser_get_object(parser,potential%alpha_lpot(ipot),newline=.TRUE.)
+                     CALL parser_get_object(parser,potential%nct_lpot(ipot))
                      DO ic=1,potential%nct_lpot(ipot)
-                       CALL parser_get_object(parser,potential%cval_lpot(ic,ipot),error=error)
+                       CALL parser_get_object(parser,potential%cval_lpot(ic,ipot))
                      END DO
                    END DO
                  ELSEIF(INDEX(LINE,"NLCC") /= 0) THEN
                    ! NLCC
                    potential%nlcc = .TRUE.
-                   CALL parser_get_object(parser,potential%nexp_nlcc,error=error)
+                   CALL parser_get_object(parser,potential%nexp_nlcc)
                    DO ipot=1,potential%nexp_nlcc
-                     CALL parser_get_object(parser,potential%alpha_nlcc(ipot),newline=.TRUE.,error=error)
-                     CALL parser_get_object(parser,potential%nct_nlcc(ipot),error=error)
+                     CALL parser_get_object(parser,potential%alpha_nlcc(ipot),newline=.TRUE.)
+                     CALL parser_get_object(parser,potential%nct_nlcc(ipot))
                      DO ic=1,potential%nct_nlcc(ipot)
-                       CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot),error=error)
+                       CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot))
                        !make cp2k compatible with bigdft 
                        potential%cval_nlcc(ic,ipot)=potential%cval_nlcc(ic,ipot)/(4.0_dp*pi)
                      END DO
@@ -2480,36 +2446,36 @@ CONTAINS
                  ELSEIF(INDEX(LINE,"LSD") /= 0) THEN
                    ! LSD potential
                    potential%lsdpot = .TRUE.
-                   CALL parser_get_object(parser,potential%nexp_lsd,error=error)
+                   CALL parser_get_object(parser,potential%nexp_lsd)
                    DO ipot=1,potential%nexp_lsd
-                     CALL parser_get_object(parser,potential%alpha_lsd(ipot),newline=.TRUE.,error=error)
-                     CALL parser_get_object(parser,potential%nct_lsd(ipot),error=error)
+                     CALL parser_get_object(parser,potential%alpha_lsd(ipot),newline=.TRUE.)
+                     CALL parser_get_object(parser,potential%nct_lsd(ipot))
                      DO ic=1,potential%nct_lsd(ipot)
-                       CALL parser_get_object(parser,potential%cval_lsd(ic,ipot),error=error)
+                       CALL parser_get_object(parser,potential%cval_lsd(ic,ipot))
                      END DO
                    END DO
                  ELSE
-                   CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                   CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
                  END IF
                ELSE
-                 CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                 CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
                END IF
              END DO
              ! Read the parameters for the non-local part of the GTH pseudopotential (ppnl)
-             CALL parser_get_object(parser,nlmax,error=error)
+             CALL parser_get_object(parser,nlmax)
              IF (nlmax > 0) THEN
                 ! Load the parameter for n non-local projectors
                 DO l=0,nlmax-1
-                   CALL parser_get_object(parser,potential%rcnl(l),newline=.TRUE.,error=error)
-                   CALL parser_get_object(parser,potential%nl(l),error=error)
+                   CALL parser_get_object(parser,potential%rcnl(l),newline=.TRUE.)
+                   CALL parser_get_object(parser,potential%nl(l))
                    DO i=1,potential%nl(l)
                       IF (i == 1) THEN
-                        CALL parser_get_object(parser,potential%hnl(i,i,l),error=error)
+                        CALL parser_get_object(parser,potential%hnl(i,i,l))
                       ELSE
-                        CALL parser_get_object(parser,potential%hnl(i,i,l),newline=.TRUE.,error=error)
+                        CALL parser_get_object(parser,potential%hnl(i,i,l),newline=.TRUE.)
                       END IF
                       DO j=i+1,potential%nl(l)
-                        CALL parser_get_object(parser,potential%hnl(i,j,l),error=error)
+                        CALL parser_get_object(parser,potential%hnl(i,j,l))
                         potential%hnl(j,i,l) = potential%hnl(i,j,l)
                       END DO
                    END DO
@@ -2519,12 +2485,12 @@ CONTAINS
           END IF
         ELSE
           ! Stop program, if the end of file is reached
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
         END IF
 
       END DO search_loop
 
-      CALL parser_release(parser,error=error)
+      CALL parser_release(parser)
     END IF
 
   END SUBROUTINE read_gth_potential

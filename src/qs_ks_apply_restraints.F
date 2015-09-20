@@ -56,16 +56,14 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param matrix_s ...
 !> \param becke ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_ks_becke_restraint(qs_env,auxbas_pw_pool,calculate_forces,matrix_s,becke,error)
+  SUBROUTINE qs_ks_becke_restraint(qs_env,auxbas_pw_pool,calculate_forces,matrix_s,becke)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     TYPE(becke_restraint_type), POINTER      :: becke
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_becke_restraint', &
       routineP = moduleN//':'//routineN
@@ -77,26 +75,26 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(dft_control)
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
 
     IF(dft_control%qs_control%becke_restraint)THEN
        ! Test no k-points
-       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,failure)
        !***** Check if becke potential is needed to constrain charges *****
        becke => dft_control%qs_control%becke_control
        IF(becke%need_pot.OR.calculate_forces)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
-               in_space=REALSPACE,error=error)
+               in_space=REALSPACE)
           CALL becke_restraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
-               calculate_forces=calculate_forces,error=error)
-          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
+               calculate_forces=calculate_forces)
+          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
           becke%need_pot=.FALSE.
        ELSE
           inv_vol=1.0_dp/becke%becke_pot%pw%pw_grid%dvol
-          CALL pw_scale(becke%becke_pot%pw,inv_vol,error=error)
+          CALL pw_scale(becke%becke_pot%pw,inv_vol)
           CALL becke_restraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
-               calculate_forces=calculate_forces,error=error)
-          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
+               calculate_forces=calculate_forces)
+          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
        ENDIF
 
        IF(dft_control%qs_control%et_coupling_calc)THEN
@@ -104,26 +102,26 @@ CONTAINS
              IF(qs_env%et_coupling%first_run)THEN
                 NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)
                 ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
-                CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix, error=error)
+                CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
                 CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1,1)%matrix, &
-                     name="ET_RESTRAINT_MATRIX_A", error=error)
-                CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix,0.0_dp,error=error)
+                     name="ET_RESTRAINT_MATRIX_A")
+                CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix,0.0_dp)
                 CALL integrate_v_rspace(becke%becke_pot,&
                      hmat=qs_env%et_coupling%rest_mat(1),&
-                     qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                     qs_env=qs_env,calculate_forces=.FALSE.)
                 qs_env%et_coupling%order_p=dft_control%qs_control%becke_control%becke_order_p
                 qs_env%et_coupling%e1=dft_control%qs_control%becke_control%strength
                 qs_env%et_coupling%keep_matrix=.FALSE.
              ELSE
                 NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)
                 ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
-                CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix, error=error)
+                CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
                 CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1,1)%matrix, &
-                     name="ET_RESTRAINT_MATRIX_B", error=error)
-                CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix,0.0_dp,error=error)
+                     name="ET_RESTRAINT_MATRIX_B")
+                CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix,0.0_dp)
                 CALL integrate_v_rspace(becke%becke_pot,&
                      hmat=qs_env%et_coupling%rest_mat(2),&
-                     qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                     qs_env=qs_env,calculate_forces=.FALSE.)
 
              END IF
           END IF
@@ -142,10 +140,9 @@ CONTAINS
 !> \param matrix_s ...
 !> \param rho ...
 !> \param mulliken_order_p ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_ks_mulliken_restraint(energy,dft_control,just_energy,para_env,&
-       ks_matrix,matrix_s,rho,mulliken_order_p,error)
+       ks_matrix,matrix_s,rho,mulliken_order_p)
 
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -155,7 +152,6 @@ CONTAINS
       POINTER                                :: ks_matrix, matrix_s
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(KIND=dp)                            :: mulliken_order_p
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_mulliken_restraint', &
       routineP = moduleN//':'//routineN
@@ -171,19 +167,19 @@ CONTAINS
     IF (dft_control%qs_control%mulliken_restraint) THEN
 
        ! Test no k-points
-       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,failure)
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
        IF (just_energy) THEN
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
                para_env,matrix_s(1,1)%matrix,rho_ao,energy=energy%mulliken, &
-               order_p=mulliken_order_p,error=error)
+               order_p=mulliken_order_p)
        ELSE
           ksmat => ks_matrix(:,1)
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control,&
                para_env,matrix_s(1,1)%matrix,rho_ao,energy=energy%mulliken, &
-               ks_matrix=ksmat,order_p=mulliken_order_p,error=error)
+               ks_matrix=ksmat,order_p=mulliken_order_p)
        ENDIF
 
     ENDIF
@@ -198,10 +194,9 @@ CONTAINS
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
-       energy,calculate_forces, just_energy,error)
+       energy,calculate_forces, just_energy)
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -209,7 +204,6 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_s2_restraint', &
       routineP = moduleN//':'//routineN
@@ -228,27 +222,27 @@ CONTAINS
 
     IF (dft_control%qs_control%s2_restraint) THEN
        ! Test no k-points
-       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,failure)
        ! adds s2_restraint energy and orbital derivatives
-       CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
-       CPPrecondition(qs_env%requires_mo_derivs,cp_failure_level,routineP,error,failure)
+       CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,failure)
+       CPPrecondition(qs_env%requires_mo_derivs,cp_failure_level,routineP,failure)
        ! forces are not implemented (not difficult, but ... )
-       CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,error,failure)
-       CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
+       CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,failure)
+       CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
 
        ALLOCATE(fm_mo_derivs(SIZE(mo_derivs,1)))!fm->dbcsr
        DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
           CALL get_mo_set(mo_set=mo_array(i)%mo_set,mo_coeff=mo_coeff)!fm->dbcsr
-          CALL cp_fm_create(fm_mo_derivs(i)%matrix,mo_coeff%matrix_struct,error=error)!fm->dbcsr
-          CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix,fm_mo_derivs(i)%matrix,error=error)!fm->dbcsr
+          CALL cp_fm_create(fm_mo_derivs(i)%matrix,mo_coeff%matrix_struct)!fm->dbcsr
+          CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix,fm_mo_derivs(i)%matrix)!fm->dbcsr
        ENDDO!fm->dbcsr
 
        smat => matrix_s(:,1)
        CALL s2_restraint(mo_array, smat, fm_mo_derivs, energy%s2_restraint, &
-            dft_control%qs_control%s2_restraint_control, just_energy, error)
+            dft_control%qs_control%s2_restraint_control, just_energy)
 
        DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
-          CALL copy_fm_to_dbcsr(fm_mo_derivs(i)%matrix,mo_derivs(i)%matrix,error=error)!fm->dbcsr
+          CALL copy_fm_to_dbcsr(fm_mo_derivs(i)%matrix,mo_derivs(i)%matrix)!fm->dbcsr
        ENDDO!fm->dbcsr
        DEALLOCATE(fm_mo_derivs)!fm->dbcsr
 

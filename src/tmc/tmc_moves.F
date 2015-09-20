@@ -66,19 +66,16 @@ CONTAINS
 !> \param move_rejected return flag if during configurational change 
 !>        configuration should still be accepted (not if e.g. atom/molecule 
 !>        leave the sub box
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE change_pos(tmc_params, move_types, rng_stream, elem, mv_conf, &
-                        new_subbox, move_rejected, error)
+                        new_subbox, move_rejected)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: mv_conf
     LOGICAL                                  :: new_subbox, move_rejected
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_pos', &
       routineP = moduleN//':'//routineN
@@ -94,28 +91,28 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(direction, elem_center, mol_in_sb)
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
 
     move_rejected = .FALSE.
 
     CALL set_rng_stream(rng_stream=rng_stream, bg=elem%rng_seed(:,:,1), &
-           cg=elem%rng_seed(:,:,2), ig=elem%rng_seed(:,:,3), error=error)
+           cg=elem%rng_seed(:,:,2), ig=elem%rng_seed(:,:,3))
 
     IF(new_subbox) THEN
        IF(ALL(tmc_params%sub_box_size.GT.0.0_dp)) THEN
          CALL elements_in_new_subbox(tmc_params=tmc_params, &
                 rng_stream=rng_stream, elem=elem, &
-                nr_of_sub_box_elements=nr_sub_box_elem, error=error)
+                nr_of_sub_box_elements=nr_sub_box_elem)
        ELSE
          elem%elem_stat(:) = status_ok
        END IF
     END IF
 
     ! at least one atom should be in the sub box
-    CPPrecondition(ANY(elem%elem_stat(:).EQ.status_ok),cp_warning_level,routineP,error,failure)
+    CPPrecondition(ANY(elem%elem_stat(:).EQ.status_ok),cp_warning_level,routineP,failure)
     IF(failure) THEN
       act_nr_elem_mv = -1
     ELSE IF(tmc_params%nr_elem_mv.EQ.0) THEN
@@ -134,7 +131,7 @@ CONTAINS
        ! just for Gaussian Adaptation
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                  "gaussian adaptation is not imlemented yet.",&
-                 error,failure)
+                 failure)
 !TODO       CALL new_pos_gauss_adapt(acc=ASSOCIATED(elem%parent%acc, elem), &
 !                    pos=elem%pos, covari=elem%frc, pot=elem%potential, &
 !                    step_size=elem%ekin, pos_aver=elem%vel, temp=elem%ekin_before_md, &
@@ -150,7 +147,7 @@ CONTAINS
         IF(tmc_params%nr_elem_mv.EQ.0) THEN
           ind = (i-1) * (tmc_params%dim_per_elem) +1
         ELSE
-          rnd = next_random_number(rng_stream, error=error) ! next random number
+          rnd = next_random_number(rng_stream) ! next random number
           ind = tmc_params%dim_per_elem*&
                 INT(rnd*(SIZE(elem%pos)/tmc_params%dim_per_elem))+1
         END IF
@@ -158,7 +155,7 @@ CONTAINS
         IF(elem%elem_stat(ind).EQ.status_ok)THEN
           ! displace atom
           DO d=0, tmc_params%dim_per_elem-1
-            rnd = next_random_number(rng_stream, error=error) ! next random number
+            rnd = next_random_number(rng_stream) ! next random number
             elem%pos(ind+d) = elem%pos(ind+d) + (rnd-0.5)*2.0*&
               move_types%mv_size(mv_type_atom_trans,mv_conf)
           END DO
@@ -166,8 +163,8 @@ CONTAINS
           elem_center = elem%pos(ind:ind+tmc_params%dim_per_elem-1)
           IF(.NOT.check_pos_in_subbox(pos=elem_center, &
                    subbox_center=elem%subbox_center, &
-                   box_scale=elem%box_scale, tmc_params=tmc_params, &
-                   error=error)) THEN
+                   box_scale=elem%box_scale, tmc_params=tmc_params)&
+                   ) THEN
             move_rejected = .TRUE.
             EXIT move_elements_loop
           END IF
@@ -192,13 +189,13 @@ CONTAINS
       ! check if any molecule is in sub_box
       DO m=1, nr_molec
         CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
-                             start_ind=ind, end_ind=ind_e, error=error)
+                             start_ind=ind, end_ind=ind_e)
         CALL geometrical_center(pos=elem%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
-                                center=elem_center, error=error)
+                                center=elem_center)
         IF(check_pos_in_subbox(pos=elem_center, &
              subbox_center=elem%subbox_center, &
-             box_scale=elem%box_scale, tmc_params=tmc_params, &
-             error=error)) &
+             box_scale=elem%box_scale, tmc_params=tmc_params)&
+             ) &
           mol_in_sb(m) = status_ok
       END DO
       ! displace the selected amount of molecules
@@ -210,11 +207,11 @@ CONTAINS
           IF(tmc_params%nr_elem_mv.EQ.0) THEN
             m = counter
           ELSE
-            rnd = next_random_number(rng_stream, error=error) ! next random number
+            rnd = next_random_number(rng_stream) ! next random number
             m = INT(rnd*nr_molec)+1
           END IF
           CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
-                               start_ind=ind, end_ind=ind_e, error=error)
+                               start_ind=ind, end_ind=ind_e)
           ! when "molecule" is single atom, search a new one
           IF(ind .EQ. ind_e) CYCLE move_molecule_loop
 
@@ -223,7 +220,7 @@ CONTAINS
           IF(mol_in_sb(m) .EQ. status_ok) THEN
             ! calculate displacement
             DO d=1, tmc_params%dim_per_elem
-              rnd = next_random_number(rng_stream, error=error) ! next random number
+              rnd = next_random_number(rng_stream) ! next random number
               direction(d) = (rnd-0.5)* 2.0_dp*move_types%mv_size(&
                                          mv_type_mol_trans,mv_conf)
             END DO
@@ -231,8 +228,8 @@ CONTAINS
             elem_center(:) = elem_center(:) + direction(:)
             IF(check_pos_in_subbox(pos=elem_center,&
                  subbox_center=elem%subbox_center, &
-                 box_scale=elem%box_scale, tmc_params=tmc_params, &
-                 error=error)) THEN
+                 box_scale=elem%box_scale, tmc_params=tmc_params)&
+                 ) THEN
               ! apply move
               atom_in_mol_loop:DO i=ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
                 dim_loop:DO d=0, tmc_params%dim_per_elem-1
@@ -267,13 +264,13 @@ CONTAINS
       ! check if any molecule is in sub_box
       DO m=1, nr_molec
         CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
-                             start_ind=ind, end_ind=ind_e, error=error)
+                             start_ind=ind, end_ind=ind_e)
         CALL geometrical_center(pos=elem%pos(ind:ind_e+tmc_params%dim_per_elem-1), &
-                                center=elem_center, error=error)
+                                center=elem_center)
         IF(check_pos_in_subbox(pos=elem_center, &
              subbox_center=elem%subbox_center, &
-             box_scale=elem%box_scale, tmc_params=tmc_params, &
-             error=error)) &
+             box_scale=elem%box_scale, tmc_params=tmc_params)&
+             ) &
           mol_in_sb(m) = status_ok
       END DO
       ! rotate the selected amount of molecules
@@ -284,11 +281,11 @@ CONTAINS
           IF(tmc_params%nr_elem_mv.EQ.0) THEN
             m = counter
           ELSE
-            rnd = next_random_number(rng_stream, error=error) ! next random number
+            rnd = next_random_number(rng_stream) ! next random number
             m = INT(rnd*nr_molec)+1
           END IF
           CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
-                               start_ind=ind, end_ind=ind_e, error=error)
+                               start_ind=ind, end_ind=ind_e)
           ! when "molecule" is single atom, search a new one
           IF(ind .EQ. ind_e) CYCLE rot_molecule_loop
 
@@ -298,14 +295,14 @@ CONTAINS
                    max_angle=move_types%mv_size(&
                                mv_type_mol_rot,mv_conf), &
                    move_types=move_types, rng_stream=rng_stream, &
-                   dim_per_elem=tmc_params%dim_per_elem, error=error)
+                   dim_per_elem=tmc_params%dim_per_elem)
             ! update sub box status of single atom
             DO i=ind, ind_e+tmc_params%dim_per_elem-1, tmc_params%dim_per_elem
               elem_center = elem%pos(i:i+tmc_params%dim_per_elem-1)
               IF(check_pos_in_subbox(pos=elem_center, &
                    subbox_center=elem%subbox_center, &
-                   box_scale=elem%box_scale, tmc_params=tmc_params, &
-                   error=error))THEN
+                   box_scale=elem%box_scale, tmc_params=tmc_params)&
+                   )THEN
                 elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_ok
               ELSE
                 elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_frozen
@@ -325,7 +322,7 @@ CONTAINS
     !-- velocity changes for MD 
     !-- here all velocities are changed
     CASE(mv_type_MD)
-      CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error)
+      CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP)
       change_all_velocities_loop: DO i=1, SIZE(elem%pos)
         !-- attention, move type size is in atomic units of velocity
         IF(elem%elem_stat(i).NE.status_frozen) THEN
@@ -334,7 +331,7 @@ CONTAINS
                           phi=move_types%mv_size(mv_type_MD,1),& ! TODO parallel tempering move sizes for vel_change
                           temp=tmc_params%Temp(mv_conf), &
                           rnd_sign_change=.TRUE., &! MD_vel_invert, &
-                          rng_stream=rng_stream, error=error)
+                          rng_stream=rng_stream)
         END IF
       END DO change_all_velocities_loop
 
@@ -344,30 +341,30 @@ CONTAINS
     CASE(mv_type_proton_reorder)
       CALL search_and_do_proton_displace_loop(elem=elem, &
              short_loop=move_rejected, rng_stream=rng_stream, &
-             tmc_params=tmc_params, error=error)
+             tmc_params=tmc_params)
 
     !-- volume move
     ! the box is increased or decreased and with it the coordinates
     CASE(mv_type_volume_move)
       CALL change_volume(conf=elem, T_ind=mv_conf, move_types=move_types, &
                          rng_stream=rng_stream, tmc_params=tmc_params, &
-                         mv_cen_of_mass=tmc_params%mv_cen_of_mass, error=error)
+                         mv_cen_of_mass=tmc_params%mv_cen_of_mass)
 
     !-- atom swap
     ! two atoms of different types are swapped
     CASE(mv_type_atom_swap)
       CALL swap_atoms(conf=elem, move_types=move_types, rng_stream=rng_stream,&
-                         tmc_params=tmc_params, error=error)
+                         tmc_params=tmc_params)
 
     CASE DEFAULT
       CALL cp_assert(.FALSE.,&
                     cp_failure_level,cp_assertion_failed,routineP,&
                     "unknown move type "//&
-                    cp_to_string(elem%move_type),error)
+                    cp_to_string(elem%move_type))
     END SELECT
 
     CALL get_rng_stream(rng_stream=rng_stream, bg=elem%rng_seed(:,:,1), &
-           cg=elem%rng_seed(:,:,2), ig=elem%rng_seed(:,:,3), error=error)
+           cg=elem%rng_seed(:,:,2), ig=elem%rng_seed(:,:,3))
 
   END SUBROUTINE change_pos
 
@@ -378,17 +375,14 @@ CONTAINS
 !> \param mol the selected molecule number
 !> \param start_ind start index of the first atom in molecule
 !> \param end_ind index of the last atom in molecule
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE get_mol_indeces(tmc_params, mol_arr, mol, start_ind, end_ind, error)
+  SUBROUTINE get_mol_indeces(tmc_params, mol_arr, mol, start_ind, end_ind)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     INTEGER, DIMENSION(:), INTENT(IN), &
       POINTER                                :: mol_arr
     INTEGER, INTENT(IN)                      :: mol
     INTEGER, INTENT(OUT)                     :: start_ind, end_ind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mol_indeces', &
       routineP = moduleN//':'//routineN
@@ -401,8 +395,8 @@ CONTAINS
     start_ind = -1
     end_ind   = -1
 
-    CPPrecondition(ASSOCIATED(mol_arr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(mol.LE.MAXVAL(mol_arr(:)),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mol_arr),cp_failure_level,routineP,failure)
+    CPPrecondition(mol.LE.MAXVAL(mol_arr(:)),cp_failure_level,routineP,failure)
     ! get start index
     loop_start: DO i=1, SIZE(mol_arr)
       IF(mol_arr(i) .EQ. mol) THEN
@@ -418,9 +412,9 @@ CONTAINS
       END IF
     END DO loop_end
     ! check if all atoms inbetween attend to molecule
-    CPPostcondition(ALL(mol_arr(start_ind:end_ind).EQ.mol),cp_failure_level,routineP,error,failure)
-    CPPostcondition(start_ind.GT.0,cp_failure_level,routineP,error,failure)
-    CPPostcondition(end_ind.GT.0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ALL(mol_arr(start_ind:end_ind).EQ.mol),cp_failure_level,routineP,failure)
+    CPPostcondition(start_ind.GT.0,cp_failure_level,routineP,failure)
+    CPPostcondition(end_ind.GT.0,cp_failure_level,routineP,failure)
     ! convert to indeces mapped for the position array (multiple dim per atom)
     start_ind = (start_ind-1)*tmc_params%dim_per_elem+1
     end_ind   = (end_ind-1)*tmc_params%dim_per_elem+1
@@ -433,16 +427,13 @@ CONTAINS
 !> \param subbox_center actual center of sub box
 !> \param box_scale scaling factors for the cell
 !> \param tmc_params TMC parameters with sub box size and cell
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval inside ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION check_pos_in_subbox(pos, subbox_center, box_scale, tmc_params, error)&
+  FUNCTION check_pos_in_subbox(pos, subbox_center, box_scale, tmc_params)&
                                RESULT(inside)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, subbox_center, box_scale
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: inside
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_pos_in_subbox', &
@@ -454,14 +445,14 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(subbox_center),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(box_scale),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(subbox_center),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(box_scale),cp_failure_level,routineP,failure)
     ! if pressure is defined, no scale should be 0
     flag = .NOT.((tmc_params%pressure.GT.0.0_dp).AND.(ANY(box_scale.EQ.0.0_dp)))
-    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(pos).EQ.3,cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(pos).EQ.SIZE(subbox_center),cp_failure_level,routineP,error,failure)
+    CPPrecondition(flag,cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(pos).EQ.3,cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(pos).EQ.SIZE(subbox_center),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -473,7 +464,7 @@ CONTAINS
     IF(.NOT.ANY(tmc_params%sub_box_size(:).LE.0.1_dp)) THEN
       pos_tmp(:) = pos(:)-subbox_center(:)
       CALL get_scaled_cell(cell=tmc_params%cell, box_scale=box_scale, &
-                           vec=pos_tmp, error=error)
+                           vec=pos_tmp)
       ! check
       IF(ANY(pos_tmp(:).GE.tmc_params%sub_box_size(:)/2.0) .OR. &
          ANY(pos_tmp(:).LE.-tmc_params%sub_box_size(:)/2.0)) THEN
@@ -491,19 +482,16 @@ CONTAINS
 !> \param rng_stream ...
 !> \param elem ...
 !> \param nr_of_sub_box_elements ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE elements_in_new_subbox(tmc_params, rng_stream, elem, &
-                                    nr_of_sub_box_elements, error)
+                                    nr_of_sub_box_elements)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tree_type), POINTER                 :: elem
     INTEGER, INTENT(OUT)                     :: nr_of_sub_box_elements
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'elements_in_new_subbox', &
       routineP = moduleN//':'//routineN
@@ -517,8 +505,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(center_of_sub_box, atom_tmp)
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -526,7 +514,7 @@ CONTAINS
     IF(ANY(tmc_params%sub_box_size(:).LE.0.1_dp)) THEN
       !CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
       !       "try to count elements in sub box without sub box.",&
-      !       error,failure)
+      !       failure)
       elem%elem_stat = status_ok
       nr_of_sub_box_elements = SIZE(elem%elem_stat)
     ELSE
@@ -536,25 +524,25 @@ CONTAINS
       ! -- define the center of the sub box 
       CALL set_rng_stream(rng_stream=rng_stream, &
                           bg=elem%rng_seed(:,:,1), cg=elem%rng_seed(:,:,2), &
-                          ig=elem%rng_seed(:,:,3), error=error)
+                          ig=elem%rng_seed(:,:,3))
 
       CALL get_cell(cell=tmc_params%cell, abc=box_size)
       DO i=1, SIZE(tmc_params%sub_box_size)
-         rnd = next_random_number(rng_stream, error=error) ! next random number
+         rnd = next_random_number(rng_stream) ! next random number
          center_of_sub_box(i) = rnd * box_size(i)
       END DO
       elem%subbox_center(:) = center_of_sub_box(:)
   
       CALL get_rng_stream(rng_stream=rng_stream, &
                           bg=elem%rng_seed(:,:,1), cg=elem%rng_seed(:,:,2), &
-                          ig=elem%rng_seed(:,:,3), error=error)
+                          ig=elem%rng_seed(:,:,3))
   
       ! check all elements if they are in subbox
       DO i=1, SIZE(elem%pos), tmc_params%dim_per_elem
          atom_tmp(:) = elem%pos(i:i+tmc_params%dim_per_elem-1)
          IF(check_pos_in_subbox(pos=atom_tmp, &
               subbox_center=center_of_sub_box, box_scale=elem%box_scale, &
-              tmc_params=tmc_params, error=error)) THEN
+              tmc_params=tmc_params)) THEN
            elem%elem_stat(i:i+tmc_params%dim_per_elem-1) = status_ok
            nr_of_sub_box_elements = nr_of_sub_box_elements + 1
          ELSE
@@ -577,19 +565,16 @@ CONTAINS
 !> \param move_types ...
 !> \param rng_stream ramdon stream
 !> \param dim_per_elem dimension per atom
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE do_mol_rot(pos, ind_start, ind_end, max_angle, move_types, &
-                        rng_stream, dim_per_elem, error)
+                        rng_stream, dim_per_elem)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
     INTEGER                                  :: ind_start, ind_end
     REAL(KIND=dp)                            :: max_angle
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER                                  :: dim_per_elem
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mol_rot', &
       routineP = moduleN//':'//routineN
@@ -604,18 +589,18 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(elem_center)
 
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(dim_per_elem.EQ.3,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ind_start.GT.0.AND.ind_start.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ind_end.GT.0.AND.ind_end.LT.SIZE(pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+    CPPrecondition(dim_per_elem.EQ.3,cp_failure_level,routineP,failure)
+    CPPrecondition(ind_start.GT.0.AND.ind_start.LT.SIZE(pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ind_end.GT.0.AND.ind_end.LT.SIZE(pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
 
     ! calculate rotation matrix (using quanternions)
-    rnd = next_random_number(rng_stream, error=error) ! next random number
+    rnd = next_random_number(rng_stream) ! next random number
     a1 = (rnd-0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
-    rnd = next_random_number(rng_stream, error=error) ! next random number
+    rnd = next_random_number(rng_stream) ! next random number
     a2 = (rnd-0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
-    rnd = next_random_number(rng_stream, error=error) ! next random number
+    rnd = next_random_number(rng_stream) ! next random number
     a3 = (rnd-0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
     q0 = COS(a2/2)*COS((a1+a3)/2.0_dp)
     q1 = SIN(a2/2)*COS((a1-a3)/2.0_dp)
@@ -628,7 +613,7 @@ CONTAINS
     ALLOCATE(elem_center(dim_per_elem))
     ! calculate geometrical center
     CALL geometrical_center(pos=pos(ind_start:ind_end+dim_per_elem-1), &
-                            center=elem_center, error=error)
+                            center=elem_center)
 
     ! proceed rotation
     atom_loop:DO i=ind_start, ind_end+dim_per_elem-1, dim_per_elem
@@ -648,18 +633,14 @@ CONTAINS
 !> \param temp temperature for gaussian distributed velocity
 !> \param rnd_sign_change if sign of old velocity should change randomly
 !> \param rng_stream random number stream
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE vel_change(vel, atom_kind, phi, temp, rnd_sign_change, rng_stream, &
-                        error)
+  SUBROUTINE vel_change(vel, atom_kind, phi, temp, rnd_sign_change, rng_stream)
     REAL(KIND=dp), INTENT(INOUT)             :: vel
     TYPE(tmc_atom_type)                      :: atom_kind
     REAL(KIND=dp), INTENT(IN)                :: phi, temp
     LOGICAL                                  :: rnd_sign_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vel_change', &
       routineP = moduleN//':'//routineN
@@ -672,12 +653,12 @@ CONTAINS
     failure = .FALSE.
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     !phi = move_types%mv_size(mv_type_MD,1) ! TODO parallel tempering move sizes for vel_change
     ! hence first producing a gaussian random number
-    rnd1 = next_random_number(rng_stream, error=error)
-    rnd2 = next_random_number(rng_stream, error=error)
+    rnd1 = next_random_number(rng_stream)
+    rnd2 = next_random_number(rng_stream)
 
     rnd_g = SQRT(-2.0_dp*LOG(rnd1))*COS(2.0_dp*PI*rnd2)
     !we can also produce a second one in the same step:
@@ -691,7 +672,7 @@ CONTAINS
       ! can be switched of using MD_vel_invert
       ! without still the balance condition should be fullfilled
 
-    rnd3 = next_random_number(rng_stream, error=error)
+    rnd3 = next_random_number(rng_stream)
     IF(rnd3.GE.0.5.AND.rnd_sign_change) THEN
        d = -1
     ELSE
@@ -711,17 +692,14 @@ CONTAINS
 !> \param rng_stream random number stream
 !> \param tmc_params TMC parameters with numbers of dimensions per element
 !>        number of atoms per molecule
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE search_and_do_proton_displace_loop(elem, short_loop, rng_stream, &
-                                                tmc_params, error)
+                                                tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     LOGICAL                                  :: short_loop
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'search_and_do_proton_displace_loop', &
@@ -737,9 +715,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(mol_arr)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -752,7 +730,7 @@ CONTAINS
     mol_arr(:) = -1
     donor_acceptor = not_selected
     ! select randomly if neighboring molecule is donor / acceptor
-    IF(next_random_number(rng_stream, error=error).LT.0.5_dp) THEN
+    IF(next_random_number(rng_stream).LT.0.5_dp) THEN
       donor_acceptor = proton_acceptor
     ELSE
       donor_acceptor = proton_donor
@@ -760,7 +738,7 @@ CONTAINS
 
     ! first step build loop
     !  select randomly one atom
-    rnd = next_random_number(rng_stream, error=error)
+    rnd = next_random_number(rng_stream)
     ! the randomly selected first atom
     mol = INT(rnd*nr_mol) +1
     counter = counter +1
@@ -774,7 +752,7 @@ CONTAINS
        !  (with same state, in the chain, proton donator or proton accptor)
        CALL find_nearest_proton_acceptor_donator(elem=elem, mol=mol, &
               donor_acceptor=donor_acceptor, tmc_params=tmc_params, &
-              rng_stream=rng_stream, error=error)
+              rng_stream=rng_stream)
        IF(ANY(mol_arr(:).EQ.mol))&
          EXIT chain_completition_loop
        mol_arr(counter) = mol
@@ -792,20 +770,19 @@ CONTAINS
     ! check if loop is minimum size of 6 molecules
     CALL cp_assert(counter.GE.6,cp_warning_level,cp_assertion_failed,&
                  routineP,"short proton loop with"//cp_to_string(counter)//&
-                 "molecules.", error,failure)
+                 "molecules.",failure)
     IF(failure) THEN
       tmp_chr=""
       WRITE(tmp_chr, *) mol_arr(1:counter)
       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                  routineP,"selected molecules:"//TRIM(tmp_chr),&
-                 error,failure)
+                 failure)
       short_loop = .TRUE.
     END IF
     ! rotate the molecule along the not involved O-H bond 
     !   (about the angle in of the neighboring chain elements)
     CALL rotate_molecules_in_chain(tmc_params=tmc_params, elem=elem, &
-           mol_arr_in=mol_arr(1:counter), donor_acceptor=donor_acceptor, &
-           error=error)
+           mol_arr_in=mol_arr(1:counter), donor_acceptor=donor_acceptor)
     DEALLOCATE(mol_arr)
 
     ! end the timing
@@ -822,17 +799,14 @@ CONTAINS
 !> \param tmc_params TMC parameters with numbers of dimensions per element
 !>        number of atoms per molecule
 !> \param rng_stream random number stream
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE find_nearest_proton_acceptor_donator(elem, mol, donor_acceptor, &
-                                               tmc_params, rng_stream, error)
+                                               tmc_params, rng_stream)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: mol, donor_acceptor
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'find_nearest_proton_acceptor_donator', &
@@ -847,8 +821,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(distO, distH1, distH2)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -867,7 +841,7 @@ CONTAINS
 
     ! get the indices of the old O atom (assuming the first atom of the molecule the first atom)
     CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=mol, &
-                               start_ind=ind, end_ind=ind_e, error=error)
+                               start_ind=ind, end_ind=ind_e)
 
     ! calculate distances to all molecules
     list_distances: DO mol_tmp=1, nr_mol
@@ -875,47 +849,47 @@ CONTAINS
       ! index of the molecule (the O atom)
       ! assume the first atom of the molecule the first atom
       CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
-             mol=mol_tmp, start_ind=ind_n, end_ind=ind_e, error=error)
+             mol=mol_tmp, start_ind=ind_n, end_ind=ind_e)
       ! check if selected molecule is water respectively consists of 3 atoms
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                  routineP,"selected a molecule with more than 3 atoms, "//&
                  "the proton reordering does not support, skip molecule",&
-                 error,failure)
+                 failure)
         CYCLE list_distances
       END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN
         IF(check_donor_acceptor(elem=elem, i_orig=ind, i_neighbor=ind_n, &
-             tmc_params=tmc_params, error=error).EQ.proton_acceptor) THEN
+             tmc_params=tmc_params).EQ.proton_acceptor) THEN
           !distance of fist proton to certain O
           distH1(mol_tmp) = nearest_distance(&
                           x1=elem%pos(ind+tmc_params%dim_per_elem:&
                                       ind+2*tmc_params%dim_per_elem-1), &
                           x2=elem%pos(ind_n:ind_n+tmc_params%dim_per_elem-1),&
-                          cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                          cell=tmc_params%cell, box_scale=elem%box_scale)
           !distance of second proton to certain O
           distH2(mol_tmp) = nearest_distance(&
                           x1=elem%pos(ind+2*tmc_params%dim_per_elem:&
                                       ind+3*tmc_params%dim_per_elem-1), &
                           x2=elem%pos(ind_n:ind_n+tmc_params%dim_per_elem-1), &
-                          cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                          cell=tmc_params%cell, box_scale=elem%box_scale)
         END IF
       END IF
       !check for neighboring proton donors
       IF(donor_acceptor.EQ.proton_donor) THEN
         IF(check_donor_acceptor(elem=elem, i_orig=ind, i_neighbor=ind_n, &
-             tmc_params=tmc_params, error=error).EQ.proton_donor) THEN
+             tmc_params=tmc_params).EQ.proton_donor) THEN
           !distance of selected O to all first protons of other melecules
           distO(mol_tmp) = nearest_distance(&
                          x1=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
                          x2=elem%pos(ind_n+tmc_params%dim_per_elem:&
                                      ind_n+2*tmc_params%dim_per_elem-1), &
-                         cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                         cell=tmc_params%cell, box_scale=elem%box_scale)
           dist_tmp   = nearest_distance(&
                          x1=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
                          x2=elem%pos(ind_n+2*tmc_params%dim_per_elem:&
                                      ind_n+3*tmc_params%dim_per_elem-1), &
-                         cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                         cell=tmc_params%cell, box_scale=elem%box_scale)
           IF(dist_tmp.LT.distO(mol_tmp)) distO(mol_tmp) = dist_tmp
          END IF
       END IF
@@ -948,7 +922,7 @@ CONTAINS
     END IF
 
     ! select randomly the next neighboring molecule
-    rnd = next_random_number(rng_stream, error=error)
+    rnd = next_random_number(rng_stream)
     ! the randomly selected atom: return value!
     mol_tmp = neighbor_mol(INT(rnd*SIZE(neighbor_mol(:)))+1)
     mol = mol_tmp
@@ -968,17 +942,14 @@ CONTAINS
 !> \param i_orig ...
 !> \param i_neighbor ...
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval donor_acceptor ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION check_donor_acceptor(elem, i_orig, i_neighbor, tmc_params, error) &
+  FUNCTION check_donor_acceptor(elem, i_orig, i_neighbor, tmc_params) &
                                 RESULT(donor_acceptor)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: i_orig, i_neighbor
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: donor_acceptor
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_donor_acceptor', &
@@ -988,35 +959,35 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(4)              :: distances
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(i_orig.GE.1.AND.i_orig.LE.SIZE(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(i_neighbor.GE.1.AND.i_neighbor.LE.SIZE(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(i_orig.GE.1.AND.i_orig.LE.SIZE(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(i_neighbor.GE.1.AND.i_neighbor.LE.SIZE(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! 1. proton of orig with neighbor O
     distances(1) = nearest_distance(&
                      x1=elem%pos(i_neighbor:i_neighbor+tmc_params%dim_per_elem-1), &
                      x2=elem%pos(i_orig+tmc_params%dim_per_elem:&
                                  i_orig+2*tmc_params%dim_per_elem-1), &
-                     cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                     cell=tmc_params%cell, box_scale=elem%box_scale)
     ! 2. proton of orig with neighbor O
     distances(2) = nearest_distance(&
                      x1=elem%pos(i_neighbor:i_neighbor+tmc_params%dim_per_elem-1), &
                      x2=elem%pos(i_orig+2*tmc_params%dim_per_elem:&
                                  i_orig+3*tmc_params%dim_per_elem-1), &
-                     cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                     cell=tmc_params%cell, box_scale=elem%box_scale)
     ! 1. proton of neighbor with orig O
     distances(3) = nearest_distance(&
                      x1=elem%pos(i_orig:i_orig+tmc_params%dim_per_elem-1), &
                      x2=elem%pos(i_neighbor+tmc_params%dim_per_elem:&
                                  i_neighbor+2*tmc_params%dim_per_elem-1), &
-                     cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                     cell=tmc_params%cell, box_scale=elem%box_scale)
     ! 2. proton of neigbor with orig O
     distances(4) = nearest_distance(&
                      x1=elem%pos(i_orig:i_orig+tmc_params%dim_per_elem-1), &
                      x2=elem%pos(i_neighbor+2*tmc_params%dim_per_elem:&
                                  i_neighbor+3*tmc_params%dim_per_elem-1), &
-                     cell=tmc_params%cell, box_scale=elem%box_scale, error=error)
+                     cell=tmc_params%cell, box_scale=elem%box_scale)
 
     IF(MINLOC(distances(:),1).LE.2) THEN
        donor_acceptor = proton_acceptor
@@ -1033,17 +1004,14 @@ CONTAINS
 !>        changed by rotating
 !> \param mol_arr_in array of indeces of molecules, should be rotated
 !> \param donor_acceptor gives the direction of rotation
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE rotate_molecules_in_chain(tmc_params, elem, mol_arr_in, &
-                                       donor_acceptor, error)
+                                       donor_acceptor)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(tree_type), POINTER                 :: elem
     INTEGER, DIMENSION(:)                    :: mol_arr_in
     INTEGER                                  :: donor_acceptor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rotate_molecules_in_chain', &
       routineP = moduleN//':'//routineN
@@ -1061,8 +1029,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(ind_arr, tmp_cell)
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1071,7 +1039,7 @@ CONTAINS
     DO i=1, SIZE(mol_arr_in)
       CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
                            mol=mol_arr_in(i), &
-                           start_ind=ind_arr(i), end_ind=ind, error=error)
+                           start_ind=ind_arr(i), end_ind=ind)
     END DO
     ind_arr(0) = ind_arr(SIZE(ind_arr)-2)
     ind_arr(SIZE(ind_arr)-1) = ind_arr(1)
@@ -1079,7 +1047,7 @@ CONTAINS
     ! get the scaled cell
     ALLOCATE(tmp_cell)
     CALL get_scaled_cell(cell=tmc_params%cell, box_scale=elem%box_scale, &
-           scaled_cell=tmp_cell, error=error)
+           scaled_cell=tmp_cell)
 
     ! rotate single molecules
     DO i=1, SIZE(ind_arr)-2
@@ -1096,15 +1064,15 @@ CONTAINS
                        ind_arr(i+donor_acceptor)+tmc_params%dim_per_elem-1),&
            x2=elem%pos(ind_arr(i)+tmc_params%dim_per_elem:&
                        ind_arr(i)+2*tmc_params%dim_per_elem-1), &
-           cell=tmc_params%cell, box_scale=elem%box_scale, &
-           error=error) .LT. &
+           cell=tmc_params%cell, box_scale=elem%box_scale)&
+           .LT. &
          nearest_distance(&
            x1=elem%pos(ind_arr(i+donor_acceptor):&
                        ind_arr(i+donor_acceptor)+tmc_params%dim_per_elem-1),&
            x2=elem%pos(ind_arr(i)+2*tmc_params%dim_per_elem:&
                        ind_arr(i)+3*tmc_params%dim_per_elem-1), &
-           cell=tmc_params%cell, box_scale=elem%box_scale, &
-           error=error)) THEN
+           cell=tmc_params%cell, box_scale=elem%box_scale)&
+           ) THEN
         vec_2H_m = elem%pos(ind_arr(i)+tmc_params%dim_per_elem:&
                             ind_arr(i)+2*tmc_params%dim_per_elem-1)
         vec_2H_f = elem%pos(ind_arr(i)+2*tmc_params%dim_per_elem:&
@@ -1148,8 +1116,7 @@ CONTAINS
           IF(ind.EQ.ind_arr(i)) CYCLE search_O_loop
           tmp = nearest_distance(x1=vec_2H_f, &
                   x2=elem%pos(ind:ind+tmc_params%dim_per_elem-1), &
-                  cell=tmc_params%cell, box_scale=elem%box_scale, &
-                  error=error)
+                  cell=tmc_params%cell, box_scale=elem%box_scale)
           IF(dist_near .GT. tmp) THEN
              dist_near = tmp
              vec_4O = elem%pos(ind:ind+tmc_params%dim_per_elem-1)
@@ -1193,19 +1160,16 @@ CONTAINS
 !> \param rng_stream random number generator stream
 !> \param tmc_params TMC parameters with e.g. dimensions of atoms and molecules
 !> \param mv_cen_of_mass ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE change_volume(conf, T_ind, move_types, rng_stream, tmc_params, &
-                           mv_cen_of_mass, error)
+                           mv_cen_of_mass)
     TYPE(tree_type), POINTER                 :: conf
     INTEGER                                  :: T_ind
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
     LOGICAL                                  :: mv_cen_of_mass
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_volume', &
       routineP = moduleN//':'//routineN
@@ -1221,13 +1185,13 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(scaling, disp)
 
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(T_ind.GT.0.AND.T_ind.LE.tmc_params%nr_temp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(tmc_params%dim_per_elem.EQ.3,cp_failure_level,routineP,error,failure)
-    CPPrecondition(tmc_params%cell%orthorhombic,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(T_ind.GT.0.AND.T_ind.LE.tmc_params%nr_temp,cp_failure_level,routineP,failure)
+    CPPrecondition(tmc_params%dim_per_elem.EQ.3,cp_failure_level,routineP,failure)
+    CPPrecondition(tmc_params%cell%orthorhombic,cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1238,22 +1202,22 @@ CONTAINS
     box_scale_old(:) = conf%box_scale
     ! get the cell vector length of the configuration (before move)
     CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
-                         abc=box_length_new, error=error)
+                         abc=box_length_new)
 
     IF(.FALSE.)THEN
       ! the volume move in volume space (dV)
       IF(tmc_params%v_isotropic) THEN
         CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
-        abc=box_length_new, vol=vol, error=error)
-        rnd = next_random_number(rng_stream, error=error)
+        abc=box_length_new, vol=vol)
+        rnd = next_random_number(rng_stream)
         vol=vol+(rnd-0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
         box_length_new(:) = vol**(1/REAL(3,KIND=dp))
       ELSE
         CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf%box_scale, &
-        abc=box_length_new, vol=vol, error=error)
-        rnd = next_random_number(rng_stream, error=error)
+        abc=box_length_new, vol=vol)
+        rnd = next_random_number(rng_stream)
         vol=vol+(rnd-0.5_dp)*2.0_dp*move_types%mv_size(mv_type_volume_move, T_ind)
-        rnd = next_random_number(rng_stream, error=error)
+        rnd = next_random_number(rng_stream)
         dir = 1+INT(rnd*3)
         box_length_new(dir) = 1.0_dp
         box_length_new(dir) = vol/PRODUCT(box_length_new(:))
@@ -1263,15 +1227,15 @@ CONTAINS
       ! increase / decrease box lenght in this direction
       ! l_n = l_o +- rnd * mv_size
       IF(tmc_params%v_isotropic) THEN
-        rnd = next_random_number(rng_stream, error=error)
+        rnd = next_random_number(rng_stream)
         box_length_new(:) = box_length_new(:) + &
           (rnd-0.5_dp)*2.0_dp*&
           move_types%mv_size(mv_type_volume_move, T_ind)
       ELSE
         ! select a random direction
-        rnd = next_random_number(rng_stream, error=error)
+        rnd = next_random_number(rng_stream)
         dir = 1+INT(rnd*3)
-        rnd = next_random_number(rng_stream, error=error)
+        rnd = next_random_number(rng_stream)
         box_length_new(dir) = box_length_new(dir) + &
           (rnd-0.5_dp)*2.0_dp*&
           move_types%mv_size(mv_type_volume_move, T_ind)
@@ -1282,7 +1246,7 @@ CONTAINS
     scaling(:) = 1.0_dp
     CALL get_scaled_cell(cell=tmc_params%cell, &
                          box_scale=scaling,&
-                         abc=box_length_orig, error=error)
+                         abc=box_length_orig)
     ! get the new box scale
     conf%box_scale(:) = box_length_new(:)/box_length_orig(:)
     ! molecule scaling
@@ -1299,15 +1263,15 @@ CONTAINS
        DO mol=1, MAXVAL(conf%mol(:))
          ! move the molecule related to the molecule center of mass
          ! get center of mass
-         CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error)
+         CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP)
 
          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=conf%mol, mol=mol, &
-                              start_ind=ind, end_ind=ind_e, error=error)
+                              start_ind=ind, end_ind=ind_e)
          CALL center_of_mass(&
                     pos=conf%pos(ind:ind_e+tmc_params%dim_per_elem-1),&
                     atoms=tmc_params%atoms(INT(ind/REAL(tmc_params%dim_per_elem,KIND=dp))+1:&
                             INT(ind_e/REAL(tmc_params%dim_per_elem,KIND=dp))+1),&
-                    center=disp, error=error)
+                    center=disp)
          ! calculate the center of mass DISPLACEMENT
          disp(:) = disp(:) * (scaling(:)-1.0_dp)
          ! displace all atoms of the molecule
@@ -1332,16 +1296,13 @@ CONTAINS
 !> \param move_types ...
 !> \param rng_stream random number generator stream
 !> \param tmc_params TMC parameters with e.g. dimensions of atoms and molecules
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE swap_atoms(conf, move_types, rng_stream, tmc_params, error)
+  SUBROUTINE swap_atoms(conf, move_types, rng_stream, tmc_params)
     TYPE(tree_type), POINTER                 :: conf
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_atoms', &
       routineP = moduleN//':'//routineN
@@ -1352,20 +1313,20 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,failure)
 
     ! loop until two different atoms are found
     atom_search_loop: DO 
       ! select one atom randomly
       a_1 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem,KIND=dp)* &
-                next_random_number(rng_stream, error=error))+1
+                next_random_number(rng_stream))+1
       ! select the second atom randomly
       a_2 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem,KIND=dp)* &
-                next_random_number(rng_stream, error=error))+1
+                next_random_number(rng_stream))+1
       ! check if they have different kinds
       IF(tmc_params%atoms(a_1)%name .NE. tmc_params%atoms(a_2)%name) THEN
         ! if present, check if atoms have different type related to the specified table

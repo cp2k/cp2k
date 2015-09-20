@@ -119,16 +119,13 @@ CONTAINS
 !> \param rho_cutoff ...
 !> \param drho_cutoff ...
 !> \param tau_cutoff ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_rho_set_create(rho_set,local_bounds,rho_cutoff,drho_cutoff,&
-       tau_cutoff,error)
+       tau_cutoff)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, DIMENSION(2, 3), INTENT(in)     :: local_bounds
     REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff, &
                                                 tau_cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_create', &
       routineP = moduleN//':'//routineN
@@ -138,9 +135,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
     ALLOCATE(rho_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     rho_set%ref_count=1
     last_rho_set_id=last_rho_set_id+1
     rho_set%id_nr=last_rho_set_id
@@ -151,8 +148,8 @@ CONTAINS
     rho_set%tau_cutoff=EPSILON(0.0_dp)
     IF (PRESENT(tau_cutoff)) rho_set%tau_cutoff=tau_cutoff
     rho_set%local_bounds=local_bounds
-    CALL xc_rho_cflags_setall(rho_set%owns,.TRUE.,error=error)
-    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
+    CALL xc_rho_cflags_setall(rho_set%owns,.TRUE.)
+    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.)
     NULLIFY(rho_set%rho)
     DO i=1,3
        NULLIFY(rho_set%drho(i)%array)
@@ -171,12 +168,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given rho_set
 !> \param rho_set the object to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE xc_rho_set_retain(rho_set, error)
+  SUBROUTINE xc_rho_set_retain(rho_set)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
       routineP = moduleN//':'//routineN
@@ -184,8 +178,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP)
     rho_set%ref_count=rho_set%ref_count+1
   END SUBROUTINE xc_rho_set_retain
 
@@ -193,13 +187,10 @@ CONTAINS
 !> \brief releases the given rho_set
 !> \param rho_set the structure to release
 !> \param pw_pool the plae where to give back the arrays
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE xc_rho_set_release(rho_set, pw_pool, error)
+  SUBROUTINE xc_rho_set_release(rho_set, pw_pool)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release', &
       routineP = moduleN//':'//routineN
@@ -210,16 +201,16 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(rho_set)) THEN
-       CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP)
        rho_set%ref_count=rho_set%ref_count-1
        IF (rho_set%ref_count==0) THEN
           IF (PRESENT(pw_pool)) THEN
              IF (ASSOCIATED(pw_pool)) THEN
                 rho_set%ref_count=1
-                CALL xc_rho_set_clean(rho_set,pw_pool,error)
+                CALL xc_rho_set_clean(rho_set,pw_pool)
                 rho_set%ref_count=0
              ELSE
-                CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+                CPPrecondition(.FALSE.,cp_warning_level,routineP,failure)
              END IF
           END IF
 
@@ -227,37 +218,37 @@ CONTAINS
           rho_set%local_bounds(1,:)=HUGE(0)
           IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
              DEALLOCATE(rho_set%rho, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa)) THEN
                 DEALLOCATE(rho_set%rhoa, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF (ASSOCIATED(rho_set%rhob)) THEN
                 DEALLOCATE(rho_set%rhob, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END IF
           IF (rho_set%owns%rho_1_3.AND.ASSOCIATED(rho_set%rho_1_3)) THEN
              DEALLOCATE(rho_set%rho_1_3, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
                 DEALLOCATE(rho_set%rhoa_1_3, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
                 DEALLOCATE(rho_set%rhob_1_3, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END IF
           IF (rho_set%owns%drho) THEN
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
                    DEALLOCATE(rho_set%drho(i)%array, stat=stat)
-                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
                 END IF
              END DO
           END IF
@@ -265,64 +256,64 @@ CONTAINS
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
                    DEALLOCATE(rho_set%drhoa(i)%array, stat=stat)
-                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
                 END IF
                 IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
                    DEALLOCATE(rho_set%drhob(i)%array, stat=stat)
-                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
                 END IF
              END DO
           END IF
           IF (rho_set%owns%laplace_rho.AND.ASSOCIATED(rho_set%laplace_rho)) THEN
              DEALLOCATE(rho_set%laplace_rho, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
 
           IF (rho_set%owns%norm_drho.AND.ASSOCIATED(rho_set%norm_drho)) THEN
              DEALLOCATE(rho_set%norm_drho, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (rho_set%owns%laplace_rho_spin) THEN
              IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
                 DEALLOCATE(rho_set%laplace_rhoa, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
                 DEALLOCATE(rho_set%laplace_rhob, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END IF
 
           IF (rho_set%owns%norm_drho_spin) THEN
              IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
                 DEALLOCATE(rho_set%norm_drhoa, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF (ASSOCIATED(rho_set%norm_drhob)) THEN
                 DEALLOCATE(rho_set%norm_drhob, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END IF
           IF (rho_set%owns%drhoa_drhob.AND.ASSOCIATED(rho_set%drhoa_drhob)) THEN
              DEALLOCATE(rho_set%drhoa_drhob, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (rho_set%owns%tau.AND.ASSOCIATED(rho_set%tau)) THEN
              DEALLOCATE(rho_set%tau, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (rho_set%owns%tau_spin) THEN
              IF (ASSOCIATED(rho_set%tau_a)) THEN
                 DEALLOCATE(rho_set%tau_a, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF (ASSOCIATED(rho_set%tau_b)) THEN
                 DEALLOCATE(rho_set%tau_b, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END IF
           DEALLOCATE(rho_set, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY(rho_set)
@@ -357,15 +348,11 @@ CONTAINS
 !> \param tau_a ...
 !> \param tau_b ...
 !> \param local_bounds ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>
-!>      for the other components see the attributes of xc_rho_set
 ! *****************************************************************************
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&
        rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,rho_1_3,rhoa_1_3,&
        rhob_1_3,laplace_rho,laplace_rhoa,laplace_rhob,drhoa,drhob,rho_cutoff,&
-       drho_cutoff,tau_cutoff,tau,tau_a,tau_b,local_bounds,error)
+       drho_cutoff,tau_cutoff,tau,tau_a,tau_b,local_bounds)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(in), OPTIONAL            :: can_return_null
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -383,7 +370,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: tau, tau_a, tau_b
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: local_bounds
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_get', &
       routineP = moduleN//':'//routineN
@@ -395,41 +381,41 @@ CONTAINS
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
     IF (PRESENT(rho)) THEN
        rho => rho_set%rho
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(drho)) THEN
        drho => rho_set%drho
        IF (.NOT.my_can_return_null) THEN
           DO i=1,3
-             CPPrecondition(ASSOCIATED(rho_set%drho(i)%array),cp_failure_level,routineP,error,failure)
+             CPPrecondition(ASSOCIATED(rho_set%drho(i)%array),cp_failure_level,routineP,failure)
           END DO
        END IF
     END IF
     IF (PRESENT(norm_drho)) THEN
        norm_drho => rho_set%norm_drho
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drho),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(laplace_rho)) THEN
        laplace_rho => rho_set%laplace_rho
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rho),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(rhoa)) THEN
        rhoa => rho_set%rhoa
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(rhob)) THEN
        rhob => rho_set%rhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(drhoa)) THEN
        drhoa => rho_set%drhoa
        IF (.NOT.my_can_return_null) THEN
           DO i=1,3
-             CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,error,failure)
+             CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,failure)
           END DO
        END IF
     END IF
@@ -437,53 +423,53 @@ CONTAINS
        drhob => rho_set%drhob
        IF (.NOT.my_can_return_null) THEN
           DO i=1,3
-             CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,error,failure)
+             CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,failure)
           END DO
        END IF
     END IF
     IF (PRESENT(laplace_rhoa)) THEN
        laplace_rhoa => rho_set%laplace_rhoa
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhoa),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhoa),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(laplace_rhob)) THEN
        laplace_rhob => rho_set%laplace_rhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhob),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhob),cp_failure_level,routineP,failure)
     END IF
    IF (PRESENT(norm_drhoa)) THEN
        norm_drhoa => rho_set%norm_drhoa
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhoa),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhoa),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(norm_drhob)) THEN
        norm_drhob => rho_set%norm_drhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhob),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhob),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(drhoa_drhob)) THEN
        drhoa_drhob => rho_set%drhoa_drhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(drhoa_drhob),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(drhoa_drhob),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(rho_1_3)) THEN
        rho_1_3 => rho_set%rho_1_3
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho_1_3),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho_1_3),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(rhoa_1_3)) THEN
        rhoa_1_3 => rho_set%rhoa_1_3
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa_1_3),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa_1_3),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(rhob_1_3)) THEN
        rhob_1_3 => rho_set%rhob_1_3
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob_1_3),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob_1_3),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(tau)) THEN
        tau => rho_set%tau
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(tau_a)) THEN
        tau_a => rho_set%tau_a
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_a),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_a),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(tau_b)) THEN
        tau_b => rho_set%tau_b
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_b),cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_b),cp_failure_level,routineP,failure)
     END IF
     IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
     IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
@@ -496,14 +482,11 @@ CONTAINS
 !>      what it can to the pw_pool
 !> \param rho_set the rho_set to be cleaned
 !> \param pw_pool place to give back 3d arrays,...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE xc_rho_set_clean(rho_set,pw_pool,error)
+  SUBROUTINE xc_rho_set_clean(rho_set,pw_pool)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_clean', &
       routineP = moduleN//':'//routineN
@@ -513,26 +496,26 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
 
 
     IF (rho_set%owns%rho) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho, &
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%rho)
     END IF
     IF (rho_set%owns%rho_1_3) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho_1_3,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%rho_1_3)
     END IF
     IF (rho_set%owns%drho) THEN
        DO idir=1,3
           CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drho(idir)%array,&
-               accept_non_compatible=.TRUE.,error=error)
+               accept_non_compatible=.TRUE.)
        END DO
     ELSE
        DO idir=1,3
@@ -541,44 +524,44 @@ CONTAINS
     END IF
     IF (rho_set%owns%norm_drho) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drho,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%norm_drho)
     END IF
     IF (rho_set%owns%laplace_rho) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rho,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%laplace_rho)
     END IF
     IF (rho_set%owns%tau) THEN
        CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau,&
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%tau)
     END IF
     IF (rho_set%owns%rho_spin) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob,&
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%rhoa,rho_set%rhob)
     END IF
     IF (rho_set%owns%rho_spin_1_3) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa_1_3,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob_1_3,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
     END IF
     IF (rho_set%owns%drho_spin) THEN
        DO idir=1,3
           CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhoa(idir)%array,&
-               accept_non_compatible=.TRUE.,error=error)
+               accept_non_compatible=.TRUE.)
           CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhob(idir)%array,&
-               accept_non_compatible=.TRUE.,error=error)
+               accept_non_compatible=.TRUE.)
        END DO
     ELSE
        DO idir=1,3
@@ -587,37 +570,37 @@ CONTAINS
     END IF
     IF (rho_set%owns%laplace_rho_spin) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rhoa,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rhob,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%laplace_rhoa, rho_set%laplace_rhob)
     END IF
    IF (rho_set%owns%norm_drho_spin) THEN
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhoa,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
        CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhob,&
-            accept_non_compatible=.TRUE.,error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob)
     END IF
     IF (rho_set%owns%drhoa_drhob) THEN
        CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob,&
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%drhoa_drhob)
     END IF
     IF (rho_set%owns%tau_spin) THEN
        CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_a,&
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
        CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_b,&
-            accept_non_compatible=.TRUE., error=error)
+            accept_non_compatible=.TRUE.)
     ELSE
        NULLIFY(rho_set%tau_a,rho_set%tau_b)
     END IF
 
-    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
-    CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.,error=error)
+    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.)
+    CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.)
 
   END SUBROUTINE xc_rho_set_clean
 
@@ -634,18 +617,15 @@ CONTAINS
 !> \param xc_deriv_method_id ...
 !> \param xc_rho_smooth_id ...
 !> \param pw_pool pool for the allocation of pw and cr3d
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-       xc_deriv_method_id,xc_rho_smooth_id,pw_pool,error)
+       xc_deriv_method_id,xc_rho_smooth_id,pw_pool)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     INTEGER, INTENT(IN)                      :: xc_deriv_method_id, &
                                                 xc_rho_smooth_id
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
       routineP = moduleN//':'//routineN
@@ -676,11 +656,11 @@ CONTAINS
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     nd_laplace = RESHAPE((/2,0,0,0,2,0,0,0,2/),(/3,3/))
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
          cp_failure_level,cp_assertion_failed,routineP,&
-         "pw_pool cr3d have different size than expected",error,failure)
+         "pw_pool cr3d have different size than expected",failure)
     nspins = SIZE(rho_r)
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
@@ -689,25 +669,25 @@ CONTAINS
     ! some checks
     SELECT CASE(nspins)
     CASE(1)
-       CPPrecondition(SIZE(rho_r)==1,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,error,failure)
-       CPPrecondition(rho_r(1)%pw%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(rho_r)==1,cp_failure_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,failure)
+       CPPrecondition(rho_r(1)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,failure)
     CASE(2)
-       CPPrecondition(SIZE(rho_r)==2,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho_r(2)%pw),cp_failure_level,routineP,error,failure)
-       CPPrecondition(rho_r(1)%pw%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-       CPPrecondition(rho_r(2)%pw%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(rho_r)==2,cp_failure_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(rho_r(2)%pw),cp_failure_level,routineP,failure)
+       CPPrecondition(rho_r(1)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+       CPPrecondition(rho_r(2)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
-    CALL xc_rho_set_clean(rho_set,pw_pool=pw_pool,error=error)
+    CALL xc_rho_set_clean(rho_set,pw_pool=pw_pool)
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
          needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho.OR.needs%laplace_rho &
@@ -729,40 +709,38 @@ CONTAINS
 
           my_rho_r_local=.TRUE.
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
-               use_data=REALDATA3D, in_space=REALSPACE, &
-               error=error)
-          CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw,error=error)
+               use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
        ELSE
           my_rho_r_local=.TRUE.
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
-               use_data=REALDATA3D, in_space=REALSPACE, &
-               error=error)
+               use_data=REALDATA3D, in_space=REALSPACE)
 
           SELECT CASE(xc_rho_smooth_id)
           CASE (xc_rho_no_smooth)
-             CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw,error=error)
+             CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
           CASE (xc_rho_spline2_smooth)
-             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
+             CALL pw_zero(my_rho_r(ispin)%pw)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
-                  coeffs=spline2_coeffs, error=error)
+                  coeffs=spline2_coeffs)
           CASE (xc_rho_spline3_smooth)
-             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
+             CALL pw_zero(my_rho_r(ispin)%pw)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
-                  coeffs=spline3_coeffs, error=error)
+                  coeffs=spline3_coeffs)
           CASE (xc_rho_nn10)
-             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
+             CALL pw_zero(my_rho_r(ispin)%pw)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
-                  coeffs=nn10_coeffs, error=error)
+                  coeffs=nn10_coeffs)
           CASE (xc_rho_nn50)
-             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
+             CALL pw_zero(my_rho_r(ispin)%pw)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
-                  coeffs=nn50_coeffs, error=error)
+                  coeffs=nn50_coeffs)
           CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPAssert(.FALSE.,cp_failure_level,routineP,failure)
           END SELECT
        END IF
 
@@ -773,124 +751,118 @@ CONTAINS
           DO idir=1,3
              NULLIFY(drho_r(idir,ispin)%pw)
              CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                  use_data=REALDATA3D, in_space=REALSPACE, &
-                  error=error)
+                  use_data=REALDATA3D, in_space=REALSPACE)
           END DO
           IF (needs_rho_g) THEN
              IF (.NOT.ASSOCIATED(my_rho_g)) THEN
                 my_rho_g_local=.TRUE.
                 CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                     error=error)
-                CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g,error=error)
+                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
              END IF
              CALL pw_pool_create_pw(pw_pool, tmp_g,&
-                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                  error=error)
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
              SELECT CASE(xc_deriv_method_id)
              CASE (xc_deriv_pw)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
-                   CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
+                   CALL pw_copy ( my_rho_g, tmp_g)
+                   CALL pw_derive ( tmp_g, nd(:,idir))
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
                 IF(needs%laplace_rho.OR.needs%laplace_rho_spin) THEN
                   DO idir=1,3
                     NULLIFY(laplace_rho_r(idir,ispin)%pw)
                     CALL pw_pool_create_pw(pw_pool,laplace_rho_r(idir,ispin)%pw, &
-                                           use_data=REALDATA3D, in_space=REALSPACE, &
-                                           error=error)
-                    CALL pw_copy ( my_rho_g, tmp_g ,error=error)
-                    CALL pw_derive ( tmp_g, nd_laplace(:,idir) ,error=error)
-                    CALL pw_transfer ( tmp_g, laplace_rho_r(idir,ispin)%pw ,error=error)
+                                           use_data=REALDATA3D, in_space=REALSPACE)
+                    CALL pw_copy ( my_rho_g, tmp_g)
+                    CALL pw_derive ( tmp_g, nd_laplace(:,idir))
+                    CALL pw_transfer ( tmp_g, laplace_rho_r(idir,ispin)%pw)
                   END DO
                 END IF
              CASE (xc_deriv_spline2)
                 IF (.NOT.my_rho_g_local) THEN
                    CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                        error=error)
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                    my_rho_g_local=.TRUE.
-                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g,error=error)
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
                 END IF
-                CALL pw_spline2_interpolate_values_g(my_rho_g,error=error)
+                CALL pw_spline2_interpolate_values_g(my_rho_g)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
-                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
+                   CALL pw_copy ( my_rho_g, tmp_g)
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=idir)
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
              CASE (xc_deriv_spline3)
                 IF (.NOT.my_rho_g_local) THEN
                    CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                        error=error)
-                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g,error=error)
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
                    my_rho_g_local=.TRUE.
                 END IF
-                CALL pw_spline3_interpolate_values_g(my_rho_g,error=error)
+                CALL pw_spline3_interpolate_values_g(my_rho_g)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
-                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
+                   CALL pw_copy ( my_rho_g, tmp_g)
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=idir)
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
              CASE (xc_deriv_collocate)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
-                   CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
+                   CALL pw_copy ( my_rho_g, tmp_g)
+                   CALL pw_derive ( tmp_g, nd(:,idir))
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
                CALL cp_unimplemented_error(fromWhere=routineP, &
                     message="Drho collocation not implemented", &
-                    error=error, error_level=cp_failure_level)
+                    error_level=cp_failure_level)
              CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPAssert(.FALSE.,cp_failure_level,routineP,failure)
              END SELECT
-             CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
+             CALL pw_pool_give_back_pw(pw_pool, tmp_g)
              IF (my_rho_g_local) THEN
                 my_rho_g_local=.FALSE.
-                CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+                CALL pw_pool_give_back_pw(pw_pool, my_rho_g)
              END IF
           ELSE
              SELECT CASE(xc_deriv_method_id)
              CASE (xc_deriv_spline2_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
-                        coeffs=spline2_deriv_coeffs, idir=idir, error=error)
+                        coeffs=spline2_deriv_coeffs, idir=idir)
                 END DO
              CASE (xc_deriv_spline3_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
-                        coeffs=spline3_deriv_coeffs, idir=idir, error=error)
+                        coeffs=spline3_deriv_coeffs, idir=idir)
                 END DO
              CASE (xc_deriv_nn10_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
-                        coeffs=nn10_deriv_coeffs, idir=idir, error=error)
+                        coeffs=nn10_deriv_coeffs, idir=idir)
                 END DO
              CASE (xc_deriv_nn50_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
-                        coeffs=nn50_deriv_coeffs, idir=idir, error=error)
+                        coeffs=nn50_deriv_coeffs, idir=idir)
                 END DO
              CASE (xc_deriv_collocate)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
-                   CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
+                   CALL pw_copy ( my_rho_g, tmp_g)
+                   CALL pw_derive ( tmp_g, nd(:,idir))
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
                CALL cp_unimplemented_error(fromWhere=routineP, &
                     message="Drho collocation not implemented", &
-                    error=error, error_level=cp_failure_level)
+                    error_level=cp_failure_level)
              CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPAssert(.FALSE.,cp_failure_level,routineP,failure)
              END SELECT
           END IF
 
@@ -898,7 +870,7 @@ CONTAINS
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
              END DO
-             CALL pw_spline_scale_deriv(drho_r_att, error=error)
+             CALL pw_spline_scale_deriv(drho_r_att)
           END IF
 
        END IF
@@ -908,8 +880,7 @@ CONTAINS
     SELECT CASE(nspins)
     CASE(1)
        IF (needs%rho_1_3) THEN
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -928,8 +899,7 @@ CONTAINS
           rho_set%has%rho=.TRUE.
        END IF
        IF (needs%norm_drho) THEN
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -945,8 +915,7 @@ CONTAINS
           rho_set%has%norm_drho=.TRUE.
        END IF
        IF (needs%laplace_rho) THEN
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rho, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rho)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,laplace_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -975,7 +944,7 @@ CONTAINS
           ! this should basically never be the case unless you use LDA functionals
           ! with LSD
 
-          CALL pw_pool_create_cr3d(pw_pool,rho_set%rho,error=error)
+          CALL pw_pool_create_cr3d(pw_pool,rho_set%rho)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -990,7 +959,7 @@ CONTAINS
           rho_set%has%rho=.TRUE.
        END IF
        IF (needs%rho_1_3) THEN
-          CALL pw_pool_create_cr3d(pw_pool,rho_set%rho_1_3,error=error)
+          CALL pw_pool_create_cr3d(pw_pool,rho_set%rho_1_3)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1005,7 +974,7 @@ CONTAINS
           rho_set%has%rho_1_3=.TRUE.
        END IF
        IF (needs%rho_spin_1_3) THEN
-          CALL pw_pool_create_cr3d(pw_pool,rho_set%rhoa_1_3,error=error)
+          CALL pw_pool_create_cr3d(pw_pool,rho_set%rhoa_1_3)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1015,7 +984,7 @@ CONTAINS
                 END DO
              END DO
           END DO
-          CALL pw_pool_create_cr3d(pw_pool,rho_set%rhob_1_3,error=error)
+          CALL pw_pool_create_cr3d(pw_pool,rho_set%rhob_1_3)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1041,8 +1010,7 @@ CONTAINS
        END IF
        IF (needs%norm_drho) THEN
 
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -1060,8 +1028,7 @@ CONTAINS
        END IF
        IF (needs%norm_drho_spin) THEN
 
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -1074,8 +1041,7 @@ CONTAINS
              END DO
           END DO
 
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhob, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhob)
           rho_set%owns%norm_drho_spin=.TRUE.
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1093,8 +1059,7 @@ CONTAINS
           rho_set%has%norm_drho_spin=.TRUE.
        END IF
        IF (needs%laplace_rho_spin) THEN
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhoa, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhoa)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,laplace_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -1107,8 +1072,7 @@ CONTAINS
              END DO
           END DO
 
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhob, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhob)
           rho_set%owns%laplace_rho_spin=.TRUE.
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,laplace_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1126,8 +1090,7 @@ CONTAINS
           rho_set%has%laplace_rho_spin=.TRUE.
        END IF
       IF (needs%drhoa_drhob) THEN
-          CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob, &
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -1146,8 +1109,7 @@ CONTAINS
           ! this should basically never be the case unless you use LDA functionals
           ! with LSD
           DO idir=1,3
-             CALL pw_pool_create_cr3d(pw_pool,rho_set%drho(idir)%array,&
-                  error=error)
+             CALL pw_pool_create_cr3d(pw_pool,rho_set%drho(idir)%array)
              !assume that the bounds are the same?
              !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r,idir)
              DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1179,31 +1141,30 @@ CONTAINS
        DO idir=1,3
           IF(needs%laplace_rho.OR.needs%laplace_rho_spin) THEN
             CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(idir,ispin)%pw, &
-               accept_non_compatible=.TRUE., error=error)
+               accept_non_compatible=.TRUE.)
           END IF
           CALL pw_pool_give_back_pw(pw_pool, drho_r(idir,ispin)%pw, &
-               accept_non_compatible=.TRUE., error=error)
+               accept_non_compatible=.TRUE.)
        END DO
     END DO
     IF (my_rho_r_local) THEN
        DO ispin=1,nspins
           CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw,&
-               accept_non_compatible=.TRUE., error=error)
+               accept_non_compatible=.TRUE.)
        END DO
     END IF
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,failure)
        DO ispin=1,nspins
-          CPPrecondition(ASSOCIATED(tau(ispin)%pw),cp_failure_level,routineP,error,failure)
-          CPPrecondition(ASSOCIATED(tau(ispin)%pw%cr3d),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(tau(ispin)%pw),cp_failure_level,routineP,failure)
+          CPPrecondition(ASSOCIATED(tau(ispin)%pw%cr3d),cp_failure_level,routineP,failure)
        END DO
     END IF
     IF (needs%tau) THEN
        IF (nspins==2) THEN
-          CALL pw_pool_create_cr3d(pw_pool,rho_set%tau,&
-               error=error)
+          CALL pw_pool_create_cr3d(pw_pool,rho_set%tau)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,tau)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
@@ -1224,14 +1185,14 @@ CONTAINS
        rho_set%has%tau=.TRUE.
     END IF
     IF (needs%tau_spin) THEN
-       CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
+       CPPrecondition(nspins==2,cp_failure_level,routineP,failure)
        rho_set%tau_a => tau(1)%pw%cr3d
        rho_set%tau_b => tau(2)%pw%cr3d
        rho_set%owns%tau_spin=.FALSE.
        rho_set%has%tau_spin=.TRUE.
     END IF
 
-    CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs,error=error),cp_failure_level,routineP,error,failure)
+    CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,failure)
 
   END SUBROUTINE xc_rho_set_update
 

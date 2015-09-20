@@ -72,7 +72,6 @@ CONTAINS
 !> \param cell ...
 !> \param use_virial ...
 !> \param atprop_env ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
@@ -82,7 +81,7 @@ CONTAINS
        pot_bond, pot_bend, pot_urey_bradley, pot_torsion, pot_imp_torsion, &
        pot_opbend, pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, &
        pv_imp_torsion, pv_opbend, f_bond, f_bend, f_torsion, f_ub, &
-       f_imptor, f_opbend, cell, use_virial, atprop_env, error)
+       f_imptor, f_opbend, cell, use_virial, atprop_env)
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -102,7 +101,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(atprop_type), POINTER               :: atprop_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control', &
       routineP = moduleN//':'//routineN
@@ -133,7 +131,7 @@ CONTAINS
 
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF ( PRESENT ( f_bond)) f_bond = 0.0_dp
     IF ( PRESENT ( f_bend)) f_bend = 0.0_dp

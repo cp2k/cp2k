@@ -213,12 +213,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rho0 ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_rho0_mpole(rho0,error)
+  SUBROUTINE allocate_rho0_mpole(rho0)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_mpole', &
       routineP = moduleN//':'//routineN
@@ -226,7 +224,7 @@ CONTAINS
     INTEGER                                  :: istat
 
     IF(ASSOCIATED(rho0)) THEN
-      CALL deallocate_rho0_mpole(rho0,error=error)
+      CALL deallocate_rho0_mpole(rho0)
     END IF
 
     ALLOCATE (rho0,STAT=istat)
@@ -437,12 +435,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rho0 ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_rho0_mpole(rho0,error)
+  SUBROUTINE deallocate_rho0_mpole(rho0)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_mpole', &
       routineP = moduleN//':'//routineN
@@ -468,14 +464,14 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
-          CALL pw_release(rho0%rho0_s_rs%pw,error=error)
+          CALL pw_release(rho0%rho0_s_rs%pw)
           DEALLOCATE(rho0%rho0_s_rs, STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%rho0_s_rs")
       ENDIF
 
       IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
-          CALL pw_release(rho0%rho0_s_gs%pw,error=error)
+          CALL pw_release(rho0%rho0_s_gs%pw)
           DEALLOCATE(rho0%rho0_s_gs, STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%rho0_s_gs")
@@ -622,14 +618,12 @@ CONTAINS
 !> \param rho0_mpole ...
 !> \param unit_str ...
 !> \param output_unit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_rho0_info(rho0_mpole,unit_str,output_unit,error)
+  SUBROUTINE write_rho0_info(rho0_mpole,unit_str,output_unit)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     CHARACTER(LEN=*), INTENT(IN)             :: unit_str
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_rho0_info', &
       routineP = moduleN//':'//routineN
@@ -638,7 +632,7 @@ CONTAINS
     REAL(dp)                                 :: conv
 
     IF (ASSOCIATED(rho0_mpole)) THEN
-      conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+      conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
       WRITE (UNIT=output_unit,FMT="(/,T5,A,/)") &
                "*** Compensation density charges data set ***"

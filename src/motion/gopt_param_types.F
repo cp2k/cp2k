@@ -72,15 +72,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a new gopt_param object
 !> \param gopt_param the object to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE gopt_param_create(gopt_param,error)
+  SUBROUTINE gopt_param_create(gopt_param)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_create', &
       routineP = moduleN//':'//routineN
@@ -91,7 +88,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(gopt_param, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     last_gopt_param_id=last_gopt_param_id+1
     gopt_param%id_nr=last_gopt_param_id
@@ -103,17 +100,14 @@ CONTAINS
 !> \param gopt_param ...
 !> \param gopt_section ...
 !> \param type_id ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE gopt_param_read(gopt_param, gopt_section, type_id, error)
+  SUBROUTINE gopt_param_read(gopt_param, gopt_section, type_id)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: gopt_section
     INTEGER, INTENT(IN), OPTIONAL            :: type_id
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
       routineP = moduleN//':'//routineN
@@ -122,49 +116,49 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(gopt_section),cp_failure_level,routineP,error,failure)
-    CALL gopt_param_create(gopt_param, error=error)
+    CPPrecondition(.NOT.ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(gopt_section),cp_failure_level,routineP,failure)
+    CALL gopt_param_create(gopt_param)
 
     failure=.FALSE.
     IF (PRESENT(type_id)) THEN
        gopt_param%type_id = type_id
     ELSE
-       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id,error=error)
+       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id)
     END IF
-    CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
+    CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id)
 
-    CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter,error=error)
-    CALL section_vals_val_get(gopt_section,"MAX_DR",r_val=gopt_param%max_dr,error=error)
-    CALL section_vals_val_get(gopt_section,"MAX_FORCE",r_val=gopt_param%max_force,error=error)
-    CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr,error=error)
-    CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force,error=error)
+    CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter)
+    CALL section_vals_val_get(gopt_section,"MAX_DR",r_val=gopt_param%max_dr)
+    CALL section_vals_val_get(gopt_section,"MAX_FORCE",r_val=gopt_param%max_force)
+    CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr)
+    CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force)
 
     SELECT CASE(gopt_param%method_id)
     CASE(default_lbfgs_method_id)
-       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_H_RANK",i_val=gopt_param%max_h_rank,error=error)
-       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter,error=error)
-       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
-       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_H_RANK",i_val=gopt_param%max_h_rank)
+       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter)
+       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient)
+       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error)
     CASE(default_bfgs_method_id)
        ! Do nothing
     CASE(default_cg_method_id)
-       CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves,error=error)
-       CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
-       CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
-       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%TYPE",i_val=gopt_param%cg_ls%type_id,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves)
+       CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps)
+       CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%TYPE",i_val=gopt_param%cg_ls%type_id)
        CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%INITIAL_STEP",&
-            r_val=gopt_param%cg_ls%initial_step,error=error)
+            r_val=gopt_param%cg_ls%initial_step)
        CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_TOL",&
-            r_val=gopt_param%cg_ls%brent_tol,error=error)
+            r_val=gopt_param%cg_ls%brent_tol)
        CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_MAX_ITER",&
-            i_val=gopt_param%cg_ls%brent_max_iter,error=error)
+            i_val=gopt_param%cg_ls%brent_max_iter)
        CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRACK_LIMIT",&
-            r_val=gopt_param%cg_ls%brack_limit,error=error)
+            r_val=gopt_param%cg_ls%brack_limit)
        CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%MAX_ALLOWED_STEP",&
-            r_val=gopt_param%cg_ls%max_step,error=error)
+            r_val=gopt_param%cg_ls%max_step)
        CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%LINMIN_GRAD_ONLY",&
-            l_val=gopt_param%cg_ls%grad_only,error=error)
+            l_val=gopt_param%cg_ls%grad_only)
     END SELECT
 
     SELECT CASE(gopt_param%type_id)
@@ -172,9 +166,9 @@ CONTAINS
        ! Do Nothing
        gopt_param%ts_method_id=none_ts_method_id
     CASE(default_ts_method_id)
-       CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%METHOD",i_val=gopt_param%ts_method_id,error=error)
+       CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%METHOD",i_val=gopt_param%ts_method_id)
     CASE(default_cell_method_id)
-       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%cell_method_id,error=error)
+       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%cell_method_id)
     END SELECT
 
   END SUBROUTINE gopt_param_read
@@ -182,14 +176,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gopt_param the geometry optimization environment to retain
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE gopt_param_retain(gopt_param, error)
+  SUBROUTINE gopt_param_retain(gopt_param)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_retain', &
       routineP = moduleN//':'//routineN
@@ -198,22 +189,19 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP)
     gopt_param%ref_count=gopt_param%ref_count+1
   END SUBROUTINE gopt_param_retain
 
 ! *****************************************************************************
 !> \brief ...
 !> \param gopt_param the geometry optimization environment to release
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE gopt_param_release(gopt_param, error)
+  SUBROUTINE gopt_param_release(gopt_param)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_release', &
       routineP = moduleN//':'//routineN
@@ -224,11 +212,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(gopt_param)) THEN
-       CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP)
        gopt_param%ref_count=gopt_param%ref_count-1
        IF (gopt_param%ref_count==0) THEN
           DEALLOCATE(gopt_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE gopt_param_release

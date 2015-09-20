@@ -57,20 +57,18 @@ CONTAINS
 !> \param gapw_xc ...
 !> \param ekin_mol ...
 !> \param calc_force ...
-!> \param error ...
 !> \par History
 !>       2012.06 created [Martin Haeufel]
 !>       2014.01 added atomic potential option [JGH]
 !> \author Martin Haeufel and Florian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force, error)
+  SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in), OPTIONAL            :: gapw, gapw_xc
     REAL(KIND=dp), INTENT(out)               :: ekin_mol
     LOGICAL                                  :: calc_force
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', &
       routineP = moduleN//':'//routineN
@@ -83,14 +81,14 @@ CONTAINS
     IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
 
        CALL kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, &
-                          ekin_mol, calc_force, error)
+                          ekin_mol, calc_force)
 
     ELSE IF (kg_env%tnadd_method == kg_tnadd_atomic) THEN
 
-       CALL kg_ekin_atomic(qs_env, ks_matrix, ekin_mol, error)
+       CALL kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
 
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE kg_ekin_subset
@@ -103,16 +101,14 @@ CONTAINS
 !> \param gapw_xc ...
 !> \param ekin_mol ...
 !> \param calc_force ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force, error)
+  SUBROUTINE kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in), OPTIONAL            :: gapw, gapw_xc
     REAL(KIND=dp), INTENT(out)               :: ekin_mol
     LOGICAL                                  :: calc_force
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed', &
       routineP = moduleN//':'//routineN
@@ -152,23 +148,22 @@ CONTAINS
                     matrix_h=matrix_h,&
                     natom=natom,&
                     dft_control=dft_control,&
-                    pw_env=pw_env,&
-                    error=error)
+                    pw_env=pw_env)
 
     nspins = dft_control%nspins
 
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
     ! get the density matrix
-    CALL qs_rho_get(old_rho, rho_ao=density_matrix, error=error)
+    CALL qs_rho_get(old_rho, rho_ao=density_matrix)
 
     ! allocate and initialize the density
-    CALL qs_rho_create(rho_struct, error)
+    CALL qs_rho_create(rho_struct)
 
     ! set the density matrix to the blocked matrix
-    CALL qs_rho_set(rho_struct, rho_ao=density_matrix, error=error) ! blocked_matrix
+    CALL qs_rho_set(rho_struct, rho_ao=density_matrix) ! blocked_matrix
 
-    CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., error=error)
+    CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
 
     ! loop over all subsets
     DO isub=1,kg_env%nsubsets
@@ -179,14 +174,13 @@ CONTAINS
       ! calculate the densities for the given blocked density matrix - pass the subset task_list
       CALL qs_rho_update_rho(rho_struct, qs_env, &
                              !task_list_external=qs_env%task_list, &
-                             task_list_external=kg_env%subset(isub)%task_list, &
-                             error=error)
+                             task_list_external=kg_env%subset(isub)%task_list)
 
       ekin_imol=0.0_dp
 
       ! calc Hohenberg-Kohn kin. energy of the density corresp. to the remaining molecular block(s)
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
-                        vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol, error=error)
+                        vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol)
 
       ekin_mol = ekin_mol + ekin_imol
 
@@ -200,11 +194,10 @@ CONTAINS
              qs_env=qs_env, &
              calculate_forces=calc_force, &
              gapw=gapw, &
-             task_list_external=kg_env%subset(isub)%task_list, &
-             error=error)
+             task_list_external=kg_env%subset(isub)%task_list)
 
         ! clean up vxc_rho
-        CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw, error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
 
       END DO
       DEALLOCATE(vxc_rho)
@@ -219,7 +212,7 @@ CONTAINS
         DO ispin=1,nspins
 
           ! clean up vxc_tau
-          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_tau(ispin)%pw, error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_tau(ispin)%pw)
 
         END DO
 
@@ -230,8 +223,8 @@ CONTAINS
     END DO
 
     ! clean up rho_struct
-    CALL qs_rho_set(rho_struct, rho_ao=Null(), error=error)
-    CALL qs_rho_release(rho_struct, error)
+    CALL qs_rho_set(rho_struct, rho_ao=Null())
+    CALL qs_rho_release(rho_struct)
 
     CALL timestop(handle)
 
@@ -242,14 +235,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param ks_matrix ...
 !> \param ekin_mol ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_ekin_atomic(qs_env, ks_matrix, ekin_mol, error)
+  SUBROUTINE kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     REAL(KIND=dp), INTENT(out)               :: ekin_mol
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_atomic', &
       routineP = moduleN//':'//routineN
@@ -263,19 +254,19 @@ CONTAINS
     NULLIFY(rho, kg_env, density_matrix, tnadd_matrix)
 
     CALL timeset(routineN, handle)
-    CALL get_qs_env(qs_env, kg_env=kg_env, rho=rho, error=error)
+    CALL get_qs_env(qs_env, kg_env=kg_env, rho=rho)
 
     nspins = SIZE(ks_matrix)
     ! get the density matrix
-    CALL qs_rho_get(rho, rho_ao=density_matrix, error=error)
+    CALL qs_rho_get(rho, rho_ao=density_matrix)
     ! get the tnadd matrix
     tnadd_matrix => kg_env%tnadd_mat
 
     ekin_mol = 0.0_dp
     DO ispin=1,nspins
-       CALL cp_dbcsr_trace(tnadd_matrix(1)%matrix,density_matrix(ispin)%matrix,ekin_mol,error=error)
+       CALL cp_dbcsr_trace(tnadd_matrix(1)%matrix,density_matrix(ispin)%matrix,ekin_mol)
        CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, tnadd_matrix(1)%matrix, &
-                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
+                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp)
     END DO
     ! definition is inverted (see qs_ks_methods)
     ekin_mol = -ekin_mol

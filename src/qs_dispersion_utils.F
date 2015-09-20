@@ -52,12 +52,10 @@ MODULE qs_dispersion_utils
 !> \brief ...
 !> \param dispersion_env ...
 !> \param xc_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_env_set(dispersion_env,xc_section,error)
+  SUBROUTINE qs_dispersion_env_set(dispersion_env,xc_section)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_env_set', &
       routineP = moduleN//':'//routineN
@@ -67,7 +65,7 @@ MODULE qs_dispersion_utils
     TYPE(section_vals_type), POINTER         :: nl_section, pp_section, &
                                                 vdw_section, xc_fun_section
 
-    CPPrecondition(ASSOCIATED(dispersion_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dispersion_env),cp_failure_level,routineP,failure)
     failure = .FALSE.
 
     ! set general defaults
@@ -82,24 +80,24 @@ MODULE qs_dispersion_utils
     NULLIFY(dispersion_env%sab_vdw,dispersion_env%sab_cn)
     NULLIFY(dispersion_env%dftd_section)
     NULLIFY(vdw_section,xc_fun_section)
-    vdw_section =>  section_vals_get_subs_vals(xc_section,"vdw_potential",error=error)
-    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
-    CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
+    vdw_section =>  section_vals_get_subs_vals(xc_section,"vdw_potential")
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
+    CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type)
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
        NULLIFY(pp_section)
-       pp_section =>  section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
-       CALL section_vals_val_get(pp_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
-       CALL section_vals_val_get(pp_section, "TYPE", i_val=dispersion_env%pp_type, error=error)
+       pp_section =>  section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL")
+       CALL section_vals_val_get(pp_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose)
+       CALL section_vals_val_get(pp_section, "TYPE", i_val=dispersion_env%pp_type)
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
           ! functional parameters for Grimme D2 type
-          CALL section_vals_val_get(pp_section, "EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
-          CALL section_vals_val_get(pp_section, "SCALING" ,explicit=explicit,error=error)
+          CALL section_vals_val_get(pp_section, "EXP_PRE", r_val=dispersion_env%exp_pre)
+          CALL section_vals_val_get(pp_section, "SCALING" ,explicit=explicit)
           IF ( .NOT. explicit ) THEN
-            CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
-            CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
-            CALL qs_scaling_init(dispersion_env%scaling,vdw_section,error)
+            CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun)
+            CPPostcondition(exfun,cp_failure_level,routineP,failure)
+            CALL qs_scaling_init(dispersion_env%scaling,vdw_section)
           ELSE
-            CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling, error=error)
+            CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling)
           END IF
        ELSE
           dispersion_env%exp_pre=0._dp
@@ -108,28 +106,28 @@ MODULE qs_dispersion_utils
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3  .OR. &
             dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           ! functional parameters for Grimme DFT-D3 type
-          CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn, error=error)
-          CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc,error=error)
-          CALL section_vals_val_get(pp_section, "REFERENCE_C9_TERM" ,l_val=dispersion_env%c9cnst,error=error)
-          CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION" ,l_val=dispersion_env%lrc,error=error)
+          CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn)
+          CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc)
+          CALL section_vals_val_get(pp_section, "REFERENCE_C9_TERM" ,l_val=dispersion_env%c9cnst)
+          CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION" ,l_val=dispersion_env%lrc)
           IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
-             CALL section_vals_val_get(pp_section, "D3_SCALING" ,explicit=explicit,error=error)
+             CALL section_vals_val_get(pp_section, "D3_SCALING" ,explicit=explicit)
           ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
-             CALL section_vals_val_get(pp_section, "D3BJ_SCALING" ,explicit=explicit,error=error)
+             CALL section_vals_val_get(pp_section, "D3BJ_SCALING" ,explicit=explicit)
           END IF
           IF ( .NOT. explicit ) THEN
-             CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
-             CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
+             CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun)
+             CPPostcondition(exfun,cp_failure_level,routineP,failure)
              IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
-                CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section,error)
+                CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section)
              ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
                 CALL qs_scaling_dftd3bj(dispersion_env%s6,dispersion_env%a1,dispersion_env%s8,&
-                                        dispersion_env%a2,vdw_section,error)
+                                        dispersion_env%a2,vdw_section)
              END IF
           ELSE
              IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
                 ! zero damping
-                CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal, error=error)
+                CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal)
                 dispersion_env%s6  =scal(1)
                 dispersion_env%sr6 =scal(2)
                 dispersion_env%s8  =scal(3)
@@ -137,7 +135,7 @@ MODULE qs_dispersion_utils
                 dispersion_env%a2  =0.0_dp
              ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
                 ! BJ damping
-                CALL section_vals_val_get(pp_section, "D3BJ_SCALING", r_vals=scal, error=error)
+                CALL section_vals_val_get(pp_section, "D3BJ_SCALING", r_vals=scal)
                 dispersion_env%s6  =scal(1)
                 dispersion_env%a1  =scal(2)
                 dispersion_env%s8  =scal(3)
@@ -153,21 +151,21 @@ MODULE qs_dispersion_utils
           dispersion_env%a2=0._dp
           dispersion_env%eps_cn=0._dp
        END IF
-       CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp, error=error)
+       CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp)
        CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",&
-            c_val=dispersion_env%parameter_file_name,error=error)
+            c_val=dispersion_env%parameter_file_name)
        ! set DFTD section for output handling
        dispersion_env%dftd_section => pp_section
     ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
        NULLIFY(nl_section)
-       nl_section =>  section_vals_get_subs_vals(vdw_section,"NON_LOCAL",error=error)
-       CALL section_vals_val_get(nl_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
+       nl_section =>  section_vals_get_subs_vals(vdw_section,"NON_LOCAL")
+       CALL section_vals_val_get(nl_section, "VERBOSE_OUTPUT", l_val=dispersion_env%verbose)
        CALL section_vals_val_get(nl_section,"KERNEL_FILE_NAME",&
-            c_val=dispersion_env%kernel_file_name,error=error)
-       CALL section_vals_val_get(nl_section, "TYPE", i_val=dispersion_env%nl_type, error=error)
-       CALL section_vals_val_get(nl_section, "CUTOFF", r_val=dispersion_env%pw_cutoff, error=error)
+            c_val=dispersion_env%kernel_file_name)
+       CALL section_vals_val_get(nl_section, "TYPE", i_val=dispersion_env%nl_type)
+       CALL section_vals_val_get(nl_section, "CUTOFF", r_val=dispersion_env%pw_cutoff)
        dispersion_env%pw_cutoff = 0.5_dp * dispersion_env%pw_cutoff
-       CALL section_vals_val_get(nl_section, "PARAMETERS", r_vals=params, error=error)
+       CALL section_vals_val_get(nl_section, "PARAMETERS", r_vals=params)
        dispersion_env%b_value = params(1)
        dispersion_env%c_value = params(2)
     END IF
@@ -180,13 +178,11 @@ MODULE qs_dispersion_utils
 !> \param qs_env ...
 !> \param dispersion_env ...
 !> \param ounit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_write_dispersion(qs_env,dispersion_env,ounit,error)
+  SUBROUTINE qs_write_dispersion(qs_env,dispersion_env,ounit)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     INTEGER, INTENT(in), OPTIONAL            :: ounit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_write_dispersion', &
       routineP = moduleN//':'//routineN
@@ -208,11 +204,11 @@ MODULE qs_dispersion_utils
        output_unit = ounit
     ELSE
        NULLIFY(logger)
-       logger => cp_error_get_logger(error)
+       logger => cp_get_default_logger()
 
-       dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+       dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
        output_unit = cp_print_key_unit_nr(logger,dft_section,&
-            "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+            "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log")
     END IF
 
     IF (output_unit>0) THEN
@@ -225,11 +221,11 @@ MODULE qs_dispersion_utils
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
-             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
+             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
              nkind  = SIZE(atomic_kind_set)
              DO ikind = 1, nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol)
-                CALL get_qs_kind(qs_kind_set(ikind),dispersion=disp, error=error)
+                CALL get_qs_kind(qs_kind_set(ikind),dispersion=disp)
                 IF ( disp%defined ) THEN
                    WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
                         "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
@@ -271,7 +267,7 @@ MODULE qs_dispersion_utils
           SELECT CASE (dispersion_env%nl_type)
              CASE DEFAULT
                 ! unknown functional
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
              CASE (vdw_nl_DRSLL)
                 WRITE (output_unit, &
                  fmt="(' vdW POTENTIAL| ','DRSLL Functional:           M. Dion et al, PRL 92: 246401 (2004)')")
@@ -297,7 +293,7 @@ MODULE qs_dispersion_utils
     END IF
     IF(.NOT.PRESENT(ounit)) THEN
        CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-            "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+            "PRINT%DFT_CONTROL_PARAMETERS")
     END IF
 
   END SUBROUTINE qs_write_dispersion

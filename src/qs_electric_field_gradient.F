@@ -85,12 +85,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efg_calc(qs_env,error)
+  SUBROUTINE qs_efg_calc(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efg_calc', &
       routineP = moduleN//':'//routineN
@@ -140,7 +138,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     chk_spl = 0.0_dp
     efg_units = Joule/a_bohr**2/e_charge * 1.e-21_dp
@@ -152,19 +150,17 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     rho_atom_set=rho_atom_set,pw_env=pw_env,&
                     particle_set=particle_set,para_env=para_env,&
-                    input=input,error=error)
+                    input=input)
 
-    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+    dft_section => section_vals_get_subs_vals(input,"DFT")
 
     efg_interpolation = section_get_lval(section_vals=dft_section,&
-                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATION",&
-                error=error)
+                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATION")
     efg_debug = section_get_lval(section_vals=dft_section,&
-                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%DEBUG",&
-                error=error)
+                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%DEBUG")
     CALL section_vals_val_get(dft_section,&
                 "PRINT%ELECTRIC_FIELD_GRADIENT%GSPACE_SMOOTHING",&
-                r_vals=rvals,error=error)
+                r_vals=rvals)
     ecut = rvals(1)
     sigma = rvals(2)
     IF (ecut == 0._dp .AND. sigma <= 0._dp) THEN
@@ -173,21 +169,20 @@ CONTAINS
       sigma = 1._dp     ! not used, just to have vars defined
     ELSEIF (ecut == -1._dp .AND. sigma == -1._dp) THEN
       smoothing = .TRUE.
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_create_pw(auxbas_pw_pool,dvr2rs%pw, &
-                              use_data=REALDATA3D,in_space=REALSPACE,&
-                              error=error)
+                              use_data=REALDATA3D,in_space=REALSPACE)
       ecut  = 2._dp * dvr2rs%pw%pw_grid%cutoff * 0.875_dp
       sigma = 2._dp * dvr2rs%pw%pw_grid%cutoff * 0.125_dp
-      CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw)
     ELSE
       smoothing = .TRUE.
     END IF
-    CPPostcondition(ecut > 0._dp,cp_failure_level,routineP,error,failure)
-    CPPostcondition(sigma > 0._dp,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ecut > 0._dp,cp_failure_level,routineP,failure)
+    CPPostcondition(sigma > 0._dp,cp_failure_level,routineP,failure)
 
     unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%ELECTRIC_FIELD_GRADIENT",&
-               extension=".efg",log_filename=.FALSE.,error=error)
+               extension=".efg",log_filename=.FALSE.)
 
     IF (unit_nr > 0) THEN
       WRITE(unit_nr,"(/,A,/)") " ELECTRIC FIELD GRADIENTS [10**21 V/m^2]"
@@ -212,95 +207,88 @@ CONTAINS
 
     natom = SIZE(particle_set,1)
     ALLOCATE (efg_tensor(3,3,natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     efg_tensor = 0._dp
     IF ( efg_debug ) THEN
       ALLOCATE (efg_pw(3,3,natom),STAT=istat )
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       efg_pw = 0._dp
     END IF
     ALLOCATE (efg_diagval(3,natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     efg_diagval = 0._dp
 
     ALLOCATE (vh0(1:natom,-2:2),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     vh0 = 0._dp
 
     ALLOCATE (dvr2(6),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (dvspl(6),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     !prepare calculation
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                    poisson_env=poisson_env,error=error)
-    IF (gapw) CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
+                    poisson_env=poisson_env)
+    IF (gapw) CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.)
 
     !calculate electrostatic potential
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw, &
-                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                            error=error)
+                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
-                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                            error=error)
-    CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
+                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
+    CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
     CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,ehartree,&
-                          v_hartree_gspace%pw,error=error)
+                          v_hartree_gspace%pw)
 
     ! smoothing of potential
-    IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma,error=error)
+    IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma)
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw)
 
     DO i=1,3
       DO j=1,i
         ij=(i*(i-1))/2+j
         CALL pw_pool_create_pw(auxbas_pw_pool,dvr2(ij)%pw, &
-                                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                error=error)
-        CALL pw_dr2 ( v_hartree_gspace%pw, dvr2(ij)%pw, i, j, error=error)
+                                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
+        CALL pw_dr2 ( v_hartree_gspace%pw, dvr2(ij)%pw, i, j)
       END DO
     END DO
 
     IF ( .NOT. efg_interpolation ) THEN
       CALL pw_pool_create_pw(auxbas_pw_pool,structure_factor%pw, &
-                              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                              error=error)
+                              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
     ELSE
 
       interp_section =>  section_vals_get_subs_vals(dft_section,&
-                           "PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATOR",error=error)
+                           "PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATOR")
       CALL section_vals_val_get(interp_section,"aint_precond", &
-                                i_val=aint_precond, error=error)
-      CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind, error=error)
-      CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter, error=error)
-      CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
-      CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
+                                i_val=aint_precond)
+      CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind)
+      CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter)
+      CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r)
+      CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x)
 
       CALL pw_pool_create_pw(auxbas_pw_pool,dvr2rs%pw, &
-                              use_data=REALDATA3D,in_space=REALSPACE,&
-                              error=error)
+                              use_data=REALDATA3D,in_space=REALSPACE)
       DO i=1,6
         CALL pw_pool_create_pw(auxbas_pw_pool,dvspl(i)%pw, &
-                            use_data=REALDATA3D,in_space=REALSPACE,&
-                            error=error)
-        CALL pw_transfer ( dvr2(i)%pw, dvr2rs%pw , error=error)
+                            use_data=REALDATA3D,in_space=REALSPACE)
+        CALL pw_transfer ( dvr2(i)%pw, dvr2rs%pw)
         ! calculate spline coefficients
         CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-          pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
-        CALL pw_spline_do_precond(precond,dvr2rs%pw,dvspl(i)%pw,error=error)
-        CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+          pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.)
+        CALL pw_spline_do_precond(precond,dvr2rs%pw,dvspl(i)%pw)
+        CALL pw_spline_precond_set_kind(precond,precond_kind)
         success=find_coeffs(values=dvr2rs%pw,coeffs=dvspl(i)%pw,&
              linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
-             eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
-             error=error)
-        CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-        CALL pw_spline_precond_release(precond,error=error)
-        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw,error=error)
+             eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
+        CPPostconditionNoFail(success,cp_warning_level,routineP)
+        CALL pw_spline_precond_release(precond)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw)
       END DO
-      CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw)
     END IF
 
     nkind = SIZE(qs_kind_set)
@@ -308,7 +296,7 @@ CONTAINS
     DO ikind = 1,nkind
       NULLIFY(atom_list)
       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=natomkind)
-      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
       DO iat = 1,natomkind
         iatom = atom_list(iat)
         ra = particle_set(iatom)%r
@@ -316,21 +304,21 @@ CONTAINS
           DO i=1,3
             DO j=1,i
               ij=(i*(i-1))/2+j
-              efg_val = Eval_Interp_Spl3_pbc(ra,dvspl(ij)%pw,error)
+              efg_val = Eval_Interp_Spl3_pbc(ra,dvspl(ij)%pw)
               efg_tensor(i,j,iatom)=-efg_val
               efg_tensor(j,i,iatom)=efg_tensor(i,j,iatom)
               IF ( efg_debug ) THEN
                  chk_spl = chk_spl + efg_val + &
-                    SUM(Eval_d_Interp_Spl3_pbc(ra,dvspl(ij)%pw,error))
+                    SUM(Eval_d_Interp_Spl3_pbc(ra,dvspl(ij)%pw))
               END IF
             END DO
           END DO
         ELSE
-          CALL pw_structure_factor(structure_factor%pw,ra,error=error)
+          CALL pw_structure_factor(structure_factor%pw,ra)
           DO i=1,3
             DO j=1,i
               ij=(i*(i-1))/2+j
-              efg_tensor(i,j,iatom)=-pw_integral_ab(dvr2(ij)%pw,structure_factor%pw,error=error)
+              efg_tensor(i,j,iatom)=-pw_integral_ab(dvr2(ij)%pw,structure_factor%pw)
               efg_tensor(j,i,iatom)=efg_tensor(i,j,iatom)
             END DO
           END DO
@@ -343,7 +331,7 @@ CONTAINS
 
       IF( paw_atom) THEN
         CALL vlimit_atom(para_env,vh0,rho_atom_set,qs_kind_set(ikind),&
-                         atom_list,natomkind,nspins,error)
+                         atom_list,natomkind,nspins)
         DO iat = 1,natomkind
           iatom = atom_list(iat)
           efg_tensor(1,1,iatom)=efg_tensor(1,1,iatom) &
@@ -409,32 +397,32 @@ CONTAINS
       END IF
     ENDDO
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw)
     IF ( .NOT. efg_interpolation ) THEN
-      CALL pw_pool_give_back_pw(auxbas_pw_pool,structure_factor%pw,error=error)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,structure_factor%pw)
       DO i=1,6
-        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw,error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw)
       END DO
     ELSE
       DO i=1,6
-        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvspl(i)%pw,error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvspl(i)%pw)
       END DO
     END IF
 
     DEALLOCATE (efg_tensor,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     IF ( efg_debug ) THEN
       DEALLOCATE (efg_pw,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     DEALLOCATE (vh0,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (dvr2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (dvspl,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -449,10 +437,9 @@ CONTAINS
 !> \param atom_list ...
 !> \param natom ...
 !> \param nspins ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE vlimit_atom(para_env,vlimit,rho_atom_set,qs_kind,&
-                         atom_list,natom,nspins,error)
+                         atom_list,natom,nspins)
 
   ! calculate : Limit(r->0) V_hartree(r)/r^2
 
@@ -464,7 +451,6 @@ CONTAINS
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     INTEGER, INTENT(IN)                      :: natom, nspins
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vlimit_atom', &
       routineP = moduleN//':'//routineN
@@ -493,7 +479,7 @@ CONTAINS
     NULLIFY(lmin,lmax,npgf,zet,my_CG,coeff)
 
     CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis,&
-                         paw_proj_set=paw_proj,harmonics=harmonics, error=error)
+                         paw_proj_set=paw_proj,harmonics=harmonics)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxl=maxl,npgf=npgf,nset=nset,zet=zet,&
@@ -513,17 +499,17 @@ CONTAINS
     my_CG        => harmonics%my_CG
 
     ALLOCATE(CPC_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     m1s = 0
     DO iset1 = 1,nset
        m2s = 0
        DO iset2 = 1,nset
           CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
-                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
-          CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
+                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local)
+          CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
 
           n1s = nsoset(lmax(iset1))
           DO ipgf1  = 1,npgf(iset1)
@@ -533,7 +519,7 @@ CONTAINS
              iso1_first = o2nindex(iso1_first)
              iso1_last  = o2nindex(iso1_last)
              i1 = iso1_last - iso1_first + 1
-             CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
+             CPPrecondition(size1==i1,cp_failure_level,routineP,failure)
              i1 = nsoset(lmin(iset1)-1)+1
 
           n2s=nsoset(lmax(iset2))
@@ -544,7 +530,7 @@ CONTAINS
             iso2_first = o2nindex(iso2_first)
             iso2_last  = o2nindex(iso2_last)
             i2 = iso2_last - iso2_first + 1
-            CPPrecondition(size2==i2,cp_failure_level,routineP,error,failure)
+            CPPrecondition(size2==i2,cp_failure_level,routineP,failure)
             i2 = nsoset(lmin(iset2)-1)+1
 
             zet12 = zet(ipgf1,iset1)+zet(ipgf2,iset2)
@@ -606,9 +592,9 @@ CONTAINS
     CALL mp_sum(vlimit,para_env%group)
 
     DEALLOCATE(CPC_sphere,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE vlimit_atom
 

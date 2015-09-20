@@ -139,16 +139,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_gto_basis_set(gto_basis_set, error)
+  SUBROUTINE allocate_gto_basis_set(gto_basis_set)
 
     ! Allocate a Gaussian-type orbital (GTO) basis set data set.
 
     ! - Creation (26.10.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
@@ -157,10 +155,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL deallocate_gto_basis_set(gto_basis_set,error)
+    CALL deallocate_gto_basis_set(gto_basis_set)
 
     ALLOCATE (gto_basis_set,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY (gto_basis_set%cgf_symbol)
     NULLIFY (gto_basis_set%first_cgf)
@@ -195,16 +193,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_gto_basis_set(gto_basis_set, error)
+  SUBROUTINE deallocate_gto_basis_set(gto_basis_set)
 
     ! Deallocate a Gaussian-type orbital (GTO) basis set data set.
 
     ! - Creation (03.11.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
@@ -216,62 +212,62 @@ CONTAINS
     IF (ASSOCIATED(gto_basis_set))  THEN
        IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
           DEALLOCATE (gto_basis_set%cgf_symbol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
        IF (ASSOCIATED(gto_basis_set%sgf_symbol)) THEN
           DEALLOCATE (gto_basis_set%sgf_symbol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
        DEALLOCATE (gto_basis_set%norm_cgf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%set_radius,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%lmax,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%lmin,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%lx,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%ly,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%lz,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%m,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%ncgf_set,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%npgf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%nsgf_set,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%nshell,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%cphi,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%pgf_radius,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%sphi,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%scon,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%zet,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%first_cgf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%first_sgf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%l,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%last_cgf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%last_sgf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%n,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set%gcc,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (gto_basis_set,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE deallocate_gto_basis_set
 
@@ -279,14 +275,12 @@ CONTAINS
 !> \brief ...
 !> \param basis_set_in ...
 !> \param basis_set_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE copy_gto_basis_set(basis_set_in, basis_set_out, error)
+  SUBROUTINE copy_gto_basis_set(basis_set_in, basis_set_out)
 
     ! Copy a Gaussian-type orbital (GTO) basis set data set.
 
     TYPE(gto_basis_set_type), POINTER        :: basis_set_in, basis_set_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_gto_basis_set', &
       routineP = moduleN//':'//routineN
@@ -298,9 +292,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(basis_set_in),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_set_in),cp_failure_level,routineP,failure)
 
-    CALL allocate_gto_basis_set(basis_set_out,error)
+    CALL allocate_gto_basis_set(basis_set_out)
 
     bin => basis_set_in
     bout => basis_set_out
@@ -315,59 +309,59 @@ CONTAINS
     ncgf = bin%ncgf
     nsgf = bin%nsgf
     ALLOCATE (bout%cgf_symbol(ncgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE (bout%sgf_symbol(nsgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%cgf_symbol = bin%cgf_symbol
     bout%sgf_symbol = bin%sgf_symbol
     ALLOCATE (bout%norm_cgf(ncgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%norm_cgf = bin%norm_cgf
     ALLOCATE (bout%set_radius(nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%set_radius = bin%set_radius
     ALLOCATE (bout%lmax(nset),bout%lmin(nset),bout%npgf(nset),bout%nshell(nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%lmax = bin%lmax
     bout%lmin = bin%lmin
     bout%npgf = bin%npgf
     bout%nshell = bin%nshell
     ALLOCATE (bout%lx(ncgf),bout%ly(ncgf),bout%lz(ncgf),bout%m(nsgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%lx = bin%lx
     bout%ly = bin%ly
     bout%lz = bin%lz
     bout%m = bin%m
     ALLOCATE (bout%ncgf_set(nset),bout%nsgf_set(nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%ncgf_set = bin%ncgf_set
     bout%nsgf_set = bin%nsgf_set
     maxco = SIZE(bin%cphi,1)
     ALLOCATE (bout%cphi(maxco,ncgf),bout%sphi(maxco,nsgf),bout%scon(maxco,nsgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%cphi = bin%cphi
     bout%sphi = bin%sphi
     bout%scon = bin%scon
     maxpgf = MAXVAL(bin%npgf)
     ALLOCATE (bout%pgf_radius(maxpgf,nset),bout%zet(maxpgf,nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%pgf_radius = bin%pgf_radius
     bout%zet = bin%zet
     maxshell = MAXVAL(bin%nshell)
     ALLOCATE (bout%first_cgf(maxshell,nset),bout%first_sgf(maxshell,nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE (bout%last_cgf(maxshell,nset),bout%last_sgf(maxshell,nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%first_cgf = bin%first_cgf
     bout%first_sgf = bin%first_sgf
     bout%last_cgf = bin%last_cgf
     bout%last_sgf = bin%last_sgf
     ALLOCATE (bout%n(maxshell,nset),bout%l(maxshell,nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%n = bin%n
     bout%l = bin%l
     ALLOCATE (bout%gcc(maxpgf,maxshell,nset),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%gcc = bin%gcc
 
   END SUBROUTINE copy_gto_basis_set
@@ -376,14 +370,12 @@ CONTAINS
 !> \brief ...
 !> \param basis_set ...
 !> \param basis_set_add ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE combine_basis_sets(basis_set, basis_set_add, error)
+  SUBROUTINE combine_basis_sets(basis_set, basis_set_add)
 
     ! Combine two Gaussian-type orbital (GTO) basis sets.
 
     TYPE(gto_basis_set_type), POINTER        :: basis_set, basis_set_add
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'combine_basis_sets', &
       routineP = moduleN//':'//routineN
@@ -397,8 +389,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(basis_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(basis_set_add),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_set),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(basis_set_add),cp_failure_level,routineP,failure)
 
     bad => basis_set_add
     bout => basis_set
@@ -433,19 +425,19 @@ CONTAINS
     ncgfo = ncgf - ncgfn
 
     ALLOCATE (cgf_symbol(ncgf),sgf_symbol(nsgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     cgf_symbol(1:ncgfo) = bout%cgf_symbol(1:ncgfo)
     cgf_symbol(ncgfo+1:ncgf) = bad%cgf_symbol(1:ncgfn)
     sgf_symbol(1:nsgfo) = bout%sgf_symbol(1:nsgfo)
     sgf_symbol(nsgfo+1:nsgf) = bad%sgf_symbol(1:nsgfn)
     DEALLOCATE (bout%cgf_symbol,bout%sgf_symbol,STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE (bout%cgf_symbol(ncgf),bout%sgf_symbol(nsgf),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     bout%cgf_symbol = cgf_symbol
     bout%sgf_symbol = sgf_symbol
     DEALLOCATE (cgf_symbol,sgf_symbol,STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     CALL reallocate(bout%lx,1,ncgf)
     CALL reallocate(bout%ly,1,ncgf)
@@ -687,16 +679,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_aux_basis_set(gto_basis_set,error)
+  SUBROUTINE init_aux_basis_set(gto_basis_set)
 
     ! Initialise a Gaussian-type orbital (GTO) basis set data set.
 
     ! - Creation (06.12.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_aux_basis_set', &
       routineP = moduleN//':'//routineN
@@ -713,17 +703,17 @@ CONTAINS
     CASE ( 0 )
        ! No normalisation requested
     CASE ( 1 )
-       CALL init_norm_cgf_aux_2(gto_basis_set,error)
+       CALL init_norm_cgf_aux_2(gto_basis_set)
     CASE ( 2 )
        ! WARNING this was never tested
-       CALL init_norm_cgf_aux(gto_basis_set,error)
+       CALL init_norm_cgf_aux(gto_basis_set)
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,&
             "Normalization method not specified")
     END SELECT
 
     ! Initialise the transformation matrices "pgf" -> "cgf"
-    CALL init_cphi_and_sphi(gto_basis_set,error)
+    CALL init_cphi_and_sphi(gto_basis_set)
   
     CALL timestop(handle)
 
@@ -732,9 +722,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_cphi_and_sphi(gto_basis_set,error)
+  SUBROUTINE init_cphi_and_sphi(gto_basis_set)
 
     ! Initialise the matrices for the transformation of primitive Cartesian
     ! Gaussian-type functions to contracted Cartesian (cphi) and spherical
@@ -743,7 +732,6 @@ CONTAINS
     ! - Creation (20.09.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cphi_and_sphi', &
       routineP = moduleN//':'//routineN
@@ -825,9 +813,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_norm_cgf_aux(gto_basis_set,error)
+  SUBROUTINE init_norm_cgf_aux(gto_basis_set)
 
     ! Initialise the normalization factors of the contracted Cartesian Gaussian
     ! functions, if the Gaussian functions represent charge distributions.
@@ -835,7 +822,6 @@ CONTAINS
     ! - Creation (07.12.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_norm_cgf_aux', &
       routineP = moduleN//':'//routineN
@@ -864,11 +850,11 @@ CONTAINS
     END DO
 
     ALLOCATE (gaa(n,n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (vv(ncoset(ll),ncoset(ll),ll+ll+1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (ff(0:ll+ll),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     DO iset=1,gto_basis_set%nset
        lmax = gto_basis_set%lmax(iset)
@@ -904,18 +890,17 @@ CONTAINS
     END DO
 
     DEALLOCATE (vv,ff, STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (gaa,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE init_norm_cgf_aux
 
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_norm_cgf_aux_2(gto_basis_set,error)
+  SUBROUTINE init_norm_cgf_aux_2(gto_basis_set)
 
     ! Initialise the normalization factors of the auxiliary Cartesian Gaussian
     ! functions (Kim-Gordon polarization basis) Norm = 1.
@@ -923,7 +908,6 @@ CONTAINS
     ! - Creation (07.12.2000,GT)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, iset, ishell
 
@@ -943,9 +927,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_norm_cgf_orb(gto_basis_set,error)
+  SUBROUTINE init_norm_cgf_orb(gto_basis_set)
 
     ! Initialise the normalization factors of the contracted Cartesian Gaussian
     ! functions.
@@ -953,7 +936,6 @@ CONTAINS
     ! - Creation (14.04.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ipgf, iset, ishell, &
                                                 jpgf, l, lx, ly, lz
@@ -1000,9 +982,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_norm_cgf_orb_den(gto_basis_set,error)
+  SUBROUTINE init_norm_cgf_orb_den(gto_basis_set)
 
     ! Initialise the normalization factors of the contracted Cartesian Gaussian
     ! functions used for frozen density representation.
@@ -1010,7 +991,6 @@ CONTAINS
     ! - Creation (21.09.2002,GT)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
@@ -1039,16 +1019,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_orb_basis_set(gto_basis_set,error)
+  SUBROUTINE init_orb_basis_set(gto_basis_set)
 
     ! Initialise a Gaussian-type orbital (GTO) basis set data set.
 
     ! - Creation (26.10.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_orb_basis_set', &
       routineP = moduleN//':'//routineN
@@ -1065,13 +1043,13 @@ CONTAINS
     CASE ( 0 )
        ! No normalisation requested
     CASE ( 1 )
-       CALL init_norm_cgf_orb_den(gto_basis_set,error)
+       CALL init_norm_cgf_orb_den(gto_basis_set)
     CASE ( 2 )
        ! Normalise the primitive Gaussian functions
-       CALL normalise_gcc_orb(gto_basis_set,error)
+       CALL normalise_gcc_orb(gto_basis_set)
        ! Compute the normalization factors of the contracted Gaussian-type
        ! functions
-       CALL init_norm_cgf_orb(gto_basis_set,error)
+       CALL init_norm_cgf_orb(gto_basis_set)
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,&
             "Normalization method not specified")
@@ -1079,7 +1057,7 @@ CONTAINS
 
     ! Initialise the transformation matrices "pgf" -> "cgf"
 
-    CALL init_cphi_and_sphi(gto_basis_set,error)
+    CALL init_cphi_and_sphi(gto_basis_set)
 
     CALL timestop(handle)
 
@@ -1088,9 +1066,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE normalise_gcc_orb(gto_basis_set,error)
+  SUBROUTINE normalise_gcc_orb(gto_basis_set)
 
     ! Normalise the primitive Cartesian Gaussian functions. The normalization
     ! factor is included in the Gaussian contraction coefficients.
@@ -1098,7 +1075,6 @@ CONTAINS
     ! - Creation (20.08.1999,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
@@ -1127,10 +1103,9 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param para_env ...
 !> \param dft_section ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_gto_basis_set1(element_symbol,basis_set_name,gto_basis_set,&
-       para_env,dft_section,error)
+       para_env,dft_section)
 
     ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -1140,7 +1115,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set1', &
       routineP = moduleN//':'//routineN
@@ -1178,11 +1152,11 @@ CONTAINS
 
     gto_basis_set%name = basis_set_name
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-         n_rep_val=nbasis,error=error)
+         n_rep_val=nbasis)
     ALLOCATE(cbasis(nbasis))
     DO ibasis = 1,nbasis
        CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-            i_rep_val=ibasis,c_val=cbasis(ibasis),error=error)
+            i_rep_val=ibasis,c_val=cbasis(ibasis))
        NULLIFY(parser)
        basis_set_file_name = cbasis(ibasis)
        tmp=basis_set_file_name
@@ -1198,7 +1172,7 @@ CONTAINS
       IF( basis_found ) EXIT basis_loop
       NULLIFY(parser)
       basis_set_file_name = cbasis(ibasis)
-      CALL parser_create(parser,basis_set_file_name,para_env=para_env,error=error)
+      CALL parser_create(parser,basis_set_file_name,para_env=para_env)
 
       bsname = basis_set_name
       symbol = element_symbol
@@ -1245,7 +1219,7 @@ CONTAINS
       IF (tmp.NE."NONE") THEN
         search_loop: DO
 
-           CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line,error=error)
+           CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line)
            IF (found) THEN
               CALL uppercase(symbol)
               CALL uppercase(bsname)
@@ -1264,7 +1238,7 @@ CONTAINS
               IF (match) THEN
                  NULLIFY (gcc,l,lmax,lmin,n,npgf,nshell,zet)
                  ! Read the basis set information
-                 CALL parser_get_object(parser,nset,newline=.TRUE.,error=error)
+                 CALL parser_get_object(parser,nset,newline=.TRUE.)
 
                  CALL reallocate(npgf,1,nset)
                  CALL reallocate(nshell,1,nset)
@@ -1277,10 +1251,10 @@ CONTAINS
                  maxshell = 0
 
                  DO iset=1,nset
-                    CALL parser_get_object(parser,n(1,iset),newline=.TRUE.,error=error)
-                    CALL parser_get_object(parser,lmin(iset),error=error)
-                    CALL parser_get_object(parser,lmax(iset),error=error)
-                    CALL parser_get_object(parser,npgf(iset),error=error)
+                    CALL parser_get_object(parser,n(1,iset),newline=.TRUE.)
+                    CALL parser_get_object(parser,lmin(iset))
+                    CALL parser_get_object(parser,lmax(iset))
+                    CALL parser_get_object(parser,npgf(iset))
                     maxl = MAX(maxl,lmax(iset))
                     IF (npgf(iset) > maxpgf) THEN
                        maxpgf = npgf(iset)
@@ -1290,7 +1264,7 @@ CONTAINS
                     nshell(iset) = 0
                     DO lshell=lmin(iset),lmax(iset)
                        nmin = n(1,iset) + lshell - lmin(iset)
-                       CALL parser_get_object(parser,ishell,error=error)
+                       CALL parser_get_object(parser,ishell)
                        nshell(iset) = nshell(iset) + ishell
                        IF (nshell(iset) > maxshell) THEN
                           maxshell = nshell(iset)
@@ -1304,9 +1278,9 @@ CONTAINS
                        END DO
                     END DO
                     DO ipgf=1,npgf(iset)
-                       CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.)
                        DO ishell=1,nshell(iset)
-                          CALL parser_get_object(parser,gcc(ipgf,ishell,iset),error=error)
+                          CALL parser_get_object(parser,gcc(ipgf,ishell,iset))
                        END DO
                     END DO
                  END DO
@@ -1392,10 +1366,10 @@ CONTAINS
                  CALL reallocate(gto_basis_set%m,1,nsgf)
                  CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
                  ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
                  ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
                  ncgf = 0
                  nsgf = 0
@@ -1423,7 +1397,7 @@ CONTAINS
                  END DO
 
                  DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
                  basis_found = .TRUE.
                  EXIT search_loop
@@ -1435,12 +1409,12 @@ CONTAINS
       ELSE
         match=.FALSE.
         ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
         ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
       ENDIF
 
-      CALL parser_release(parser,error=error)
+      CALL parser_release(parser)
 
     END DO basis_loop
 
@@ -1468,10 +1442,9 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param basis_section ...
 !> \param irep ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_gto_basis_set2(element_symbol,basis_type,gto_basis_set,&
-       basis_section,irep,error)
+       basis_section,irep)
 
     ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -1483,7 +1456,6 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: basis_section
     INTEGER                                  :: irep
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set2', &
       routineP = moduleN//':'//routineN
@@ -1555,21 +1527,21 @@ CONTAINS
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
 
     basis_type=""
-    CALL section_vals_val_get(basis_section,"_SECTION_PARAMETERS_",i_rep_val=irep,c_val=basis_type,error=error)
+    CALL section_vals_val_get(basis_section,"_SECTION_PARAMETERS_",i_rep_val=irep,c_val=basis_type)
     IF(basis_type=="Orbital") basis_type="ORB"
 
     NULLIFY(list,val)
-    CALL section_vals_list_get(basis_section,"_DEFAULT_KEYWORD_",i_rep_section=irep,list=list,error=error)
+    CALL section_vals_list_get(basis_section,"_DEFAULT_KEYWORD_",i_rep_section=irep,list=list)
     CALL uppercase(symbol)
     CALL uppercase(bsname)
 
     NULLIFY (gcc,l,lmax,lmin,n,npgf,nshell,zet)
     ! Read the basis set information
-    is_ok=cp_sll_val_next(list,val,error=error)
+    is_ok=cp_sll_val_next(list,val)
     IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
         __LINE__,&
         "Error reading the Basis set from input file!!")
-    CALL val_get(val,c_val=line_att,error=error)
+    CALL val_get(val,c_val=line_att)
     READ(line_att,*)nset
 
     CALL reallocate(npgf,1,nset)
@@ -1583,11 +1555,11 @@ CONTAINS
     maxshell = 0
 
     DO iset=1,nset
-       is_ok=cp_sll_val_next(list,val,error=error)
+       is_ok=cp_sll_val_next(list,val)
        IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
           __LINE__,&
           "Error reading the Basis set from input file!!")
-       CALL val_get(val,c_val=line_att,error=error)
+       CALL val_get(val,c_val=line_att)
        READ(line_att,*)n(1,iset)
        CALL remove_word(line_att)
        READ(line_att,*)lmin(iset)
@@ -1623,11 +1595,11 @@ CONTAINS
            __LINE__,&
            "Error reading the Basis from input file!!")
        DO ipgf=1,npgf(iset)
-          is_ok=cp_sll_val_next(list,val,error=error)
+          is_ok=cp_sll_val_next(list,val)
           IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
              __LINE__,&
              "Error reading the Basis set from input file!!")
-          CALL val_get(val,c_val=line_att,error=error)
+          CALL val_get(val,c_val=line_att)
           READ(line_att,*)zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
        END DO
     END DO
@@ -1713,10 +1685,10 @@ CONTAINS
     CALL reallocate(gto_basis_set%m,1,nsgf)
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
     ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     ncgf = 0
     nsgf = 0
@@ -1744,7 +1716,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE read_gto_basis_set2
 
@@ -1871,9 +1843,8 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param output_unit ...
 !> \param header ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,header,error)
+  SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,header)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
     ! unit.
@@ -1883,7 +1854,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, INTENT(in)                      :: output_unit
     CHARACTER(len=*), OPTIONAL               :: header
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ipgf, iset, ishell
 
@@ -1939,9 +1909,8 @@ CONTAINS
 !> \param orb_basis_set ...
 !> \param output_unit ...
 !> \param header ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,header,error)
+  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,header)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
     ! unit.
@@ -1951,7 +1920,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     INTEGER, INTENT(in)                      :: output_unit
     CHARACTER(len=*), OPTIONAL               :: header
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
 
@@ -2003,12 +1971,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param sto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_sto_basis_set(sto_basis_set, error)
+  SUBROUTINE allocate_sto_basis_set(sto_basis_set)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
@@ -2019,10 +1985,10 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     failure = .FALSE.
-    CALL deallocate_sto_basis_set(sto_basis_set, error)
+    CALL deallocate_sto_basis_set(sto_basis_set)
 
     ALLOCATE (sto_basis_set,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     sto_basis_set%name="NONAME"
     NULLIFY (sto_basis_set%symbol)
@@ -2035,12 +2001,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param sto_basis_set ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_sto_basis_set(sto_basis_set, error)
+  SUBROUTINE deallocate_sto_basis_set(sto_basis_set)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
@@ -2054,23 +2018,23 @@ CONTAINS
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
           DEALLOCATE (sto_basis_set%symbol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sto_basis_set%nq)) THEN
           DEALLOCATE (sto_basis_set%nq,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sto_basis_set%lq)) THEN
           DEALLOCATE (sto_basis_set%lq,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sto_basis_set%zet)) THEN
           DEALLOCATE (sto_basis_set%zet,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        DEALLOCATE (sto_basis_set,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE deallocate_sto_basis_set
 
@@ -2194,14 +2158,12 @@ CONTAINS
 !> \param sto_basis_set ...
 !> \param gto_basis_set ...
 !> \param ngauss ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss,error)
+  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, OPTIONAL                        :: ngauss
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gto_from_sto_basis', &
       routineP = moduleN//':'//routineN
@@ -2222,7 +2184,7 @@ CONTAINS
     IF (ng > maxng) CALL stop_program(routineN,moduleN,__LINE__,&
          "Too many Gaussian primitives requested")
 
-    CALL allocate_gto_basis_set(gto_basis_set,error)
+    CALL allocate_gto_basis_set(gto_basis_set)
 
     CALL get_sto_basis_set(sto_basis_set,name=name,nshell=nshell,nq=nq,&
          lq=lq,zet=zet)
@@ -2245,7 +2207,7 @@ CONTAINS
     CALL reallocate(gto_basis_set%gcc,1,ng,1,1,1,nset)
 
     DO iset=1,nset
-       CALL get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc, error )
+       CALL get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc)
        gto_basis_set%lmax(iset) = lq(iset)
        gto_basis_set%lmin(iset) = lq(iset)
        gto_basis_set%npgf(iset) = ng
@@ -2300,9 +2262,9 @@ CONTAINS
     CALL reallocate(gto_basis_set%m,1,nsgf)
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
     ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     ncgf = 0
     nsgf = 0

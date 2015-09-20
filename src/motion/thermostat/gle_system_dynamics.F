@@ -72,13 +72,11 @@ CONTAINS
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error ...
 !> \date
 !> \par History
 ! *****************************************************************************
   SUBROUTINE gle_particles( gle, molecule_kind_set, molecule_set,  particle_set, local_molecules, &
-       group, shell_adiabatic, shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
-       error)
+       group, shell_adiabatic, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
 
     TYPE(gle_type), POINTER                  :: gle
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -91,7 +89,6 @@ CONTAINS
                                                 core_particle_set(:)
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gle_particles', &
       routineP = moduleN//':'//routineN
@@ -113,24 +110,24 @@ CONTAINS
     present_vel = PRESENT(vel)
     ndim = gle%ndim
     ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     s_tmp = 0.0_dp
     ALLOCATE (e_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
 
     map_info => gle%map_info
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, vel, error)
+         local_molecules, molecule_set, group, vel)
     DO ideg = 1, gle%loc_num_gle
        imap = gle%map_info%map_index(ideg)
        gle%nvt(ideg)%kin_energy = map_info%s_kin(imap)
     END DO
 
     CALL momentum_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, vel, error)
+         local_molecules, molecule_set, group, vel)
 
     DO ideg = 1,gle%loc_num_gle
        imap = gle%map_info%map_index(ideg)
@@ -138,11 +135,11 @@ CONTAINS
        gle%nvt(ideg)%s(1)= map_info%s_kin(imap)
        s_tmp(1,imap) = map_info%s_kin(imap)
        rng_stream => gle%nvt(ideg)%gaussian_rng_stream
-       rr =  next_random_number( rng_stream,error=error)
+       rr =  next_random_number( rng_stream)
        e_tmp(1,imap)= rr
        DO iadd = 2,ndim
           s_tmp(iadd,imap) = gle%nvt(ideg)%s(iadd)
-          rr =  next_random_number( rng_stream,error=error)
+          rr =  next_random_number( rng_stream)
           e_tmp(iadd,imap) = rr
        END DO
     END DO
@@ -169,10 +166,10 @@ CONTAINS
 
     CALL vel_rescale_particles(map_info,  molecule_kind_set, molecule_set, particle_set,&
          local_molecules, my_shell_adiabatic, shell_particle_set,core_particle_set,&
-         vel, shell_vel, core_vel, error)
+         vel, shell_vel, core_vel)
 
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, vel, error)
+         local_molecules, molecule_set, group, vel)
     DO ideg = 1, gle%loc_num_gle
        imap = gle%map_info%map_index(ideg)
        gle%nvt(ideg)%thermostat_energy = gle%nvt(ideg)%thermostat_energy + &
@@ -180,7 +177,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(e_tmp,s_tmp,h_tmp,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
   END SUBROUTINE gle_particles
@@ -198,12 +195,11 @@ CONTAINS
 !> \param gle_section ...
 !> \param gci ...
 !> \param save_mem ...
-!> \param error ...
 !> \author
 ! *****************************************************************************
   SUBROUTINE initialize_gle_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env,  gle, gle_section,&
-       gci, save_mem, error)
+       gci, save_mem)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -215,7 +211,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: gle_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_gle_part', &
       routineP = moduleN//':'//routineN
@@ -227,12 +222,12 @@ CONTAINS
     restart = .FALSE.
 
     CALL gle_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
-         molecule, molecule_kind_set, gle, para_env, gci, error )
+         molecule, molecule_kind_set, gle, para_env, gci)
 
     IF ( gle % ndim /= 0 ) THEN
-            CALL init_gle_variables ( gle, error=error)
+            CALL init_gle_variables ( gle)
     END IF
-    CALL restart_gle(gle,gle_section,save_mem,restart,error)
+    CALL restart_gle(gle,gle_section,save_mem,restart)
 
     ! here we should have read a_mat and c_mat; whe can therefore compute S and T
     ! deterministic part of the propagator
@@ -341,11 +336,10 @@ CONTAINS
 !> \param gle ...
 !> \param para_env ...
 !> \param gci ...
-!> \param error ...
 !> \author
 ! *****************************************************************************
   SUBROUTINE gle_to_particle_mapping (thermostat_info, simpar, local_molecules,&
-         molecule_set, molecule_kind_set, gle, para_env, gci, error )
+         molecule_set, molecule_kind_set, gle, para_env, gci)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -355,7 +349,6 @@ CONTAINS
     TYPE(gle_type), POINTER                  :: gle
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_to_particle_mapping', &
       routineP = moduleN//':'//routineN
@@ -391,14 +384,14 @@ CONTAINS
       CALL thermostat_mapping_region(map_info, deg_of_freedom, massive_atom_list,&
          molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
          simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
-         sum_of_thermostats, error)
+         sum_of_thermostats)
 
       ! This is the local number of available thermostats
       gle%loc_num_gle  = number
       gle%glob_num_gle = sum_of_thermostats
       mal_size = SIZE(massive_atom_list)
-      CPPrecondition(mal_size/=0,cp_fatal_level,routineP,error,failure)
-      CALL gle_thermo_create(gle,  mal_size, error=error)
+      CPPrecondition(mal_size/=0,cp_fatal_level,routineP,failure)
+      CALL gle_thermo_create(gle,  mal_size)
       gle%mal(1:mal_size) = massive_atom_list(1:mal_size)
 
        ! Sum up the number of degrees of freedom on each thermostat.
@@ -432,9 +425,9 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE gle_to_particle_mapping
@@ -445,15 +438,13 @@ CONTAINS
 !> \param gle_section ...
 !> \param save_mem ...
 !> \param restart ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE restart_gle(gle, gle_section, save_mem, restart, error)
+  SUBROUTINE restart_gle(gle, gle_section, save_mem, restart)
 
     TYPE(gle_type), POINTER                  :: gle
     TYPE(section_vals_type), POINTER         :: gle_section
     LOGICAL, INTENT(IN)                      :: save_mem
     LOGICAL, INTENT(OUT)                     :: restart
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_gle', &
       routineP = moduleN//':'//routineN
@@ -473,14 +464,14 @@ CONTAINS
     restart = .FALSE.
 
     IF (ASSOCIATED(gle_section)) THEN
-       work_section => section_vals_get_subs_vals(gle_section,"S",error=error)
-       CALL section_vals_get(work_section, explicit=explicit, error=error)
+       work_section => section_vals_get_subs_vals(gle_section,"S")
+       CALL section_vals_get(work_section, explicit=explicit)
        restart=explicit
     END IF
 
     IF (restart) THEN
        map_info => gle%map_info
-       CALL section_vals_val_get(gle_section,"S%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       CALL section_vals_val_get(gle_section,"S%_DEFAULT_KEYWORD_",r_vals=buffer)
        DO i = 1, SIZE ( gle % nvt, 1)
           ind = map_info%index(i)
           ind = (ind-1) * (gle% ndim)
@@ -492,22 +483,22 @@ CONTAINS
 
        IF(save_mem) THEN
           NULLIFY(work_section)
-          work_section => section_vals_get_subs_vals(gle_section,"S",error=error)
-          CALL section_vals_remove_values(work_section, error)
+          work_section => section_vals_get_subs_vals(gle_section,"S")
+          CALL section_vals_remove_values(work_section)
        END IF
 
       ! Possibly restart the initial thermostat energy
        work_section => section_vals_get_subs_vals(section_vals=gle_section,&
-           subsection_name="THERMOSTAT_ENERGY", error=error)
-       CALL section_vals_get(work_section,explicit=explicit,error=error)
+           subsection_name="THERMOSTAT_ENERGY")
+       CALL section_vals_get(work_section,explicit=explicit)
        IF (explicit) THEN
          CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-              n_rep_val=n_rep,error=error)
+              n_rep_val=n_rep)
          IF (n_rep==gle%glob_num_gle) THEN
             DO i = 1, gle%loc_num_gle
                ind = map_info%index(i)
                CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-                    i_rep_val=ind,r_val=gle%nvt(i)%thermostat_energy,error=error)
+                    i_rep_val=ind,r_val=gle%nvt(i)%thermostat_energy)
             END DO
          ELSE
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -518,12 +509,12 @@ CONTAINS
 
       ! Possibly restart the random number generators for the different thermostats
        work_section => section_vals_get_subs_vals(section_vals=gle_section,&
-           subsection_name="RNG_INIT", error=error)
+           subsection_name="RNG_INIT")
 
-       CALL section_vals_get(work_section,explicit=explicit,error=error)
+       CALL section_vals_get(work_section,explicit=explicit)
        IF (explicit) THEN
          CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-              n_rep_val=n_rep,error=error)
+              n_rep_val=n_rep)
 
          glob_num =gle%glob_num_gle
          loc_num =gle%loc_num_gle
@@ -531,9 +522,9 @@ CONTAINS
            DO i = 1, loc_num
               ind =  map_info%index(i)
               CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-                   i_rep_val=ind,c_val=rng_record,error=error)
+                   i_rep_val=ind,c_val=rng_record)
                CALL read_rng_stream(rng_stream=gle%nvt(i)%gaussian_rng_stream,&
-                    rng_record=rng_record,error=error)
+                    rng_record=rng_record)
            END DO
          ELSE
            CALL stop_program(routineN,moduleN,__LINE__,&
@@ -548,12 +539,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gle ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_gle_variables (gle, error)
+  SUBROUTINE init_gle_variables (gle)
 
     TYPE(gle_type), POINTER                  :: gle
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_gle_variables', &
       routineP = moduleN//':'//routineN
@@ -571,7 +560,7 @@ CONTAINS
       rng_stream => gle%nvt(i)%gaussian_rng_stream
       DO j = 1, gle%ndim
         ! here s should be properly initialized, when it is not read from restart
-        rr(j) =  next_random_number( rng_stream,error=error)
+        rr(j) =  next_random_number( rng_stream)
       END DO
       gle%nvt(i)%s = MATMUL(cc,rr)
     END DO

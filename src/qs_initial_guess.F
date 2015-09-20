@@ -105,7 +105,6 @@ CONTAINS
 !>      density matrix and optionally an initial wavefunction
 !> \param scf_env  SCF environment information
 !> \param qs_env   QS environment
-!> \param error    CP2K error handling
 !> \par History
 !>      03.2006 moved here from qs_scf [Joost VandeVondele]
 !>      06.2007 allow to skip the initial guess [jgh]
@@ -114,11 +113,10 @@ CONTAINS
 !>      badly needs to be split in subroutines each doing one of the possible
 !>      schemes
 ! *****************************************************************************
-  SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,error)
+  SUBROUTINE calculate_first_density_matrix(scf_env,qs_env)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calculate_first_density_matrix', &
@@ -175,7 +173,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 subsys_section
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     failure = .FALSE.
     NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
          qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
@@ -205,15 +203,14 @@ CONTAINS
                     do_kpoints=do_kpoints,&
                     kpoints=kpoints,&
                     rho=rho,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
     ! just initialize the first image, the other density are set to zero
     DO ispin=1, dft_control%nspins
        DO ic=1,SIZE(rho_ao_kp,2)
-          CALL cp_dbcsr_set(rho_ao_kp(ispin,ic)%matrix, 0.0_dp,error=error)
+          CALL cp_dbcsr_set(rho_ao_kp(ispin,ic)%matrix, 0.0_dp)
        END DO
     END DO
     s_sparse => matrix_s_kp(:,1)
@@ -225,7 +222,7 @@ CONTAINS
     work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+    dft_section =>  section_vals_get_subs_vals(input,"DFT")
 
     nspin = dft_control%nspins
     ofgpw = dft_control%qs_control%ofgpw
@@ -264,7 +261,7 @@ CONTAINS
         ! not on compute nodes, everything goes crazy even though only I/O
         ! node actually reads the file
         IF (para_env%ionode) &
-           CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
+           CALL wfn_restart_file_name(file_name,exist,dft_section,logger)
         CALL mp_bcast(exist, para_env%source, para_env%group)
         CALL mp_bcast(file_name, para_env%source, para_env%group)
         IF (.NOT.exist) THEN
@@ -279,7 +276,7 @@ CPSourceFileRef,&
         END IF
     ELSE IF (density_guess == history_guess) THEN
        IF (para_env%ionode) &
-          CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
+          CALL wfn_restart_file_name(file_name,exist,dft_section,logger)
        CALL mp_bcast(exist, para_env%source, para_env%group)
        CALL mp_bcast(file_name, para_env%source, para_env%group)
        nvec = qs_env%wf_history%memory_depth
@@ -325,7 +322,7 @@ CPSourceFileRef,&
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            natom_mismatch=natom_mismatch, kpoints=kpoints, error=error)
+            natom_mismatch=natom_mismatch, kpoints=kpoints)
 
        IF (natom_mismatch) THEN
          density_guess = safe_density_guess
@@ -334,7 +331,7 @@ CPSourceFileRef,&
              IF (scf_control%level_shift /= 0.0_dp) THEN
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff)
-                CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+                CALL cp_fm_to_fm(mo_coeff,ortho)
              END IF
 
              ! make all nmo vectors present orthonormal
@@ -342,29 +339,29 @@ CPSourceFileRef,&
                   mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
              IF(has_unit_metric) THEN
-               CALL make_basis_simple(mo_coeff,nmo,error=error)
+               CALL make_basis_simple(mo_coeff,nmo)
              ELSEIF(dft_control%smear)THEN
                CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
-                    matrix_s=s_sparse(1)%matrix,error=error)
+                    matrix_s=s_sparse(1)%matrix)
              ELSE
                ! ortho so that one can restart for different positions (basis sets?)
-               CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
+               CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix)
              ENDIF
             ! only alpha spin is kept for restricted
              IF (dft_control%restricted) EXIT
           ENDDO
-          IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
+          IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
 
-          CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear,error=error)
+          CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear)
 
           DO ispin=1,nspin
 
              IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
              ENDIF!fm->dbcsr
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                  p_rmpv(ispin)%matrix,error=error)
+                  p_rmpv(ispin)%matrix)
           ENDDO
        ENDIF ! natom_mismatch
 
@@ -376,45 +373,44 @@ CPSourceFileRef,&
              j = last_read -i
              CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,&
-                  dft_section=dft_section, kpoints=kpoints, error=error)
+                  dft_section=dft_section, kpoints=kpoints)
 
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN
                    CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                    mo_coeff=mo_coeff)
-                   CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+                   CALL cp_fm_to_fm(mo_coeff,ortho)
                 END IF
 
                 ! make all nmo vectors present orthonormal
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
                 IF(has_unit_metric) THEN
-                   CALL make_basis_simple(mo_coeff,nmo,error=error)
+                   CALL make_basis_simple(mo_coeff,nmo)
                 ELSE
                    ! ortho so that one can restart for different positions (basis sets?)
-                   CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix)
                 ENDIF
                 ! only alpha spin is kept for restricted
                 IF (dft_control%restricted) EXIT
              END DO
-             IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
+             IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
 
              DO ispin=1,nspin
                 CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                       smear=qs_env%scf_control%smear,&
-                                       error=error)
+                                       smear=qs_env%scf_control%smear)
              ENDDO
 
              DO ispin=1,nspin
           IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
           ENDIF!fm->dbcsr
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
-                                              p_rmpv(ispin)%matrix,error=error)
+                                              p_rmpv(ispin)%matrix)
              ENDDO
 
              ! Write to extrapolation pipeline
-             CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, error=error)
+             CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
           END DO
        END IF
 
@@ -425,32 +421,31 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        DO ispin=1,nspin
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff=mo_coeff, nmo=nmo)
-          CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+          CALL cp_fm_init_random(mo_coeff,nmo)
           IF(has_unit_metric) THEN
-            CALL make_basis_simple(mo_coeff,nmo,error=error)
+            CALL make_basis_simple(mo_coeff,nmo)
           ELSE
-            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
           ENDIF
           ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
        ENDDO
-       IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
+       IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
 
        DO ispin=1,nspin
           CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                 smear=qs_env%scf_control%smear,&
-                                 error=error)
+                                 smear=qs_env%scf_control%smear)
        ENDDO
 
        DO ispin=1,nspin
 
           IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
               CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
-                                   mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+                                   mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
           ENDIF!fm->dbcsr
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv(ispin)%matrix,error=error)
+               p_rmpv(ispin)%matrix)
        ENDDO
 
        did_guess = .TRUE.
@@ -461,7 +456,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        ! Load core Hamiltonian into work matrix
 
-       CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix,error=error)
+       CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix)
 
        ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
        ! molecular orbitals (MOs)
@@ -472,16 +467,14 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                   work=work2,&
                                   do_level_shift=.FALSE.,&
                                   level_shift=0.0_dp,&
-                                  use_jacobi=.FALSE.,jacobi_threshold=0._dp,&
-                                  error=error)
+                                  use_jacobi=.FALSE.,jacobi_threshold=0._dp)
        ELSE
           CALL eigensolver(matrix_ks_fm=work1(ispin)%matrix,&
                            mo_set=mo_array(ispin)%mo_set,&
                            ortho=ortho,&
                            work=work2,&
                            cholesky_method=scf_env%cholesky_method,&
-                           use_jacobi=.FALSE.,&
-                           error=error)
+                           use_jacobi=.FALSE.)
        END IF
 
        ! Open shell case: copy alpha MOs to beta MOs
@@ -497,20 +490,17 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        DO ispin=1,nspin
          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                smear=scf_control%smear,&
-                                error=error)
+                                smear=scf_control%smear)
          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       p_rmpv(ispin)%matrix,&
-                                       error=error)
+                                       p_rmpv(ispin)%matrix)
        END DO
 
        did_guess = .TRUE.
     END IF
     IF (density_guess == atomic_guess) THEN
 
-       subsys_section => section_vals_get_subs_vals(input,"SUBSYS",error=error)
-       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",extension=".Log",&
-                                          error=error)
+       subsys_section => section_vals_get_subs_vals(input,"SUBSYS")
+       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",extension=".Log")
        IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
            "Atomic guess: The first density matrix is obtained in terms of atomic orbitals",&
@@ -523,7 +513,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
           CALL calculate_atomic_block_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, &
                                          particle_set, atomic_kind_set, qs_kind_set, &
-                                         ispin, nspin, nelectron, output_unit, error)
+                                         ispin, nspin, nelectron, output_unit)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -535,44 +525,42 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                   (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
                   .OR. dft_control%do_admm .OR. scf_env%method==block_davidson_diag_method_nr) THEN
                 IF (dft_control%restricted.AND.(ispin == 2)) THEN
-                   CALL mo_set_restrict(mo_array,error=error)
+                   CALL mo_set_restrict(mo_array)
                 ELSE
                    CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                    mo_coeff=mo_coeff,&
                                    nmo=nmo, nao=nao, homo=homo)
 
-                   CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
-                   CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+                   CALL cp_fm_set_all(mo_coeff,0.0_dp)
+                   CALL cp_fm_init_random(mo_coeff,nmo)
 
-                   CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+                   CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
                    ! multiply times PS
                    IF (has_unit_metric) THEN
-                      CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+                      CALL cp_fm_to_fm(mo_coeff,sv)
                    ELSE
                       ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-                      CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                      CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
                    END IF
-                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
+                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo)
 
-                   CALL cp_fm_release(sv,error=error)
+                   CALL cp_fm_release(sv)
                    ! and ortho the result
                    IF (has_unit_metric) THEN
-                      CALL make_basis_simple(mo_coeff,nmo,error=error)
+                      CALL make_basis_simple(mo_coeff,nmo)
                    ELSE
-                      CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+                      CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
                    END IF
                 END IF
 
                 CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                       smear=qs_env%scf_control%smear,&
-                                       error=error)
+                                       smear=qs_env%scf_control%smear)
 
                 CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
-                                      mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+                                      mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
 
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                              p_rmpv(ispin)%matrix,&
-                                              error=error)
+                                              p_rmpv(ispin)%matrix)
              END IF
           END IF
 
@@ -580,21 +568,21 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
           ! We fit a function to the square root of the density
-          CALL qs_rho_update_rho(rho,qs_env,error=error)
-          CPPostcondition(1==0,cp_failure_level,routineP,error,failure)
-!         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+          CALL qs_rho_update_rho(rho,qs_env)
+          CPPostcondition(1==0,cp_failure_level,routineP,failure)
+!         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
 !         DO ispin=1,nspin
-!           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env,error=error)
-!           CALL cp_cfm_solve(overlap,mos,error)
+!           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env)
+!           CALL cp_cfm_solve(overlap,mos)
 !           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
 !                           mo_coeff=mo_coeff, nmo=nmo, nao=nao)
-!           CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+!           CALL cp_fm_init_random(mo_coeff,nmo)
 !         END DO
-!         CALL cp_fm_release(sv,error=error)
+!         CALL cp_fm_release(sv)
        END IF
 
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-                                         "PRINT%KINDS",error=error)
+                                         "PRINT%KINDS")
 
 
        did_guess = .TRUE.
@@ -612,24 +600,24 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        group = para_env%group
        natoms = SIZE(particle_set)
        ALLOCATE (kind_of(natoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ALLOCATE (first_sgf(natoms),last_sgf(natoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
-       checksum = cp_dbcsr_checksum(s_sparse(1)%matrix, error=error)
+       checksum = cp_dbcsr_checksum(s_sparse(1)%matrix)
        i = cp_dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
        IF(output_unit>0)WRITE(output_unit,*) 'S nblks',i,' checksum',checksum
-       CALL cp_dbcsr_filter(s_sparse(1)%matrix, eps, error=error)
-       checksum = cp_dbcsr_checksum(s_sparse(1)%matrix, error=error)
+       CALL cp_dbcsr_filter(s_sparse(1)%matrix, eps)
+       checksum = cp_dbcsr_checksum(s_sparse(1)%matrix)
        i = cp_dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
        IF(output_unit>0)WRITE(output_unit,*) 'S nblks',i,' checksum',checksum
 
        CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf,&
-                             last_sgf=last_sgf,error=error)
+                             last_sgf=last_sgf)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
        ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        DO ispin=1,nspin
           scale = 1._dp
@@ -638,7 +626,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
             atomic_kind => atomic_kind_set(ikind)
             qs_kind     => qs_kind_set(ikind)
             NULLIFY(pmat(ikind)%mat)
-            CALL calculate_atomic_orbitals(atomic_kind,qs_kind, pmat=pmat(ikind)%mat,ispin=ispin,error=error)
+            CALL calculate_atomic_orbitals(atomic_kind,qs_kind, pmat=pmat(ikind)%mat,ispin=ispin)
             NULLIFY(atomic_kind)
           END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -653,42 +641,42 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           ENDDO
           CALL cp_dbcsr_iterator_stop(iter)
 
-          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
-          checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
+          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
+          checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix)
           occ = cp_dbcsr_get_occupation(p_rmpv(ispin)%matrix)
           IF(output_unit>0)WRITE(output_unit,*) 'P_init occ',occ,' checksum',checksum
           ! so far p needs to have the same sparsity as S
-          !CALL cp_dbcsr_filter(p_rmpv(ispin)%matrix, eps, error=error)
-          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
-          checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
+          !CALL cp_dbcsr_filter(p_rmpv(ispin)%matrix, eps)
+          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
+          checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix)
           occ = cp_dbcsr_get_occupation(p_rmpv(ispin)%matrix)
           IF(output_unit>0)WRITE(output_unit,*) 'P_init occ',occ,' checksum',checksum
 
-          CALL cp_dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1, error=error)
+          CALL cp_dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
           scale=REAL(nelectron,dp)/trps1
-          CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
+          CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale)
 
-          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
-          checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
+          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
+          checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix)
           occ = cp_dbcsr_get_occupation(p_rmpv(ispin)%matrix)
           IF(output_unit>0)WRITE(output_unit,*) 'P occ',occ,' checksum',checksum
           !
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
           IF (dft_control%restricted.AND.(ispin == 2)) THEN
-             CALL mo_set_restrict(mo_array,error=error)
+             CALL mo_set_restrict(mo_array)
           ELSE
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                              mo_coeff=mo_coeff,&
                              nmo=nmo, nao=nao, homo=homo)
-             CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
+             CALL cp_fm_set_all(mo_coeff,0.0_dp)
 
              n = MAXVAL(last_sgf-first_sgf)+1
              size_atomic_kind_set = SIZE(atomic_kind_set)
 
              ALLOCATE(buff(n,n),sort_kind(size_atomic_kind_set),&
                       nelec_kind(size_atomic_kind_set),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
              !
              ! sort kind vs nbr electron
              DO ikind = 1,size_atomic_kind_set
@@ -699,7 +687,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                      atom_list=atom_list,&
                                      z=z)
                 CALL get_qs_kind(qs_kind, nsgf=nsgf,elec_conf=elec_conf,&
-                                 basis_set=orb_basis_set, zeff=zeff, error=error)
+                                 basis_set=orb_basis_set, zeff=zeff)
                 nelec_kind(ikind) = SUM(elec_conf)
              ENDDO
              CALL sort(nelec_kind,size_atomic_kind_set,sort_kind)
@@ -733,7 +721,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                       CALL dlarnv(1,iseed,n_rows,buff(1,j))
                    ENDDO
                    CALL cp_fm_set_submatrix(mo_coeff,buff,istart_row,istart_col,&
-                                            n_rows,n_cols,error=error)
+                                            n_rows,n_cols)
                    istart_col = istart_col + n_cols
                 ENDDO
              ENDDO
@@ -743,19 +731,19 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              END IF
 
              DEALLOCATE(buff,nelec_kind,sort_kind,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
              IF(.FALSE.) THEN
                 ALLOCATE(buff(nao,1),buff2(nao,1))
                 DO i = 1,nmo
-                   CALL cp_fm_get_submatrix(mo_coeff,buff,1,i,nao,1,error=error)
+                   CALL cp_fm_get_submatrix(mo_coeff,buff,1,i,nao,1)
                    IF(SUM(buff**2).LT.1E-10_dp) THEN
                       WRITE(*,*) 'wrong',i,SUM(buff**2)
                    ENDIF
                    length = SQRT(DOT_PRODUCT(buff(:,1), buff(:,1)))
                    buff(:,:) = buff(:,:)/length
                    DO j = i+1,nmo
-                      CALL cp_fm_get_submatrix(mo_coeff,buff2,1,j,nao,1,error=error)
+                      CALL cp_fm_get_submatrix(mo_coeff,buff2,1,j,nao,1)
                       length = SQRT(DOT_PRODUCT(buff2(:,1), buff2(:,1)))
                       buff2(:,:) = buff2(:,:)/length
                       IF(ABS(DOT_PRODUCT(buff(:,1),buff2(:,1))-1.0_dp).LT.1E-10_dp) THEN
@@ -776,17 +764,17 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
              ENDIF
              !
-             CALL cp_dbcsr_init(mo_dbcsr, error=error)
-             CALL cp_fm_to_dbcsr_row_template(mo_dbcsr,mo_coeff,s_sparse(1)%matrix,error) 
-             !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
-             checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
+             CALL cp_dbcsr_init(mo_dbcsr)
+             CALL cp_fm_to_dbcsr_row_template(mo_dbcsr,mo_coeff,s_sparse(1)%matrix) 
+             !CALL cp_dbcsr_verify_matrix(mo_dbcsr)
+             checksum = cp_dbcsr_checksum(mo_dbcsr)
 
              occ = cp_dbcsr_get_occupation(mo_dbcsr)
              IF(output_unit>0)WRITE(output_unit,*) 'C occ',occ,' checksum',checksum
-             CALL cp_dbcsr_filter(mo_dbcsr, eps, error=error)
-             !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
+             CALL cp_dbcsr_filter(mo_dbcsr, eps)
+             !CALL cp_dbcsr_verify_matrix(mo_dbcsr)
              occ = cp_dbcsr_get_occupation(mo_dbcsr)
-             checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
+             checksum = cp_dbcsr_checksum(mo_dbcsr)
              IF(output_unit>0)WRITE(output_unit,*) 'C occ',occ,' checksum',checksum
              !
              ! multiply times PS
@@ -796,18 +784,18 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              END IF
              !
              ! S*C
-             CALL cp_dbcsr_init(mo_tmp_dbcsr, error)
-             CALL cp_dbcsr_copy(mo_tmp_dbcsr, mo_dbcsr, name="mo_tmp", error=error)
+             CALL cp_dbcsr_init(mo_tmp_dbcsr)
+             CALL cp_dbcsr_copy(mo_tmp_dbcsr, mo_dbcsr, name="mo_tmp")
              CALL cp_dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
                   0.0_dp, mo_tmp_dbcsr,&
-                  retain_sparsity=.TRUE., error=error)
-             !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
-             checksum = cp_dbcsr_checksum(mo_tmp_dbcsr, error=error)
+                  retain_sparsity=.TRUE.)
+             !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr)
+             checksum = cp_dbcsr_checksum(mo_tmp_dbcsr)
              occ = cp_dbcsr_get_occupation(mo_tmp_dbcsr)
              IF(output_unit>0)WRITE(output_unit,*) 'S*C occ',occ,' checksum',checksum
-             CALL cp_dbcsr_filter(mo_tmp_dbcsr, eps, error=error)
-             !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
-             checksum = cp_dbcsr_checksum(mo_tmp_dbcsr, error=error)
+             CALL cp_dbcsr_filter(mo_tmp_dbcsr, eps)
+             !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr)
+             checksum = cp_dbcsr_checksum(mo_tmp_dbcsr)
              occ = cp_dbcsr_get_occupation(mo_tmp_dbcsr)
              IF(output_unit>0)WRITE(output_unit,*) 'S*C occ',occ,' checksum',checksum
              !
@@ -815,52 +803,50 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              ! the destroy is needed for the moment to avoid memory leaks !
              ! This one is not needed because _destroy takes care of zeroing.
              CALL cp_dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
-                  mo_tmp_dbcsr, 0.0_dp, mo_dbcsr, error=error)
-             IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
-             checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
+                  mo_tmp_dbcsr, 0.0_dp, mo_dbcsr)
+             IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mo_dbcsr)
+             checksum = cp_dbcsr_checksum(mo_dbcsr)
              occ = cp_dbcsr_get_occupation(mo_dbcsr)
              IF(output_unit>0)WRITE(output_unit,*) 'P*SC occ',occ,' checksum',checksum
-             CALL cp_dbcsr_filter(mo_dbcsr, eps, error=error)
-             !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
-             checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
+             CALL cp_dbcsr_filter(mo_dbcsr, eps)
+             !CALL cp_dbcsr_verify_matrix(mo_dbcsr)
+             checksum = cp_dbcsr_checksum(mo_dbcsr)
              occ = cp_dbcsr_get_occupation(mo_dbcsr)
              IF(output_unit>0)WRITE(output_unit,*) 'P*SC occ',occ,' checksum',checksum
              !
-             CALL copy_dbcsr_to_fm(mo_dbcsr, mo_coeff,error=error)
+             CALL copy_dbcsr_to_fm(mo_dbcsr, mo_coeff)
 
-             CALL cp_dbcsr_release(mo_dbcsr, error=error)
-             CALL cp_dbcsr_release(mo_tmp_dbcsr, error=error)
+             CALL cp_dbcsr_release(mo_dbcsr)
+             CALL cp_dbcsr_release(mo_tmp_dbcsr)
 
              ! and ortho the result
-             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
           END IF
 
           CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                 smear=qs_env%scf_control%smear,&
-                                 error=error)
+                                 smear=qs_env%scf_control%smear)
 
           CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
-                                mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+                                mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                        p_rmpv(ispin)%matrix,&
-                                        error=error)
+                                        p_rmpv(ispin)%matrix)
           DO ikind=1,SIZE(atomic_kind_set)
             IF(ASSOCIATED(pmat(ikind)%mat)) THEN
               DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             END IF
           END DO
        END DO
 
        DEALLOCATE (pmat,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        DEALLOCATE (kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        DEALLOCATE (first_sgf,last_sgf,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        did_guess = .TRUE.
     END IF
@@ -871,7 +857,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
           CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, dft_control,&
-                                  particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron, para_env, error)
+                                  particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron, para_env)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -879,39 +865,37 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
                (scf_env%method==block_krylov_diag_method_nr .AND. .NOT.do_std_diag)) THEN
              IF (dft_control%restricted.AND.(ispin == 2)) THEN
-                CALL mo_set_restrict(mo_array,error=error)
+                CALL mo_set_restrict(mo_array)
              ELSE
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff,&
                                 nmo=nmo, homo=homo)
-                CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-                CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+                CALL cp_fm_init_random(mo_coeff,nmo)
+                CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
                 ! multiply times PS
                 IF (has_unit_metric) THEN
-                   CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+                   CALL cp_fm_to_fm(mo_coeff,sv)
                 ELSE
-                   CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                   CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
                 END IF
                 ! here we could easily multiply with the diag that we actually have replicated already
-                CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
-                CALL cp_fm_release(sv,error=error)
+                CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo)
+                CALL cp_fm_release(sv)
                 ! and ortho the result
                 IF (has_unit_metric) THEN
-                   CALL make_basis_simple(mo_coeff,nmo,error=error)
+                   CALL make_basis_simple(mo_coeff,nmo)
                 ELSE
-                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
                 END IF
              END IF
 
              CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                    smear=qs_env%scf_control%smear,&
-                                    error=error)
+                                    smear=qs_env%scf_control%smear)
              CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
-                                   mo_array(ispin)%mo_set%mo_coeff_b,error=error)
+                                   mo_array(ispin)%mo_set%mo_coeff_b)
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                           p_rmpv(ispin)%matrix,&
-                                           error=error)
+                                           p_rmpv(ispin)%matrix)
           END IF
        END DO
 
@@ -920,7 +904,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     IF (density_guess == densities_guess) THEN
 
        ! Collocation of the density into the PW-grid
-       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
+       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env)
 
        ! do some assertions here on these matrices having the same structure,
        ! as is currently required
@@ -928,16 +912,15 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        qs_env%scf_env%iter_count = 1
 
-       CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
+       CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE.)
 
        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.,&
-                                just_energy=.FALSE., error=error)
+                                just_energy=.FALSE.)
 
        ! diagonalization
        DO ispin=1, dft_control%nspins
           CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
-                             qs_env%scf_env%scf_work1(ispin)%matrix,&
-                             error=error)
+                             qs_env%scf_env%scf_work1(ispin)%matrix)
        END DO
 
        qs_env%scf_env%iter_method = "Mixing/Diag"
@@ -949,14 +932,11 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                           ortho=qs_env%scf_env%ortho, &
                           work=qs_env%scf_env%scf_work2,&
                           cholesky_method=scf_env%cholesky_method,&
-                          use_jacobi=.FALSE.,&
-                          error=error)
+                          use_jacobi=.FALSE.)
          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                smear=scf_control%smear,&
-                                error=error)
+                                smear=scf_control%smear)
          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       p_rmpv(ispin)%matrix,&
-                                       error=error)
+                                       p_rmpv(ispin)%matrix)
        END DO
 
        did_guess = .TRUE.
@@ -986,10 +966,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 !> \param nspin ...
 !> \param nelectron_spin ...
 !> \param output_unit ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_atomic_block_dm(matrix_p,matrix_s, particle_set, atomic_kind_set, &
-                                       qs_kind_set, ispin, nspin, nelectron_spin, output_unit, error)
+                                       qs_kind_set, ispin, nspin, nelectron_spin, output_unit)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -999,7 +978,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       POINTER                                :: qs_kind_set
     INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin, &
                                                 output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm', &
       routineP = moduleN//':'//routineN
@@ -1024,17 +1002,17 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       WRITE (UNIT=output_unit,FMT="(/,T2,A,I0)") "Spin ", ispin
     END IF
 
-    CALL cp_dbcsr_set(matrix_p,0.0_dp,error=error)
+    CALL cp_dbcsr_set(matrix_p,0.0_dp)
 
     natom = SIZE(particle_set)
 
     ALLOCATE (kind_of(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
     ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ! precompute the atomic blocks corresponding to spherical atoms
     DO ikind=1,SIZE(atomic_kind_set)
@@ -1046,7 +1024,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           "Guess for atomic kind: "//TRIM(atomic_kind%name)
       END IF
       CALL calculate_atomic_orbitals(atomic_kind,qs_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
-                                     ispin=ispin,error=error)
+                                     ispin=ispin)
     END DO
 
     scale = 1.0_dp
@@ -1060,11 +1038,11 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    CALL cp_dbcsr_trace(matrix_p, matrix_s, trps1, error=error)
+    CALL cp_dbcsr_trace(matrix_p, matrix_s, trps1)
     scale = 0.0_dp
     IF(nelectron_spin>0)& ! could be a ghost-atoms-only simulation
        scale = REAL(nelectron_spin,dp)/trps1
-    CALL cp_dbcsr_scale(matrix_p, scale, error=error)
+    CALL cp_dbcsr_scale(matrix_p, scale)
 
     IF (output_unit > 0) THEN
       IF (nspin > 1) THEN
@@ -1081,15 +1059,15 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     DO ikind=1,SIZE(atomic_kind_set)
       IF(ASSOCIATED(pmat(ikind)%mat)) THEN
         DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
     END DO
 
     DEALLOCATE (pmat,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (kind_of,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -1107,11 +1085,10 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 !> \param nspin ...
 !> \param nelectron_spin ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, has_unit_metric, &
                                 dft_control, particle_set, atomic_kind_set, qs_kind_set, &
-                                nspin, nelectron_spin, para_env, error)
+                                nspin, nelectron_spin, para_env)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     LOGICAL                                  :: has_unit_metric
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1123,7 +1100,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       POINTER                                :: qs_kind_set
     INTEGER, INTENT(IN)                      :: nspin, nelectron_spin
     TYPE(cp_para_env_type)                   :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm', &
       routineP = moduleN//':'//routineN
@@ -1154,26 +1130,26 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     ENDIF
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
-    CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf,error=error)
-    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxl, error=error)
+    CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxl)
 
     ALLOCATE (econf(0:maxl),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE (pdiag(nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     pdiag(:) = 0.0_dp
 
     ALLOCATE (sdiag(nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     sdiag(:) = 0.0_dp
     IF (has_unit_metric) THEN
        sdiag(:) = 1.0_dp
     ELSE
-       CALL cp_dbcsr_get_diag(matrix_s, sdiag, error=error)
+       CALL cp_dbcsr_get_diag(matrix_s, sdiag)
        CALL mp_sum(sdiag,group)
     END IF
 
@@ -1188,7 +1164,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
           CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set,&
                                all_potential=all_potential,&
-                               gth_potential=gth_potential, error=error)
+                               gth_potential=gth_potential)
 
           IF ( dft_control%qs_control%dftb ) THEN
              CALL get_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter,&
@@ -1197,13 +1173,13 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              econf(0:maxl)=edftb(0:maxl)
           ELSEIF (ASSOCIATED(all_potential)) THEN
              CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
-             CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff, error=error)
+             CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
              maxll = MIN(SIZE(elec_conf) - 1,maxl)
              econf(:) = 0.0_dp
              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
           ELSE IF (ASSOCIATED(gth_potential)) THEN
              CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
-             CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff, error=error)
+             CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
              maxll = MIN(SIZE(elec_conf) - 1,maxl)
              econf(:) = 0.0_dp
              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
@@ -1239,7 +1215,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                       pdiag(isgfa+14) = econf(3)/7._dp
                       pdiag(isgfa+15) = econf(3)/7._dp
                    CASE DEFAULT
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                    END SELECT
                 END DO
              END DO
@@ -1296,7 +1272,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                    END IF
                 END IF
               CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
               END SELECT
             END DO
           ELSE
@@ -1350,19 +1326,19 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END IF
     END IF
 
-    CALL cp_dbcsr_set_diag(matrix_p, pdiag, error=error)
+    CALL cp_dbcsr_set_diag(matrix_p, pdiag)
 
     DEALLOCATE (econf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (pdiag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (sdiag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 

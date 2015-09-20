@@ -98,15 +98,13 @@ CONTAINS
 !> \param kpoint       The kpoint environment
 !> \param particle_set Particle types and coordinates
 !> \param cell         Computational cell information
-!> \param error        CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_initialize(kpoint, particle_set, cell, error)
+  SUBROUTINE kpoint_initialize(kpoint, particle_set, cell)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize', &
       routineP = moduleN//':'//routineN
@@ -124,7 +122,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
     SELECT CASE (kpoint%kp_scheme)
        CASE ("NONE")
@@ -132,7 +130,7 @@ CONTAINS
        CASE ("GAMMA")
           kpoint%nkp = 1
           ALLOCATE(kpoint%xkp(3,1),kpoint%wkp(1),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
           kpoint%xkp(1:3,1) = 0.0_dp
           kpoint%wkp(1) = 1.0_dp
        CASE ("MONKHORST-PACK","MACDONALD")
@@ -142,7 +140,7 @@ CONTAINS
              ! we set up a random molecule to avoid any possible symmetry
              natom = 10
              ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
              DO i=1,natom
                 atype(i) = i
                 coord(1,i) = SIN(i*0.12345_dp)
@@ -152,7 +150,7 @@ CONTAINS
           ELSE
              natom = SIZE(particle_set)
              ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
              DO i=1,natom
                 CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,kind_number=atype(i))
                 coord(1:3,i) = particle_set(i)%r(1:3)
@@ -160,7 +158,7 @@ CONTAINS
           END IF
           IF(kpoint%verbose) THEN
              NULLIFY(logger)
-             logger => cp_error_get_logger(error)
+             logger => cp_get_default_logger()
              iounit = cp_logger_get_default_io_unit(logger)
           ELSE
              iounit = -1
@@ -173,7 +171,7 @@ CONTAINS
                           delta=kpoint%eps_geo,&
                           iounit=iounit,&
                           xkpoint=kpoint%xkp,&
-                          wkpoint=kpoint%wkp, error=error)
+                          wkpoint=kpoint%wkp)
           kpoint%nkp = SIZE(kpoint%wkp)
 
           ! inversion symmetry
@@ -181,14 +179,14 @@ CONTAINS
           ! symmorphic group without special translation
           symmo = (crys_sym%isy ==1)
 
-          CALL release_csym_type(crys_sym,error)
+          CALL release_csym_type(crys_sym)
           DEALLOCATE(coord,zeff,weight,atype,element,STAT=ierr)
-          CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
        CASE ("GENERAL")
           ! do nothing
        CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
     END SELECT
 
     ! check for consistency of options
@@ -196,15 +194,15 @@ CONTAINS
        CASE ("NONE")
           ! don't use k-point code
        CASE ("GAMMA")
-          CPPostcondition(kpoint%nkp==1, cp_failure_level, routineP, error, failure)
-          CPPostcondition(SUM(ABS(kpoint%xkp))<=1.e-12_dp, cp_failure_level, routineP, error, failure)
-          CPPostcondition(kpoint%wkp(1)==1.0_dp, cp_failure_level, routineP, error, failure)
-          CPPostcondition(.NOT.kpoint%symmetry, cp_failure_level, routineP, error, failure)
+          CPPostcondition(kpoint%nkp==1, cp_failure_level, routineP,failure)
+          CPPostcondition(SUM(ABS(kpoint%xkp))<=1.e-12_dp, cp_failure_level, routineP,failure)
+          CPPostcondition(kpoint%wkp(1)==1.0_dp, cp_failure_level, routineP,failure)
+          CPPostcondition(.NOT.kpoint%symmetry, cp_failure_level, routineP,failure)
        CASE ("GENERAL")
-          CPPostcondition(.NOT.kpoint%symmetry, cp_failure_level, routineP, error, failure)
-          CPPostcondition(kpoint%nkp>=1, cp_failure_level, routineP, error, failure)
+          CPPostcondition(.NOT.kpoint%symmetry, cp_failure_level, routineP,failure)
+          CPPostcondition(kpoint%nkp>=1, cp_failure_level, routineP,failure)
        CASE ("MONKHORST-PACK","MACDONALD")
-          CPPostcondition(kpoint%nkp>=1, cp_failure_level, routineP, error, failure)
+          CPPostcondition(kpoint%nkp>=1, cp_failure_level, routineP,failure)
     END SELECT
     IF(kpoint%use_real_wfn) THEN
        ! what about inversion symmetry?
@@ -230,12 +228,10 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Initialize the kpoint environment
 !> \param kpoint       Kpoint environment
-!> \param error        CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_env_initialize(kpoint, error)
+  SUBROUTINE kpoint_env_initialize(kpoint)
 
     TYPE(kpoint_type), POINTER               :: kpoint
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize', &
       routineP = moduleN//':'//routineN
@@ -255,10 +251,10 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
     para_env => kpoint%para_env
-    CPAssert(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPAssert(.NOT.ASSOCIATED(kpoint%kp_env),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPAssert(.NOT.ASSOCIATED(kpoint%kp_env),cp_failure_level,routineP,failure)
 
     NULLIFY(kp_env)
     nkp = kpoint%nkp
@@ -266,10 +262,10 @@ CPSourceFileRef,&
     IF(npe == 1) THEN
        ! only one process availabe -> owns all kpoints
        ALLOCATE(kp_env(nkp),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
        DO ik=1,nkp
           NULLIFY(kp_env(ik)%kpoint_env)
-          CALL kpoint_env_create(kp_env(ik)%kpoint_env, error)
+          CALL kpoint_env_create(kp_env(ik)%kpoint_env)
           kp => kp_env(ik)%kpoint_env
           kp%nkpoint = ik
           kp%wkp = kpoint%wkp(ik)
@@ -277,7 +273,7 @@ CPSourceFileRef,&
           kp%is_local = .TRUE.
        END DO
        ALLOCATE(kpoint%kp_dist(2,1),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
        kpoint%kp_dist(1,1) = 1
        kpoint%kp_dist(2,1) = nkp
        kpoint%kp_range(1) = 1
@@ -285,11 +281,11 @@ CPSourceFileRef,&
        kpoint%kp_env => kp_env
        ! parallel environments
        kpoint%para_env_full => para_env
-       CALL cp_para_env_retain(para_env, error)
+       CALL cp_para_env_retain(para_env)
        kpoint%para_env_kp => para_env
-       CALL cp_para_env_retain(para_env, error)
+       CALL cp_para_env_retain(para_env)
        kpoint%para_env_inter_kp => para_env
-       CALL cp_para_env_retain(para_env, error)
+       CALL cp_para_env_retain(para_env)
        kpoint%iogrp = .TRUE.
        kpoint%nkp_groups = 1
     ELSE
@@ -309,36 +305,36 @@ CPSourceFileRef,&
        ELSE IF(kpoint%parallel_group_size > 0) THEN
           ngr = MIN(kpoint%parallel_group_size,npe)
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
        nkp_grp = npe/ngr
        ! processor dimensions
        dims(1)=ngr
        dims(2)=nkp_grp
-       CPPostcondition(MOD(nkp,nkp_grp)==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(MOD(nkp,nkp_grp)==0,cp_failure_level,routineP,failure)
        nkp_loc=nkp/nkp_grp
 
        IF ((dims(1)*dims(2)/=npe)) THEN
           message = "Number of processors is not divisible by the kpoint group size."
           CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
        END IF
 
        NULLIFY(cart,para_env_full,para_env_kp,para_env_inter_kp)
        CALL mp_cart_create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos, &
                            comm_cart=comm_cart)
 
-       CALL cp_cart_create(cart,comm_cart,ndims=2,owns_group=.TRUE.,error=error)
-       CALL cp_para_env_create(para_env_full,comm_cart,owns_group=.FALSE.,error=error)
+       CALL cp_cart_create(cart,comm_cart,ndims=2,owns_group=.TRUE.)
+       CALL cp_para_env_create(para_env_full,comm_cart,owns_group=.FALSE.)
        rdim(2)=.FALSE.
        rdim(1)=.TRUE.
        CALL mp_cart_sub(comm=comm_cart,rdim=rdim,sub_comm=comm_kp)
-       CALL cp_para_env_create(para_env_kp,comm_kp,owns_group=.TRUE.,error=error)
+       CALL cp_para_env_create(para_env_kp,comm_kp,owns_group=.TRUE.)
        rdim(2)=.TRUE.
        rdim(1)=.FALSE.
        CALL mp_cart_sub(comm=comm_cart,rdim=rdim,sub_comm=comm_inter_kp)
        CALL cp_para_env_create(para_env_inter_kp,comm_inter_kp,&
-            owns_group=.TRUE.,error=error)
+            owns_group=.TRUE.)
 
        niogrp = 0
        IF(para_env%ionode) niogrp=1
@@ -353,18 +349,18 @@ CPSourceFileRef,&
 
        ! distribution of kpoints
        ALLOCATE(kpoint%kp_dist(2,nkp_grp),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
        DO igr = 1,nkp_grp
           kpoint%kp_dist(1:2,igr) = get_limit(nkp,nkp_grp,igr-1)
        END DO
        ! local kpoints
        kpoint%kp_range(1:2) = kpoint%kp_dist(1:2,para_env_inter_kp%mepos+1)
        ALLOCATE(kp_env(nkp_loc),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
        DO ik=1,nkp_loc
           NULLIFY(kp_env(ik)%kpoint_env)
           ikk = kpoint%kp_range(1) + ik -1
-          CALL kpoint_env_create(kp_env(ik)%kpoint_env, error)
+          CALL kpoint_env_create(kp_env(ik)%kpoint_env)
           kp => kp_env(ik)%kpoint_env
           kp%nkpoint = ikk
           kp%wkp = kpoint%wkp(ikk)
@@ -374,7 +370,7 @@ CPSourceFileRef,&
 
        kpoint%kp_env => kp_env
 
-       logger => cp_error_get_logger(error)
+       logger => cp_get_default_logger()
        unit_nr=cp_logger_get_default_io_unit(logger)
        IF (unit_nr>0) THEN
           WRITE(unit_nr,*)
@@ -392,14 +388,12 @@ CPSourceFileRef,&
 !> \brief Initialize a set of MOs and density matrix for each kpoint (kpoint group)
 !> \param kpoint  Kpoint environment
 !> \param mos     Reference MOs (global)
-!> \param error   CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_initialize_mos(kpoint, mos, error)
+  SUBROUTINE kpoint_initialize_mos(kpoint, mos)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos', &
       routineP = moduleN//':'//routineN
@@ -418,7 +412,7 @@ CPSourceFileRef,&
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
     IF (ASSOCIATED(mos)) THEN
 
@@ -430,19 +424,19 @@ CPSourceFileRef,&
        nspin = SIZE(mos,1)
        nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
        IF (nkp_loc > 0) THEN
-          CPAssert(SIZE(kpoint%kp_env)==nkp_loc,cp_failure_level,routineP,error,failure)
+          CPAssert(SIZE(kpoint%kp_env)==nkp_loc,cp_failure_level,routineP,failure)
           ! allocate the mo sets, correct number of kpoints (local), real/complex, spin
           DO ik=1,nkp_loc
              kp => kpoint%kp_env(ik)%kpoint_env
              ALLOCATE(kp%mos(nc,nspin),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
              DO is=1,nspin
                 CALL get_mo_set(mos(is)%mo_set,nao=nao,nmo=nmo,nelectron=nelectron,&
                      n_el_f=n_el_f,maxocc=maxocc,flexible_electron_count=flexible_electron_count)
                 DO ic=1,nc
                    NULLIFY(kp%mos(ic,is)%mo_set)
                    CALL allocate_mo_set(kp%mos(ic,is)%mo_set,nao,nmo,nelectron,n_el_f,maxocc,&
-                                flexible_electron_count,error)
+                                flexible_electron_count)
                 END DO
              END DO
           END DO
@@ -452,59 +446,59 @@ CPSourceFileRef,&
           ! we assume here that the group para_env_inter_kp will connect
           ! equivalent parts of fm matrices, i.e. no reshuffeling of processors
           NULLIFY(blacs_env)
-          CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=kpoint%para_env_kp, error=error)
+          CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=kpoint%para_env_kp)
           kpoint%blacs_env => blacs_env
    
           ! matrix pools for the kpoint group, information on MOs is transfered using 
           ! generic mos structure
           NULLIFY(mpools)
-          CALL mpools_create(mpools=mpools,error=error)
+          CALL mpools_create(mpools=mpools)
           CALL mpools_rebuild_fm_pools(mpools=mpools,mos=mos,&
-               blacs_env=blacs_env,para_env=kpoint%para_env_kp,error=error)
+               blacs_env=blacs_env,para_env=kpoint%para_env_kp)
           kpoint%mpools => mpools
 
           ! allocate density matrices
-          CALL mpools_get(mpools,ao_ao_fm_pools=ao_ao_fm_pools,error=error)
-          CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool,fmlocal,error=error)
-          CALL cp_fm_get_info(fmlocal,matrix_struct=matrix_struct,error=error)
+          CALL mpools_get(mpools,ao_ao_fm_pools=ao_ao_fm_pools)
+          CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool,fmlocal)
+          CALL cp_fm_get_info(fmlocal,matrix_struct=matrix_struct)
           DO ik=1,nkp_loc
              kp => kpoint%kp_env(ik)%kpoint_env
              ! density matrix
              IF(ASSOCIATED(kp%pmat)) THEN
                 DO is=1,SIZE(kp%pmat,2)
                    DO ic=1,SIZE(kp%pmat,1)
-                      CALL cp_fm_release(kp%pmat(ic,is)%matrix,error)
+                      CALL cp_fm_release(kp%pmat(ic,is)%matrix)
                    END DO
                 END DO
                 DEALLOCATE(kp%pmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
              END IF
              ALLOCATE(kp%pmat(nc,nspin),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
              DO is=1,nspin
                 DO ic=1,nc
-                   CALL cp_fm_create(kp%pmat(ic,is)%matrix,matrix_struct,error=error)
+                   CALL cp_fm_create(kp%pmat(ic,is)%matrix,matrix_struct)
                 END DO
              END DO
              ! energy weighted density matrix
              IF(ASSOCIATED(kp%wmat)) THEN
                 DO is=1,SIZE(kp%wmat,2)
                    DO ic=1,SIZE(kp%wmat,1)
-                      CALL cp_fm_release(kp%wmat(ic,is)%matrix,error)
+                      CALL cp_fm_release(kp%wmat(ic,is)%matrix)
                    END DO
                 END DO
                 DEALLOCATE(kp%wmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
              END IF
              ALLOCATE(kp%wmat(nc,nspin),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
              DO is=1,nspin
                 DO ic=1,nc
-                   CALL cp_fm_create(kp%wmat(ic,is)%matrix,matrix_struct,error=error)
+                   CALL cp_fm_create(kp%wmat(ic,is)%matrix,matrix_struct)
                 END DO
              END DO
           END DO
-          CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal, error=error)
+          CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
 
        END IF
 
@@ -519,16 +513,14 @@ CPSourceFileRef,&
 !> \param sab_nl    Defining neighbour list
 !> \param para_env  Parallel environment
 !> \param dft_control ...
-!> \param error     CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control, error)
+  SUBROUTINE kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index', &
       routineP = moduleN//':'//routineN
@@ -544,7 +536,7 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: nl_iterator
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
     ALLOCATE(list(3,125))
     list = 0
@@ -643,10 +635,9 @@ CPSourceFileRef,&
 !> \param xkp      Kpoint coordinates
 !> \param cell_to_index   mapping of cell indices to RS index 
 !> \param sab_nl   Defining neighbor list
-!> \param error    CP2K error handling
 ! *****************************************************************************
   SUBROUTINE rskp_transform(rmatrix,cmatrix,rsmat,ispin,&
-                            xkp,cell_to_index,sab_nl,error)
+                            xkp,cell_to_index,sab_nl)
 
     TYPE(cp_dbcsr_type), POINTER             :: rmatrix
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: cmatrix
@@ -657,7 +648,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform', &
       routineP = moduleN//':'//routineN
@@ -676,10 +666,10 @@ CPSourceFileRef,&
     CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
     IF(wfn_real_only) THEN
-       CALL cp_dbcsr_set(rmatrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rmatrix,0.0_dp)
     ELSE
-       CALL cp_dbcsr_set(rmatrix,0.0_dp,error=error)
-       CALL cp_dbcsr_set(cmatrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rmatrix,0.0_dp)
+       CALL cp_dbcsr_set(cmatrix,0.0_dp)
     END IF
 
     CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
@@ -702,20 +692,20 @@ CPSourceFileRef,&
        ic = cell_to_index(cell(1),cell(2),cell(3))
        CALL cp_dbcsr_get_block_p(matrix=rsmat(ispin,ic)%matrix,row=irow,col=icol,&
                                  block=rsblock,found=found)
-       CPPostcondition(found,cp_failure_level,routineP,error,failure)
+       CPPostcondition(found,cp_failure_level,routineP,failure)
 
        IF(wfn_real_only) THEN
           CALL cp_dbcsr_get_block_p(matrix=rmatrix,row=irow,col=icol,&
                                     block=rblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
           rblock = rblock + coskl*rsblock
        ELSE
           CALL cp_dbcsr_get_block_p(matrix=rmatrix,row=irow,col=icol,&
                                     block=rblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
           CALL cp_dbcsr_get_block_p(matrix=cmatrix,row=irow,col=icol,&
                                     block=cblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
           rblock = rblock + coskl*rsblock
           cblock = cblock + sinkl*rsblock
        END IF
@@ -729,13 +719,11 @@ CPSourceFileRef,&
 !> \brief Given the eigenvalues of all kpoints, calculates the occupation numbers
 !> \param kpoint  Kpoint environment
 !> \param smear   Smearing information
-!> \param error   CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_set_mo_occupation(kpoint,smear,error)
+  SUBROUTINE kpoint_set_mo_occupation(kpoint,smear)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(smear_type), POINTER                :: smear
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation', &
       routineP = moduleN//':'//routineN
@@ -755,20 +743,20 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     ! first collect all the eigenvalues
-    CALL get_kpoint_info(kpoint,nkp=nkp,error=error)
+    CALL get_kpoint_info(kpoint,nkp=nkp)
     kp => kpoint%kp_env(1)%kpoint_env
     nspin = SIZE(kp%mos,2)
     mo_set => kp%mos(1,1)%mo_set
     CALL get_mo_set(mo_set,nmo=nmo,nelectron=nelectron)
     IF(nspin==2) THEN
        CALL get_mo_set(kp%mos(1,2)%mo_set,nmo=nb)
-       CPAssert(nmo==nb,cp_failure_level,routineP,error,failure)
+       CPAssert(nmo==nb,cp_failure_level,routineP,failure)
     END IF
     ALLOCATE(weig(nmo,nkp,nspin),wocc(nmo,nkp,nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     weig = 0.0_dp
     wocc = 0.0_dp
-    CALL get_kpoint_info(kpoint,kp_range=kp_range,error=error)
+    CALL get_kpoint_info(kpoint,kp_range=kp_range)
     kplocal = kp_range(2) - kp_range(1) + 1
     DO ikpgr = 1,kplocal
        ik = kp_range(1)+ikpgr-1
@@ -779,20 +767,20 @@ CPSourceFileRef,&
           weig(1:nmo,ik,ispin) = eigenvalues(1:nmo)
        END DO
     END DO
-    CALL get_kpoint_info(kpoint,para_env_inter_kp=para_env_inter_kp,error=error)
+    CALL get_kpoint_info(kpoint,para_env_inter_kp=para_env_inter_kp)
     CALL mp_sum(weig,para_env_inter_kp%group)
 
     nel = REAL(nelectron,KIND=dp)
-    CALL get_kpoint_info(kpoint,wkp=wkp,error=error)
+    CALL get_kpoint_info(kpoint,wkp=wkp)
     IF(smear%do_smear) THEN
        ! finite electronic temperature
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     ELSE
        ! fixed occupations (2/1)
        IF(nspin==1) THEN
           CALL Fermikp(wocc(:,:,1),mu,kTS,weig(:,:,1),nel,wkp,0.0_dp,2.0_dp)
        ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
        END IF
     END IF
     DO ikpgr = 1,kplocal
@@ -807,7 +795,7 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(weig,wocc,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE kpoint_set_mo_occupation
 
@@ -815,13 +803,11 @@ CPSourceFileRef,&
 !> \brief Calculate kpoint density matrices (rho(k), owned by kpoint groups)
 !> \param kpoint    kpoint environment
 !> \param energy_weighted  calculate energy weighted density matrix
-!> \param error     CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_density_matrices(kpoint,energy_weighted,error)
+  SUBROUTINE kpoint_density_matrices(kpoint,energy_weighted)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     LOGICAL, OPTIONAL                        :: energy_weighted
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices', &
       routineP = moduleN//':'//routineN
@@ -849,10 +835,10 @@ CPSourceFileRef,&
     ! work matrix
     mo_set => kpoint%kp_env(1)%kpoint_env%mos(1,1)%mo_set
     CALL get_mo_set(mo_set,nao=nao,nmo=nmo)
-    CALL cp_fm_get_info(mo_set%mo_coeff,matrix_struct=matrix_struct,error=error)
-    CALL cp_fm_create(fwork,matrix_struct,error=error)
+    CALL cp_fm_get_info(mo_set%mo_coeff,matrix_struct=matrix_struct)
+    CALL cp_fm_create(fwork,matrix_struct)
 
-    CALL get_kpoint_info(kpoint,kp_range=kp_range,error=error)
+    CALL get_kpoint_info(kpoint,kp_range=kp_range)
     kplocal = kp_range(2) - kp_range(1) + 1
     DO ikpgr = 1,kplocal
        kp => kpoint%kp_env(ikpgr)%kpoint_env
@@ -869,12 +855,12 @@ CPSourceFileRef,&
                 pmat => kp%pmat(1,ispin)%matrix
              END IF
              CALL get_mo_set(mo_set,occupation_numbers=occupation)
-             CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
+             CALL cp_fm_to_fm(mo_set%mo_coeff,fwork)
              CALL cp_fm_column_scale(fwork,occupation)
              IF(wtype) THEN
                 CALL cp_fm_column_scale(fwork,eigenvalues)
              END IF
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,pmat,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,pmat)
           ELSE
              IF(wtype) THEN
                 rpmat => kp%wmat(1,ispin)%matrix
@@ -884,30 +870,30 @@ CPSourceFileRef,&
                 cpmat => kp%pmat(2,ispin)%matrix
              END IF
              CALL get_mo_set(mo_set,occupation_numbers=occupation)
-             CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
+             CALL cp_fm_to_fm(mo_set%mo_coeff,fwork)
              CALL cp_fm_column_scale(fwork,occupation)
              IF(wtype) THEN
                 CALL cp_fm_column_scale(fwork,eigenvalues)
              END IF
              ! Re(c)*Re(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,rpmat,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,rpmat)
              mo_set => kp%mos(2,ispin)%mo_set
              ! Im(c)*Re(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,-1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,cpmat,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,-1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,cpmat)
              ! Re(c)*Im(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,fwork,mo_set%mo_coeff,1.0_dp,cpmat,error)
-             CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,fwork,mo_set%mo_coeff,1.0_dp,cpmat)
+             CALL cp_fm_to_fm(mo_set%mo_coeff,fwork)
              CALL cp_fm_column_scale(fwork,occupation)
              IF(wtype) THEN
                 CALL cp_fm_column_scale(fwork,eigenvalues)
              END IF
              ! Im(c)*Im(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,1.0_dp,rpmat,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,1.0_dp,rpmat)
           END IF
        END DO
     END DO
 
-    CALL cp_fm_release(fwork,error=error)
+    CALL cp_fm_release(fwork)
 
   END SUBROUTINE kpoint_density_matrices
 
@@ -920,9 +906,8 @@ CPSourceFileRef,&
 !> \param tempmat DBCSR matrix to be used as template
 !> \param sab_nl ...
 !> \param fmwork  FM work matrices (kpoint group)
-!> \param error   CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_density_transform(kpoint,denmat,wtype,tempmat,sab_nl,fmwork,error)
+  SUBROUTINE kpoint_density_transform(kpoint,denmat,wtype,tempmat,sab_nl,fmwork)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -933,7 +918,6 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fmwork
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
       routineP = moduleN//':'//routineN
@@ -960,18 +944,17 @@ CPSourceFileRef,&
 
     ! work storage
     ALLOCATE(rpmat,cpmat,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(rpmat,error=error)
-    CALL cp_dbcsr_init(cpmat,error=error)
-    CALL cp_dbcsr_create(rpmat,template=tempmat,matrix_type=dbcsr_type_symmetric,error=error)
-    CALL cp_dbcsr_create(cpmat,template=tempmat,matrix_type=dbcsr_type_antisymmetric,error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(rpmat,sab_nl,error)
-    CALL cp_dbcsr_alloc_block_from_nbl(cpmat,sab_nl,error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_init(rpmat)
+    CALL cp_dbcsr_init(cpmat)
+    CALL cp_dbcsr_create(rpmat,template=tempmat,matrix_type=dbcsr_type_symmetric)
+    CALL cp_dbcsr_create(cpmat,template=tempmat,matrix_type=dbcsr_type_antisymmetric)
+    CALL cp_dbcsr_alloc_block_from_nbl(rpmat,sab_nl)
+    CALL cp_dbcsr_alloc_block_from_nbl(cpmat,sab_nl)
 
     CALL get_kpoint_info(kpoint,nkp=nkp,xkp=xkp,wkp=wkp,&
                          para_env_inter_kp=para_env_inter_kp,&
-                         sab_nl=sab_nl,cell_to_index=cell_to_index,&
-                         error=error)
+                         sab_nl=sab_nl,cell_to_index=cell_to_index)
     ! initialize real space density matrices
     kp => kpoint%kp_env(1)%kpoint_env
     nspin = SIZE(kp%mos,2)
@@ -982,7 +965,7 @@ CPSourceFileRef,&
     NULLIFY(fmdummy)
     DO ispin=1,nspin
        DO ic=1,nimg
-          CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp)
        END DO
        !
        DO ik=1,nkp
@@ -994,26 +977,26 @@ CPSourceFileRef,&
             NULLIFY(kp)
           END IF
           ! collect this density matrix on all processors
-          CPPrecondition(SIZE(fmwork)>=nc,cp_failure_level,routineP,error,failure)
+          CPPrecondition(SIZE(fmwork)>=nc,cp_failure_level,routineP,failure)
           DO ic=1,nc
              IF(my_kpgrp) THEN
                 ! choose density matrix
                 IF(wtype) THEN
-                   CALL cp_fm_copy_general(kp%wmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt,error)
+                   CALL cp_fm_copy_general(kp%wmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt)
                 ELSE
-                   CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt,error)
+                   CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt)
                 END IF
              ELSE
-                CALL cp_fm_copy_general(fmdummy,fmwork(ic)%matrix,bcntxt,error)
+                CALL cp_fm_copy_general(fmdummy,fmwork(ic)%matrix,bcntxt)
              END IF
           END DO
           ! reduce to dbcsr storage
           IF(real_only) THEN
-             CALL copy_fm_to_dbcsr(fmwork(1)%matrix,rpmat,keep_sparsity=.TRUE.,error=error)
+             CALL copy_fm_to_dbcsr(fmwork(1)%matrix,rpmat,keep_sparsity=.TRUE.)
           ELSE
-             CALL copy_fm_to_dbcsr(fmwork(1)%matrix,rpmat,keep_sparsity=.TRUE.,error=error)
+             CALL copy_fm_to_dbcsr(fmwork(1)%matrix,rpmat,keep_sparsity=.TRUE.)
              ! it seems this copy to a antisymmetric dbcsr matrix changes sign!
-             CALL copy_fm_to_dbcsr(fmwork(2)%matrix,cpmat,keep_sparsity=.TRUE.,error=error)
+             CALL copy_fm_to_dbcsr(fmwork(2)%matrix,cpmat,keep_sparsity=.TRUE.)
           END IF
 
           ! transformation
@@ -1039,20 +1022,20 @@ CPSourceFileRef,&
 
              CALL cp_dbcsr_get_block_p(matrix=denmat(ispin,icell)%matrix,row=irow,col=icol,&
                                        block=dblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             CPPostcondition(found,cp_failure_level,routineP,failure)
 
              IF(real_only) THEN
                 CALL cp_dbcsr_get_block_p(matrix=rpmat,row=irow,col=icol,&
                                           block=rblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                CPPostcondition(found,cp_failure_level,routineP,failure)
                 dblock = dblock + coskl*rblock
              ELSE
                 CALL cp_dbcsr_get_block_p(matrix=rpmat,row=irow,col=icol,&
                                           block=rblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                CPPostcondition(found,cp_failure_level,routineP,failure)
                 CALL cp_dbcsr_get_block_p(matrix=cpmat,row=irow,col=icol,&
                                           block=cblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                CPPostcondition(found,cp_failure_level,routineP,failure)
                 dblock = dblock + coskl*rblock
                 dblock = dblock + sinkl*cblock
              END IF
@@ -1062,8 +1045,8 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    CALL cp_dbcsr_deallocate_matrix(rpmat,error)
-    CALL cp_dbcsr_deallocate_matrix(cpmat,error)
+    CALL cp_dbcsr_deallocate_matrix(rpmat)
+    CALL cp_dbcsr_deallocate_matrix(cpmat)
 
   END SUBROUTINE kpoint_density_transform
 

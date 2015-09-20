@@ -108,16 +108,13 @@ CONTAINS
 !> \param vdw_pw_pool ...
 !> \param poisson_env ...
 !> \param interp_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>      For the other see the attributes of pw_env_type
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,auxbas_rs_desc,auxbas_rs_grid,rs_descs,rs_grids,lgrid,&
-     xc_pw_pool, vdw_pw_pool, poisson_env, interp_section, error)
+     xc_pw_pool, vdw_pw_pool, poisson_env, interp_section)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
@@ -140,7 +137,6 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: interp_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', &
       routineP = moduleN//':'//routineN
@@ -149,8 +145,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
   IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
   IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
   IF (PRESENT(rs_grids)) rs_grids => pw_env%rs_grids
@@ -176,15 +172,12 @@ END SUBROUTINE pw_env_get
 ! *****************************************************************************
 !> \brief retains the pw_env (see doc/ReferenceCounting.html)
 !> \param pw_env the pw_env to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_env_retain(pw_env,error)
+SUBROUTINE pw_env_retain(pw_env)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain', &
       routineP = moduleN//':'//routineN
@@ -193,8 +186,8 @@ SUBROUTINE pw_env_retain(pw_env,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
   pw_env%ref_count=pw_env%ref_count+1
 END SUBROUTINE pw_env_retain
 
@@ -202,16 +195,13 @@ END SUBROUTINE pw_env_retain
 !> \brief releases the given pw_env (see doc/ReferenceCounting.html)
 !> \param pw_env the pw_env to release
 !> \param kg ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_env_release(pw_env, kg, error)
+SUBROUTINE pw_env_release(pw_env, kg)
     TYPE(pw_env_type), POINTER               :: pw_env
     LOGICAL, OPTIONAL                        :: kg
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
@@ -223,52 +213,52 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
   my_kg = .FALSE.
   IF(PRESENT(kg)) my_kg = kg
   IF (ASSOCIATED(pw_env)) THEN
-     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
      pw_env%ref_count=pw_env%ref_count-1
      IF (pw_env%ref_count<1) THEN
-        CALL pw_poisson_release(pw_env%poisson_env, error=error)
-        CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
+        CALL pw_poisson_release(pw_env%poisson_env)
+        CALL pw_pools_dealloc(pw_env%pw_pools)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
            IF(my_kg) THEN
              DEALLOCATE (pw_env%gridlevel_info%cutoff,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             CALL section_vals_release(pw_env%gridlevel_info%print_section,error=error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CALL section_vals_release(pw_env%gridlevel_info%print_section)
              DEALLOCATE (pw_env%gridlevel_info%count,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
            ELSE
-             CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, error=error)
+             CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
            END IF
            DEALLOCATE(pw_env%gridlevel_info,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(pw_env%cube_info)) THEN
            DO igrid_level=1,SIZE(pw_env%cube_info)
               CALL destroy_cube_info(pw_env%cube_info(igrid_level))
            END DO
            DEALLOCATE(pw_env%cube_info,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
-        CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
-        CALL pw_pool_release(pw_env%vdw_pw_pool,error=error)
+        CALL pw_pool_release(pw_env%xc_pw_pool)
+        CALL pw_pool_release(pw_env%vdw_pw_pool)
         IF (ASSOCIATED(pw_env%rs_descs)) THEN
           DO i=1, SIZE(pw_env%rs_descs)
-            CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc, error=error)
+            CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc)
           END DO
           DEALLOCATE(pw_env%rs_descs, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(pw_env%rs_grids)) THEN
           DO i=1, SIZE(pw_env%rs_grids)
-            CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid, error=error)
+            CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
           END DO
           DEALLOCATE(pw_env%rs_grids, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(pw_env%lgrid)) THEN
-          CALL lgrid_release(pw_env%lgrid,error)
+          CALL lgrid_release(pw_env%lgrid)
         END IF
         DEALLOCATE(pw_env, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
   END IF
   NULLIFY(pw_env)
@@ -277,15 +267,12 @@ END SUBROUTINE pw_env_release
 ! *****************************************************************************
 !> \brief flushes the cached pws
 !> \param pw_env the pw_env to be flushed
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_env_flush_cache(pw_env,error)
+SUBROUTINE pw_env_flush_cache(pw_env)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -294,9 +281,9 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
   IF (ASSOCIATED(pw_env%pw_pools)) THEN
-     CALL pw_pools_flush_cache(pw_env%pw_pools,error=error)
+     CALL pw_pools_flush_cache(pw_env%pw_pools)
   END IF
 END SUBROUTINE pw_env_flush_cache
 

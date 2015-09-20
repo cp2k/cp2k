@@ -58,12 +58,11 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param particle_set ...
 !> \param cell ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE getold( gci, local_molecules, molecule_set, molecule_kind_set,&
-       particle_set , cell, error)
+       particle_set , cell)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -71,7 +70,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'getold', &
       routineP = moduleN//':'//routineN
@@ -111,7 +109,7 @@ CONTAINS
           CALL get_molecule ( molecule, first_atom=first_atom, &
                lcolv=lcolv, lg3x3=lg3x3, lg4x6=lg4x6 )
           CALL getold_low(n3x3con, n4x6con, colv_list, g3x3_list, g4x6_list, fixd_list,&
-               lcolv, lg3x3, lg4x6, first_atom, particle_set, cell, error)
+               lcolv, lg3x3, lg4x6, first_atom, particle_set, cell)
        END DO
     END DO MOL
     ! Intermolecular constraints
@@ -126,7 +124,7 @@ CONTAINS
        lg3x3=> gci%lg3x3
        lg4x6=> gci%lg4x6
        CALL getold_low(n3x3con, n4x6con, colv_list, g3x3_list, g4x6_list, fixd_list,&
-            lcolv, lg3x3, lg4x6, 1, particle_set, cell, error)
+            lcolv, lg3x3, lg4x6, 1, particle_set, cell)
     END IF
   END SUBROUTINE getold
 
@@ -144,12 +142,11 @@ CONTAINS
 !> \param first_atom ...
 !> \param particle_set ...
 !> \param cell ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE getold_low(n3x3con, n4x6con, colv_list, g3x3_list, g4x6_list, fixd_list,&
-       lcolv, lg3x3, lg4x6, first_atom, particle_set, cell, error)
+       lcolv, lg3x3, lg4x6, first_atom, particle_set, cell)
 
     INTEGER, INTENT(IN)                      :: n3x3con, n4x6con
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
@@ -166,7 +163,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'getold_low', &
       routineP = moduleN//':'//routineN
@@ -177,7 +173,7 @@ CONTAINS
        ! Collective constraints
        DO iconst = 1, SIZE(colv_list)
           CALL colvar_eval_mol_f(lcolv ( iconst )%colvar_old, cell,&
-               particles=particle_set, fixd_list=fixd_list, error=error)
+               particles=particle_set, fixd_list=fixd_list)
        ENDDO
     END IF
     ! 3x3 constraints

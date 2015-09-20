@@ -46,17 +46,14 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE density_nonbond (fist_nonbond_env, particle_set, cell, para_env, error)
+  SUBROUTINE density_nonbond (fist_nonbond_env, particle_set, cell, para_env)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_nonbond', &
       routineP = moduleN//':'//routineN
@@ -81,18 +78,18 @@ CONTAINS
     do_eam = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update,&
-         r_last_update_pbc=r_last_update_pbc, eam_data=eam_data,error=error)
+         r_last_update_pbc=r_last_update_pbc, eam_data=eam_data)
     nkinds = SIZE(potparm%pot, 1)
     ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
           DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
              IF (potparm%pot(ikind,jkind)%pot%type(i)==ea_type) THEN
                 ! At the moment we allow only 1 EAM per each kinds pair..
-                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,error,failure)
-                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,error,failure)
+                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,failure)
+                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,failure)
                 eam_kinds_index(ikind,jkind) = i
                 eam_kinds_index(jkind,ikind) = i
                 do_eam = .TRUE.
@@ -106,8 +103,8 @@ CONTAINS
     IF (do_eam) THEN
        IF (.NOT. ASSOCIATED(eam_data)) THEN
           ALLOCATE(eam_data(nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL fist_nonbond_env_set (fist_nonbond_env,  eam_data=eam_data, error=error)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CALL fist_nonbond_env_set (fist_nonbond_env,  eam_data=eam_data)
        ENDIF
        DO i=1,nparticle
           eam_data(i)%rho=0.0_dp
@@ -121,7 +118,7 @@ CONTAINS
        CALL cite_reference(Foiles1986)
        NULLIFY(eam_a, eam_b)
        ALLOCATE ( rho(nparticle), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        rho = 0._dp
        ! Starting the force loop
        DO ilist=1,nonbonded%nlists
@@ -163,10 +160,10 @@ CONTAINS
        END DO
 
        DEALLOCATE (rho,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE (eam_kinds_index, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
 
   END SUBROUTINE density_nonbond

@@ -173,14 +173,12 @@ CONTAINS
 !> \param scp ...
 !> \param qs_env ...
 !> \param scpv ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_scp_charge(scp,qs_env,scpv,error)
+  SUBROUTINE calculate_scp_charge(scp,qs_env,scpv)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: scp
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(scp_vector_type), POINTER           :: scpv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_scp_charge', &
       routineP = moduleN//':'//routineN
@@ -223,31 +221,31 @@ CONTAINS
                     dft_control=dft_control,&
                     cell=cell,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
     cube_info=pw_env%cube_info(1)
-    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     DO ikind=1,SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-      CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind, error=error)
+      CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
       CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
 
       IF (.NOT.defined) CYCLE
 
       ni = ncoset(lmaxscp)
       ALLOCATE(pab(ni,1),STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
 
       nthread = 1
       ithread=0
 
       ALLOCATE(cores(natom),STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
       cores = 0
       npme = 0
 
@@ -289,17 +287,17 @@ CONTAINS
          CALL collocate_pgf_product_rspace(lmaxscp,alpha,0,0,0.0_dp,0,ra,&
             (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
             cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-            ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+            ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
 
       END DO
 
       DEALLOCATE ( pab, cores, STAT=ierr )
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
 
     END DO
 
-    CALL rs_pw_transfer(rs_rho,scp%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,scp%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
 
     CALL timestop(handle)
 
@@ -308,13 +306,11 @@ CONTAINS
 !> \brief computes the density of the non-linear core correction on the grid
 !> \param rho_nlcc ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_nlcc(rho_nlcc,qs_env,error)
+  SUBROUTINE calculate_rho_nlcc(rho_nlcc,qs_env)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_nlcc
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc', &
       routineP = moduleN//':'//routineN
@@ -357,19 +353,19 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     DO ikind=1,SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, error=error)
+      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
 
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nexp_nlcc=nexp_nlcc,&
@@ -384,7 +380,7 @@ CONTAINS
 
          ni = ncoset(2*nc-2)
          ALLOCATE(pab(ni,1),STAT=ierr)
-         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
          pab = 0._dp
 
          nthread = 1
@@ -441,7 +437,7 @@ CONTAINS
                n = coset(2,2,2)
                pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
              CASE DEFAULT
-               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
            END SELECT
          END DO
          IF (dft_control%nspins==2) pab=pab*0.5_dp
@@ -471,12 +467,12 @@ CONTAINS
             CALL collocate_pgf_product_rspace(ni,1/(2*alpha**2),0,0,0.0_dp,0,ra,&
                (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
                cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
 
          END DO
 
          DEALLOCATE ( pab, STAT=ierr )
-         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
 
       END DO
 
@@ -484,11 +480,11 @@ CONTAINS
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
 
-    CALL rs_pw_transfer(rs_rho,rho_nlcc%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,rho_nlcc%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
 
     CALL timestop(handle)
 
@@ -498,13 +494,11 @@ CONTAINS
 !> \brief computes the local pseudopotential (without erf term) on the grid
 !> \param vppl ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_ppl_grid(vppl,qs_env,error)
+  SUBROUTINE calculate_ppl_grid(vppl,qs_env)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: vppl
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ppl_grid', &
       routineP = moduleN//':'//routineN
@@ -546,19 +540,19 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     DO ikind=1, SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, error=error)
+      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
 
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,alpha_ppl=alpha,nexp_ppl=lppl,cexp_ppl=cexp_ppl)
@@ -567,7 +561,7 @@ CONTAINS
 
       ni = ncoset(2*lppl-2)
       ALLOCATE(pab(ni,1),STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
       pab = 0._dp
 
       nthread = 1
@@ -624,7 +618,7 @@ CONTAINS
             n = coset(2,2,2)
             pab(n,1) = 6._dp*cexp_ppl(4)
           CASE DEFAULT
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
         END SELECT
       END DO
 
@@ -654,23 +648,23 @@ CONTAINS
             CALL collocate_pgf_product_rspace(ni,alpha,0,0,0.0_dp,0,ra,&
                (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
                cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
 
          END DO
       ENDIF
 
       DEALLOCATE ( pab, STAT=ierr )
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
 
     END DO
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
 
-    CALL rs_pw_transfer(rs_rho,vppl%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,vppl%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
 
     CALL timestop(handle)
 
@@ -681,17 +675,14 @@ CONTAINS
 !> \brief Collocates an arbitrary density from the aux_basis_set onto a grid.
 !> \param total_rho Gives back the integral of the collocated density
 !> \param qs_env The QS environment of matter
-!> \param error variable to control error logging, stopping,...
-!>               see module cp_error_handling
 !> \par History
 !>      08.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE collocate_atomic_charge_density(total_rho, qs_env, error)
+  SUBROUTINE collocate_atomic_charge_density(total_rho, qs_env)
 
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'collocate_atomic_charge_density', &
@@ -736,14 +727,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set, pw_env=pw_env, rho=rho, &
-                    dft_control=dft_control, error=error)
+                    dft_control=dft_control)
 
-    CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r, error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
 
     cube_info => pw_env%cube_info
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -752,24 +743,22 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
 
     ! *** set up the pw multi-grids *** !
-    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
-    CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools, error=error)
+    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP,failure)
+    CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              error=error)
+                              use_data=REALDATA3D, in_space=REALSPACE)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                              error=error)
+                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
     ! *** set up the rs multi-grids *** !
     DO igrid_level = 1,gridlevel_info%ngrid_levels
-      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=maxco, error=error)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=maxco)
     ALLOCATE (pab(maxco,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",maxco*dp_size)
@@ -780,7 +769,7 @@ CONTAINS
 
     DO ikind = 1, SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX", error=error)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX")
 
       CALL get_gto_basis_set(gto_basis_set=aux_basis_set, lmax=la_max, lmin=la_min, zet=zeta, &
                              nset=nseta, npgf=npgfa, sphi=sphi_a, first_sgf=first_sgfa, nsgf_set=nsgfa)
@@ -814,7 +803,7 @@ CONTAINS
                                               cube_info=cube_info(igrid_level),&
                                               eps_rho_rspace=eps_rho_rspace,&
                                               ga_gb_function=FUNC_AB, ithread=ithread, &
-                                              map_consistent=map_consistent,use_subpatch=.FALSE.,error=error)
+                                              map_consistent=map_consistent,use_subpatch=.FALSE.)
           END DO
         END DO
       END DO
@@ -827,30 +816,29 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=rho_r(1)%pw, dir=rs2pw,error=error)
-      CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-      CALL pw_transfer(rho_r(1)%pw, rho_g(1)%pw,error=error)
+      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=rho_r(1)%pw, dir=rs2pw)
+      CALL rs_grid_release(rs_rho(1)%rs_grid)
+      CALL pw_transfer(rho_r(1)%pw, rho_g(1)%pw)
       IF (rho_r(1)%pw%pw_grid%spherical) THEN
-        CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw,error=error)
+        CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw)
       END IF
     ELSE
       DO igrid_level = 1,gridlevel_info%ngrid_levels
          CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
-                            pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw, error=error)
-         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
+                            pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
+         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
       END DO
 
-      CALL pw_zero(rho_g(1)%pw,error=error)
+      CALL pw_zero(rho_g(1)%pw)
       DO igrid_level=1, gridlevel_info%ngrid_levels
         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
-                                   mgrid_gspace(igrid_level)%pw,error=error)
-        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_g(1)%pw,&
-             error=error)
+                                   mgrid_gspace(igrid_level)%pw)
+        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_g(1)%pw)
       END DO
-      CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw,error=error)
+      CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw)
     END IF
 
-    total_rho = pw_integrate_function(rho_r(1)%pw,isign=-1,error=error)
+    total_rho = pw_integrate_function(rho_r(1)%pw,isign=-1)
     tot_rho_r(:) = total_rho
     unit_nr=cp_logger_get_default_io_unit(logger)
     IF (unit_nr>0) THEN
@@ -858,10 +846,10 @@ CONTAINS
     END IF
 
     ! *** give back the multi-grids *** !
-    CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace, error=error)
-    CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace, error=error)
+    CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
+    CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
 
-    CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
+    CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
     CALL timestop(handle)
 
@@ -874,20 +862,18 @@ CONTAINS
 !> \param qs_env ...
 !> \param lri_coef ...
 !> \param total_rho ...
-!> \param error ...
 !> \par History
 !>      04.2013
 !> \author Dorothea Golze
 ! *****************************************************************************
   SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
-                                    lri_coef, total_rho, error)
+                                    lri_coef, total_rho)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: lri_rho_g, lri_rho_r
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: lri_coef
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
       routineP = moduleN//':'//routineN
@@ -934,13 +920,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell, particle_set=particle_set, &
                     pw_env=pw_env,&
-                    dft_control=dft_control, error=error)
+                    dft_control=dft_control)
 
     cube_info => pw_env%cube_info
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -948,28 +934,26 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
 
     ! *** set up the pw multi-grids *** !
-    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
-    CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools, error=error)
+    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP,failure)
+    CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
                              use_data=REALDATA3D,&
-                             in_space=REALSPACE, &
-                             error=error)
+                             in_space=REALSPACE)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
                              use_data=COMPLEXDATA1D,&
-                             in_space=RECIPROCALSPACE,&
-                             error=error)
+                             in_space=RECIPROCALSPACE)
 
     ! *** set up the rs multi-grids *** !
     DO igrid_level = 1,gridlevel_info%ngrid_levels
-      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
     !take maxco from the LRI basis set!
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=maxco,basis_type="LRI", error=error)
+                             maxco=maxco,basis_type="LRI")
 
     ALLOCATE (pab(maxco,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -981,7 +965,7 @@ CONTAINS
     DO ikind = 1, SIZE(atomic_kind_set)
 
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI", error=error)
+       CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI")
 
        !Take the lri basis set here!
        CALL get_gto_basis_set(gto_basis_set=lri_basis_set, lmax=la_max,&
@@ -1048,8 +1032,7 @@ CONTAINS
                                                     cube_info=cube_info(igrid_level),&
                                                     eps_rho_rspace=eps_rho_rspace,&
                                                     ga_gb_function=FUNC_AB, &
-                                                    map_consistent=map_consistent,&
-                                                    error=error) 
+                                                    map_consistent=map_consistent)
                 ENDIF 
              END DO
 
@@ -1066,29 +1049,28 @@ CONTAINS
     DEALLOCATE (pab,STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
-    CALL pw_zero(lri_rho_g%pw,error=error)
-    CALL pw_zero(lri_rho_r%pw,error=error)
+    CALL pw_zero(lri_rho_g%pw)
+    CALL pw_zero(lri_rho_r%pw)
 
     DO igrid_level = 1,gridlevel_info%ngrid_levels
-       CALL pw_zero(mgrid_rspace(igrid_level)%pw,error=error)
+       CALL pw_zero(mgrid_rspace(igrid_level)%pw)
        CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
-                          pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw, error=error)
-       CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
+                          pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
+       CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
     END DO
 
     DO igrid_level=1, gridlevel_info%ngrid_levels
-      CALL pw_zero(mgrid_gspace(igrid_level)%pw,error=error)
+      CALL pw_zero(mgrid_gspace(igrid_level)%pw)
       CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
-                                 mgrid_gspace(igrid_level)%pw,error=error)
-      CALL pw_axpy(mgrid_gspace(igrid_level)%pw, lri_rho_g%pw,&
-           error=error)
+                                 mgrid_gspace(igrid_level)%pw)
+      CALL pw_axpy(mgrid_gspace(igrid_level)%pw, lri_rho_g%pw)
     END DO
-    CALL pw_transfer(lri_rho_g%pw,lri_rho_r%pw,error=error)
-    total_rho = pw_integrate_function(lri_rho_r%pw,isign=-1,error=error)
+    CALL pw_transfer(lri_rho_g%pw,lri_rho_r%pw)
+    total_rho = pw_integrate_function(lri_rho_r%pw,isign=-1)
 
     ! *** give back the multi-grids *** !
-    CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace, error=error)
-    CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace, error=error)
+    CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
+    CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
 
     CALL timestop(handle)
 
@@ -1100,15 +1082,13 @@ CONTAINS
 !> \param total_rho ...
 !> \param qs_env ...
 !> \param only_nopaw ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,only_nopaw,error)
+  SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,only_nopaw)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: only_nopaw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
@@ -1152,12 +1132,12 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1165,7 +1145,7 @@ CONTAINS
     DO ikind=1, SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
-                       alpha_core_charge=alpha, ccore_charge=pab(1,1), error=error)
+                       alpha_core_charge=alpha, ccore_charge=pab(1,1))
 
       IF(my_only_nopaw .AND. paw_atom ) CYCLE
       IF (alpha == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
@@ -1202,7 +1182,7 @@ CONTAINS
             CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                   (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
                   cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-                  ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+                  ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
 
          END DO
       ENDIF
@@ -1217,16 +1197,16 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+         use_data=REALDATA3D,in_space=REALSPACE)
 
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
 
-    total_rho = pw_integrate_function(rhoc_r%pw,isign=-1,error=error)
+    total_rho = pw_integrate_function(rhoc_r%pw,isign=-1)
 
-    CALL pw_transfer(rhoc_r%pw,rho_core%pw,error=error)
+    CALL pw_transfer(rhoc_r%pw,rho_core%pw)
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw)
 
     CALL timestop(handle)
 
@@ -1237,18 +1217,15 @@ CONTAINS
 !> \param rho_gb charge density generated by a single gaussian
 !> \param qs_env qs environment
 !> \param iatom_in atom index
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>        12.2011 created
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_single_gaussian(rho_gb,qs_env,iatom_in,error)
+  SUBROUTINE calculate_rho_single_gaussian(rho_gb,qs_env,iatom_in)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_gb
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom_in
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'calculate_rho_single_gaussian', &
@@ -1276,10 +1253,10 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL rs_grid_retain(rs_rho, error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1303,21 +1280,21 @@ CONTAINS
       CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
            0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
            cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-           use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+           use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
     ENDIF
 
     DEALLOCATE (pab,STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+         use_data=REALDATA3D,in_space=REALSPACE)
 
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
 
-    CALL pw_transfer(rhoc_r%pw,rho_gb%pw,error=error)
+    CALL pw_transfer(rhoc_r%pw,rho_gb%pw)
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw)
 
     CALL timestop(handle)
 
@@ -1330,19 +1307,16 @@ CONTAINS
 !>        rho_metal=sum_a c_a*g_a
 !> \param total_rho_metal total induced image charge density
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>        01.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
+  SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_metal
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: total_rho_metal
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
       routineP = moduleN//':'//routineN
@@ -1372,10 +1346,10 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL rs_grid_retain(rs_rho, error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
    
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1408,7 +1382,7 @@ CONTAINS
       CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
           0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
           cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-          use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+          use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
      ENDDO
     ENDIF
    
@@ -1416,17 +1390,17 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
    
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+         use_data=REALDATA3D,in_space=REALSPACE)
    
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
    
     IF(PRESENT(total_rho_metal)) &
     !minus sign: account for the fact that rho_metal has opposite sign
-    total_rho_metal = pw_integrate_function(rhoc_r%pw,isign=-1,error=error)
+    total_rho_metal = pw_integrate_function(rhoc_r%pw,isign=-1)
    
-    CALL pw_transfer(rhoc_r%pw,rho_metal%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+    CALL pw_transfer(rhoc_r%pw,rho_metal%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw)
    
     CALL timestop(handle)
 
@@ -1438,19 +1412,16 @@ CONTAINS
 !> \param qs_env qs environment
 !> \param eta width of single Gaussian
 !> \param iatom_in atom index
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>        06.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_resp_single(rho_gb,qs_env,eta,iatom_in,error)
+  SUBROUTINE calculate_rho_resp_single(rho_gb,qs_env,eta,iatom_in)
  
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_gb
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(IN)                :: eta
     INTEGER, INTENT(IN)                      :: iatom_in
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_single', &
       routineP = moduleN//':'//routineN
@@ -1480,10 +1451,10 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL rs_grid_retain(rs_rho, error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
  
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1506,21 +1477,21 @@ CONTAINS
       CALL collocate_pgf_product_rspace(0,eta,0,0,0.0_dp,0,ra,&
            (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
            cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-           use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+           use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
     ENDIF
  
     DEALLOCATE (pab,STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
  
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+         use_data=REALDATA3D,in_space=REALSPACE)
  
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
  
-    CALL pw_transfer(rhoc_r%pw,rho_gb%pw,error=error)
+    CALL pw_transfer(rhoc_r%pw,rho_gb%pw)
  
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw)
 
     CALL timestop(handle)
  
@@ -1534,20 +1505,17 @@ CONTAINS
 !> \param natom number of atoms
 !> \param eta width of single Gaussian
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>        01.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_resp_all(rho_resp,coeff,natom,eta,qs_env,error)
+  SUBROUTINE calculate_rho_resp_all(rho_resp,coeff,natom,eta,qs_env)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_resp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
     INTEGER, INTENT(IN)                      :: natom
     REAL(KIND=dp), INTENT(IN)                :: eta
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all', &
       routineP = moduleN//':'//routineN
@@ -1580,10 +1548,10 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,error=error)
+                    pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
-         auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL rs_grid_retain(rs_rho, error=error)
+         auxbas_pw_pool=auxbas_pw_pool)
+    CALL rs_grid_retain(rs_rho)
     CALL rs_grid_zero(rs_rho)
    
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1613,7 +1581,7 @@ CONTAINS
       CALL collocate_pgf_product_rspace(0,eta,&
           0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
           cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-          use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+          use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
      ENDDO
     ENDIF
    
@@ -1621,13 +1589,13 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
    
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+         use_data=REALDATA3D,in_space=REALSPACE)
    
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-    CALL rs_grid_release(rs_rho, error=error)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_grid_release(rs_rho)
    
-    CALL pw_transfer(rhoc_r%pw,rho_resp%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+    CALL pw_transfer(rhoc_r%pw,rho_resp%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw)
    
     CALL timestop(handle)
 
@@ -1649,7 +1617,6 @@ CONTAINS
 !> \param idir ...
 !> \param task_list_external ...
 !> \param pw_env_external ...
-!> \param error ...
 !> \par History
 !>      IAB (15-Feb-2010): Added OpenMP parallelisation to task loop
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
@@ -1659,7 +1626,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, matrix_p_kp, rho, rho_gspace, total_rho,&
        ks_env, soft_valid, compute_tau, compute_grad, &
-       basis_type, der_type, idir, task_list_external, pw_env_external, error)
+       basis_type, der_type, idir, task_list_external, pw_env_external)
 
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1673,7 +1640,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: der_type, idir
     TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_external
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
       routineP = moduleN//':'//routineN
@@ -1729,7 +1695,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,error,failure)
+    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,failure)
     do_kp = PRESENT(matrix_p_kp)
 
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
@@ -1784,24 +1750,21 @@ CONTAINS
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
-         pw_env=pw_env,&
-         error=error)
+         pw_env=pw_env)
 
     SELECT CASE (my_basis_type)
     CASE ("ORB")
       CALL get_ks_env(ks_env,&
            task_list=task_list,&
-           task_list_soft=task_list_soft,&
-           error=error)
+           task_list_soft=task_list_soft)
     CASE ("AUX_FIT")
       CALL get_ks_env(ks_env,&
            task_list_aux_fit=task_list,&
-           task_list_soft=task_list_soft,&
-           error=error)
+           task_list_soft=task_list_soft)
     END SELECT
 
     nimages = dft_control%nimages
-    CPPrecondition(nimages==1.OR.do_kp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(nimages==1.OR.do_kp,cp_failure_level,routineP,failure)
 
     IF (PRESENT(pw_env_external)) pw_env => pw_env_external
     IF (PRESENT(task_list_external)) task_list=>task_list_external
@@ -1817,7 +1780,7 @@ CONTAINS
          maxco=maxco,&
          maxsgf=maxsgf,&
          maxsgf_set=maxsgf_set,&
-         basis_type=my_basis_type, error=error)
+         basis_type=my_basis_type)
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
 
@@ -1829,7 +1792,7 @@ CONTAINS
        qs_kind => qs_kind_set(ikind)
        CALL get_qs_kind(qs_kind=qs_kind,&
             softb = my_soft, &
-            basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+            basis_set=orb_basis_set, basis_type=my_basis_type)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -1842,7 +1805,7 @@ CONTAINS
 
     ! get the task lists
     IF (my_soft) task_list=>task_list_soft
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,failure)
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
@@ -1850,16 +1813,16 @@ CONTAINS
     ntasks=task_list%ntasks
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, lgrid=lgrid, error=error)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, lgrid=lgrid)
     ! *** set up the rs multi-grids
-    CPPrecondition(ASSOCIATED(rs_rho),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rs_descs),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rs_rho),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(rs_descs),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
     distributed_rs_grids=.FALSE.
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        IF ( rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
           distributed_rs_grids=.TRUE.
@@ -1868,7 +1831,7 @@ CONTAINS
 
     IF ( nthread > 1 ) THEN
       IF (.NOT. ASSOCIATED(lgrid%r)) THEN
-        CALL lgrid_allocate_grid(lgrid, nthread, error)
+        CALL lgrid_allocate_grid(lgrid, nthread)
       ENDIF
     END IF
 
@@ -1879,22 +1842,22 @@ CONTAINS
     ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
     NULLIFY(deltap)
-    CALL cp_dbcsr_allocate_matrix_set(deltap,nimages,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(deltap,nimages)
     IF (distributed_rs_grids) THEN
        DO img=1,nimages
           ALLOCATE(deltap(img)%matrix,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL cp_dbcsr_init(deltap(img)%matrix, error=error)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CALL cp_dbcsr_init(deltap(img)%matrix)
        END DO
        ! this matrix has no strict sparsity pattern in parallel
        ! deltap%sparsity_id=-1
        IF(do_kp) THEN
           DO img=1,nimages
              CALL cp_dbcsr_copy(deltap(img)%matrix,matrix_p_kp(img)%matrix,&
-                                name="DeltaP",error=error)
+                                name="DeltaP")
           END DO
        ELSE
-          CALL cp_dbcsr_copy(deltap(1)%matrix,matrix_p,name="DeltaP",error=error)
+          CALL cp_dbcsr_copy(deltap(1)%matrix,matrix_p,name="DeltaP")
        END IF
     ELSE
        IF(do_kp) THEN
@@ -1909,7 +1872,7 @@ CONTAINS
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
        CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
-                                  natoms, nimages, scatter=.TRUE., error=error)
+                                  natoms, nimages, scatter=.TRUE.)
     ENDIF
 
     ! map all tasks on the grids
@@ -1925,7 +1888,7 @@ CONTAINS
 !$omp          private(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
-!$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,failure,lb,ub,n), &
+!$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,failure,lb,ub,n), &
 !$omp          private(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
 
     ithread = 0
@@ -1970,7 +1933,7 @@ CONTAINS
 
           IF(ikind .NE. ikind_old ) THEN
              CALL get_qs_kind(qs_kind_set(ikind), softb = my_soft, &
-                  basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+                  basis_set=orb_basis_set, basis_type=my_basis_type)
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
                   lmax=la_max,&
@@ -1984,7 +1947,7 @@ CONTAINS
 
           IF (jkind .NE. jkind_old ) THEN
              CALL get_qs_kind(qs_kind_set(jkind), softb = my_soft, &
-                  basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+                  basis_set=orb_basis_set, basis_type=my_basis_type)
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
                   lmax=lb_max,&
@@ -1998,7 +1961,7 @@ CONTAINS
 
           CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
 
           iatom_old = iatom
           jatom_old = jatom
@@ -2084,7 +2047,7 @@ CONTAINS
                  idir=my_idir,&
                  lgrid=lgrid,ithread=ithread, &
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
-                 subpatch_pattern=tasks(6,itask),error=error)
+                 subpatch_pattern=tasks(6,itask))
           ELSE
              rab_inv=-rab
              CALL collocate_pgf_product_rspace(&
@@ -2097,7 +2060,7 @@ CONTAINS
                  idir=my_idir,&
                  lgrid=lgrid,ithread=ithread, &
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
-                 subpatch_pattern=tasks(6,itask),error=error)
+                 subpatch_pattern=tasks(6,itask))
           END IF
        ELSE
           IF (iatom <= jatom) THEN
@@ -2110,7 +2073,7 @@ CONTAINS
                  ga_gb_function=ga_gb_function, &
                  idir=my_idir,&
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
-                 subpatch_pattern=tasks(6,itask),error=error)
+                 subpatch_pattern=tasks(6,itask))
           ELSE
              rab_inv=-rab
              CALL collocate_pgf_product_rspace(&
@@ -2122,7 +2085,7 @@ CONTAINS
                  ga_gb_function=ga_gb_function, &
                  idir=my_idir,&
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
-                 subpatch_pattern=tasks(6,itask),error=error)
+                 subpatch_pattern=tasks(6,itask))
           END IF
        END IF
     END DO loop_tasks
@@ -2181,21 +2144,21 @@ CONTAINS
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_deallocate_matrix_set ( deltap ,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set ( deltap)
     ELSE
        DO img=1,nimages
           NULLIFY(deltap(img)%matrix)
        END DO
        DEALLOCATE (deltap,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,error=error)
+    CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace)
 
-    total_rho = pw_integrate_function(rho%pw,isign=-1,error=error)
+    total_rho = pw_integrate_function(rho%pw,isign=-1)
 
     CALL timestop(handle)
 
@@ -2211,11 +2174,10 @@ CONTAINS
 !> \param qs_env ...
 !> \param soft_valid ...
 !> \param basis_type ...
-!> \param error ...
 !> \note  this is an alternative to calculate the gradient through FFTs
 ! *****************************************************************************
   SUBROUTINE calculate_drho_elec(matrix_p,matrix_p_kp,drho,drho_gspace,qs_env,&
-             soft_valid, basis_type,error)
+             soft_valid, basis_type)
 
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -2225,7 +2187,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: basis_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_elec', &
       routineP = moduleN//':'//routineN
@@ -2280,7 +2241,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,error,failure)
+    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,failure)
     do_kp = PRESENT(matrix_p_kp)
 
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
@@ -2308,20 +2269,17 @@ CONTAINS
          dft_control=dft_control,&
          particle_set=particle_set,&
          sab_orb=sab_orb,&
-         pw_env=pw_env,&
-         error=error)
+         pw_env=pw_env)
 
     SELECT CASE (my_basis_type)
     CASE ("ORB")
       CALL get_qs_env(qs_env=qs_env,&
            task_list=task_list,&
-           task_list_soft=task_list_soft,&
-           error=error)
+           task_list_soft=task_list_soft)
     CASE ("AUX_FIT")
       CALL get_qs_env(qs_env=qs_env,&
            task_list_aux_fit=task_list,&
-           task_list_soft=task_list_soft,&
-           error=error)
+           task_list_soft=task_list_soft)
     END SELECT
 
     ! *** assign from pw_env
@@ -2334,13 +2292,13 @@ CONTAINS
          maxco=maxco,&
          maxsgf=maxsgf,&
          maxsgf_set=maxsgf_set,&
-         basis_type=my_basis_type, error=error)
+         basis_type=my_basis_type)
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
 
     ! find maximum numbers
     nimages = dft_control%nimages
-    CPPrecondition((nimages==1 .OR. do_kp),cp_failure_level,routineP,error,failure)
+    CPPrecondition((nimages==1 .OR. do_kp),cp_failure_level,routineP,failure)
 
     natoms = SIZE( particle_set )
     maxset=0
@@ -2349,7 +2307,7 @@ CONTAINS
        qs_kind => qs_kind_set(ikind)
        CALL get_qs_kind(qs_kind=qs_kind,&
             softb = my_soft, &
-            basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+            basis_set=orb_basis_set, basis_type=my_basis_type)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -2362,7 +2320,7 @@ CONTAINS
 
     ! get the task lists
     IF (my_soft) task_list=>task_list_soft
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,failure)
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
@@ -2370,10 +2328,10 @@ CONTAINS
     ntasks=task_list%ntasks
 
     ! *** set up the rs multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, error=error)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+      CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
       distributed_rs_grids=rs_rho(igrid_level)%rs_grid%desc%distributed
     END DO
 
@@ -2384,20 +2342,20 @@ CONTAINS
     ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
     ALLOCATE(deltap(nimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (distributed_rs_grids) THEN
        DO img=1,nimages
-          CALL cp_dbcsr_init(deltap(img)%matrix, error=error)
+          CALL cp_dbcsr_init(deltap(img)%matrix)
        END DO
        ! this matrix has no strict sparsity pattern in parallel
        ! deltap%sparsity_id=-1
        IF(do_kp) THEN
           DO img=1,nimages
              CALL cp_dbcsr_copy(deltap(img)%matrix,matrix_p_kp(img)%matrix,&
-                                name="DeltaP",error=error)
+                                name="DeltaP")
           END DO
        ELSE
-          CALL cp_dbcsr_copy(deltap(1)%matrix,matrix_p,name="DeltaP",error=error)
+          CALL cp_dbcsr_copy(deltap(1)%matrix,matrix_p,name="DeltaP")
        END IF
     ELSE
        IF(do_kp) THEN
@@ -2412,7 +2370,7 @@ CONTAINS
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
        CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
-                                  natoms, nimages, scatter=.TRUE., error=error)
+                                  natoms, nimages, scatter=.TRUE.)
     ENDIF
 
     ! map all tasks on the grids
@@ -2452,7 +2410,7 @@ CONTAINS
 
           IF(ikind .NE. ikind_old ) THEN
              CALL get_qs_kind(qs_kind_set(ikind), softb = my_soft, &
-                  basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+                  basis_set=orb_basis_set, basis_type=my_basis_type)
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
                   lmax=la_max,&
@@ -2466,7 +2424,7 @@ CONTAINS
 
           IF (jkind .NE. jkind_old ) THEN
              CALL get_qs_kind(qs_kind_set(jkind), softb = my_soft, &
-                  basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+                  basis_set=orb_basis_set, basis_type=my_basis_type)
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
                   lmax=lb_max,&
@@ -2480,7 +2438,7 @@ CONTAINS
 
           CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
 
           iatom_old = iatom
           jatom_old = jatom
@@ -2564,7 +2522,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_DABpADB, &
                idir=idir, &
-               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask))
         ELSE
           rab_inv=-rab
           CALL collocate_pgf_product_rspace(&
@@ -2575,34 +2533,34 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_DABpADB, &
                idir=idir, &
-               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask))
         END IF
 
       END DO loop_tasks
 
-      CALL density_rs2pw_basic(pw_env,rs_rho,drho(idir),drho_gspace(idir),error=error)
+      CALL density_rs2pw_basic(pw_env,rs_rho,drho(idir),drho_gspace(idir))
 
     END DO loop_xyz
 
     !   *** Release work storage ***
     IF (ASSOCIATED(rs_rho)) THEN
       DO i=1, SIZE(rs_rho)
-        CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
+        CALL rs_grid_release(rs_rho(i)%rs_grid)
       END DO
     END IF
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_deallocate_matrix_set ( deltap ,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set ( deltap)
     ELSE
        DO img=1,nimages
           NULLIFY(deltap(img)%matrix)
        END DO
        DEALLOCATE (deltap,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -2622,7 +2580,6 @@ CONTAINS
 !> \param pw_env ...
 !> \param basis_type ...
 !> \param external_vector ...
-!> \param error ...
 !> \par History
 !>      08.2002 created [Joost VandeVondele]
 !>      03.2006 made independent of qs_env [Joost VandeVondele]
@@ -2636,7 +2593,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace, &
                    atomic_kind_set,qs_kind_set,cell,dft_control,particle_set, &
-                   pw_env, basis_type,external_vector,error)
+                   pw_env, basis_type,external_vector)
 
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
@@ -2652,7 +2609,6 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: basis_type
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: external_vector
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
       routineP = moduleN//':'//routineN
@@ -2703,7 +2659,7 @@ CONTAINS
        IF (stat.NE.0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvector",dp_size*nao)
        eigenvector=external_vector
     ELSE
-       CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao, error=error)
+       CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao)
        ALLOCATE (eigenvector(nao),STAT=stat)
        IF (stat.NE.0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvector",dp_size*nao)
        DO i=1,nao
@@ -2712,20 +2668,20 @@ CONTAINS
     ENDIF
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
     CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
-        cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
+        cube_info=cube_info, gridlevel_info=gridlevel_info)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                 use_data = COMPLEXDATA1D,&
-                in_space = RECIPROCALSPACE, error=error)
+                in_space = RECIPROCALSPACE)
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                 use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
+                in_space = REALSPACE)
 
     ! *** set up rs multi-grids
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -2736,7 +2692,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set,&
                          maxco=maxco,&
                          maxsgf_set=maxsgf_set,&
-                         basis_type=my_basis_type, error=error)
+                         basis_type=my_basis_type)
 
     ALLOCATE (pab(maxco,1),STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -2753,7 +2709,7 @@ CONTAINS
 
     DO iatom=1,natom
       ikind = particle_set(iatom)%atomic_kind%kind_number
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=my_basis_type)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              first_sgf=first_sgfa,&
                              lmax=la_max,&
@@ -2823,7 +2779,7 @@ CONTAINS
                  0,0.0_dp,0,&
                  ra,rab,rab2,scale,pab,na1-1,0,&
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-                 eps_rho_rspace,map_consistent=.TRUE.,ga_gb_function=FUNC_AB,error=error)
+                 eps_rho_rspace,map_consistent=.TRUE.,ga_gb_function=FUNC_AB)
 
          END DO
 
@@ -2835,19 +2791,18 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-            mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
-       CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
+            mgrid_rspace(igrid_level)%pw,rs2pw)
+       CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
     ENDDO
 
-    CALL pw_zero(rho_gspace%pw,error=error)
+    CALL pw_zero(rho_gspace%pw)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-           mgrid_gspace(igrid_level)%pw,error=error)
-      CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw,&
-           error=error)
+           mgrid_gspace(igrid_level)%pw)
+      CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
     END DO
 
-    CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
+    CALL pw_transfer(rho_gspace%pw,rho%pw)
 
     ! Release work storage
     DEALLOCATE (eigenvector,STAT=stat)
@@ -2860,8 +2815,8 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     ! give back the pw multi-grids
-    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
-    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace)
 
     CALL timestop(handle)
 
@@ -2898,7 +2853,6 @@ CONTAINS
 !> \param rsbuf ...
 !> \param use_subpatch ...
 !> \param subpatch_pattern ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
@@ -2909,7 +2863,7 @@ CONTAINS
                                           map_consistent,&
                                           collocate_rho0,&
                                           rpgf0_s,idir,ir,rsgauge,rsbuf,&
-                                          use_subpatch,subpatch_pattern,error)
+                                          use_subpatch,subpatch_pattern)
 
       INTEGER, INTENT(IN)                      :: la_max
       REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -2933,7 +2887,6 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER, OPTIONAL :: rsgauge,rsbuf
       LOGICAL, OPTIONAL                        :: use_subpatch
       INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
-      TYPE(cp_error_type), INTENT(INOUT)       :: error
 
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
         routineP = moduleN//':'//routineN
@@ -2976,7 +2929,7 @@ CONTAINS
     IF(PRESENT(use_subpatch)) THEN
        IF(use_subpatch)THEN
          subpatch_collocate = .TRUE.
-         CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,error,failure)
+         CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,failure)
        ENDIF
     ENDIF
 
@@ -3062,7 +3015,7 @@ CONTAINS
         o2_local=0
         pab_local=pab_local * 0.5_dp
     CASE(FUNC_ADBmDAB)
-        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,failure)
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -3094,7 +3047,7 @@ CONTAINS
         o1_local=0
         o2_local=0
     CASE(FUNC_DABpADB)
-        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,failure)
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -3217,8 +3170,8 @@ CONTAINS
         o1_local=0
         o2_local=0
     CASE(FUNC_ARDBmDARB)
-        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
-        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,failure)
+        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,failure)
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+2
@@ -3251,7 +3204,7 @@ CONTAINS
         o1_local=0
         o2_local=0
     CASE(FUNC_ARB)
-        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,failure)
         la_max_local=la_max
         la_min_local=la_min
         lb_max_local=lb_max+1
@@ -3286,7 +3239,7 @@ CONTAINS
         o1_local=o1
         o2_local=o2
     CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     ng(:) = rsgrid%desc%npts(:)
@@ -3490,7 +3443,7 @@ CONTAINS
         offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         ! check for out of bounds
         IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
         ENDIF
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset
@@ -3846,7 +3799,7 @@ CONTAINS
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
 
         periodic=1 ! cell%perd
-        CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
+        CALL poly_cp2k2d3(coef_xyz,lp,poly_d3)
         local_b(1,:)=rsgrid%lb_real-rsgrid%desc%lb
         local_b(2,:)=rsgrid%ub_real-rsgrid%desc%lb
         local_s=rsgrid%lb_real-rsgrid%lb_local
@@ -3863,12 +3816,11 @@ CONTAINS
           CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
-            lgrid=lgrid,error=error)
+            lgrid=lgrid)
         ELSE
           CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
-            periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
-            error=error)
+            periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s)
         END IF
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
 
@@ -3885,7 +3837,7 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: local_shift, rShifted
 
         periodic=1 ! cell%perd
-        CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
+        CALL poly_cp2k2d3(coef_xyz,lp,poly_d3)
         local_b(1,:)=0
         local_b(2,:)=MIN(rsgrid%desc%npts-1,rsgrid%ub_local-rsgrid%lb_local)
         local_shift=REAL(rsgrid%desc%lb-rsgrid%lb_local,dp)/REAL(rsgrid%desc%npts,dp)
@@ -3902,12 +3854,11 @@ CONTAINS
           CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rShifted,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,&
-            lgrid=lgrid,error=error)
+            lgrid=lgrid)
         ELSE
           CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rShifted,max_r2=radius*radius,&
-            periodic=periodic,gdim=ng,local_bounds=local_b,&
-            error=error)
+            periodic=periodic,gdim=ng,local_bounds=local_b)
         END IF
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
 
@@ -3927,7 +3878,7 @@ CONTAINS
 
 ! still hard-wired (see MODULO)
 
-      CPPostcondition(ALL(rsgrid % desc % perd==1),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ALL(rsgrid % desc % perd==1),cp_failure_level,routineP,failure)
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 

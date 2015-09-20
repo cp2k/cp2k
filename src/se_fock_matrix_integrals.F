@@ -54,12 +54,11 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date   04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block, pj_block,&
-       ecore, itype, anag, se_int_control, se_taper, store_int_env, error)
+       ecore, itype, anag, se_int_control, se_taper, store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksi_block, ksj_block
@@ -76,7 +75,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el', &
       routineP = moduleN//':'//routineN
@@ -88,8 +86,7 @@ CONTAINS
     failure = .FALSE.
     ! Compute integrals
     CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
-         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
-         error=error)
+         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !
@@ -142,12 +139,11 @@ CONTAINS
 !> \param se_taper ...
 !> \param force ...
 !> \param delta ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE dfock2_1el (sepi, sepj, rij, pi_block, pj_block, itype, anag,&
-       se_int_control, se_taper, force, delta, error)
+       se_int_control, se_taper, force, delta)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), &
@@ -163,7 +159,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), INTENT(IN)                :: delta
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dfock2_1el', &
       routineP = moduleN//':'//routineN
@@ -176,7 +171,7 @@ CONTAINS
     failure = .FALSE.
     ! Compute integrals
     CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
-         se_int_control=se_int_control, se_taper=se_taper, delta=delta, error=error)
+         se_int_control=se_int_control, se_taper=se_taper, delta=delta)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !
@@ -227,11 +222,10 @@ CONTAINS
 !> \param p_mat ...
 !> \param f_mat DIMENSION(sep%natorb, sep%natorb)
 !> \param factor ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE fock1_2el(sep, p_tot, p_mat, f_mat, factor, error)
+  SUBROUTINE fock1_2el(sep, p_tot, p_mat, f_mat, factor)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: p_tot
@@ -240,7 +234,6 @@ CONTAINS
       INTENT(IN)                             :: p_mat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock1_2el', &
       routineP = moduleN//':'//routineN
@@ -305,12 +298,11 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date 04.2009 [jgh]
 !> \author jgh - University of Zurich
 ! *****************************************************************************
   SUBROUTINE fock2_1el_ew (sep, rij, ks_block, p_block, ecore, itype, anag, &
-                           se_int_control, se_taper, store_int_env, error)
+                           se_int_control, se_taper, store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block
@@ -323,7 +315,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el_ew', &
       routineP = moduleN//':'//routineN
@@ -335,8 +326,7 @@ CONTAINS
     failure = .FALSE.
     ! Compute integrals
     CALL rotnuc (sep, sep, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
-         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
-         error=error)
+         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env)
     !
     ! Add the electron-nuclear attraction term for atom sep
     ! e1b == e2a
@@ -371,12 +361,11 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date 04.2009 [jgh]
 !> \author jgh - University of Zurich
 ! *****************************************************************************
   SUBROUTINE fock2C_ew(sep, rij, p_tot, f_mat, factor, anag, se_int_control, &
-                       se_taper, store_int_env, error)
+                       se_taper, store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), DIMENSION(45, 45), &
@@ -387,7 +376,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2C_ew', &
       routineP = moduleN//':'//routineN
@@ -401,7 +389,7 @@ CONTAINS
     failure = .FALSE.
     ! Evaluate integrals
     CALL rotint (sep,sep,rij,w,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,store_int_env=store_int_env, error=error)
+            se_taper=se_taper,store_int_env=store_int_env)
     kr = 0
     natorb = sep%natorb
     DO iL = 1, natorb
@@ -449,12 +437,11 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE fock2C(sepi, sepj, rij, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
-       factor, anag, se_int_control, se_taper, store_int_env, error)
+       factor, anag, se_int_control, se_taper, store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -469,7 +456,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2C', &
       routineP = moduleN//':'//routineN
@@ -484,11 +470,11 @@ CONTAINS
     ! Evaluate integrals
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,store_int_env=store_int_env, error=error)
+            se_taper=se_taper,store_int_env=store_int_env)
     ELSE
        irij = -rij
        CALL rotint (sepj,sepi,irij,w,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,store_int_env=store_int_env, error=error)
+            se_taper=se_taper,store_int_env=store_int_env)
     END IF
     kr = 0
     natorb(1) = sepi%natorb
@@ -548,12 +534,11 @@ CONTAINS
 !> \param se_taper ...
 !> \param force ...
 !> \param delta ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE dfock2C(sepi, sepj, rij, switch, pi_tot, pj_tot, factor, anag,&
-       se_int_control, se_taper, force, delta, error)
+       se_int_control, se_taper, force, delta)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -566,7 +551,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), INTENT(IN)                :: delta
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dfock2C', &
       routineP = moduleN//':'//routineN
@@ -582,11 +566,11 @@ CONTAINS
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,error=error)
+            se_taper=se_taper)
     ELSE
        irij = -rij
        CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,error=error)
+            se_taper=se_taper)
     END IF
 
     kr = 0
@@ -645,12 +629,11 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_mat, fi_mat, factor,&
-       anag, se_int_control, se_taper, store_int_env, error)
+       anag, se_int_control, se_taper, store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -664,7 +647,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2E', &
       routineP = moduleN//':'//routineN
@@ -679,11 +661,11 @@ CONTAINS
     ! Evaluate integrals
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,store_int_env=store_int_env, error=error)
+            se_taper=se_taper,store_int_env=store_int_env)
     ELSE
        irij = -rij
        CALL rotint (sepj,sepi,irij,w,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,store_int_env=store_int_env, error=error)
+            se_taper=se_taper,store_int_env=store_int_env)
     END IF
     kr = 0
     natorb(1) = sepi%natorb
@@ -737,12 +719,11 @@ CONTAINS
 !> \param se_taper ...
 !> \param force ...
 !> \param delta ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE dfock2E(sepi, sepj, rij, switch, isize,  pi_mat, factor, anag,&
-       se_int_control, se_taper, force, delta, error)
+       se_int_control, se_taper, force, delta)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -757,7 +738,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), INTENT(IN)                :: delta
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dfock2E', &
       routineP = moduleN//':'//routineN
@@ -774,11 +754,11 @@ CONTAINS
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,error=error)
+            se_taper=se_taper)
     ELSE
        irij = -rij
        CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            se_taper=se_taper,error=error)
+            se_taper=se_taper)
     END IF
 
     kr = 0
@@ -848,12 +828,11 @@ CONTAINS
 !> \param e2a ...
 !> \param ecore ...
 !> \param rp ...
-!> \param error ...
 !> \date   12.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2_1el_r3 (sepi, sepj, ksi_block, ksj_block, pi_block, pj_block,&
-       e1b, e2a, ecore, rp, error)
+       e1b, e2a, ecore, rp)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksi_block, ksj_block
     REAL(KIND=dp), &
@@ -866,7 +845,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(2), &
       INTENT(INOUT)                          :: ecore
     REAL(KIND=dp), INTENT(IN)                :: rp
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el_r3', &
       routineP = moduleN//':'//routineN
@@ -909,12 +887,10 @@ CONTAINS
 !> \param force ...
 !> \param e1b ...
 !> \param e2a ...
-!> \param error ...
 !> \date   12.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE dfock2_1el_r3 (sepi, sepj, drp, pi_block, pj_block, force, e1b, e2a,&
-       error)
+  SUBROUTINE dfock2_1el_r3 (sepi, sepj, drp, pi_block, pj_block, force, e1b, e2a)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: drp
     REAL(KIND=dp), &
@@ -926,7 +902,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: e1b, e2a
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dfock2_1el_r3', &
       routineP = moduleN//':'//routineN
@@ -976,12 +951,11 @@ CONTAINS
 !> \param factor ...
 !> \param w ...
 !> \param rp ...
-!> \param error ...
 !> \date   12.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2C_r3(sepi, sepj, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
-       factor, w, rp, error)
+       factor, w, rp)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(45, 45), &
@@ -993,7 +967,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     REAL(KIND=dp), DIMENSION(81), INTENT(IN) :: w
     REAL(KIND=dp), INTENT(IN)                :: rp
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2C_r3', &
       routineP = moduleN//':'//routineN
@@ -1055,12 +1028,11 @@ CONTAINS
 !> \param w ...
 !> \param drp ...
 !> \param force ...
-!> \param error ...
 !> \date   12.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2C_r3(sepi, sepj, switch, pi_tot, pj_tot, factor,  w, drp,&
-       force, error)
+       force)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(45, 45), &
@@ -1070,7 +1042,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: drp
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dfock2C_r3', &
       routineP = moduleN//':'//routineN
@@ -1151,14 +1122,13 @@ CONTAINS
 !> \param ptens31 ...
 !> \param ptens32 ...
 !> \param ptens33 ...
-!> \param error ...
 !> \date   05.2009 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE se_coulomb_ij_interaction (atom_a, atom_b, my_task, do_forces, do_efield,&
        do_stress, charges, dipoles, quadrupoles, force_ab, efield0, efield1, efield2, &
        rab2, rab, integral_value, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23,&
-       ptens31, ptens32, ptens33, error)
+       ptens31, ptens32, ptens33)
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     LOGICAL, DIMENSION(3)                    :: my_task
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
@@ -1176,7 +1146,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: ptens11, ptens12, ptens13, &
                                                 ptens21, ptens22, ptens23, &
                                                 ptens31, ptens32, ptens33
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction', &
       routineP = moduleN//':'//routineN

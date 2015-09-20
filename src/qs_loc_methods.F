@@ -133,8 +133,6 @@ CONTAINS
 !> \param weights ...
 !> \param ispin ...
 !> \param print_loc_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -144,8 +142,7 @@ CONTAINS
 !>       The file for the centers and the spreads have a xyz format
 ! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
-       zij_fm_set, para_env, cell, weights,  ispin, print_loc_section,&
-       error)
+       zij_fm_set, para_env, cell, weights,  ispin, print_loc_section)
 
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -159,7 +156,6 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: print_loc_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
       routineP = moduleN//':'//routineN
@@ -176,23 +172,23 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
-         extension=".locInfo",error=error)
+         extension=".locInfo")
 
     NULLIFY(opvec)
     ! get rows and cols of the input
-    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc,error=error)
+    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc)
     ! replicate the input kind of matrix
-    CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
+    CALL cp_fm_create(opvec,vectors%matrix_struct)
 
     ! Compute zij here
     DO i=1,SIZE ( zij_fm_set, 2 )
        DO j=1,SIZE ( zij_fm_set, 1 )
-          CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
-          CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
+          CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp)
+          CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc)
           CALL cp_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
-               zij_fm_set(j,i)%matrix,error=error)
+               zij_fm_set(j,i)%matrix)
        ENDDO
     ENDDO
 
@@ -205,17 +201,16 @@ CONTAINS
     target_time = qs_loc_env%target_time
     start_time = qs_loc_env%start_time
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
-         ispin, print_loc_section, only_initial_out=.TRUE., error=error )
+         ispin, print_loc_section, only_initial_out=.TRUE.)
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
         CALL jacobi_rotations ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
             eps_localization=eps_localization, sweeps=sweeps, &
-            out_each=out_each, target_time=target_time, start_time=start_time, error=error )
+            out_each=out_each, target_time=target_time, start_time=start_time)
     CASE ( do_loc_crazy )
        CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle = max_crazy_angle, &
             crazy_scale=crazy_scale, crazy_use_diag=crazy_use_diag, &
-            eps_localization=eps_localization, iterations= sweeps ,converged=converged,&
-            error=error)
+            eps_localization=eps_localization, iterations= sweeps ,converged=converged)
        ! Possibly fallback to jacobi if the crazy rotation fails
        IF ( .NOT.converged ) THEN
           IF (qs_loc_env%localized_wfn_control%jacobi_fallback) THEN
@@ -224,7 +219,7 @@ CONTAINS
                   " iterations, switching to jacobi rotations"
              CALL jacobi_rotations ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
                  eps_localization=eps_localization, sweeps=sweeps, &
-                 out_each=out_each, target_time=target_time, start_time=start_time, error=error )
+                 out_each=out_each, target_time=target_time, start_time=start_time)
           ELSE
              IF (output_unit>0) WRITE (output_unit,"(A,I6,A)")&
                   " Crazy Wannier localization not converged after ",sweeps,&
@@ -233,20 +228,20 @@ CONTAINS
        END IF
     CASE ( do_loc_direct )
        CALL direct_mini( weights, zij_fm_set, vectors, max_iter=max_iter,&
-            eps_localization=eps_localization, iterations=sweeps, error=error  )
+            eps_localization=eps_localization, iterations=sweeps)
     CASE( do_loc_l1_norm_sd )
        IF(.NOT. cell%orthorhombic ) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
                              "Non-orthorhombic cell with the selected method NYI")
        ELSE
-       CALL approx_l1_norm_sd(vectors,max_iter,eps_localization,converged,sweeps,error=error)
+       CALL approx_l1_norm_sd(vectors,max_iter,eps_localization,converged,sweeps)
        ! here we need to set zij for the computation of the centers and spreads
        DO i=1,SIZE ( zij_fm_set, 2 )
           DO j=1,SIZE ( zij_fm_set, 1 )
-             CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
-             CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
+             CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp)
+             CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc)
              CALL cp_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
-                  zij_fm_set(j,i)%matrix,error=error)
+                  zij_fm_set(j,i)%matrix)
           ENDDO
        ENDDO
        END IF
@@ -263,9 +258,9 @@ CONTAINS
     ENDIF
 
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
-         ispin, print_loc_section, error=error )
-    CALL cp_fm_release(opvec,error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
+         ispin, print_loc_section)
+    CALL cp_fm_release(opvec)
+    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 
@@ -280,13 +275,12 @@ CONTAINS
 !> \param zij_fm_set ...
 !> \param ispin ...
 !> \param print_loc_section ...
-!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  optimize_loc_pipek(qs_env, method, qs_loc_env, vectors, zij_fm_set,&
-       ispin, print_loc_section, error)
+       ispin, print_loc_section)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -295,7 +289,6 @@ CONTAINS
       POINTER                                :: zij_fm_set
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: print_loc_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
       routineP = moduleN//':'//routineN
@@ -318,73 +311,73 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
-         extension=".locInfo",error=error)
+         extension=".locInfo")
 
     NULLIFY(particle_set)
     ! get rows and cols of the input
-    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc,error=error)
+    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc)
     ! replicate the input kind of matrix
-    CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
-    CALL cp_fm_set_all(opvec, 0.0_dp, error=error)
+    CALL cp_fm_create(opvec,vectors%matrix_struct)
+    CALL cp_fm_set_all(opvec, 0.0_dp)
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
-                  particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
+                  particle_set=particle_set,qs_kind_set=qs_kind_set)
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (last_sgf(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (nsgf(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     !   construction of
     CALL get_particle_set(particle_set, qs_kind_set,&
-         first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf,error=error)
+         first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf)
 
     !   Copy the overlap sparse matrix in a full matrix
-    CALL mpools_get(qs_env%mpools,ao_ao_fm_pools=ao_ao_fm_pools,error=error)
-    CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, ov_fm, name=" ", error=error)
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,ov_fm,error=error)
+    CALL mpools_get(qs_env%mpools,ao_ao_fm_pools=ao_ao_fm_pools)
+    CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, ov_fm, name=" ")
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,ov_fm)
 
     !   Compute zij here
     DO iatom = 1, natom
-       CALL cp_fm_set_all(zij_fm_set(iatom,1)%matrix, 0.0_dp, error=error)
-       CALL cp_fm_get_info(zij_fm_set(iatom,1)%matrix,ncol_global=ldz,error=error)
+       CALL cp_fm_set_all(zij_fm_set(iatom,1)%matrix, 0.0_dp)
+       CALL cp_fm_get_info(zij_fm_set(iatom,1)%matrix,ncol_global=ldz)
        isgf = first_sgf(iatom)
        ncol = nsgf(iatom)
        ! multiply fmxfm, using only part of the ao : Ct x S
        CALL cp_gemm('N','N',nao,nmoloc,nao,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
-            b_first_col=1,a_first_row=1,b_first_row=1,error=error)
+            b_first_col=1,a_first_row=1,b_first_row=1)
        CALL cp_gemm('T','N',nmoloc,nmoloc,ncol,0.5_dp,vectors,opvec,&
             0.0_dp,zij_fm_set(iatom,1)%matrix,&
-            b_first_col=1,a_first_row=isgf,b_first_row=isgf,error=error)
+            b_first_col=1,a_first_row=isgf,b_first_row=isgf)
 
        CALL cp_gemm('N','N',nao,nmoloc,ncol,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
-            b_first_col=1,a_first_row=isgf,b_first_row=isgf,error=error)
+            b_first_col=1,a_first_row=isgf,b_first_row=isgf)
        CALL cp_gemm('T','N',nmoloc,nmoloc,nao,0.5_dp,vectors,opvec,&
             1.0_dp,zij_fm_set(iatom,1)%matrix,&
-            b_first_col=1,a_first_row=1,b_first_row=1,error=error)
+            b_first_col=1,a_first_row=1,b_first_row=1)
     END DO  ! iatom
 
     !   And now perform the optimization and rotate the orbitals
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
-       CALL jacobi_rotation_pipek(zij_fm_set, vectors, sweeps ,error=error)
+       CALL jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
     CASE ( do_loc_crazy )
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Crazy and Pipek not implemented.", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     CASE( do_loc_l1_norm_sd )
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="L1 norm and Pipek not implemented.", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     CASE ( do_loc_direct )
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Direct and Pipek not implemented.", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     CASE ( do_loc_none )
        IF (output_unit>0) WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
     CASE DEFAULT
@@ -395,13 +388,13 @@ CONTAINS
          " converged in ",sweeps," iterations"
 
     CALL centers_spreads_pipek( qs_loc_env, zij_fm_set, particle_set, ispin,&
-          print_loc_section, error=error )
+          print_loc_section)
 
     DEALLOCATE (first_sgf, last_sgf, nsgf, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
-    CALL cp_fm_release(opvec,error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
+    CALL cp_fm_release(opvec)
+    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 
@@ -417,13 +410,12 @@ CONTAINS
 !> \param ispin ...
 !> \param print_loc_section ...
 !> \param only_initial_out ...
-!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE centers_spreads_berry( qs_loc_env, zij, nmoloc, cell, weights, ispin,&
-       print_loc_section, only_initial_out, error)
+       print_loc_section, only_initial_out)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     INTEGER, INTENT(IN)                      :: nmoloc
@@ -432,7 +424,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: print_loc_section
     LOGICAL, INTENT(IN), OPTIONAL            :: only_initial_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
       routineP = moduleN//':'//routineN
@@ -452,24 +443,24 @@ CONTAINS
 
     NULLIFY(centers, logger, print_key)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     my_only_init=.FALSE.
     IF(PRESENT(only_initial_out)) my_only_init=only_initial_out
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
     output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
-         extension=".locInfo",error=error)
+         extension=".locInfo")
     unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
-         middle_name=file_tmp,extension=".data",error=error)
-    iter = cp_iter_string(logger%iter_info,error=error)
+         middle_name=file_tmp,extension=".data")
+    iter = cp_iter_string(logger%iter_info)
     IF(unit_out_s>0 .AND. .NOT. my_only_init) WRITE(unit_out_s,'(i6,/,A)') nmoloc, TRIM(iter)
 
-    CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
-    CPPrecondition(nstates>=nmoloc,cp_failure_level,routineP,error,failure)
+    CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates)
+    CPPrecondition(nstates>=nmoloc,cp_failure_level,routineP,failure)
 
     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-    CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(centers,2)==nmoloc,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(centers,2)==nmoloc,cp_failure_level,routineP,failure)
     sum_spread_i  = 0.0_dp
     sum_spread_ii  = 0.0_dp
     DO istate=1,nmoloc
@@ -502,8 +493,8 @@ CONTAINS
     ENDDO
 
     ! Print of wannier centers
-    print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS",error=error)
-    IF (.NOT. my_only_init)  CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
+    print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS")
+    IF (.NOT. my_only_init)  CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin)
 
     IF (output_unit>0) THEN
         WRITE(output_unit,'(T10, A, 2x, A26, A26)') " Spread Functional ","sum_in -w_i ln(|z_in|^2)",&
@@ -517,8 +508,8 @@ CONTAINS
 
     IF (unit_out_s>0 .AND. .NOT. my_only_init) WRITE (unit_out_s,'(A,2F16.10)') " Total ",  sum_spread_i, sum_spread_ii
 
-    CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS",error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS")
+    CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO")
 
   END SUBROUTINE centers_spreads_berry
 
@@ -530,12 +521,11 @@ CONTAINS
 !> \param particle_set ...
 !> \param ispin spin 1 or 2
 !> \param print_loc_section ...
-!> \param error ...
 !> \par History
 !>      05.2005 created [MI]
 ! *****************************************************************************
   SUBROUTINE centers_spreads_pipek(qs_loc_env,zij_fm_set,particle_set,ispin,&
-       print_loc_section,error)
+       print_loc_section)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -544,7 +534,6 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: print_loc_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
       routineP = moduleN//':'//routineN
@@ -563,27 +552,27 @@ CONTAINS
 
     NULLIFY(centers,logger, print_key)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate,error=error)
+    CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate)
     natom = SIZE(zij_fm_set,1)
 
     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-    CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(centers,2)==nstate,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(centers,2)==nstate,cp_failure_level,routineP,failure)
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
     unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
-         middle_name=file_tmp,extension=".data",log_filename=.FALSE.,error=error)
-    iter = cp_iter_string(logger%iter_info,error=error)
+         middle_name=file_tmp,extension=".data",log_filename=.FALSE.)
+    iter = cp_iter_string(logger%iter_info)
     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') TRIM(iter)
 
     ALLOCATE (atom_of_state(nstate),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     atom_of_state = 0
 
     ALLOCATE(diag(nstate,natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     diag = 0.0_dp
 
     DO iatom = 1,natom
@@ -593,7 +582,7 @@ CONTAINS
     END DO
 
     ALLOCATE (Qii(nstate),ziimax(nstate),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ziimax = 0.0_dp
     Qii    = 0.0_dp
 
@@ -616,13 +605,13 @@ CONTAINS
     END DO
 
     ! Print the wannier centers
-    print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS",error=error)
-    CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
+    print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS")
+    CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin)
 
-    CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS",error=error)
+    CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS")
 
     DEALLOCATE(Qii,ziimax,atom_of_state,diag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE centers_spreads_pipek
 
@@ -633,20 +622,18 @@ CONTAINS
 !> \param print_loc_section ...
 !> \param myspin ...
 !> \param ext_mo_coeff ...
-!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin,&
-       ext_mo_coeff,error)
+       ext_mo_coeff)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: print_loc_section
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: ext_mo_coeff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
@@ -689,10 +676,10 @@ CONTAINS
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
          localized_wfn_control=localized_wfn_control,&
          moloc_coeff=moloc_coeff,op_sm_set=op_sm_set, op_fm_set=op_fm_set,cell=cell,&
-         weights=weights, dim_op=dim_op, error=error)
+         weights=weights, dim_op=dim_op)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,&
-         para_env=para_env, mos=mos, error=error)
+         para_env=para_env, mos=mos)
 
     s_spin = 1
     l_spin = dft_control%nspins
@@ -711,51 +698,48 @@ CONTAINS
           nmosub = localized_wfn_control%nloc_states(ispin)
           IF (PRESENT(ext_mo_coeff)) THEN
              CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
-                  ncol_global=nmosub,para_env=para_env,context=ext_mo_coeff%matrix_struct%context,&
-                  error=error)
+                  ncol_global=nmosub,para_env=para_env,context=ext_mo_coeff%matrix_struct%context)
           ELSE
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
              CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
-                  ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,&
-                  error=error)
+                  ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
           END IF
           !
           ALLOCATE ( op_fm_set( 2, dim_op), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DO i = 1, dim_op
              DO j = 1, SIZE ( op_fm_set, 1 )
                 NULLIFY(op_fm_set(j,i)%matrix)
-                CALL cp_fm_create (op_fm_set(j,i)%matrix , tmp_fm_struct ,error=error)
-                CALL cp_fm_get_info(op_fm_set(j,i)%matrix, nrow_global=nmosub, &
-                     error=error)
-                CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-                CALL cp_fm_set_all(op_fm_set(j,i)%matrix,0.0_dp,error=error)
+                CALL cp_fm_create (op_fm_set(j,i)%matrix , tmp_fm_struct)
+                CALL cp_fm_get_info(op_fm_set(j,i)%matrix, nrow_global=nmosub)
+                CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,failure)
+                CALL cp_fm_set_all(op_fm_set(j,i)%matrix,0.0_dp)
              END DO
           END DO
-          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+          CALL cp_fm_struct_release(tmp_fm_struct)
 
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
-               op_fm_set, para_env, cell, weights, ispin, print_loc_section,  error=error)
+               op_fm_set, para_env, cell, weights, ispin, print_loc_section)
 
           ! Here we dealloctate op_fm_set
           IF(ASSOCIATED(op_fm_set)) THEN
              DO i=1,dim_op
                 DO j=1,SIZE ( op_fm_set,1)
-                   CALL cp_fm_release(op_fm_set(j,i)%matrix,error=error)
+                   CALL cp_fm_release(op_fm_set(j,i)%matrix)
                 END DO
              END DO
              DEALLOCATE(op_fm_set,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           END IF
 
        CASE(op_loc_boys)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Boys localization not implemented", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
 
        CASE(op_loc_pipek)
           CALL  optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin)%matrix,&
-               op_fm_set,  ispin, print_loc_section, error=error)
+               op_fm_set,  ispin, print_loc_section)
 
        END SELECT
 
@@ -769,7 +753,7 @@ CONTAINS
 
        IF(localized_wfn_control%set_of_states == state_loc_list) THEN
           ALLOCATE(vecbuffer(1,nao),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           nmosub = SIZE(localized_wfn_control%loc_states,1)
           imoloc = 0
           DO i = lb,ub
@@ -779,17 +763,17 @@ CONTAINS
              imo = localized_wfn_control%loc_states(i,ispin)
 
              CALL cp_fm_get_submatrix(moloc_coeff(ispin)%matrix,vecbuffer,1,imoloc,&
-                  nao,1,transpose=.TRUE.,error=error)
+                  nao,1,transpose=.TRUE.)
              IF (PRESENT(ext_mo_coeff)) THEN
                 CALL cp_fm_set_submatrix(ext_mo_coeff,vecbuffer,1,imo,&
-                     nao,1,transpose=.TRUE.,error=error)
+                     nao,1,transpose=.TRUE.)
              ELSE
                 CALL cp_fm_set_submatrix(mo_coeff,vecbuffer,1,imo,&
-                     nao,1,transpose=.TRUE.,error=error)
+                     nao,1,transpose=.TRUE.)
              END IF
           END DO
           DEALLOCATE(vecbuffer,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        ELSE
           nmosub = localized_wfn_control%nloc_states(ispin)
@@ -807,12 +791,12 @@ CONTAINS
 
          ! Provides boundaries of MOs
           CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LU_BOUNDS",&
-               i_vals=bounds,error=error)
+               i_vals=bounds)
           ncubes = bounds(2) - bounds(1)  + 1
           IF(ncubes > 0) THEN
              list_cubes_setup =.TRUE.
              ALLOCATE( list_cubes(ncubes),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
              DO ir = 1,ncubes
                 list_cubes(ir) = bounds(1) + (ir-1)
              END DO
@@ -820,12 +804,12 @@ CONTAINS
 
           ! Provides the list of MOs
           CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",&
-               n_rep_val=n_rep,error=error)
+               n_rep_val=n_rep)
           IF (.NOT.list_cubes_setup) THEN
              ncubes = 0
              DO ir = 1,n_rep
                 CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",&
-                     i_rep_val=ir,i_vals=list,error=error)
+                     i_rep_val=ir,i_vals=list)
                 IF(ASSOCIATED(list)) THEN
                    CALL reallocate(list_cubes,1,ncubes+ SIZE(list))
                    DO i = 1, SIZE(list)
@@ -843,7 +827,7 @@ CONTAINS
              ncubes = localized_wfn_control%nloc_states(1)
              IF(ncubes>0) THEN
                 ALLOCATE(list_cubes(ncubes),STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(istat==0,cp_failure_level,routineP,failure)
              END IF
              DO i = 1, ncubes
                 list_cubes(i) = i
@@ -853,7 +837,7 @@ CONTAINS
           ncubes = SIZE(list_cubes)
           ncubes = MIN(ncubes,nmo)
           ALLOCATE(centers(6,ncubes),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DO i = 1, ncubes
              istate = list_cubes(i)
              DO j = 1,localized_wfn_control%nloc_states(ispin)
@@ -866,8 +850,8 @@ CONTAINS
           END DO ! ncubes
 
           ! Real call for dumping the cube files
-          print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CUBES",error=error)
-          append_cube= section_get_lval(print_loc_section,"WANNIER_CUBES%APPEND",error=error)
+          print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CUBES")
+          append_cube= section_get_lval(print_loc_section,"WANNIER_CUBES%APPEND")
           my_pos = "REWIND"
           IF (append_cube) THEN
             my_pos = "APPEND"
@@ -875,12 +859,12 @@ CONTAINS
 
           CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,ncubes,list_cubes,centers,&
                print_key,"loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)),&
-               ispin=ispin,file_position=my_pos,error=error)
+               ispin=ispin,file_position=my_pos)
 
           DEALLOCATE(centers,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(list_cubes,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END IF
     END DO  ! ispin
     first_time = .FALSE.
@@ -900,7 +884,6 @@ CONTAINS
 !> \param idir ...
 !> \param state0 ...
 !> \param file_position ...
-!> \param error ...
 !> \par History
 !>      08.2005 created [MI]
 !> \author MI
@@ -908,7 +891,7 @@ CONTAINS
 !>      This routine shoul not be in this module
 ! *****************************************************************************
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
-       print_key,root,ispin,idir,state0,file_position,error)
+       print_key,root,ispin,idir,state0,file_position)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -921,7 +904,6 @@ CONTAINS
     INTEGER, OPTIONAL                        :: state0
     CHARACTER(LEN=default_string_length), &
       OPTIONAL                               :: file_position
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
       routineP = moduleN//':'//routineN
@@ -952,21 +934,21 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(auxbas_pw_pool, pw_env, logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,subsys=subsys,error=error)
-    CALL qs_subsys_get(subsys,particles=particles,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,subsys=subsys)
+    CALL qs_subsys_get(subsys,particles=particles)
 
 
 
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                            use_data = REALDATA3D,&
-                           in_space = REALSPACE, error=error)
+                           in_space = REALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                            use_data = COMPLEXDATA1D,&
-                           in_space = RECIPROCALSPACE, error=error)
+                           in_space = RECIPROCALSPACE)
 
     my_state0 = 0
     IF(PRESENT(state0)) my_state0 = state0
@@ -991,10 +973,10 @@ CONTAINS
     DO istate = 1, nstates
        ivector = state_list(istate) - my_state0
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,cell=cell,&
-            dft_control=dft_control,particle_set=particle_set,pw_env=pw_env,error=error)
+            dft_control=dft_control,particle_set=particle_set,pw_env=pw_env)
 
        CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
-                  qs_kind_set, cell, dft_control, particle_set, pw_env, error=error)
+                  qs_kind_set, cell, dft_control, particle_set, pw_env)
 
        ! Formatting the middle part of the name
        ivector = state_list(istate)
@@ -1012,7 +994,7 @@ CONTAINS
 
        ! Using the print_key tools to open the file with the proper name
        unit_out_c = cp_print_key_unit_nr(logger,print_key,"",middle_name=filename,&
-            extension=".cube",file_position=my_pos,log_filename=.FALSE.,error=error)
+            extension=".cube",file_position=my_pos,log_filename=.FALSE.)
        IF(SIZE(centers,1)==6) THEN
           WRITE(title,'(A7,I5.5,A1,I1.1,A1,6F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
@@ -1022,12 +1004,12 @@ CONTAINS
        END IF
        CALL cp_pw_to_cube(wf_r%pw,unit_out_c,title,&
             particles=particles,&
-            stride=section_get_ivals(print_key,"STRIDE",error=error),error=error)
-       CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"",error=error)
+            stride=section_get_ivals(print_key,"STRIDE"))
+       CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"")
     END DO
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)
     CALL timestop(handle)
   END SUBROUTINE qs_print_cubes
 
@@ -1038,16 +1020,13 @@ CONTAINS
 !> \param center ...
 !> \param logger ...
 !> \param ispin ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE print_wannier_centers(qs_loc_env, print_key, center, logger, ispin, error)
+  SUBROUTINE print_wannier_centers(qs_loc_env, print_key, center, logger, ispin)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: print_key
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_centers', &
       routineP = moduleN//':'//routineN
@@ -1061,35 +1040,35 @@ CONTAINS
     nstates = SIZE(center,2)
     my_form = "formatted"
     my_ext  = ".data"
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time,&
-         error=error),cp_p_file)) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time)&
+         ,cp_p_file)) THEN
        ! Find out if we want to print IONS+CENTERS or ONLY CENTERS..
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",&
-            error=error),cp_p_file)) THEN
-          CALL get_output_format(print_key,my_form=my_form,my_ext=my_ext,error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS")&
+            ,cp_p_file)) THEN
+          CALL get_output_format(print_key,my_form=my_form,my_ext=my_ext)
        END IF
        IF (first_time.OR.(.NOT.qs_loc_env%first_time)) THEN
           iunit=cp_print_key_unit_nr(logger,print_key,"",extension=my_ext,file_form=my_form,&
                middle_name=TRIM(qs_loc_env%tag_mo)//"_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-               log_filename=.FALSE.,on_file=.TRUE.,is_new_file=init_traj,error=error)
+               log_filename=.FALSE.,on_file=.TRUE.,is_new_file=init_traj)
           IF (iunit>0) THEN
              ! Gather units of measure for output (if available)
-             CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str,error=error)
-             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+             CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str)
+             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
-             IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS"),cp_p_file)) THEN
                 ! Different possible formats
-                CALL print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv, error)
+                CALL print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv)
              ELSE
                 ! Default print format
-                iter=cp_iter_string(logger%iter_info,error=error)
+                iter=cp_iter_string(logger%iter_info)
                 WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
                 DO l=1,nstates
                    WRITE(iunit,'(A,4F16.8)') "X", unit_conv*center(1:4,l)
                 END DO
              END IF
           END IF
-          CALL cp_print_key_finished_output(iunit,logger,print_key,on_file=.TRUE.,error=error)
+          CALL cp_print_key_finished_output(iunit,logger,print_key,on_file=.TRUE.)
        END IF
     END IF
   END SUBROUTINE print_wannier_centers
@@ -1102,17 +1081,14 @@ CONTAINS
 !> \param iunit ...
 !> \param init_traj ...
 !> \param unit_conv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv, error)
+  SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: print_key
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: init_traj
     REAL(KIND=dp), INTENT(IN)                :: unit_conv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_traj', &
       routineP = moduleN//':'//routineN
@@ -1128,10 +1104,10 @@ CONTAINS
       POINTER                                :: particle_set
 
     NULLIFY(particle_set, atomic_kind_set, atomic_kind, logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     natom = SIZE(qs_loc_env%particle_set)
     ntot =  natom + SIZE(center,2)
-    CALL allocate_particle_set(particle_set, ntot,error)
+    CALL allocate_particle_set(particle_set, ntot)
     ALLOCATE(atomic_kind_set(1))
     atomic_kind => atomic_kind_set(1)
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=0,&
@@ -1147,7 +1123,7 @@ CONTAINS
        particle_set(i)%r = pbc(center(1:3,i-natom),qs_loc_env%cell)
     END DO
     ! Dump the structure
-    CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,error=error)
+    CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat)
 
     ! Header file
     SELECT CASE (outformat)
@@ -1160,7 +1136,7 @@ CONTAINS
           !             levels.. this cannot be exactly reproduce with DCD.
           !             Just as a compromise let's pick-up the value of the MD iteration
           !             level. In any case this is not any sensible information for the standard..
-          iskip = section_get_ival(print_key,"EACH%MD",error=error)
+          iskip = section_get_ival(print_key,"EACH%MD")
           WRITE(iunit) "CORD",0,-1,iskip,&
                0,0,0,0,0,0,REAL(0,KIND=sp),1,0,0,0,0,0,0,0,0,24
           remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
@@ -1170,16 +1146,16 @@ CONTAINS
           CALL m_flush(iunit)
        END IF
     CASE (dump_xmol)
-       iter = cp_iter_string(logger%iter_info,error=error)
+       iter = cp_iter_string(logger%iter_info)
        WRITE (UNIT=title,FMT="(A)")" Particles+Wannier centers. Iteration:"//TRIM(iter)
     CASE DEFAULT
        title = ""
     END SELECT
     CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell,&
-         unit_conv=unit_conv, error=error)
+         unit_conv=unit_conv)
     CALL m_flush(iunit)
-    CALL deallocate_particle_set(particle_set,error)
-    CALL deallocate_atomic_kind_set(atomic_kind_set,error)
+    CALL deallocate_particle_set(particle_set)
+    CALL deallocate_atomic_kind_set(atomic_kind_set)
   END SUBROUTINE print_wannier_traj
 
 END MODULE qs_loc_methods

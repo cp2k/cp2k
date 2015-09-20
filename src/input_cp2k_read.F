@@ -44,17 +44,14 @@ CONTAINS
 !> \param file_path path where the input should be read
 !> \param initial_variables ...
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION read_input(input_declaration, file_path,initial_variables, para_env,error) RESULT(res)
+  FUNCTION read_input(input_declaration, file_path,initial_variables, para_env) RESULT(res)
     TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: file_path
     CHARACTER(len=*), DIMENSION(:, :)        :: initial_variables
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(section_vals_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_input', &
@@ -69,14 +66,14 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(res)
     NULLIFY(cpparser, default_units)
-    CALL section_vals_create(res,input_declaration, error=error)
+    CALL section_vals_create(res,input_declaration)
     CALL parser_create(cpparser,initial_variables=initial_variables,file_name=file_path, &
-         para_env=para_env, error=error)
-    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+         para_env=para_env)
+    CALL cp_unit_set_create(default_units, "OUTPUT")
     CALL section_vals_parse(res,cpparser,root_section=.FALSE.,&
-         default_units=default_units,error=error)
-    CALL cp_unit_set_release(default_units,error=error)
-    CALL parser_release(cpparser,error=error)
+         default_units=default_units)
+    CALL cp_unit_set_release(default_units)
+    CALL parser_release(cpparser)
     CALL timestop(handle)
   END FUNCTION read_input
 

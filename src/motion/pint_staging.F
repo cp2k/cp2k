@@ -39,16 +39,13 @@ CONTAINS
 !> \param staging_section ...
 !> \param p ...
 !> \param kT ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE staging_env_create(staging_env,staging_section,p,kT,error)
+  SUBROUTINE staging_env_create(staging_env,staging_section,p,kT)
     TYPE(staging_env_type), POINTER          :: staging_env
     TYPE(section_vals_type), POINTER         :: staging_section
     INTEGER, INTENT(in)                      :: p
     REAL(kind=dp), INTENT(in)                :: kT
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create', &
       routineP = moduleN//':'//routineN
@@ -58,17 +55,15 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
     ALLOCATE(staging_env,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
     last_staging_id=last_staging_id+1
     staging_env%id_nr=last_staging_id
     staging_env%ref_count=1
 
-    CALL section_vals_val_get(staging_section,"j",i_val=staging_env%j,&
-         error=error)
-    CALL section_vals_val_get(staging_section,"Q_end",i_val=staging_env%j,&
-         error=error)
+    CALL section_vals_val_get(staging_section,"j",i_val=staging_env%j)
+    CALL section_vals_val_get(staging_section,"Q_end",i_val=staging_env%j)
     staging_env%p=p
     staging_env%nseg=staging_env%p/staging_env%j
 
@@ -84,13 +79,10 @@ CONTAINS
 ! ***************************************************************************
 !> \brief releases the staging environment
 !> \param staging_env the staging_env to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE staging_release(staging_env,error)
+  SUBROUTINE staging_release(staging_env)
     TYPE(staging_env_type), POINTER          :: staging_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_release', &
       routineP = moduleN//':'//routineN
@@ -101,11 +93,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(staging_env)) THEN
-     CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
      staging_env%ref_count=staging_env%ref_count-1
      IF (staging_env%ref_count==0) THEN
         DEALLOCATE(staging_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
      END IF
     END IF
     NULLIFY(staging_env)
@@ -115,13 +107,10 @@ CONTAINS
 ! ***************************************************************************
 !> \brief retains a staging_env
 !> \param staging_env the staging_env to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE staging_retain(staging_env,error)
+  SUBROUTINE staging_retain(staging_env)
     TYPE(staging_env_type), POINTER          :: staging_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_retain', &
       routineP = moduleN//':'//routineN
@@ -130,8 +119,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
+    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
     staging_env%ref_count=staging_env%ref_count+1
     RETURN
   END SUBROUTINE staging_retain
@@ -144,21 +133,18 @@ CONTAINS
 !> \param mass_beads masses of the beads
 !> \param mass_fict the fictitious masses
 !> \param Q masses of the nose thermostats
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
-     Q,error)
+     Q)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:), INTENT(in)  :: mass
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out), OPTIONAL                  :: mass_beads, mass_fict
     REAL(kind=dp), DIMENSION(:), &
       INTENT(out), OPTIONAL                  :: Q
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses', &
       routineP = moduleN//':'//routineN
@@ -178,7 +164,7 @@ CONTAINS
     IF (PRESENT(mass_beads).OR.PRESENT(mass_fict)) THEN
 
        ALLOCATE(scal(staging_env%p),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
        DO iseg=1,staging_env%nseg
           DO i=1,staging_env%j ! check order!!!
              scal(staging_env%j*(iseg-1)+i)=REAL(i,dp)/REAL(MAX(1,i-1),dp)
@@ -214,17 +200,14 @@ CONTAINS
 !> \param staging_env the environment for the staging transformation
 !> \param ux will contain the u variable
 !> \param x the positions to transform
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE staging_x2u(staging_env,ux,x,error)
+  SUBROUTINE staging_x2u(staging_env,ux,x)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: x
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_x2u', &
       routineP = moduleN//':'//routineN
@@ -234,8 +217,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
+    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
     ux=x
     DO s=0,staging_env%nseg-1
        DO k=2,staging_env%j
@@ -254,17 +237,14 @@ CONTAINS
 !> \param staging_env the environment for the staging transformation
 !> \param ux the u variable (positions to be backtransformed)
 !> \param x will contain the positions
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE staging_u2x(staging_env,ux,x,error)
+  SUBROUTINE staging_u2x(staging_env,ux,x)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: x
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_u2x', &
       routineP = moduleN//':'//routineN
@@ -276,13 +256,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
+    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
     j=staging_env%j
     const=REAL(j-1,dp)/REAL(j,dp)
     const2=1._dp/REAL(j,dp)
     ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
     DO i=1,staging_env%nseg
        iii(i)=staging_env%j*(i-1)+1 !first el
     END DO
@@ -311,17 +291,14 @@ CONTAINS
 !> \param staging_env the environment for the staging transformation
 !> \param uf will contain the forces after for the transformed variable
 !> \param f the forces to transform
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE staging_f2uf(staging_env,uf,f,error)
+  SUBROUTINE staging_f2uf(staging_env,uf,f)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: uf
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: f
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_f2uf', &
       routineP = moduleN//':'//routineN
@@ -333,12 +310,12 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
+    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
     const=REAL(staging_env%j-1,dp)/REAL(staging_env%j,dp)
     ALLOCATE(iii(staging_env%j),jjj(staging_env%j),&
          kkk(staging_env%j),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
     DO ist=1,staging_env%j-1
        iii(ist)=(ist-1)*staging_env%j+1 ! first el
        jjj(ist)=iii(ist)+staging_env%j-1 ! last el
@@ -375,15 +352,12 @@ CONTAINS
 !> \param ux the positions of the beads in the staging basis
 !> \param uf_h the harmonic forces (not accelerations)
 !> \param e_h ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE staging_calc_uf_h(staging_env,mass_beads,ux,uf_h,e_h,error)
+  SUBROUTINE staging_calc_uf_h(staging_env,mass_beads,ux,uf_h,e_h)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: mass_beads, ux, uf_h
     REAL(KIND=dp), INTENT(OUT)               :: e_h
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_calc_uf_h', &
       routineP = moduleN//':'//routineN
@@ -400,7 +374,7 @@ CONTAINS
 
     ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),&
          kkk(staging_env%nseg),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
     DO ist=1,staging_env%nseg
        iii(ist)=(ist-1)*staging_env%j+1 ! first el

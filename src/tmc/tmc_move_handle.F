@@ -67,14 +67,11 @@ CONTAINS
 !> \brief initialization of the different moves, with sizes and probabilities
 !> \param tmc_params ...
 !> \param tmc_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE read_init_move_types(tmc_params, tmc_section, error)
+  SUBROUTINE read_init_move_types(tmc_params, tmc_section)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(section_vals_type), POINTER         :: tmc_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_init_move_types', &
       routineP = moduleN//':'//routineN
@@ -103,53 +100,52 @@ CONTAINS
     init_acc_prob   = 0.0_dp
 
     ! the move types on exact potential
-    move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE",error=error)
-    CALL section_vals_get(move_type_section, explicit=explicit, error=error)
+    move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE")
+    CALL section_vals_get(move_type_section, explicit=explicit)
     IF(explicit) THEN
-      CALL section_vals_get(move_type_section,n_repetition=n_items,error=error)
+      CALL section_vals_get(move_type_section,n_repetition=n_items)
       mv_prob_sum = 0.0_dp
       DO i_rep = 1, n_items
         CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
-                                  r_val=mv_prob,error=error)
+                                  r_val=mv_prob)
         mv_prob_sum = mv_prob_sum + mv_prob
       END DO
     END IF
 
     ! get the NMC prameters
-    nmc_section => section_vals_get_subs_vals(tmc_section,"NMC_MOVES",error=error)
-    CALL section_vals_get(nmc_section, explicit=explicit, error=error)
+    nmc_section => section_vals_get_subs_vals(tmc_section,"NMC_MOVES")
+    CALL section_vals_get(nmc_section, explicit=explicit)
     IF(explicit) THEN
       ! check the approx potential file, already read
       CALL cp_assert(tmc_params%NMC_inp_file.NE."",&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid approximate potential.",&
-                     error, failure=flag, only_ionode=.TRUE.)
+                     failure=flag, only_ionode=.TRUE.)
 
       CALL section_vals_val_get(nmc_section,"NR_NMC_STEPS",&
-                                i_val=nmc_steps,error=error)
+                                i_val=nmc_steps)
       CALL cp_assert(nmc_steps.GT.0,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     error, failure=flag, only_ionode=.TRUE.)
+                     failure=flag, only_ionode=.TRUE.)
 
-      CALL section_vals_val_get(nmc_section,"PROB", r_val=nmc_prob,error=error)
+      CALL section_vals_val_get(nmc_section,"PROB", r_val=nmc_prob)
 
       CALL section_vals_val_get(move_type_section,"INIT_ACC_PROB",&
-                                r_val=nmc_init_acc_prob,error=error)
+                                r_val=nmc_init_acc_prob)
       CALL cp_assert(nmc_init_acc_prob.GT.0.0_dp,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please select a valid initial acceptance probability (>0.0) "//&
-                     "for INIT_ACC_PROB",&
-                     error)
+                     "for INIT_ACC_PROB")
 
-      move_type_section => section_vals_get_subs_vals(nmc_section,"MOVE_TYPE",error=error)
-      CALL section_vals_get(move_type_section,n_repetition=n_NMC_items,error=error)
+      move_type_section => section_vals_get_subs_vals(nmc_section,"MOVE_TYPE")
+      CALL section_vals_get(move_type_section,n_repetition=n_NMC_items)
 
       ! get the NMC move probability sum
       nmc_prob_sum = 0.0_dp
       DO i_rep = 1, n_NMC_items
         CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
-                                  r_val=mv_prob,error=error)
+                                  r_val=mv_prob)
         nmc_prob_sum = nmc_prob_sum + mv_prob
       END DO
     END IF
@@ -160,12 +156,12 @@ CONTAINS
 
     IF(n_items+n_NMC_items.GT.0) THEN
       ! initilaize the move array with related sizes, probs, etc.
-      CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp, error)
+      CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
       CALL cp_assert(mv_prob_sum.GT.0.0,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "The probabilities to perform the moves are "//&
-                     "in total less equal 0", error)
+                     "in total less equal 0")
 
       
       ! get the sizes, probs, etc. for each move type and convert units
@@ -180,40 +176,37 @@ CONTAINS
             tmc_params%move_types%mv_size(mv_type_NMC_moves,:) = nmc_steps
             tmc_params%move_types%acc_prob(mv_type_NMC_moves,:) = nmc_init_acc_prob
           
-            move_type_section => section_vals_get_subs_vals(tmc_section,"NMC_MOVES%MOVE_TYPE",error=error)
+            move_type_section => section_vals_get_subs_vals(tmc_section,"NMC_MOVES%MOVE_TYPE")
             mv_prob_sum = nmc_prob_sum
             ! allocate the NMC move types
-            CALL move_types_create(tmc_params%nmc_move_types, tmc_params%nr_temp, error)
+            CALL move_types_create(tmc_params%nmc_move_types, tmc_params%nr_temp)
             move_types => tmc_params%nmc_move_types
           END IF
         ELSE
           ! the moves on exact potential
-          move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE",error=error)
+          move_type_section => section_vals_get_subs_vals(tmc_section,"MOVE_TYPE")
           i_rep = i_tmp
           move_types => tmc_params%move_types
         END IF
 
         CALL section_vals_val_get(move_type_section, "_SECTION_PARAMETERS_",&
-                                  c_val=inp_kind_name, i_rep_section=i_rep, &
-                                  error=error)
+                                  c_val=inp_kind_name, i_rep_section=i_rep)
         CALL uppercase(inp_kind_name)
         CALL section_vals_val_get(move_type_section,"SIZE",i_rep_section=i_rep,&
-                                  r_val=delta_x,error=error)
+                                  r_val=delta_x)
         ! move sizes are checked afterwards, because not all moves require a valid move size
         CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
-                                  r_val=mv_prob,error=error)
+                                  r_val=mv_prob)
         CALL cp_assert(mv_prob.GE.0.0_dp,&
                       cp_failure_level,cp_assertion_failed,routineP,&
                       "Please select a valid move probability (>0.0) "//&
-                      "for the move type "//inp_kind_name,&
-                      error)
+                      "for the move type "//inp_kind_name)
         CALL section_vals_val_get(move_type_section,"INIT_ACC_PROB",i_rep_section=i_rep,&
-                                  r_val=init_acc_prob,error=error)
+                                  r_val=init_acc_prob)
         CALL cp_assert(init_acc_prob.GE.0.0_dp,&
                       cp_failure_level,cp_assertion_failed,routineP,&
                       "Please select a valid initial acceptance probability (>0.0) "//&
-                      "for the move type "//inp_kind_name,&
-                      error)
+                      "for the move type "//inp_kind_name)
         ! set the related index and perform unit conversion of move sizes
         SELECT CASE(inp_kind_name)
         ! atom / molecule translation
@@ -226,8 +219,7 @@ CONTAINS
           CASE DEFAULT
             CALL cp_assert(.FALSE.,&
                       cp_failure_level,cp_assertion_failed,routineP,&
-                      "move type is not defined in the translation types",&
-                      error)
+                      "move type is not defined in the translation types")
           END SELECT
           ! convert units
           SELECT CASE(tmc_params%task_type)
@@ -238,8 +230,7 @@ CONTAINS
           CASE DEFAULT
             CALL cp_assert(.FALSE.,&
                    cp_failure_level,cp_assertion_failed,routineP,&
-                   "move type atom / mol trans is not defined for this TMC run type",&
-                   error)
+                   "move type atom / mol trans is not defined for this TMC run type")
           END SELECT
         ! molecule rotation
         CASE("MOL_ROT")
@@ -251,8 +242,7 @@ CONTAINS
           CASE DEFAULT
             CALL cp_assert(.FALSE.,&
                    cp_failure_level,cp_assertion_failed,routineP,&
-                   "move type MOL_ROT is not defined for this TMC run type",&
-                    error)
+                   "move type MOL_ROT is not defined for this TMC run type")
           END SELECT
         ! proton reordering
         CASE("PROT_REORDER")
@@ -275,8 +265,7 @@ CONTAINS
             CALL cp_assert(.FALSE.,&
                    cp_warning_level,cp_assertion_failed,routineP,&
                    "Configurational swap disabled, because "//&
-                   "Parallel Tempering requires more than one temperature.",&
-                   error)
+                   "Parallel Tempering requires more than one temperature.")
            END IF
         ! volume moves
         CASE("VOL_MOVE")
@@ -289,8 +278,7 @@ CONTAINS
             CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  "no valid pressure defined, but volume move defined. "//&
-                 "Consequently, the volume move is disabled.",&
-                 error)
+                 "Consequently, the volume move is disabled.")
             mv_prob = 0.0_dp
           END IF
         ! parallel tempering swap move
@@ -300,18 +288,16 @@ CONTAINS
           delta_x = 0.0_dp
           ! select the types of atoms swapped
           CALL section_vals_val_get(move_type_section,"ATOMS",i_rep_section=i_rep,&
-                 n_rep_val=n_rep_val, error=error)
+                 n_rep_val=n_rep_val)
           IF(n_rep_val.GT.0) THEN
             ALLOCATE(move_types%atom_lists(n_rep_val))
             DO i= 1, n_rep_val
               CALL section_vals_val_get(move_type_section,"ATOMS",&
                      i_rep_section=i_rep, i_rep_val=i, &
-                     c_vals=move_types%atom_lists(i)%atoms, &
-                     error=error)
+                     c_vals=move_types%atom_lists(i)%atoms)
               CALL cp_assert(SIZE(move_types%atom_lists(i)%atoms).GT.1,&
                       cp_failure_level,cp_assertion_failed,routineP,&
-                      "ATOM_SWAP requires minimum two atom kinds selected. ",&
-                      error)
+                      "ATOM_SWAP requires minimum two atom kinds selected. ")
             END DO
           END IF
         ! gaussian adaptation
@@ -321,21 +307,18 @@ CONTAINS
         CASE DEFAULT
           CALL cp_assert(.FALSE.,&
                       cp_failure_level,cp_assertion_failed,routineP,&
-                      "A unknown move type is selected: "//inp_kind_name,&
-                      error)
+                      "A unknown move type is selected: "//inp_kind_name)
         END SELECT
         ! check for valid move sizes
         CALL cp_assert(delta_x.GE.0.0_dp,&
                       cp_failure_level,cp_assertion_failed,routineP,&
                       "Please select a valid move size (>0.0) "//&
-                      "for the move type "//inp_kind_name,&
-                      error)
+                      "for the move type "//inp_kind_name)
         ! check if not already set
         IF(move_types%mv_weight(ind).GT.0.0) THEN
           CALL cp_assert(.FALSE.,&
                          cp_failure_level,cp_assertion_failed,routineP,&
-                         "TMC: Each move type can be set only once. ",&
-                         error)
+                         "TMC: Each move type can be set only once. ")
         END IF
 
         ! set the move size
@@ -348,15 +331,14 @@ CONTAINS
     ELSE
       CALL cp_assert(.FALSE.,&
                      cp_failure_level,cp_assertion_failed,routineP,&
-                     "No move type selected, please select at least one.", &
-                     error)
+                     "No move type selected, please select at least one.")
     END IF
     mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
     flag = .TRUE.
-    CPPostcondition(ABS(mv_prob_sum-1.0_dp).LT.0.01_dp,cp_failure_level,routineP,error,failure=flag)
+    CPPostcondition(ABS(mv_prob_sum-1.0_dp).LT.0.01_dp,cp_failure_level,routineP,failure=flag)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) THEN
       mv_prob_sum = SUM(tmc_params%nmc_move_types%mv_weight(:))
-      CPPostcondition(ABS(mv_prob_sum-1.0_dp)<10*EPSILON(1.0_dp),cp_failure_level,routineP,error,failure=flag)
+      CPPostcondition(ABS(mv_prob_sum-1.0_dp)<10*EPSILON(1.0_dp),cp_failure_level,routineP,failure=flag)
     END IF
   END SUBROUTINE read_init_move_types
 
@@ -365,15 +347,12 @@ CONTAINS
 !> \param tmc_params ...
 !> \param move_types ...
 !> \param mol_array ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE check_moves(tmc_params, move_types, mol_array, error)
+  SUBROUTINE check_moves(tmc_params, move_types, mol_array)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(tmc_move_type), POINTER             :: move_types
     INTEGER, DIMENSION(:), POINTER           :: mol_array
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_moves', &
       routineP = moduleN//':'//routineN
@@ -381,8 +360,8 @@ CONTAINS
     INTEGER                                  :: atom_j, list_i, ref_k
     LOGICAL                                  :: found
 
-    CPPreconditionNoFail(ASSOCIATED(tmc_params),cp_failure_level,routineP,error)
-    CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(ASSOCIATED(tmc_params),cp_failure_level,routineP)
+    CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP)
 
     ! molecule moves need molecule info
     IF(move_types%mv_weight(mv_type_mol_trans).GT.0.0_dp .OR. &
@@ -394,8 +373,7 @@ CONTAINS
                        cp_failure_level,cp_assertion_failed,&
                        routineP, "molecule move: there is no molecule "//&
                        "information available. Please specify molecules when "//&
-                       "using molecule moves.", &
-                       error)
+                       "using molecule moves.")
     END IF
 
     ! for the atom swap move
@@ -416,15 +394,14 @@ CONTAINS
             CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
                            routineP, "ATOM_SWAP: The selected atom type ("//&
                            TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
-                           ") is not contained in the system. ",&
-                           error)
+                           ") is not contained in the system. ")
             ! check if not be swapped with the same atom type
             IF(ANY(move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
                    move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
               CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
                      routineP, "ATOM_SWAP can not swap two atoms of same kind ("//&
                      TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
-                     ")", error)
+                     ")")
             END IF
           END DO
         END DO
@@ -441,7 +418,7 @@ CONTAINS
         END IF
         CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
                routineP, "The system contains only a single atom type,"//&
-                         " atom_swap is not possible.", error)
+                         " atom_swap is not possible.")
       END IF
     END IF
   END SUBROUTINE check_moves
@@ -449,14 +426,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocating the module variables
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 !> \note deallocating the module variables
 ! *****************************************************************************
-  SUBROUTINE finalize_mv_types(tmc_params, error)
+  SUBROUTINE finalize_mv_types(tmc_params)
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_mv_types', &
       routineP = moduleN//':'//routineN
@@ -464,10 +438,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CALL move_types_release(tmc_params%move_types, error)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CALL move_types_release(tmc_params%move_types)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) &
-      CALL move_types_release(tmc_params%nmc_move_types, error)
+      CALL move_types_release(tmc_params%nmc_move_types)
   END SUBROUTINE finalize_mv_types
 
 ! *****************************************************************************
@@ -479,15 +453,12 @@ CONTAINS
 !> \param init ...
 !> \param file_io ...
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE print_move_types(init, file_io, tmc_params, error)
+  SUBROUTINE print_move_types(init, file_io, tmc_params)
     LOGICAL                                  :: init
     INTEGER                                  :: file_io
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_move_types', &
       routineP = moduleN//':'//routineN
@@ -511,8 +482,8 @@ CONTAINS
     subbox_out = .FALSE.
     type_title = .FALSE.
     failure    = .FALSE.
-    CPPrecondition(file_io.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,error,failure)
+    CPPrecondition(file_io.GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,failure)
 
     FLUSH(file_io)
 
@@ -673,8 +644,7 @@ CONTAINS
                 CASE(mv_type_MD)
 CALL cp_assert(.FALSE.,&
 cp_warning_level,cp_assertion_failed,routineP,&
-"md_time_step and nr md_steps not implemented...",&
-error)
+"md_time_step and nr md_steps not implemented...")
 !                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "HybridMC"
 !                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "s.above"
 !                   IF(init) THEN
@@ -744,8 +714,7 @@ error)
                 CASE DEFAULT
                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                                   "unknown move type "//cp_to_string(typ)//" with weight"//&
-                                  cp_to_string(move_types%mv_weight(typ)),&
-                                  error)
+                                  cp_to_string(move_types%mv_weight(typ)))
                 END SELECT
              END IF
           END IF
@@ -771,18 +740,15 @@ error)
 !> \param acc input if the element is accepted
 !> \param subbox logical if move was with respect to the sub box
 !> \param prob_opt if the average probability should be adapted
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE prob_update(move_types, pt_el, elem, acc, subbox, prob_opt, error)
+  SUBROUTINE prob_update(move_types, pt_el, elem, acc, subbox, prob_opt)
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(global_tree_type), OPTIONAL, &
       POINTER                                :: pt_el
     TYPE(tree_type), OPTIONAL, POINTER       :: elem
     LOGICAL, INTENT(IN), OPTIONAL            :: acc, subbox
     LOGICAL, INTENT(IN)                      :: prob_opt
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'prob_update', &
       routineP = moduleN//':'//routineN
@@ -793,8 +759,8 @@ error)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -807,7 +773,7 @@ error)
     change_sb_type = 0
     ! updating probability of the trajectory 
     IF(PRESENT(pt_el)) THEN
-      CPPrecondition(ASSOCIATED(pt_el),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(pt_el),cp_failure_level,routineP,failure)
       conf_moved = pt_el%mv_conf
       SELECT CASE(pt_el%stat)
       CASE(status_accepted_result)
@@ -827,18 +793,17 @@ error)
       CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
               routineP,"global elem"//cp_to_string(pt_el%nr)//&
-              "has unknown status"//cp_to_string(pt_el%stat),&
-              error)
+              "has unknown status"//cp_to_string(pt_el%stat))
       END SELECT
     END IF 
 
     IF(PRESENT(elem)) THEN
-      CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
       !conf_moved = elem%sub_tree_nr
       conf_moved = elem%temp_created
       mv_type = elem%move_type
       ! for NMC prob update the acceptance is needed
-      CPPrecondition(PRESENT(acc),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(acc),cp_failure_level,routineP,failure)
       IF(PRESENT(subbox)) THEN
         ! only update subbox acceptance
         IF(acc) &
@@ -890,18 +855,15 @@ error)
 !> \param acc_counter counters of acceptance for these moves
 !> \param subbox_counter same for sub box moves
 !> \param subbox_acc_counter same for sub box moves
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE add_mv_prob(move_types, prob_opt, mv_counter, acc_counter, &
-                         subbox_counter, subbox_acc_counter, error)
+                         subbox_counter, subbox_acc_counter)
     TYPE(tmc_move_type), POINTER             :: move_types
     LOGICAL                                  :: prob_opt
     INTEGER, DIMENSION(:, :), OPTIONAL       :: mv_counter, acc_counter, &
                                                 subbox_counter, &
                                                 subbox_acc_counter
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_mv_prob', &
       routineP = moduleN//':'//routineN
@@ -909,11 +871,11 @@ error)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CPPrecondition(PRESENT(mv_counter).OR.PRESENT(subbox_counter),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPPrecondition(PRESENT(mv_counter).OR.PRESENT(subbox_counter),cp_failure_level,routineP,failure)
  
     IF(PRESENT(mv_counter)) THEN
-       CPPrecondition(PRESENT(acc_counter),cp_failure_level,routineP,error,failure)
+       CPPrecondition(PRESENT(acc_counter),cp_failure_level,routineP,failure)
        move_types%mv_count(:,:) = move_types%mv_count(:,:) + mv_counter(:,:)
        move_types%acc_count(:,:)= move_types%acc_count(:,:) + acc_counter(:,:) 
        IF(prob_opt) THEN
@@ -923,7 +885,7 @@ error)
     END IF
  
     IF(PRESENT(subbox_counter)) THEN
-       CPPrecondition(PRESENT(subbox_acc_counter),cp_failure_level,routineP,error,failure)
+       CPPrecondition(PRESENT(subbox_acc_counter),cp_failure_level,routineP,failure)
        move_types%subbox_count(:,:)     = move_types%subbox_count(:,:) + subbox_counter(:,:)
        move_types%subbox_acc_count(:,:) = move_types%subbox_acc_count(:,:) + subbox_acc_counter(:,:)
     END IF
@@ -933,20 +895,17 @@ error)
 !> \brief clear the statistics of accepting/rejection moves
 !>        because worker statistics will be add seperatelly on masters counters
 !> \param move_types counters for acceptance/rejection
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE clear_move_probs(move_types, error)
+  SUBROUTINE clear_move_probs(move_types)
     TYPE(tmc_move_type), POINTER             :: move_types
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'clear_move_probs', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
 
     move_types%acc_prob(:,:) = 0.5_dp
     move_types%acc_count(:,:) = 0
@@ -959,17 +918,14 @@ error)
 !> \brief selects a move type related to the weighings and the entered rnd nr
 !> \param move_types structure for storing sizes and probabilities of moves
 !> \param rnd random number
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval mv_type (result) move type
 !> \author Mandes 12.2012
 !> \note function returns a possible move type without the PT swap moves 
 !> \note (are selected in global tree, this routine is for sub tree elements)
 ! *****************************************************************************
-  FUNCTION select_random_move_type(move_types, rnd, error) RESULT(mv_type)
+  FUNCTION select_random_move_type(move_types, rnd) RESULT(mv_type)
     TYPE(tmc_move_type), POINTER             :: move_types
     REAL(KIND=dp)                            :: rnd
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: mv_type
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'select_random_move_type', &
@@ -980,8 +936,8 @@ error)
     REAL(KIND=dp)                            :: rnd_mv, total_moves
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rnd.GE.0.0_dp.AND.rnd.LT.1.0_dp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPPrecondition(rnd.GE.0.0_dp.AND.rnd.LT.1.0_dp,cp_failure_level,routineP,failure)
 
     CALL timeset(routineN,handle)
 

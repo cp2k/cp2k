@@ -71,11 +71,10 @@ CONTAINS
 !> \param mass_weighted ...
 !> \param natoms ...
 !> \param rot_dof ...
-!> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE rot_ana(particles, mat, dof, print_section, keep_rotations, mass_weighted,&
-                     natoms, rot_dof, error)
+                     natoms, rot_dof)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -85,7 +84,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: keep_rotations, mass_weighted
     INTEGER, INTENT(IN)                      :: natoms
     INTEGER, INTENT(OUT), OPTIONAL           :: rot_dof
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
       routineP = moduleN//':'//routineN
@@ -101,12 +99,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     failure = .FALSE.
     present_mat = PRESENT(mat)
-    CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,failure)
     IF (present_mat) THEN
-       CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,error,failure)
+       CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,failure)
     END IF
     IF (.NOT.keep_rotations) THEN
        rcom  = 0.0_dp
@@ -115,11 +113,11 @@ CONTAINS
        DO iparticle = 1, natoms
           mass = 1.0_dp
           IF (mass_weighted) mass = particles(iparticle)%atomic_kind%mass
-          CPPostcondition(mass>=0.0_dp,cp_failure_level,routineP,error,failure)
+          CPPostcondition(mass>=0.0_dp,cp_failure_level,routineP,failure)
           masst = masst + mass
           rcom =  particles(iparticle)%r * mass + rcom
        END DO
-       CPPostcondition(masst>0.0_dp,cp_failure_level,routineP,error,failure)
+       CPPostcondition(masst>0.0_dp,cp_failure_level,routineP,failure)
        rcom = rcom / masst
        ! Intertia Tensor
        Ip   = 0.0_dp
@@ -135,8 +133,8 @@ CONTAINS
           Ip(2,3) = Ip(2,3) - mass * ( rm(2)*rm(3) )
        END DO
        ! Diagonalize the Inertia Tensor
-       CALL diamat_all(Ip,Ip_eigval,error=error)
-       iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog",error=error)
+       CALL diamat_all(Ip,Ip_eigval)
+       iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog")
        IF (iw>0) THEN
           WRITE(iw,'(T2,A,3F12.6)')"ROT| Rotational Analysis Info "
           WRITE(iw,'(T2,A)')"ROT| Principal axes and moments of inertia in atomic units:"
@@ -146,8 +144,8 @@ CONTAINS
           WRITE(iw,'(T2,A,T27,3(3X,F15.9))')"ROT|      Y",Ip(2,1),Ip(2,2),Ip(2,3)
           WRITE(iw,'(T2,A,T27,3(3X,F15.9))')"ROT|      Z",Ip(3,1),Ip(3,2),Ip(3,3)
        END IF
-       CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
-       iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO/COORDINATES",extension=".vibLog",error=error)
+       CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO")
+       iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO/COORDINATES",extension=".vibLog")
        IF (iw>0) THEN
           WRITE(iw,'(/,T2,A)')"ROT| Standard Molecule Orientation - ANGSTROM "
           DO iparticle = 1, natoms
@@ -156,11 +154,11 @@ CONTAINS
                   MATMUL(particles(iparticle)%r,Ip)*angstrom
           END DO
        END IF
-       CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO/COORDINATES",error=error)
+       CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO/COORDINATES")
     END IF
     ! Build up the Translational vectors
     ALLOCATE(Tr(natoms*3,3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     Tr   = 0.0_dp
     DO k = 1, 3
        iseq = 0
@@ -181,7 +179,7 @@ CONTAINS
     dof = 3
     ! Build up the Rotational vectors
     ALLOCATE(Rot(natoms*3,3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     lrot = 0
     IF (.NOT.keep_rotations) THEN
        DO iparticle = 1, natoms
@@ -224,17 +222,17 @@ CONTAINS
     END IF
     IF (PRESENT(rot_dof)) rot_dof = COUNT(lrot==1)
     dof = dof + COUNT(lrot==1)
-    iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog",error=error)
+    iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog")
     IF (iw>0) THEN
        WRITE(iw,'(T2,A,I6)')"ROT| Numer of Rotovibrational vectors:",dof
        IF (dof==5) WRITE(iw,'(T2,A)')"ROT| Linear Molecule detected.."
        IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.."
     END IF
-    CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO")
     IF (present_mat) THEN
        ! Give back the vectors generating the rototranslating Frame
        ALLOCATE(mat(natoms*3,dof),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        iseq = 0
        DO i = 1, 3
           mat(:,i)=Tr(:,i)
@@ -245,9 +243,9 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(Tr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(Rot,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
   END SUBROUTINE rot_ana
 
@@ -265,13 +263,12 @@ CONTAINS
 !> \param middle_name ...
 !> \param particles ...
 !> \param extended_xmol_title ...
-!> \param error ...
 !> \date    02.2008
 !> \author  Teodoro Laino [tlaino] - University of Zurich
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_trajectory (force_env, root_section, it, time, dtime, etot, pk_name,&
-       pos, act, middle_name, particles, extended_xmol_title, error)
+       pos, act, middle_name, particles, extended_xmol_title)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: it
@@ -283,7 +280,6 @@ CONTAINS
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     LOGICAL, INTENT(IN), OPTIONAL            :: extended_xmol_title
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trajectory', &
       routineP = moduleN//':'//routineN
@@ -313,7 +309,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger, cell, subsys, my_particles, particle_set)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     id_label = logger%iter_info%level_name(logger%iter_info%n_rlevel)
     my_pos     = "APPEND"
     my_act     = "WRITE"
@@ -338,19 +334,19 @@ CONTAINS
        id_dcd = "FML "
        id_wpc = "FORCE_MIXING_LABELS"
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
     END SELECT
 
     charge_occup = .FALSE.
     charge_beta = .FALSE.
     charge_extended = .FALSE.
 
-    CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
+    CALL force_env_get(force_env, cell=cell, subsys=subsys)
     IF (PRESENT(particles)) THEN
-       CPPostcondition(ASSOCIATED(particles),cp_fatal_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(particles),cp_fatal_level,routineP,failure)
        my_particles => particles
     ELSE
-       CALL cp_subsys_get(subsys=subsys, particles=my_particles,error=error)
+       CALL cp_subsys_get(subsys=subsys, particles=my_particles)
     END IF
     particle_set => my_particles%els
     nat=my_particles%n_els
@@ -358,26 +354,25 @@ CONTAINS
     ! Gather units of measure for output (if available)
     IF (TRIM(my_pk_name) /= "FORCE_MIXING_LABELS") THEN
        CALL section_vals_val_get(root_section,"MOTION%PRINT%"//TRIM(my_pk_name)//"%UNIT",&
-            c_val=unit_str,error=error)
-       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+            c_val=unit_str)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
     ENDIF
 
     ! Get the otuput format
-    CALL get_output_format(root_section,"MOTION%PRINT%"//TRIM(my_pk_name),my_form,my_ext,error)
+    CALL get_output_format(root_section,"MOTION%PRINT%"//TRIM(my_pk_name),my_form,my_ext)
     traj_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name=TRIM(my_middle), is_new_file=new_file,&
-            error=error)
+            file_form=my_form, middle_name=TRIM(my_middle), is_new_file=new_file)
     IF (traj_unit > 0) THEN
        CALL section_vals_val_get(root_section,"MOTION%PRINT%"//TRIM(my_pk_name)//"%FORMAT",&
-                                 i_val=outformat,error=error)
+                                 i_val=outformat)
        title = ""
        SELECT CASE (outformat)
        CASE (dump_dcd,dump_dcd_aligned_cell)
           IF (new_file) THEN
              !Lets write the header for the coordinate dcd
              section_ref = "MOTION%PRINT%"//TRIM(my_pk_name)//"%EACH%"//TRIM(id_label)
-             iskip = section_get_ival(root_section,TRIM(section_ref),error=error)
+             iskip = section_get_ival(root_section,TRIM(section_ref))
              WRITE (UNIT=traj_unit) id_dcd,0,it,iskip,0,0,0,0,0,0,REAL(dtime,KIND=sp),&
                                     1,0,0,0,0,0,0,0,0,24
              remark1 = "REMARK "//id_dcd//" DCD file created by "//TRIM(cp2k_version)//&
@@ -402,11 +397,11 @@ CONTAINS
        CASE (dump_pdb)
           IF (id_wpc == "POS") THEN
              CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%CHARGE_OCCUP",&
-                                       l_val=charge_occup,error=error)
+                                       l_val=charge_occup)
              CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%CHARGE_BETA",&
-                                       l_val=charge_beta,error=error)
+                                       l_val=charge_beta)
              CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%CHARGE_EXTENDED",&
-                                       l_val=charge_extended,error=error)
+                                       l_val=charge_extended)
              i = COUNT((/charge_occup,charge_beta,charge_extended/))
              CALL cp_assert((i <= 1),cp_failure_level,cp_assertion_failed,routineP,&
                             "Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected, "//&
@@ -432,43 +427,42 @@ CPSourceFileRef,&
               "Step ",it,", E = ",etot
           END IF
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
        END SELECT
        IF (TRIM(my_pk_name) == "FORCE_MIXING_LABELS") THEN
           ALLOCATE (fml_array(3*SIZE(particle_set)),STAT=istat)
-          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
           fml_array = 0.0_dp
-          CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
+          CALL force_env_get(force_env, force_env_section=force_env_section)
           force_mixing_restart_section => section_vals_get_subs_vals(force_env_section, &
              "QMMM%FORCE_MIXING%RESTART_INFO",&
-             can_return_null=.TRUE., error=error)
+             can_return_null=.TRUE.)
           IF (ASSOCIATED(force_mixing_restart_section)) THEN
-             CALL section_vals_get(force_mixing_restart_section,explicit=explicit,error=error)
+             CALL section_vals_get(force_mixing_restart_section,explicit=explicit)
              IF (explicit) THEN
-                CALL section_vals_val_get(force_mixing_restart_section,"INDICES",i_vals=force_mixing_indices,error=error)
-                CALL section_vals_val_get(force_mixing_restart_section,"LABELS",i_vals=force_mixing_labels,error=error)
+                CALL section_vals_val_get(force_mixing_restart_section,"INDICES",i_vals=force_mixing_indices)
+                CALL section_vals_val_get(force_mixing_restart_section,"LABELS",i_vals=force_mixing_labels)
                 DO i=1, SIZE(force_mixing_indices)
                   ii = force_mixing_indices(i)
-                  CPPostcondition(ii <= SIZE(particle_set),cp_failure_level,routineP,error,failure)
+                  CPPostcondition(ii <= SIZE(particle_set),cp_failure_level,routineP,failure)
                   fml_array((ii-1)*3+1:(ii-1)*3+3) = force_mixing_labels(i)
                 END DO
              ENDIF
           ENDIF
           CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
-                                          array=fml_array,error=error)
+                                          array=fml_array)
           DEALLOCATE (fml_array,STAT=istat)
-          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
        ELSE
           CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
                                           unit_conv=unit_conv,&
                                           charge_occup=charge_occup,&
                                           charge_beta=charge_beta,&
-                                          charge_extended=charge_extended,&
-                                          error=error)
+                                          charge_extended=charge_extended)
        END IF
     END IF
 
-    CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),error=error)
+    CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name))
 
     CALL timestop(handle)
 
@@ -480,15 +474,13 @@ CPSourceFileRef,&
 !> \param path ...
 !> \param my_form ...
 !> \param my_ext ...
-!> \param error ...
 !> \author Teodoro Laino - University of Zurich - 07.2007
 ! *****************************************************************************
-  SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
+  SUBROUTINE get_output_format(section,path,my_form,my_ext)
 
     TYPE(section_vals_type), POINTER         :: section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: path
     CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_output_format', &
       routineP = moduleN//':'//routineN
@@ -496,9 +488,9 @@ CPSourceFileRef,&
     INTEGER                                  :: output_format
 
     IF (PRESENT(path)) THEN
-       CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format,error=error)
+       CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format)
     ELSE
-       CALL section_vals_val_get(section,"FORMAT",i_val=output_format,error=error)
+       CALL section_vals_val_get(section,"FORMAT",i_val=output_format)
     END IF
 
     SELECT CASE (output_format)
@@ -524,13 +516,12 @@ CPSourceFileRef,&
 !> \param time ...
 !> \param pos ...
 !> \param act ...
-!> \param error ...
 !> \date    02.2008
 !> \author  Teodoro Laino [tlaino] - University of Zurich
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_stress_tensor(virial,cell,motion_section,itimes,time,pos,&
-                                 act,error)
+                                 act)
 
     TYPE(virial_type), POINTER               :: virial
     TYPE(cell_type), POINTER                 :: cell
@@ -539,7 +530,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(IN)                :: time
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: pos, act
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor', &
       routineP = moduleN//':'//routineN
@@ -551,7 +541,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY (logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF (virial%pv_availability) THEN
       my_pos = "APPEND"
@@ -561,7 +551,7 @@ CPSourceFileRef,&
       output_unit = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
                                  extension=".stress",file_position=my_pos,&
                                  file_action=my_act,file_form="FORMATTED",&
-                                 is_new_file=new_file,error=error)
+                                 is_new_file=new_file)
     ELSE
       output_unit = 0
     END IF
@@ -571,15 +561,15 @@ CPSourceFileRef,&
         WRITE (UNIT=output_unit,FMT='(A,9(12X,A2," [bar]"),6X,A)')&
           "#   Step   Time [fs]","xx","xy","xz","yx","yy","yz","zx","zy","zz"
       END IF
-      pv_total_bar(1,1) = cp_unit_from_cp2k(virial%pv_total(1,1)/cell%deth,"bar",error=error)
-      pv_total_bar(1,2) = cp_unit_from_cp2k(virial%pv_total(1,2)/cell%deth,"bar",error=error)
-      pv_total_bar(1,3) = cp_unit_from_cp2k(virial%pv_total(1,3)/cell%deth,"bar",error=error)
-      pv_total_bar(2,1) = cp_unit_from_cp2k(virial%pv_total(2,1)/cell%deth,"bar",error=error)
-      pv_total_bar(2,2) = cp_unit_from_cp2k(virial%pv_total(2,2)/cell%deth,"bar",error=error)
-      pv_total_bar(2,3) = cp_unit_from_cp2k(virial%pv_total(2,3)/cell%deth,"bar",error=error)
-      pv_total_bar(3,1) = cp_unit_from_cp2k(virial%pv_total(3,1)/cell%deth,"bar",error=error)
-      pv_total_bar(3,2) = cp_unit_from_cp2k(virial%pv_total(3,2)/cell%deth,"bar",error=error)
-      pv_total_bar(3,3) = cp_unit_from_cp2k(virial%pv_total(3,3)/cell%deth,"bar",error=error)
+      pv_total_bar(1,1) = cp_unit_from_cp2k(virial%pv_total(1,1)/cell%deth,"bar")
+      pv_total_bar(1,2) = cp_unit_from_cp2k(virial%pv_total(1,2)/cell%deth,"bar")
+      pv_total_bar(1,3) = cp_unit_from_cp2k(virial%pv_total(1,3)/cell%deth,"bar")
+      pv_total_bar(2,1) = cp_unit_from_cp2k(virial%pv_total(2,1)/cell%deth,"bar")
+      pv_total_bar(2,2) = cp_unit_from_cp2k(virial%pv_total(2,2)/cell%deth,"bar")
+      pv_total_bar(2,3) = cp_unit_from_cp2k(virial%pv_total(2,3)/cell%deth,"bar")
+      pv_total_bar(3,1) = cp_unit_from_cp2k(virial%pv_total(3,1)/cell%deth,"bar")
+      pv_total_bar(3,2) = cp_unit_from_cp2k(virial%pv_total(3,2)/cell%deth,"bar")
+      pv_total_bar(3,3) = cp_unit_from_cp2k(virial%pv_total(3,3)/cell%deth,"bar")
       WRITE (UNIT=output_unit,FMT='(I8,F12.3,9(1X,F19.10))') itimes,time,&
         pv_total_bar(1,1),pv_total_bar(1,2),pv_total_bar(1,3),&
         pv_total_bar(2,1),pv_total_bar(2,2),pv_total_bar(2,3),&
@@ -589,7 +579,7 @@ CPSourceFileRef,&
 
     IF (virial%pv_availability) THEN
       CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-                                        "PRINT%STRESS",error=error)
+                                        "PRINT%STRESS")
     END IF
 
   END SUBROUTINE write_stress_tensor
@@ -602,13 +592,11 @@ CPSourceFileRef,&
 !> \param time ...
 !> \param pos ...
 !> \param act ...
-!> \param error ...
 !> \date    02.2008
 !> \author  Teodoro Laino [tlaino] - University of Zurich
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_simulation_cell(cell,motion_section,itimes,time,pos,act,&
-                                   error)
+  SUBROUTINE write_simulation_cell(cell,motion_section,itimes,time,pos,act)
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: motion_section
@@ -616,7 +604,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(IN)                :: time
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: pos, act
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_simulation_cell', &
       routineP = moduleN//':'//routineN
@@ -627,7 +614,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY (logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     my_pos = "APPEND"
     my_act = "WRITE"
@@ -637,7 +624,7 @@ CPSourceFileRef,&
     output_unit = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
                                extension=".cell",file_position=my_pos,&
                                file_action=my_act,file_form="FORMATTED",&
-                               is_new_file=new_file,error=error)
+                               is_new_file=new_file)
 
     IF (output_unit > 0) THEN
       IF (new_file) THEN
@@ -654,7 +641,7 @@ CPSourceFileRef,&
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-                                      "PRINT%CELL",error=error)
+                                      "PRINT%CELL")
 
   END SUBROUTINE write_simulation_cell
 

@@ -100,14 +100,12 @@ CONTAINS
 !> \param para_env ...
 !> \param globenv ...
 !> \param global_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE create_thermostats(thermostats, md_section, force_env, simpar, &
-       para_env, globenv, global_section, error )
+       para_env, globenv, global_section)
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(force_env_type), POINTER            :: force_env
@@ -115,7 +113,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: global_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostats', &
       routineP = moduleN//':'//routineN
@@ -144,23 +141,23 @@ CONTAINS
 
     NULLIFY(qmmm_env,cell)
     failure =.FALSE.
-    CALL allocate_thermostats(thermostats, error)
-    adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST",error=error)
-    adiabatic_slow_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_SLOW",error=error)
-    thermo_part_section  => section_vals_get_subs_vals(md_section,"THERMOSTAT",error=error)
-    thermo_shell_section => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT",error=error)
-    thermo_baro_section  => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT",error=error)
-    barostat_section     => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
-    print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
+    CALL allocate_thermostats(thermostats)
+    adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST")
+    adiabatic_slow_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_SLOW")
+    thermo_part_section  => section_vals_get_subs_vals(md_section,"THERMOSTAT")
+    thermo_shell_section => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT")
+    thermo_baro_section  => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT")
+    barostat_section     => section_vals_get_subs_vals(md_section,"BAROSTAT")
+    print_section => section_vals_get_subs_vals(md_section,"PRINT")
 
-    CALL force_env_get(force_env, qmmm_env=qmmm_env, subsys=subsys, cell=cell, error=error )
-    CALL section_vals_get(barostat_section,  explicit=explicit_barostat_section,  error=error)
-    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,  error=error)
-    CALL section_vals_get(thermo_part_section,  explicit=explicit_part,  error=error)
-    CALL section_vals_get(thermo_shell_section, explicit=explicit_shell, error=error)
-    CALL section_vals_get(thermo_baro_section,  explicit=explicit_baro,  error=error)
-    CALL section_vals_get(adiabatic_fast_section,  explicit=explicit_adiabatic_fast,  error=error)
-    CALL section_vals_get(adiabatic_slow_section,  explicit=explicit_adiabatic_slow,  error=error)
+    CALL force_env_get(force_env, qmmm_env=qmmm_env, subsys=subsys, cell=cell)
+    CALL section_vals_get(barostat_section,  explicit=explicit_barostat_section)
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem)
+    CALL section_vals_get(thermo_part_section,  explicit=explicit_part)
+    CALL section_vals_get(thermo_shell_section, explicit=explicit_shell)
+    CALL section_vals_get(thermo_baro_section,  explicit=explicit_baro)
+    CALL section_vals_get(adiabatic_fast_section,  explicit=explicit_adiabatic_fast)
+    CALL section_vals_get(adiabatic_slow_section,  explicit=explicit_adiabatic_slow)
 
     apply_thermo_adiabatic = (simpar%ensemble==nvt_adiabatic_ensemble)
 
@@ -181,48 +178,48 @@ CONTAINS
 
     binary_restart_file_name = ""
     CALL section_vals_val_get(force_env%root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
-                              c_val=binary_restart_file_name,error=error)
+                              c_val=binary_restart_file_name)
 
     ! Compute Degrees of Freedom
     IF ( simpar%ensemble==nvt_adiabatic_ensemble ) THEN
       CALL cite_reference(VandeVondele2002)
       region = do_region_global
-      region_section_fast => section_vals_get_subs_vals(adiabatic_fast_section,"DEFINE_REGION",error=error)
-      region_section_slow => section_vals_get_subs_vals(adiabatic_slow_section,"DEFINE_REGION",error=error)
-      IF (explicit_adiabatic_fast) CALL section_vals_val_get(adiabatic_fast_section,"REGION",i_val=region,error=error)
-      IF (explicit_adiabatic_slow) CALL section_vals_val_get(adiabatic_slow_section,"REGION",i_val=region,error=error)
+      region_section_fast => section_vals_get_subs_vals(adiabatic_fast_section,"DEFINE_REGION")
+      region_section_slow => section_vals_get_subs_vals(adiabatic_slow_section,"DEFINE_REGION")
+      IF (explicit_adiabatic_fast) CALL section_vals_val_get(adiabatic_fast_section,"REGION",i_val=region)
+      IF (explicit_adiabatic_slow) CALL section_vals_val_get(adiabatic_slow_section,"REGION",i_val=region)
       CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
-              molecules_new=molecules_new, gci=gci, particles=particles, error=error)
+              molecules_new=molecules_new, gci=gci, particles=particles)
       CALL compute_nfree( cell, simpar, molecule_kinds_new%els,&
-           print_section, particles, gci, error)
+           print_section, particles, gci)
       IF (explicit_adiabatic_fast.AND.explicit_adiabatic_slow) THEN
          IF (apply_thermo_adiabatic) THEN
             CALL create_thermostat_type(thermostats%thermostat_fast, simpar, adiabatic_fast_section,&
-                 label="FAST", error=error)
+                 label="FAST")
             CALL create_thermostat_type(thermostats%thermostat_slow, simpar, adiabatic_slow_section,&
-                 label="SLOW", error=error)
+                 label="SLOW")
             CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_fast,  &
                  molecule_kinds_new%els, local_molecules, molecules_new, particles, &
                  region, simpar%ensemble, region_sections=region_section_fast,  &
-                 qmmm_env=qmmm_env, error=error)
+                 qmmm_env=qmmm_env)
 
             CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_slow, &
                  molecule_kinds_new%els, local_molecules, molecules_new, particles,&
                  region, simpar%ensemble, region_sections=region_section_slow,  &
-                 qmmm_env=qmmm_env, error=error)
+                 qmmm_env=qmmm_env)
 
 
            ! Initialize or possibly restart Nose on Particles
-            work_section => section_vals_get_subs_vals(adiabatic_fast_section,"NOSE",error=error)
+            work_section => section_vals_get_subs_vals(adiabatic_fast_section,"NOSE")
             CALL initialize_nhc_fast(thermostats%thermostat_info_fast, simpar, local_molecules,&
                  molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                  thermostats%thermostat_fast%nhc, nose_section=work_section, gci=gci,&
-                 save_mem=save_mem, error=error)
-            work_section => section_vals_get_subs_vals(adiabatic_slow_section,"NOSE",error=error)
+                 save_mem=save_mem)
+            work_section => section_vals_get_subs_vals(adiabatic_slow_section,"NOSE")
             CALL initialize_nhc_slow(thermostats%thermostat_info_slow, simpar, local_molecules,&
                  molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                  thermostats%thermostat_slow%nhc, nose_section=work_section, gci=gci,&
-                 save_mem=save_mem, error=error)
+                 save_mem=save_mem)
          ENDIF
       ELSE
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -231,57 +228,56 @@ CONTAINS
 CPSourceFileRef,&
               only_ionode=.TRUE.)
       END IF
-      CALL release_thermostat_info(thermostats%thermostat_info_fast, error)
-      CALL release_thermostat_info(thermostats%thermostat_info_slow, error)
+      CALL release_thermostat_info(thermostats%thermostat_info_fast)
+      CALL release_thermostat_info(thermostats%thermostat_info_slow)
     ELSE
     region = do_region_global
-    region_sections => section_vals_get_subs_vals(thermo_part_section,"DEFINE_REGION",error=error)
-    IF (explicit_part) CALL section_vals_val_get(thermo_part_section,"REGION",i_val=region,error=error)
+    region_sections => section_vals_get_subs_vals(thermo_part_section,"DEFINE_REGION")
+    IF (explicit_part) CALL section_vals_val_get(thermo_part_section,"REGION",i_val=region)
     CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
-            molecules_new=molecules_new, gci=gci, particles=particles, error=error)
+            molecules_new=molecules_new, gci=gci, particles=particles)
     CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds_new%els,&
          local_molecules, molecules_new, particles, print_section, region_sections, gci,&
-         region, qmmm_env, error)
+         region, qmmm_env)
 
     ! Particles
     ! For constant temperature ensembles the thermostat is activated by default
     IF (explicit_part) THEN
        IF (apply_general_thermo) THEN
           CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section,&
-               label="PARTICLES", error=error)
+               label="PARTICLES")
           ! Initialize thermostat
           IF (thermostats%thermostat_part%type_of_thermostat == do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Particles
-             work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE",error=error)
+             work_section => section_vals_get_subs_vals(thermo_part_section,"NOSE")
              CALL initialize_nhc_part(thermostats%thermostat_info_part, simpar, local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                   thermostats%thermostat_part%nhc, nose_section=work_section, gci=gci,&
-                  save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
-                  error=error)
+                  save_mem=save_mem, binary_restart_file_name=binary_restart_file_name)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Particles
-             work_section => section_vals_get_subs_vals(thermo_part_section,"CSVR",error=error)
+             work_section => section_vals_get_subs_vals(thermo_part_section,"CSVR")
              CALL initialize_csvr_part(thermostats%thermostat_info_part,simpar,local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
-                  gci=gci, error=error)
+                  gci=gci)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_al) THEN
              ! Initialize or possibly restart Ad-Langevin thermostat on Particles
-             work_section => section_vals_get_subs_vals(thermo_part_section,"AD_LANGEVIN",error=error)
+             work_section => section_vals_get_subs_vals(thermo_part_section,"AD_LANGEVIN")
              CALL initialize_al_part(thermostats%thermostat_info_part,simpar,local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%al, al_section=work_section,&
-                  gci=gci, error=error)
+                  gci=gci)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_gle) THEN
              ! Initialize or possibly restart GLE thermostat on Particles
-             work_section => section_vals_get_subs_vals(thermo_part_section,"GLE",error=error)
+             work_section => section_vals_get_subs_vals(thermo_part_section,"GLE")
              CALL initialize_gle_part(thermostats%thermostat_info_part,simpar,local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%gle, gle_section=work_section,&
-                  gci=gci,save_mem=save_mem, error=error)
+                  gci=gci,save_mem=save_mem)
           END IF
           CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
-                               simpar, para_env, error)
+                               simpar, para_env)
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
@@ -299,7 +295,7 @@ CPSourceFileRef,&
     END IF
 
     ! Core-Shell Model
-    CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
+    CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
     IF (shell_present) THEN
        IF (explicit_shell) THEN
@@ -307,33 +303,31 @@ CPSourceFileRef,&
           ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe)
           IF (apply_thermo_shell) THEN
              CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section,&
-                  label="SHELL", error=error)
+                  label="SHELL")
              CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els, shell_adiabatic=shell_adiabatic)
-             region_sections => section_vals_get_subs_vals(thermo_shell_section,"DEFINE_REGION",error=error)
-             CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
+             region_sections => section_vals_get_subs_vals(thermo_shell_section,"DEFINE_REGION")
+             CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region)
              CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
                   local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic,&
-                  region_sections=region_sections, qmmm_env=qmmm_env, error=error)
+                  region_sections=region_sections, qmmm_env=qmmm_env)
              IF (shell_adiabatic) THEN
                 ! Initialize thermostat
                 IF (thermostats%thermostat_shell%type_of_thermostat == do_thermo_nose) THEN
                    ! Initialize or possibly restart Nose on Shells
-                   work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
+                   work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE")
                    CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
                         molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                         thermostats%thermostat_shell%nhc, nose_section=work_section,gci=gci,&
-                        save_mem=save_mem, binary_restart_file_name=binary_restart_file_name,&
-                        error=error)
+                        save_mem=save_mem, binary_restart_file_name=binary_restart_file_name)
                 ELSE IF (thermostats%thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
                    ! Initialize or possibly restart CSVR thermostat on Shells
-                   work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)
+                   work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR")
                    CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
                         molecules_new%els, molecule_kinds_new%els, para_env, &
-                        thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
-                        error=error)
+                        thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci)
                 END IF
                 CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
-                                     simpar, para_env, error)
+                                     simpar, para_env)
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                      "Thermostat for Core-Shell motion only with adiabatic shell-model. "//&
@@ -341,8 +335,8 @@ CPSourceFileRef,&
                      "applied to Shells!"//&
 CPSourceFileRef,&
                      only_ionode=.TRUE.)
-                CALL release_thermostat_type(thermostats%thermostat_shell, error)
-                CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
+                CALL release_thermostat_type(thermostats%thermostat_shell)
+                CALL release_thermostat_info(thermostats%thermostat_info_shell)
              END IF
           ELSE
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -363,39 +357,39 @@ CPSourceFileRef,&
     ! Barostat Temperature (not necessarily to be controlled by a thermostat)
     IF (explicit_barostat_section) THEN
        simpar%temp_baro_ext = simpar%temp_ext
-       CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",n_rep_val=n_rep,error=error)
+       CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",n_rep_val=n_rep)
        IF (n_rep/=0) THEN
-          CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
-          CPPostcondition(simpar%temp_baro_ext>=0.0_dp,cp_failure_level,routineP,error,failure)
+          CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext)
+          CPPostcondition(simpar%temp_baro_ext>=0.0_dp,cp_failure_level,routineP,failure)
        END IF
 
        ! Setup Barostat Thermostat
        IF (apply_thermo_baro) THEN
           ! Check if we use the same thermostat as particles
-          CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
+          CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type)
           work_section => thermo_baro_section
           IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
 
           CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
-               label="BAROSTAT", error=error)
+               label="BAROSTAT")
           ! Initialize thermostat
           IF      (thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Barostat
-             work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE",error=error)
+             work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE")
              CALL initialize_nhc_baro(simpar, para_env, globenv, thermostats%thermostat_baro%nhc,&
-                  nose_section=work_section, save_mem=save_mem, error=error)
+                  nose_section=work_section, save_mem=save_mem)
           ELSE IF (thermostats%thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Barostat
-             work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
+             work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR")
              CALL initialize_csvr_baro(simpar, thermostats%thermostat_baro%csvr,&
-                  csvr_section=work_section, error=error)
+                  csvr_section=work_section)
           END IF
           CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&
-                               simpar, para_env, error)
+                               simpar, para_env)
           ! If thermostat for barostat uses a diffent kind than the one of the particles
           ! let's update infos in the input structure..
           IF (thermostat_type==do_thermo_same_as_part) THEN
-             CALL update_thermo_baro_section(thermostats%thermostat_baro, thermo_baro_section, error)
+             CALL update_thermo_baro_section(thermostats%thermostat_baro, thermo_baro_section)
           END IF
        ELSE
           IF (explicit_baro) THEN
@@ -406,13 +400,13 @@ CPSourceFileRef,&
                   only_ionode=.TRUE.)
           END IF
           ! Let's remove the section
-          CALL section_vals_remove_values(thermo_baro_section, error)
+          CALL section_vals_remove_values(thermo_baro_section)
        END IF
     END IF
 
     ! Release the thermostats info..
-    CALL release_thermostat_info(thermostats%thermostat_info_part, error)
-    CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
+    CALL release_thermostat_info(thermostats%thermostat_info_part)
+    CALL release_thermostat_info(thermostats%thermostat_info_shell)
 
    ENDIF  ! Adiabitic_NVT screening
     ! If no thermostats have been allocated deallocate the full structure
@@ -421,7 +415,7 @@ CPSourceFileRef,&
          (.NOT.ASSOCIATED(thermostats%thermostat_baro)).AND.&
          (.NOT.ASSOCIATED(thermostats%thermostat_fast)).AND.&
          (.NOT.ASSOCIATED(thermostats%thermostat_slow)) ) THEN
-       CALL release_thermostats(thermostats, error)
+       CALL release_thermostats(thermostats)
     END IF
 
   END SUBROUTINE create_thermostats
@@ -430,37 +424,34 @@ CPSourceFileRef,&
 !> \brief ...
 !> \param thermostat ...
 !> \param section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_thermo_baro_section(thermostat, section, error)
+  SUBROUTINE update_thermo_baro_section(thermostat, section)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(section_vals_type), POINTER         :: section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_thermo_baro_section', &
       routineP = moduleN//':'//routineN
 
     TYPE(section_vals_type), POINTER         :: work_section
 
-    CALL section_vals_val_set(section,"TYPE",i_val=thermostat%type_of_thermostat,error=error)
+    CALL section_vals_val_set(section,"TYPE",i_val=thermostat%type_of_thermostat)
     SELECT CASE(thermostat%type_of_thermostat)
     CASE(do_thermo_nose)
-       work_section => section_vals_get_subs_vals(section,"NOSE",error=error)
-       CALL section_vals_val_set(work_section,"LENGTH",i_val=thermostat%nhc%nhc_len,error=error)
-       CALL section_vals_val_set(work_section,"YOSHIDA",i_val=thermostat%nhc%nyosh,error=error)
-       CALL section_vals_val_set(work_section,"TIMECON",r_val=thermostat%nhc%tau_nhc,error=error)
-       CALL section_vals_val_set(work_section,"MTS",i_val=thermostat%nhc%nc,error=error)
+       work_section => section_vals_get_subs_vals(section,"NOSE")
+       CALL section_vals_val_set(work_section,"LENGTH",i_val=thermostat%nhc%nhc_len)
+       CALL section_vals_val_set(work_section,"YOSHIDA",i_val=thermostat%nhc%nyosh)
+       CALL section_vals_val_set(work_section,"TIMECON",r_val=thermostat%nhc%tau_nhc)
+       CALL section_vals_val_set(work_section,"MTS",i_val=thermostat%nhc%nc)
     CASE(do_thermo_csvr)
-       work_section => section_vals_get_subs_vals(section,"CSVR",error=error)
-       CALL section_vals_val_set(work_section,"TIMECON",r_val=thermostat%csvr%tau_csvr,error=error)
+       work_section => section_vals_get_subs_vals(section,"CSVR")
+       CALL section_vals_val_set(work_section,"TIMECON",r_val=thermostat%csvr%tau_csvr)
     CASE(do_thermo_al)
-       work_section => section_vals_get_subs_vals(section,"AD_LANGEVIN",error=error)
-       CALL section_vals_val_set(work_section,"TIMECON_NH",r_val=thermostat%al%tau_nh,error=error)
-       CALL section_vals_val_set(work_section,"TIMECON_LANGEVIN",r_val=thermostat%al%tau_langevin,error=error)
+       work_section => section_vals_get_subs_vals(section,"AD_LANGEVIN")
+       CALL section_vals_val_set(work_section,"TIMECON_NH",r_val=thermostat%al%tau_nh)
+       CALL section_vals_val_set(work_section,"TIMECON_LANGEVIN",r_val=thermostat%al%tau_langevin)
     END SELECT
   END SUBROUTINE update_thermo_baro_section
 
@@ -471,19 +462,16 @@ CPSourceFileRef,&
 !> \param section ...
 !> \param simpar ...
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE thermostat_info(thermostat, label, section,  simpar, para_env, error)
+  SUBROUTINE thermostat_info(thermostat, label, section,  simpar, para_env)
     TYPE(thermostat_type), POINTER           :: thermostat
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(section_vals_type), POINTER         :: section
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'thermostat_info', &
       routineP = moduleN//':'//routineN
@@ -495,17 +483,17 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,section,"PRINT%THERMOSTAT_INFO",extension=".log",error=error)
+    logger => cp_get_default_logger()
+    iw=cp_print_key_unit_nr(logger,section,"PRINT%THERMOSTAT_INFO",extension=".log")
     ! Total Tehrmostat Energy
-    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env, error=error)
+    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env)
     IF (iw>0) THEN
        WRITE ( iw, '( /,A )' ) ' THERMOSTAT| Thermostat Info for '//TRIM(label)
        SELECT CASE(thermostat%type_of_thermostat)
        CASE(do_thermo_nose)
           WRITE ( iw, '( A,T63,A )' ) ' THERMOSTAT| Type of thermostat','Nose-Hoover-Chains'
           WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Nose-Hoover-Chain length ', thermostat%nhc%nhc_len
-          tmp = cp_unit_from_cp2k(thermostat%nhc%tau_nhc,"fs",error=error)
+          tmp = cp_unit_from_cp2k(thermostat%nhc%tau_nhc,"fs")
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| Nose-Hoover-Chain time constant [', 'fs' ,'] ',tmp
           WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Order of Yoshida integrator ', &
@@ -518,23 +506,23 @@ CPSourceFileRef,&
                kin_energy
        CASE(do_thermo_csvr)
           WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Canonical Sampling/Velocity Rescaling'
-          tmp = cp_unit_from_cp2k(thermostat%csvr%tau_csvr,"fs",error=error)*0.5_dp*simpar%dt
+          tmp = cp_unit_from_cp2k(thermostat%csvr%tau_csvr,"fs")*0.5_dp*simpar%dt
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',tmp
           WRITE ( iw, '( A,T69,F12.6 )' ) &
                ' THERMOSTAT| Initial Kinetic Energy ',kin_energy
        CASE(do_thermo_al)
           WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Adaptive Langevin'
-          tmp = cp_unit_from_cp2k(thermostat%al%tau_nh,"fs",error=error)
+          tmp = cp_unit_from_cp2k(thermostat%al%tau_nh,"fs")
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| AD_LANGEVIN NH time constant [', 'fs' ,'] ',tmp
-          tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin,"fs",error=error)
+          tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin,"fs")
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
                ' THERMOSTAT| AD_LANGEVIN Langevin time constant [', 'fs' ,'] ',tmp
        END SELECT
        WRITE ( iw, '( A,/ )' ) ' THERMOSTAT| End of Thermostat Info for '//TRIM(label)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,section,"PRINT%THERMOSTAT_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,section,"PRINT%THERMOSTAT_INFO")
 
   END SUBROUTINE thermostat_info
 
@@ -543,18 +531,15 @@ CPSourceFileRef,&
 !> \param thermostat ...
 !> \param npt ...
 !> \param group ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE apply_thermostat_baro(thermostat, npt, group, error)
+  SUBROUTINE apply_thermostat_baro(thermostat, npt, group)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt
     INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_baro', &
       routineP = moduleN//':'//routineN
@@ -565,12 +550,12 @@ CPSourceFileRef,&
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
-          CALL lnhc_barostat ( thermostat%nhc, npt, group, error )
+          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
+          CALL lnhc_barostat ( thermostat%nhc, npt, group)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
-          CALL csvr_barostat ( thermostat%csvr, npt, group, error )
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
+          CALL csvr_barostat ( thermostat%csvr, npt, group)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_baro
@@ -591,15 +576,13 @@ CPSourceFileRef,&
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE apply_thermostat_particles(thermostat, force_env, molecule_kind_set, molecule_set,&
        particle_set, local_molecules, local_particles, group, shell_adiabatic, shell_particle_set,&
-       core_particle_set, vel, shell_vel, core_vel, error)
+       core_particle_set, vel, shell_vel, core_vel)
 
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(force_env_type), POINTER            :: force_env
@@ -614,7 +597,6 @@ CPSourceFileRef,&
                                                 core_particle_set( : )
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_particles', &
       routineP = moduleN//':'//routineN
@@ -625,27 +607,27 @@ CPSourceFileRef,&
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
           CALL lnhc_particles(thermostat%nhc,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
-               core_particle_set, vel, shell_vel, core_vel, error)
+               core_particle_set, vel, shell_vel, core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
           CALL csvr_particles(thermostat%csvr,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
-               core_particle_set, vel, shell_vel, core_vel, error)
+               core_particle_set, vel, shell_vel, core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN  
           ! Apply AD_LANGEVIN Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,failure)
           CALL al_particles(thermostat%al,force_env,molecule_kind_set,molecule_set,&
-               particle_set,local_molecules, local_particles, group, vel, error)
+               particle_set,local_molecules, local_particles, group, vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
          ! Apply GLE Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,failure)
           CALL gle_particles(thermostat%gle,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
-               core_particle_set, vel, shell_vel, core_vel, error=error)
+               core_particle_set, vel, shell_vel, core_vel)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_particles
@@ -662,15 +644,13 @@ CPSourceFileRef,&
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE apply_thermostat_shells(thermostat,atomic_kind_set, particle_set,&
        local_particles, group, shell_particle_set, core_particle_set, vel, shell_vel,&
-       core_vel, error)
+       core_vel)
 
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -681,7 +661,6 @@ CPSourceFileRef,&
                                                 core_particle_set(:)
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_shells', &
       routineP = moduleN//':'//routineN
@@ -692,14 +671,14 @@ CPSourceFileRef,&
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
           CALL lnhc_shells(thermostat%nhc, atomic_kind_set, particle_set, local_particles, &
-               group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel, error)
+               group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
           CALL csvr_shells(thermostat%csvr, atomic_kind_set, particle_set, local_particles, &
-               group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel, error)
+               group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_shells

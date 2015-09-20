@@ -52,7 +52,6 @@ CONTAINS
 !> \param funcG_times_rho ...
 !> \param idir ...
 !> \param my_chi ...
-!> \param error ...
 !> \author MI
 !> \note
 !>      The G=0 component is not comnputed here, but can be evaluated
@@ -61,7 +60,7 @@ CONTAINS
 !>      This method would not work for a non periodic system
 !>      It should be generalized like the calculation of Hartree
 ! *****************************************************************************
-  SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,my_chi,error)
+  SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,my_chi)
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -69,7 +68,6 @@ CONTAINS
     TYPE(pw_p_type)                          :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     REAL(dp), INTENT(IN)                     :: my_chi
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, ig, ng
     LOGICAL                                  :: failure
@@ -83,10 +81,10 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
 
     CALL pw_pool_create_pw ( pw_pool, influence_fn,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
+               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
     grid => influence_fn % pw_grid
     DO ig = grid % first_gne0, grid % ngpts_cut_local
@@ -96,14 +94,14 @@ CONTAINS
     IF ( grid % have_g0 )  influence_fn%cc ( 1 ) = 0.0_dp
 
     frho => funcG_times_rho%pw
-    CALL pw_transfer (rho_gspace%pw,frho,error=error)
+    CALL pw_transfer (rho_gspace%pw,frho)
 
     ng = SIZE(grid % gsq)
     frho%cc(1:ng) = frho%cc(1:ng)*influence_fn % cc  ( 1 : ng )
     IF ( grid % have_g0 ) frho%cc(1) = my_chi
 
     CALL pw_pool_give_back_pw(pw_pool,influence_fn,&
-         accept_non_compatible=.TRUE.,error=error)
+         accept_non_compatible=.TRUE.)
 
     CALL timestop(handle)
 

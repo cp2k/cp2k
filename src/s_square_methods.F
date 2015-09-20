@@ -57,7 +57,6 @@ CONTAINS
 !> \param s_square_ideal ...
 !> \param mo_derivs inout if present, add the derivative of s_square wrt mos to mo_derivs
 !> \param strength ...
-!> \param error ...
 !> \par History
 !>      07.2004 created [ Joost VandeVondele ]
 !> \note
@@ -65,7 +64,7 @@ CONTAINS
 !>       Szabo and Ostlund
 ! *****************************************************************************
    SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal,&
-                               mo_derivs,strength,error)
+                               mo_derivs,strength)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -74,7 +73,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
     REAL(KIND=dp), OPTIONAL                  :: strength
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
       routineP = moduleN//':'//routineN
@@ -103,31 +101,31 @@ CONTAINS
           s_square = 0.0_dp
           s_square_ideal = 0.0_dp
           ! let's not do this
-          CPPrecondition(PRESENT(mo_derivs),cp_failure_level,routineP,error,failure)
+          CPPrecondition(PRESENT(mo_derivs),cp_failure_level,routineP,failure)
     CASE (2)
           CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha,homo=nalpha,uniform_occupation=uniform_occupation)
-          CPPrecondition(uniform_occupation,cp_warning_level,routineP,error,failure)
+          CPPrecondition(uniform_occupation,cp_warning_level,routineP,failure)
           CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta,homo=nbeta,uniform_occupation=uniform_occupation)
-          CPPrecondition(uniform_occupation,cp_warning_level,routineP,error,failure)
-          CALL cp_fm_get_info(c_alpha,ncol_global=na,error=error)
-          CALL cp_fm_get_info(c_beta,ncol_global=nb,error=error)
+          CPPrecondition(uniform_occupation,cp_warning_level,routineP,failure)
+          CALL cp_fm_get_info(c_alpha,ncol_global=na)
+          CALL cp_fm_get_info(c_beta,ncol_global=nb)
           s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2),KIND=dp)/4.0_dp
           ! create overlap matrix
-          CALL cp_fm_get_info(c_alpha,para_env=para_env,context=context,error=error)
+          CALL cp_fm_get_info(c_alpha,para_env=para_env,context=context)
           CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
-                                   nrow_global=na,ncol_global=nb,error=error)
-          CALL cp_fm_create(matrix_overlap, fm_struct_tmp,name="matrix_overlap",error=error)
-          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+                                   nrow_global=na,ncol_global=nb)
+          CALL cp_fm_create(matrix_overlap, fm_struct_tmp,name="matrix_overlap")
+          CALL cp_fm_struct_release(fm_struct_tmp)
           ! create S C_beta and compute overlap
-          CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp,nrow_global=nrow,error=error)
-          CALL cp_fm_create(matrix_sc_b, fm_struct_tmp,name="matrix_sc_beta",error=error)
-          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc_b,nb,error=error)
-          CALL cp_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc_b,0.0_dp,matrix_overlap,error=error)
+          CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp,nrow_global=nrow)
+          CALL cp_fm_create(matrix_sc_b, fm_struct_tmp,name="matrix_sc_beta")
+          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc_b,nb)
+          CALL cp_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc_b,0.0_dp,matrix_overlap)
           ! invoke formula 2.271
           CALL cp_fm_get_info(matrix_overlap,&
                               local_data=local_data,&
                               nrow_local=nrow_local,&
-                              ncol_local=ncol_local,error=error)
+                              ncol_local=ncol_local)
           tmp=0.0_dp
           DO j=1,ncol_local
           DO i=1,nrow_local
@@ -138,22 +136,22 @@ CONTAINS
           s_square = s_square_ideal + nb - tmp
           IF (PRESENT(mo_derivs)) THEN
             ! this gets really wrong for fractional occupations
-            CPPrecondition(SIZE(mo_derivs,1)==2,cp_failure_level,routineP,error,failure)
+            CPPrecondition(SIZE(mo_derivs,1)==2,cp_failure_level,routineP,failure)
             CALL get_mo_set(mo_set=mos(1)%mo_set,uniform_occupation=uniform_occupation)
-            CPPrecondition(uniform_occupation,cp_failure_level,routineP,error,failure)
+            CPPrecondition(uniform_occupation,cp_failure_level,routineP,failure)
             CALL get_mo_set(mo_set=mos(2)%mo_set,uniform_occupation=uniform_occupation)
-            CPPrecondition(uniform_occupation,cp_failure_level,routineP,error,failure)
-            CALL cp_gemm('N','T',nrow,na,nb,-1.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix,error=error)
-            CALL cp_fm_release(matrix_sc_b,error=error)
-            CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp,error=error)
-            CALL cp_fm_create(matrix_sc_a, fm_struct_tmp,name="matrix_sc_alpha",error=error)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,c_alpha,matrix_sc_a,na,error=error)
-            CALL cp_gemm('N','N',nrow,nb,na,-1.0_dp*strength,matrix_sc_a,matrix_overlap,1.0_dp,mo_derivs(2)%matrix,error=error)
-            CALL cp_fm_release(matrix_sc_a,error=error)
-            CALL cp_fm_release(matrix_overlap,error=error)
+            CPPrecondition(uniform_occupation,cp_failure_level,routineP,failure)
+            CALL cp_gemm('N','T',nrow,na,nb,-1.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix)
+            CALL cp_fm_release(matrix_sc_b)
+            CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
+            CALL cp_fm_create(matrix_sc_a, fm_struct_tmp,name="matrix_sc_alpha")
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,c_alpha,matrix_sc_a,na)
+            CALL cp_gemm('N','N',nrow,nb,na,-1.0_dp*strength,matrix_sc_a,matrix_overlap,1.0_dp,mo_derivs(2)%matrix)
+            CALL cp_fm_release(matrix_sc_a)
+            CALL cp_fm_release(matrix_overlap)
           ELSE
-            CALL cp_fm_release(matrix_sc_b,error=error)
-            CALL cp_fm_release(matrix_overlap,error=error)
+            CALL cp_fm_release(matrix_sc_b)
+            CALL cp_fm_release(matrix_overlap)
           ENDIF
     CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,"alpha, beta, what else ?")
@@ -171,12 +169,11 @@ CONTAINS
 !> \param energy ...
 !> \param s2_restraint_control ...
 !> \param just_energy ...
-!> \param error ...
 !> \par History
 !>      07.2004 created [ Joost VandeVondele ]
 ! *****************************************************************************
    SUBROUTINE s2_restraint(mos, matrix_s, mo_derivs, energy, &
-                             s2_restraint_control, just_energy, error)
+                             s2_restraint_control, just_energy)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -187,7 +184,6 @@ CONTAINS
     REAL(kind=dp)                            :: energy
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     LOGICAL                                  :: just_energy
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_restraint', &
       routineP = moduleN//':'//routineN
@@ -202,17 +198,17 @@ CONTAINS
     SELECT CASE(s2_restraint_control%functional_form)
     CASE(do_s2_constraint)
        IF (just_energy) THEN
-          CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal, error=error)
+          CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal)
        ELSE
           CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal, &
-                           mo_derivs,s2_restraint_control%strength,error)
+                           mo_derivs,s2_restraint_control%strength)
        ENDIF
        energy= s2_restraint_control%strength*(s_square-s2_restraint_control%target)
        s2_restraint_control%s2_order_p=s_square
     CASE(do_s2_restraint) ! not yet implemented
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     CALL timestop(handle)

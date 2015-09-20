@@ -121,13 +121,12 @@ CONTAINS
 !> \param subsys ...
 !> \param input ...
 !> \param results ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_mixed_env( mixed_env, atomic_kind_set, particle_set,  &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, &
                            mixed_energy, para_env, sub_para_env, subsys,  &
-                           input, results, error )
+                           input, results)
 
     TYPE(mixed_environment_type), INTENT(IN) :: mixed_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -150,7 +149,6 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_mixed_env', &
       routineP = moduleN//':'//routineN
@@ -163,7 +161,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
-    CPPrecondition(ASSOCIATED(mixed_env%subsys),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mixed_env%subsys),cp_failure_level,routineP,failure)
 
     IF ( PRESENT ( input ) ) input => mixed_env%input
     IF ( PRESENT ( cell_ref ) ) cell_ref => mixed_env % cell_ref
@@ -179,8 +177,7 @@ CONTAINS
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
                       results=results,&
-                      cell=cell,&
-                      error=error)
+                      cell=cell)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
@@ -192,14 +189,12 @@ CONTAINS
 !> \brief Initialise the MIXED environment.
 !> \param mixed_env the pointer to the mixed_env
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_mixed_env ( mixed_env, para_env, error )
+  SUBROUTINE init_mixed_env ( mixed_env, para_env)
 
     TYPE(mixed_environment_type), &
       INTENT(OUT)                            :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (mixed_env%input)
     NULLIFY (mixed_env%cell_ref)
@@ -211,7 +206,7 @@ CONTAINS
     NULLIFY (mixed_env%par)
     NULLIFY (mixed_env%val)
     NULLIFY (mixed_env%subsys)
-    CALL cp_para_env_retain(para_env,error=error)
+    CALL cp_para_env_retain(para_env)
     mixed_env%para_env => para_env
     mixed_env%ref_count=1
     last_mixed_env_id_nr=last_mixed_env_id_nr+1
@@ -233,12 +228,11 @@ CONTAINS
 !> \param subsys ...
 !> \param input ...
 !> \param sub_para_env ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_mixed_env( mixed_env, atomic_kind_set, particle_set, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell_ref, mixed_energy, subsys, &
-                           input, sub_para_env, error )
+                           input, sub_para_env)
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -258,7 +252,6 @@ CONTAINS
       POINTER                                :: input
     TYPE(cp_para_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env', &
       routineP = moduleN//':'//routineN
@@ -270,22 +263,22 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,failure)
 
     IF (PRESENT(cell_ref)) THEN
-       CALL cell_retain(cell_ref, error=error)
-       CALL cell_release(mixed_env%cell_ref,error=error)
+       CALL cell_retain(cell_ref)
+       CALL cell_release(mixed_env%cell_ref)
        mixed_env%cell_ref => cell_ref
     END IF
     IF (PRESENT(input)) THEN
-       CALL section_vals_retain(input,error=error)
-       CALL section_vals_release(mixed_env%input,error=error)
+       CALL section_vals_retain(input)
+       CALL section_vals_release(mixed_env%input)
        mixed_env%input => input
     END IF
     IF ( PRESENT ( mixed_energy ) ) mixed_env % mixed_energy => mixed_energy
     IF (PRESENT(subsys)) THEN
-       CALL cp_subsys_retain(subsys,error=error)
-       CALL cp_subsys_release(mixed_env%subsys,error=error)
+       CALL cp_subsys_retain(subsys)
+       CALL cp_subsys_release(mixed_env%subsys)
        mixed_env%subsys => subsys
     END IF
     IF (PRESENT(sub_para_env)) THEN
@@ -293,49 +286,39 @@ CONTAINS
     END IF
     IF (PRESENT(atomic_kind_set)) THEN
       CALL atomic_kind_list_create(atomic_kinds,&
-                                   els_ptr=atomic_kind_set,&
-                                   error=error)
+                                   els_ptr=atomic_kind_set)
       CALL cp_subsys_set(mixed_env%subsys,&
-                        atomic_kinds=atomic_kinds,&
-                        error=error)
-      CALL atomic_kind_list_release(atomic_kinds,error=error)
+                        atomic_kinds=atomic_kinds)
+      CALL atomic_kind_list_release(atomic_kinds)
     END IF
     IF (PRESENT(particle_set)) THEN
       CALL particle_list_create(particles,&
-                                els_ptr=particle_set,&
-                                error=error)
+                                els_ptr=particle_set)
       CALL cp_subsys_set(mixed_env%subsys,&
-                        particles=particles,&
-                        error=error)
-      CALL particle_list_release(particles,error=error)
+                        particles=particles)
+      CALL particle_list_release(particles)
     END IF
     IF (PRESENT(local_particles)) THEN
       CALL cp_subsys_set(mixed_env%subsys,&
-                        local_particles=local_particles,&
-                        error=error)
+                        local_particles=local_particles)
     END IF
     IF (PRESENT(local_molecules)) THEN
       CALL cp_subsys_set(mixed_env%subsys,&
-                        local_molecules_new=local_molecules,&
-                        error=error)
+                        local_molecules_new=local_molecules)
     END IF
     IF (PRESENT(molecule_kind_set)) THEN
       CALL mol_kind_new_list_create(molecule_kinds_new,&
-                                    els_ptr=molecule_kind_set,&
-                                    error=error)
+                                    els_ptr=molecule_kind_set)
       CALL cp_subsys_set(mixed_env%subsys,&
-                        molecule_kinds_new=molecule_kinds_new,&
-                        error=error)
-      CALL mol_kind_new_list_release(molecule_kinds_new,error=error)
+                        molecule_kinds_new=molecule_kinds_new)
+      CALL mol_kind_new_list_release(molecule_kinds_new)
     END IF
     IF (PRESENT(molecule_set)) THEN
       CALL mol_new_list_create(molecules_new,&
-                               els_ptr=molecule_set,&
-                               error=error)
+                               els_ptr=molecule_set)
       CALL cp_subsys_set(mixed_env%subsys,&
-                        molecules_new=molecules_new,&
-                        error=error)
-      CALL mol_new_list_release(molecules_new,error=error)
+                        molecules_new=molecules_new)
+      CALL mol_new_list_release(molecules_new)
     END IF
 
   END SUBROUTINE set_mixed_env
@@ -344,14 +327,11 @@ CONTAINS
 !> \brief allocates and intitializes a mixed_env
 !> \param mixed_env the object to create
 !> \param para_env the parallel environement for the qs_env
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fschiff 11.06
 ! *****************************************************************************
-  SUBROUTINE mixed_env_create(mixed_env,para_env,error)
+  SUBROUTINE mixed_env_create(mixed_env,para_env)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_create', &
       routineP = moduleN//':'//routineN
@@ -362,20 +342,17 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(mixed_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL init_mixed_env(mixed_env,para_env=para_env, error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL init_mixed_env(mixed_env,para_env=para_env)
   END SUBROUTINE mixed_env_create
 
 ! *****************************************************************************
 !> \brief retains the given mixed_env (see doc/ReferenceCounting.html)
 !> \param mixed_env the object to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fschiff 11.06
 ! *****************************************************************************
-  SUBROUTINE mixed_env_retain(mixed_env,error)
+  SUBROUTINE mixed_env_retain(mixed_env)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_retain', &
       routineP = moduleN//':'//routineN
@@ -384,21 +361,18 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,failure)
+    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,failure)
     mixed_env%ref_count=mixed_env%ref_count+1
   END SUBROUTINE mixed_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given mixed_env (see doc/ReferenceCounting.html)
 !> \param mixed_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fschiff 11.06
 ! *****************************************************************************
-  SUBROUTINE mixed_env_release(mixed_env,error)
+  SUBROUTINE mixed_env_release(mixed_env)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_release', &
       routineP = moduleN//':'//routineN
@@ -409,41 +383,41 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(mixed_env)) THEN
-       CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,failure)
        mixed_env%ref_count=mixed_env%ref_count-1
        IF (mixed_env%ref_count<1) THEN
           ngroups = SIZE(mixed_env%sub_para_env)
           DO i = 1, ngroups
              IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
                 CALL cp_logger_release(mixed_env%sub_logger(i)%p)
-                CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env,error=error)
+                CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env)
              END IF
           END DO
           DEALLOCATE(mixed_env%sub_para_env, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(mixed_env%sub_logger, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(mixed_env%energies, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           IF (ASSOCIATED(mixed_env%par)) THEN
              DEALLOCATE(mixed_env%par, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF (ASSOCIATED(mixed_env%val)) THEN
              DEALLOCATE(mixed_env%val, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           END IF
-          CALL cell_release(mixed_env%cell_ref,error=error)
-          CALL cp_para_env_release(mixed_env%para_env,error=error)
-          CALL deallocate_mixed_energy(mixed_env%mixed_energy,error=error)
-          CALL cp_subsys_release(mixed_env%subsys,error=error)
-          CALL section_vals_release(mixed_env%input,error=error)
+          CALL cell_release(mixed_env%cell_ref)
+          CALL cp_para_env_release(mixed_env%para_env)
+          CALL deallocate_mixed_energy(mixed_env%mixed_energy)
+          CALL cp_subsys_release(mixed_env%subsys)
+          CALL section_vals_release(mixed_env%input)
           IF (ASSOCIATED(mixed_env%group_distribution)) THEN
              DEALLOCATE(mixed_env%group_distribution, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           DEALLOCATE(mixed_env, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
     NULLIFY(mixed_env)

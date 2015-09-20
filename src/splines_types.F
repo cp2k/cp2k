@@ -84,12 +84,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases spline_env
 !> \param spline_env ...
-!> \param error ...
 !> \author unknown
 ! *****************************************************************************
-  SUBROUTINE spline_env_release(spline_env,error)
+  SUBROUTINE spline_env_release(spline_env)
     TYPE(spline_environment_type), POINTER   :: spline_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release', &
       routineP = moduleN//':'//routineN
@@ -102,21 +100,21 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(spline_env)) THEN
-       CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,failure)
        spline_env%ref_count=spline_env%ref_count-1
        IF (spline_env%ref_count<1) THEN
           DEALLOCATE (  spline_env % spltab, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           DO i = 1, SIZE (  spline_env % spl_pp )
              spl_p => spline_env % spl_pp ( i ) % spl_p
-             CALL spline_data_p_release ( spl_p, error )
+             CALL spline_data_p_release ( spl_p)
           END DO
           DEALLOCATE (  spline_env % spl_pp, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           NULLIFY ( spline_env % spltab )
           NULLIFY ( spline_env % spl_pp )
           DEALLOCATE (  spline_env , stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
 
@@ -125,12 +123,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases spline_data
 !> \param spline_data ...
-!> \param error ...
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE spline_data_release (spline_data,error)
+  SUBROUTINE spline_data_release (spline_data)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release', &
       routineP = moduleN//':'//routineN
@@ -141,21 +137,21 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(spline_data)) THEN
-       CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,failure)
        spline_data%ref_count=spline_data%ref_count-1
        IF (spline_data%ref_count<1) THEN
           IF ( ASSOCIATED ( spline_data%y)) THEN
              DEALLOCATE (spline_data%y,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              NULLIFY (spline_data%y)
           END IF
           IF ( ASSOCIATED ( spline_data%y2)) THEN
              DEALLOCATE (spline_data%y2,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              NULLIFY (spline_data%y2)
           END IF
           DEALLOCATE (  spline_data, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
   END SUBROUTINE spline_data_release
@@ -163,13 +159,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases spline_data_p
 !> \param spl_p ...
-!> \param error ...
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE spline_data_p_release (spl_p,error)
+  SUBROUTINE spline_data_p_release (spl_p)
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_release', &
       routineP = moduleN//':'//routineN
@@ -182,12 +176,12 @@ CONTAINS
     IF (ASSOCIATED(spl_p)) THEN
        release_kind = .TRUE.
        DO i = 1, SIZE(spl_p)
-          CALL spline_data_release(spl_p(i)%spline_data,error)
+          CALL spline_data_release(spl_p(i)%spline_data)
           release_kind = release_kind .AND.(.NOT.ASSOCIATED(spl_p(i)%spline_data))
        END DO
        IF (release_kind) THEN
           DEALLOCATE(spl_p, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
 
@@ -196,12 +190,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains spline_env
 !> \param spline_data ...
-!> \param error ...
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE spline_data_retain(spline_data,error)
+  SUBROUTINE spline_data_retain(spline_data)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_retain', &
       routineP = moduleN//':'//routineN
@@ -209,21 +201,19 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,failure)
     spline_data%ref_count=spline_data%ref_count+1
   END SUBROUTINE spline_data_retain
 
 ! *****************************************************************************
 !> \brief retains spline_data_p_type
 !> \param spl_p ...
-!> \param error ...
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE spline_data_p_retain(spl_p,error)
+  SUBROUTINE spline_data_p_retain(spl_p)
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_retain', &
       routineP = moduleN//':'//routineN
@@ -232,23 +222,21 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(spl_p),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spl_p),cp_failure_level,routineP,failure)
     DO i = 1, SIZE(spl_p)
-       CALL spline_data_retain(spl_p(i)%spline_data, error)
+       CALL spline_data_retain(spl_p(i)%spline_data)
     END DO
   END SUBROUTINE spline_data_p_retain
 
 ! *****************************************************************************
 !> \brief retains spline_env
 !> \param spline_env ...
-!> \param error ...
 !> \par History
 !>      2001-09-19-HAF added this doc entry and changed formatting
 !> \author unknown
 ! *****************************************************************************
-  SUBROUTINE spline_env_retain(spline_env,error)
+  SUBROUTINE spline_env_retain(spline_env)
     TYPE(spline_environment_type), POINTER   :: spline_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_retain', &
       routineP = moduleN//':'//routineN
@@ -256,8 +244,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,failure)
     spline_env%ref_count=spline_env%ref_count+1
   END SUBROUTINE spline_env_retain
 
@@ -267,16 +255,14 @@ CONTAINS
 !> \param spline_env ...
 !> \param ntype ...
 !> \param ntab_in ...
-!> \param error ...
 !> \par History
 !>      2001-09-19-HAF added this doc entry and changed formatting
 !> \author unknown
 ! *****************************************************************************
-  SUBROUTINE spline_env_create ( spline_env, ntype, ntab_in, error )
+  SUBROUTINE spline_env_create ( spline_env, ntype, ntab_in)
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
     INTEGER, INTENT(IN), OPTIONAL            :: ntab_in
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
       routineP = moduleN//':'//routineN
@@ -290,7 +276,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(spline_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY ( spline_env % spl_pp )
     NULLIFY ( spline_env % spltab )
     spline_env%ref_count=1
@@ -303,18 +289,18 @@ CONTAINS
        ntab = ( ntype * ntype + ntype ) / 2
     END IF
     ALLOCATE ( spline_env % spl_pp( ntab ),  stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE ( spline_env % spltab ( ntype, ntype ), stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO i = 1, ntab
        NULLIFY (spline_env%spl_pp( i )%spl_p)
        isize = 1
        ALLOCATE(spline_env%spl_pp(i)%spl_p(isize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO j = 1, SIZE(spline_env%spl_pp(i)%spl_p)
-          CALL spline_data_create (spline_env%spl_pp(i)%spl_p(j)%spline_data,error=error)
+          CALL spline_data_create (spline_env%spl_pp(i)%spl_p(j)%spline_data)
        END DO
     END DO
 
@@ -326,13 +312,11 @@ CONTAINS
 !> \brief Copy Data-structure of spline_data_p_type
 !> \param spl_p_source ...
 !> \param spl_p_dest ...
-!> \param error ...
 !> \author teo 06.2007
 ! *****************************************************************************
-  SUBROUTINE spline_data_p_copy ( spl_p_source, spl_p_dest, error )
+  SUBROUTINE spline_data_p_copy ( spl_p_source, spl_p_dest)
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p_source, spl_p_dest
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_copy', &
       routineP = moduleN//':'//routineN
@@ -341,23 +325,23 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(spl_p_source),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(spl_p_source),cp_failure_level,routineP,failure)
     nsizes = SIZE(spl_p_source)
     IF (.NOT.ASSOCIATED(spl_p_dest)) THEN
        ALLOCATE(spl_p_dest(nsizes), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, nsizes
           NULLIFY(spl_p_dest(i)%spline_data)
        END DO
     ELSE
        nsized = SIZE(spl_p_dest)
-       CPPostcondition(nsizes==nsized,cp_failure_level,routineP,error,failure)
+       CPPostcondition(nsizes==nsized,cp_failure_level,routineP,failure)
        DO i = 1, nsizes
-          CALL spline_data_release(spl_p_dest(i)%spline_data, error=error)
+          CALL spline_data_release(spl_p_dest(i)%spline_data)
        END DO
     END IF
     DO i = 1, nsizes
-       CALL spline_data_copy (spl_p_source(i)%spline_data, spl_p_dest(i)%spline_data, error )
+       CALL spline_data_copy (spl_p_source(i)%spline_data, spl_p_dest(i)%spline_data)
     END DO
   END SUBROUTINE spline_data_p_copy
 
@@ -365,13 +349,11 @@ CONTAINS
 !> \brief Copy Data-structure that constains spline table
 !> \param spline_data_source ...
 !> \param spline_data_dest ...
-!> \param error ...
 !> \author teo 11.2005
 ! *****************************************************************************
-  SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
+  SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest)
     TYPE(spline_data_type), POINTER          :: spline_data_source, &
                                                 spline_data_dest
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_copy', &
       routineP = moduleN//':'//routineN
@@ -380,8 +362,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,error,failure)
-    IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest,error)
+    CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,failure)
+    IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest)
 
     spline_data_dest%ref_count = spline_data_source%ref_count
     spline_data_dest%id_nr     = spline_data_source%id_nr
@@ -393,12 +375,12 @@ CONTAINS
     spline_data_dest%xn        = spline_data_source%xn
     IF (ASSOCIATED(spline_data_source%y)) THEN
        ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        spline_data_dest%y = spline_data_source%y
     END IF
     IF (ASSOCIATED(spline_data_source%y2)) THEN
        ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        spline_data_dest%y2 = spline_data_source%y2
     END IF
   END SUBROUTINE spline_data_copy
@@ -406,12 +388,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Data-structure that constains spline table
 !> \param spline_data ...
-!> \param error ...
 !> \author unknown
 ! *****************************************************************************
-  SUBROUTINE spline_data_create ( spline_data, error )
+  SUBROUTINE spline_data_create ( spline_data)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create', &
       routineP = moduleN//':'//routineN
@@ -422,7 +402,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(spline_data, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     spline_data%ref_count=1
     last_spline_data_id_nr=last_spline_data_id_nr+1
     spline_data%id_nr = last_spline_data_id_nr
@@ -433,12 +413,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases spline_factor
 !> \param spline_factor ...
-!> \param error ...
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE spline_factor_release (spline_factor,error)
+  SUBROUTINE spline_factor_release (spline_factor)
     TYPE(spline_factor_type), POINTER        :: spline_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_release', &
       routineP = moduleN//':'//routineN
@@ -451,30 +429,28 @@ CONTAINS
     IF (ASSOCIATED(spline_factor)) THEN
        IF (ASSOCIATED(spline_factor%rscale)) THEN
           DEALLOCATE(spline_factor%rscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(spline_factor%fscale)) THEN
           DEALLOCATE(spline_factor%fscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(spline_factor%dscale)) THEN
           DEALLOCATE(spline_factor%dscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE (spline_factor, stat=stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE spline_factor_release
 
 ! *****************************************************************************
 !> \brief releases spline_factor
 !> \param spline_factor ...
-!> \param error ...
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE spline_factor_create (spline_factor, error)
+  SUBROUTINE spline_factor_create (spline_factor)
     TYPE(spline_factor_type), POINTER        :: spline_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_create', &
       routineP = moduleN//':'//routineN
@@ -483,15 +459,15 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(spline_factor),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(spline_factor),cp_failure_level,routineP,failure)
     ALLOCATE(spline_factor, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(spline_factor%rscale(1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(spline_factor%fscale(1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(spline_factor%dscale(1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     spline_factor%rscale = 1.0_dp
     spline_factor%fscale = 1.0_dp
     spline_factor%dscale = 1.0_dp
@@ -503,13 +479,11 @@ CONTAINS
 !> \brief releases spline_factor
 !> \param spline_factor_source ...
 !> \param spline_factor_dest ...
-!> \param error ...
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE spline_factor_copy (spline_factor_source,spline_factor_dest, error)
+  SUBROUTINE spline_factor_copy (spline_factor_source,spline_factor_dest)
     TYPE(spline_factor_type), POINTER        :: spline_factor_source, &
                                                 spline_factor_dest
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_copy', &
       routineP = moduleN//':'//routineN
@@ -519,14 +493,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    IF (ASSOCIATED(spline_factor_dest)) CALL spline_factor_release(spline_factor_dest, error)
+    IF (ASSOCIATED(spline_factor_dest)) CALL spline_factor_release(spline_factor_dest)
     IF (ASSOCIATED(spline_factor_source)) THEN
        isize = SIZE(spline_factor_source%rscale)
        jsize = SIZE(spline_factor_source%fscale)
        ksize = SIZE(spline_factor_source%dscale)
-       CPPrecondition(isize==jsize,cp_failure_level,routineP,error,failure)
-       CPPrecondition(isize==ksize,cp_failure_level,routineP,error,failure)
-       CALL spline_factor_create(spline_factor_dest, error)
+       CPPrecondition(isize==jsize,cp_failure_level,routineP,failure)
+       CPPrecondition(isize==ksize,cp_failure_level,routineP,failure)
+       CALL spline_factor_create(spline_factor_dest)
        spline_factor_dest%rscale = spline_factor_source%rscale
        spline_factor_dest%fscale = spline_factor_source%fscale
        spline_factor_dest%dscale = spline_factor_source%dscale

@@ -64,7 +64,6 @@ MODULE swarm_master
    LOGICAL                                             :: should_stop = .FALSE.
    INTEGER                                             :: n_workers = -1
    INTEGER                                             :: comlog_unit
-   TYPE(cp_error_type)                                 :: error
    TYPE(section_vals_type), POINTER                    :: swarm_section => Null()
    TYPE(cp_para_env_type), POINTER                     :: para_env => Null()
    TYPE(swarm_message_p_type), DIMENSION(:), POINTER   :: queued_commands => Null()
@@ -84,44 +83,41 @@ MODULE swarm_master
 !> \param globenv ...
 !> \param root_section ...
 !> \param n_workers ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE swarm_master_init(master, para_env, globenv, root_section, n_workers, error)
+ SUBROUTINE swarm_master_init(master, para_env, globenv, root_section, n_workers)
     TYPE(swarm_master_type)                  :: master
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: n_workers
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
-    master%swarm_section => section_vals_get_subs_vals(root_section, "SWARM", error=error)
+    master%swarm_section => section_vals_get_subs_vals(root_section, "SWARM")
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     master%n_workers = n_workers
-    master%error = error
     master%para_env => para_env
     master%globenv => globenv
     ALLOCATE(master%queued_commands(master%n_workers))
     master%iw = cp_print_key_unit_nr(logger, master%swarm_section,&
-          "PRINT%MASTER_RUN_INFO",extension=".masterLog",error=error)
+          "PRINT%MASTER_RUN_INFO",extension=".masterLog")
 
-    CALL section_vals_val_get(master%swarm_section,"BEHAVIOR", i_val=master%behavior, error=error)
+    CALL section_vals_val_get(master%swarm_section,"BEHAVIOR", i_val=master%behavior)
 
     ! uses logger%iter_info%project_name to construct filename
     master%comlog_unit = cp_print_key_unit_nr(logger,master%swarm_section,"PRINT%COMMUNICATION_LOG",&
             !middle_name="comlog", extension=".xyz", &
             extension=".comlog", &
-            file_action="WRITE", file_position="REWIND", error=error)
+            file_action="WRITE", file_position="REWIND")
 
-    CALL section_vals_val_get(master%swarm_section,"MAX_ITER", i_val=master%max_iter, error=error)
+    CALL section_vals_val_get(master%swarm_section,"MAX_ITER", i_val=master%max_iter)
 
     SELECT CASE(master%behavior)
       CASE(swarm_do_glbopt)
          ALLOCATE(master%glbopt)
-         CALL glbopt_master_init(master%glbopt, para_env, root_section, n_workers, master%iw, error)
+         CALL glbopt_master_init(master%glbopt, para_env, root_section, n_workers, master%iw)
       CASE DEFAULT
          STOP "swarm_master_init: got unknown behavior"
     END SELECT
@@ -152,21 +148,21 @@ MODULE swarm_master
 
     ! Initialize parser for trajectory
     CALL section_vals_val_get(master%swarm_section,"REPLAY_COMMUNICATION_LOG",&
-       c_val=filename, explicit=explicit, error=master%error)
+       c_val=filename, explicit=explicit)
 
     IF(.NOT. explicit) RETURN
     IF(master%iw>0) WRITE(master%iw,'(A,A)') &
        " SWARM| Starting replay of communication-log: ", TRIM(filename)
 
     CALL timeset("swarm_master_replay_comlog", handle)
-    CALL parser_create(parser, filename, para_env=master%para_env, error=master%error)
+    CALL parser_create(parser, filename, para_env=master%para_env)
 
     at_end = .FALSE.
     DO
-      CALL swarm_message_file_read(report_log, parser, at_end, master%error)
+      CALL swarm_message_file_read(report_log, parser, at_end)
       IF(at_end) EXIT
 
-      CALL swarm_message_file_read(cmd_log, parser, at_end, master%error)
+      CALL swarm_message_file_read(cmd_log, parser, at_end)
       IF(at_end) EXIT
 
       ALLOCATE(cmd_now)
@@ -197,7 +193,7 @@ MODULE swarm_master
        master%queued_commands(i)%p = last_commands(i)
     END DO
 
-    CALL parser_release(parser, error=master%error)
+    CALL parser_release(parser)
     CALL timestop(handle)
  END SUBROUTINE replay_comlog
 
@@ -273,7 +269,7 @@ MODULE swarm_master
     ENDIF
 
     IF(.NOT. master%should_stop) THEN
-      CALL external_control(master%should_stop,"SWARM",master%globenv,error=master%error)
+      CALL external_control(master%should_stop,"SWARM",master%globenv)
       IF(master%should_stop .AND. master%iw>0) &
          WRITE (master%iw, *)  " SWARM| Received stop from external_control. Quitting."
     END IF
@@ -347,11 +343,11 @@ MODULE swarm_master
 
     DEALLOCATE(master%queued_commands)
 
-    logger => cp_error_get_logger(master%error)
+    logger => cp_get_default_logger()
     CALL cp_print_key_finished_output(master%iw, logger,&
-            master%swarm_section, "PRINT%MASTER_RUN_INFO", error=master%error)
+            master%swarm_section, "PRINT%MASTER_RUN_INFO")
     CALL cp_print_key_finished_output(master%comlog_unit, logger,&
-            master%swarm_section, "PRINT%COMMUNICATION_LOG", error=master%error)
+            master%swarm_section, "PRINT%COMMUNICATION_LOG")
 
     !CALL rm_timer_env() !pops the top-most timer
  END SUBROUTINE swarm_master_finalize

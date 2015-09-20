@@ -63,10 +63,9 @@ CONTAINS
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
-               calculate_forces,just_energy,error)
+               calculate_forces,just_energy)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -75,7 +74,6 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal', &
       routineP = moduleN//':'//routineN
@@ -120,12 +118,12 @@ CONTAINS
 
     ! Energy
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set,atprop=atprop,error=error)
+                    qs_kind_set=qs_kind_set,atprop=atprop)
 
     eb3 = 0.0_dp
-    CALL get_qs_env(qs_env=qs_env,local_particles=local_particles,error=error)
+    CALL get_qs_env(qs_env=qs_env,local_particles=local_particles)
     DO ikind=1,SIZE(local_particles%n_el)
-       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
+       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
        CALL get_dftb_atom_param(dftb_kind,dudq=ua,zeff=zeff)
        DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -138,26 +136,26 @@ CONTAINS
           END IF
        END DO
     END DO
-    CALL get_qs_env(qs_env=qs_env,para_env=para_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,para_env=para_env)
     CALL mp_sum(eb3,para_env%group)
     energy%dftb3 = eb3
 
     ! Forces and Virial
     IF ( calculate_forces ) THEN
        CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s,natom=natom,force=force,&
-            cell=cell,virial=virial,particle_set=particle_set,error=error)
+            cell=cell,virial=virial,particle_set=particle_set)
        ! virial
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
        ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,atom_of_kind=atom_of_kind)
-       CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
+       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
        IF ( SIZE(matrix_p,1) == 2) THEN
           DO ic=1,SIZE(matrix_p,2)
              CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
-                  alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+                  alpha_scalar=1.0_dp,beta_scalar=1.0_dp)
           END DO
        END IF
        !
@@ -165,11 +163,11 @@ CONTAINS
        NULLIFY(cell_to_index)
        IF (nimg>1) THEN
           NULLIFY(kpoints)
-          CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
-          CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+          CALL get_qs_env(qs_env=qs_env,kpoints=kpoints)
+          CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
        END IF
        NULLIFY(n_list)
-       CALL get_qs_env(qs_env=qs_env,sab_orb=n_list,error=error)
+       CALL get_qs_env(qs_env=qs_env,sab_orb=n_list)
        CALL neighbor_list_iterator_create(nl_iterator,n_list)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
           CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
@@ -185,16 +183,16 @@ CONTAINS
              ic = 1
           ELSE
              ic = cell_to_index(cellind(1),cellind(2),cellind(3))
-             CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
           END IF
 
           ikind  = kind_of(iatom)
           atom_i = atom_of_kind(iatom)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=ui)
           jkind  = kind_of(jatom)
           atom_j = atom_of_kind(jatom)
-          CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_kind, error=error)
+          CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           !
           gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
@@ -202,12 +200,12 @@ CONTAINS
           NULLIFY(pblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,ic)%matrix,&
                row=irow,col=icol,block=pblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
           DO i=1,3
              NULLIFY(dsblock)
              CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i,ic)%matrix,&
                   row=irow,col=icol,block=dsblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             CPPostcondition(found,cp_failure_level,routineP,failure)
              IF(irow==iatom) THEN
                 fi = -gmij*SUM(pblock*dsblock)
              ELSE
@@ -218,10 +216,10 @@ CONTAINS
              fij(i) = fi
           END DO
           IF (use_virial) THEN
-             CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
+             CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij)
              IF(atprop%stress) THEN
-                CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij, error)
-                CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij, error)
+                CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij)
+                CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij)
              END IF
           END IF
 
@@ -229,32 +227,32 @@ CONTAINS
        CALL neighbor_list_iterator_release(nl_iterator)
        !
        DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        IF ( SIZE(matrix_p,1) == 2 ) THEN
           DO ic=1,SIZE(matrix_p,2)
              CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
-                               alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+                               alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
           END DO
        END IF
     END IF
 
     ! KS matrix
     IF ( .NOT. just_energy ) THEN
-       CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s,natom=natom,error=error)
+       CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s,natom=natom)
        ALLOCATE (kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
        !
        nimg = SIZE(ks_matrix,2)
        NULLIFY(cell_to_index)
        IF (nimg>1) THEN
           NULLIFY(kpoints)
-          CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
-          CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+          CALL get_qs_env(qs_env=qs_env,kpoints=kpoints)
+          CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
        END IF
 
        NULLIFY(n_list)
-       CALL get_qs_env(qs_env=qs_env,sab_orb=n_list,error=error)
+       CALL get_qs_env(qs_env=qs_env,sab_orb=n_list)
        CALL neighbor_list_iterator_create(nl_iterator,n_list)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
           CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
@@ -267,26 +265,26 @@ CONTAINS
              ic = 1
           ELSE
              ic = cell_to_index(cellind(1),cellind(2),cellind(3))
-             CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
           END IF
 
           ikind  = kind_of(iatom)
-          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=ui)
           jkind  = kind_of(jatom)
-          CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind, error=error)
+          CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
           !
           NULLIFY(sblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_s(1,ic)%matrix,&
                row=irow,col=icol,block=sblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          CPPostcondition(found,cp_failure_level,routineP,failure)
           DO is=1,SIZE(ks_matrix,1)
              NULLIFY(ksblock)
              CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is,ic)%matrix,&
                   row=irow,col=icol,block=ksblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             CPPostcondition(found,cp_failure_level,routineP,failure)
              ksblock = ksblock - 0.5_dp*gmij*sblock
           END DO
 
@@ -294,7 +292,7 @@ CONTAINS
        CALL neighbor_list_iterator_release(nl_iterator)
        !
        DEALLOCATE (kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL timestop(handle)

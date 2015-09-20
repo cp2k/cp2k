@@ -134,8 +134,6 @@ CONTAINS
 !> \param dt ...
 !> \param para_env ...
 !> \param metadyn_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2004 created
 !>      02.2006 Reorganized the structure of the restart for Metadynamics (teo)
@@ -145,13 +143,12 @@ CONTAINS
 !>         - Teodoro Laino [tlaino] - University of Zurich. 10.2008
 !>           Major rewriting and addition of multiple walkers
 ! *****************************************************************************
-  SUBROUTINE metadyn_create(meta_env, n_colvar, dt, para_env, metadyn_section, error)
+  SUBROUTINE metadyn_create(meta_env, n_colvar, dt, para_env, metadyn_section)
     TYPE(meta_env_type), POINTER             :: meta_env
     INTEGER, INTENT(in)                      :: n_colvar
     REAL(dp), INTENT(in)                     :: dt
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: metadyn_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create', &
       routineP = moduleN//':'//routineN
@@ -161,9 +158,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(meta_env),cp_failure_level,routinep,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(meta_env),cp_failure_level,routinep,failure)
     ALLOCATE(meta_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     NULLIFY(meta_env%multiple_walkers,&
             meta_env%metadyn_section,&
             meta_env%time,&
@@ -179,7 +176,7 @@ CONTAINS
     meta_env%id_nr     =  last_meta_env_id
     meta_env%n_colvar  =  n_colvar
     meta_env%para_env  => para_env
-    CALL cp_para_env_retain(para_env,error=error)
+    CALL cp_para_env_retain(para_env)
 
     meta_env%ekin_s      = 0.0_dp
     meta_env%epot_s      = 0.0_dp
@@ -190,22 +187,22 @@ CONTAINS
 
     ! Hills_env
     ALLOCATE(meta_env%hills_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(meta_env%hills_env%invdt_history(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     meta_env%hills_env%n_hills = 0
     meta_env%hills_env%energy = 0.0_dp
     meta_env%hills_env%restart = .TRUE.
 
     ! Colvar
     ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     DO i = 1, n_colvar
        NULLIFY(meta_env%metavar(i)%walls)
        meta_env%metavar(i)%mass       = -HUGE(0.0_dp)
@@ -227,10 +224,10 @@ CONTAINS
 
     ! Multiple Walkers
     CALL section_vals_val_get(metadyn_section,"MULTIPLE_WALKERS%_SECTION_PARAMETERS_",&
-         l_val=meta_env%do_multiple_walkers,error=error)
+         l_val=meta_env%do_multiple_walkers)
     IF (meta_env%do_multiple_walkers) THEN
        ALLOCATE(meta_env%multiple_walkers,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
 
        ! Walkers status and Walkers file name
        NULLIFY(meta_env%multiple_walkers%walkers_status,&
@@ -238,10 +235,10 @@ CONTAINS
        meta_env%multiple_walkers%n_hills_local = 0
     END IF
 
-    CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin,error=error)
+    CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin)
     IF (do_langevin) THEN
        ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i=1,meta_env%n_colvar
           NULLIFY(meta_env%rng(meta_env%n_colvar)%stream)
        END DO
@@ -252,14 +249,11 @@ CONTAINS
 !> \brief sets the meta_env
 !> \param meta_env ...
 !> \param time ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-  SUBROUTINE set_meta_env(meta_env, time, error)
+  SUBROUTINE set_meta_env(meta_env, time)
     TYPE(meta_env_type), POINTER             :: meta_env
     REAL(KIND=dp), OPTIONAL, POINTER         :: time
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_meta_env', &
       routineP = moduleN//':'//routineN
@@ -278,13 +272,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the meta_env
 !> \param meta_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-  SUBROUTINE meta_env_retain(meta_env,error)
+  SUBROUTINE meta_env_retain(meta_env)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_retain', &
       routineP = moduleN//':'//routineN
@@ -293,21 +284,18 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPreconditionNoFail(ASSOCIATED(meta_env),cp_failure_level,routineP,error)
-    CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
+    CPPreconditionNoFail(ASSOCIATED(meta_env),cp_failure_level,routineP)
+    CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP)
     meta_env%ref_count=meta_env%ref_count+1
   END SUBROUTINE meta_env_retain
 
 ! *****************************************************************************
 !> \brief releases the meta_env
 !> \param meta_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-  SUBROUTINE meta_env_release(meta_env,error)
+  SUBROUTINE meta_env_release(meta_env)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
       routineP = moduleN//':'//routineN
@@ -317,51 +305,51 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(meta_env)) THEN
-       CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP)
        meta_env%ref_count=meta_env%ref_count-1
        IF (meta_env%ref_count==0) THEN
-          CALL cp_para_env_release(meta_env%para_env,error=error)
+          CALL cp_para_env_release(meta_env%para_env)
           IF (ASSOCIATED(meta_env%metavar)) THEN
              DO i = 1, SIZE(meta_env%metavar)
                 IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
                    DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
-                   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+                   CPPostcondition(stat==0,cp_warning_level,routineP,failure)
                 END IF
              END DO
              DEALLOCATE(meta_env%metavar,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
 
           ! Hills env
-          CALL hills_env_release(meta_env%hills_env,error)
+          CALL hills_env_release(meta_env%hills_env)
           ! Walkers type
           IF (ASSOCIATED(meta_env%multiple_walkers)) THEN
              IF (ASSOCIATED(meta_env%multiple_walkers%walkers_status)) THEN
                 DEALLOCATE(meta_env%multiple_walkers%walkers_status,stat=stat)
-                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_warning_level,routineP,failure)
              END IF
              IF (ASSOCIATED(meta_env%multiple_walkers%walkers_file_name)) THEN
                 DEALLOCATE(meta_env%multiple_walkers%walkers_file_name,stat=stat)
-                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_warning_level,routineP,failure)
              END IF
              DEALLOCATE(meta_env%multiple_walkers,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
 
           ! Langevin on COLVARS
           IF (meta_env%langevin) THEN
              DO i = 1, SIZE(meta_env%rng)
                 IF (ASSOCIATED(meta_env%rng(i)%stream)) THEN
-                   CALL delete_rng_stream(meta_env%rng(i)%stream,error=error)
+                   CALL delete_rng_stream(meta_env%rng(i)%stream)
                 END IF
              END DO
              DEALLOCATE (meta_env%rng,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ENDIF
           NULLIFY(meta_env%time)
           NULLIFY(meta_env%metadyn_section)
           DEALLOCATE(meta_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE meta_env_release
@@ -369,13 +357,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the hills_env
 !> \param hills_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE hills_env_release(hills_env, error)
+  SUBROUTINE hills_env_release(hills_env)
     TYPE(hills_env_type), POINTER            :: hills_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hills_env_release', &
       routineP = moduleN//':'//routineN
@@ -387,22 +372,22 @@ CONTAINS
     IF (ASSOCIATED(hills_env)) THEN
        IF (ASSOCIATED(hills_env%ss_history)) THEN
           DEALLOCATE(hills_env%ss_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(hills_env%delta_s_history)) THEN
           DEALLOCATE(hills_env%delta_s_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(hills_env%ww_history)) THEN
           DEALLOCATE(hills_env%ww_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(hills_env%invdt_history)) THEN
           DEALLOCATE(hills_env%invdt_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        DEALLOCATE(hills_env,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     END IF
   END SUBROUTINE hills_env_release
 

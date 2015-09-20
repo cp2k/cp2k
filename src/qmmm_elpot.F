@@ -50,15 +50,12 @@ CONTAINS
 !> \param mm_cell ...
 !> \param compatibility ...
 !> \param print_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
-    pgfs, mm_cell, compatibility, print_section,&
-    error)
+    pgfs, mm_cell, compatibility, print_section)
     INTEGER, INTENT(IN)                      :: qmmm_coupl_type
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
@@ -68,7 +65,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_potential_init', &
       routineP = moduleN//':'//routineN
@@ -88,7 +84,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
@@ -100,11 +96,11 @@ CONTAINS
     !
     IF (SIZE(mm_el_pot_radius) /= 0) THEN
        ALLOCATE(radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        radius(1) = mm_el_pot_radius(1)
     ELSE
        ALLOCATE(radius(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
     END IF
     Loop_on_all_values: DO I = 2, SIZE(mm_el_pot_radius)
        Found=.FALSE.
@@ -122,15 +118,15 @@ CONTAINS
        END IF
     END DO Loop_on_all_values
     !
-    CPPrecondition(.NOT.ASSOCIATED(potentials),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(potentials),cp_failure_level,routineP,failure)
     ALLOCATE(potentials(SIZE(radius)),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
     Potential_Type: DO K = 1, SIZE(radius)
 
        rc = radius(K)
        ALLOCATE(potentials(K)%Pot, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
           NULLIFY(pot0_2)
@@ -138,7 +134,7 @@ CONTAINS
           NULLIFY(pot0_2)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(pot0_2(2,np), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END SELECT
 
        SELECT CASE(qmmm_coupl_type)
@@ -169,7 +165,7 @@ CONTAINS
              END DO
           END IF
           pgf => pgfs(K)%pgf
-          CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,error,failure)
+          CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,failure)
           ig_start = 1
           IF (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)) ig_start = 2
           DO Ig = ig_start, pgf%number_of_gaussians
@@ -188,11 +184,11 @@ CONTAINS
           END DO
 
           ! Print info on the unidimensional MM electrostatic potential
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,"MM_POTENTIAL",&
-                    error=error),cp_p_file)) THEN
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,"MM_POTENTIAL")&
+                    ,cp_p_file)) THEN
              WRITE(rc_s,'(F6.3)')rc
              unit_nr = cp_print_key_unit_nr(logger,print_section,"MM_POTENTIAL",&
-                  extension="_rc="//TRIM(ADJUSTL(rc_s))//".data",error=error)
+                  extension="_rc="//TRIM(ADJUSTL(rc_s))//".data")
              IF (unit_nr>0) THEN
                 WRITE(unit_nr,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
                 WRITE(unit_nr,'(A,I5)')"# MM ELECTROSTATIC POTENTIAL - Nr. of Gaussians:",pgf%number_of_gaussians
@@ -213,18 +209,18 @@ CONTAINS
                 END DO
              END IF
              CALL cp_print_key_finished_output(unit_nr,logger,print_section,&
-                  "MM_POTENTIAL", error=error)
+                  "MM_POTENTIAL")
           END IF
        CASE DEFAULT
           DEALLOCATE(potentials(K)%Pot)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
           NULLIFY(potentials(K)%Pot)
           IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
           CYCLE Potential_Type
        END SELECT
        NULLIFY(mm_atom_index)
        ALLOCATE(mm_atom_index(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        ! Build mm_atom_index List
        DO J= 1, SIZE(mm_el_pot_radius)
           IF (rc.EQ.mm_el_pot_radius(J)) THEN
@@ -242,7 +238,7 @@ CONTAINS
 
     END DO Potential_Type
     DEALLOCATE(radius, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
   END SUBROUTINE qmmm_potential_init
 
 ! *****************************************************************************

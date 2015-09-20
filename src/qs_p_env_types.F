@@ -105,15 +105,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given p_env (see doc/ReferenceCounting.html)
 !> \param p_env the p_env to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE p_env_retain(p_env,error)
+SUBROUTINE p_env_retain(p_env)
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_retain', &
       routineP = moduleN//':'//routineN
@@ -122,24 +119,21 @@ SUBROUTINE p_env_retain(p_env,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
+  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
   p_env%ref_count=p_env%ref_count+1
 END SUBROUTINE p_env_retain
 
 ! *****************************************************************************
 !> \brief relases the given p_env (see doc/ReferenceCounting.html)
 !> \param p_env the environment to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE p_env_release(p_env, error)
+  SUBROUTINE p_env_release(p_env)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
@@ -150,46 +144,46 @@ END SUBROUTINE p_env_retain
     failure=.FALSE.
 
     IF (ASSOCIATED(p_env)) THEN
-       CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
        p_env%ref_count=p_env%ref_count-1
        IF (p_env%ref_count<1) THEN
-          CALL kpp1_release(p_env%kpp1_env, error)
-          CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
-          CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
-          CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
-          CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
+          CALL kpp1_release(p_env%kpp1_env)
+          CALL cp_fm_vect_dealloc(p_env%S_psi0)
+          CALL cp_fm_vect_dealloc(p_env%m_epsilon)
+          CALL cp_fm_vect_dealloc(p_env%psi0d)
+          CALL cp_fm_vect_dealloc(p_env%Smo_inv)
           IF(ASSOCIATED(p_env%rho1_xc)) THEN
-            CALL qs_rho_release(p_env%rho1_xc,error=error)
+            CALL qs_rho_release(p_env%rho1_xc)
           ENDIF
-          CALL qs_rho_release(p_env%rho1,error=error)
-          IF (ASSOCIATED(p_env%kpp1)) CALL cp_dbcsr_deallocate_matrix_set(p_env%kpp1,error)
-          IF (ASSOCIATED(p_env%p1)) CALL cp_dbcsr_deallocate_matrix_set(p_env%p1,error)
+          CALL qs_rho_release(p_env%rho1)
+          IF (ASSOCIATED(p_env%kpp1)) CALL cp_dbcsr_deallocate_matrix_set(p_env%kpp1)
+          IF (ASSOCIATED(p_env%p1)) CALL cp_dbcsr_deallocate_matrix_set(p_env%p1)
           IF (ASSOCIATED(p_env%local_rho_set)) THEN
-             CALL local_rho_set_release(p_env%local_rho_set,error=error)
+             CALL local_rho_set_release(p_env%local_rho_set)
           END IF
           IF (ASSOCIATED(p_env%hartree_local)) THEN
-             CALL hartree_local_release(p_env%hartree_local,error=error)
+             CALL hartree_local_release(p_env%hartree_local)
           END IF
           IF(ASSOCIATED(p_env%PS_psi0)) THEN
-            CALL cp_fm_vect_dealloc(p_env%PS_psi0, error=error)
+            CALL cp_fm_vect_dealloc(p_env%PS_psi0)
           END IF
           IF(ASSOCIATED(p_env%ev_h0)) THEN
             DO ip = 1,SIZE(p_env%ev_h0,1)
               NULLIFY(p_env%ev_h0(ip)%matrix)
             END DO
             DEALLOCATE(p_env%ev_h0, STAT=stat)
-            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
+            CPPostcondition((stat==0),cp_failure_level,routineP,failure)
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             DO ip=1,SIZE(p_env%preconditioner,1)
-              CALL destroy_preconditioner(p_env%preconditioner(ip),error=error)
+              CALL destroy_preconditioner(p_env%preconditioner(ip))
             END DO
             DEALLOCATE(p_env%preconditioner,STAT=stat)
-            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
+            CPPostcondition((stat==0),cp_failure_level,routineP,failure)
           END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
-       CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat==0),cp_failure_level,routineP,failure)
     END IF
     NULLIFY(p_env)
   END SUBROUTINE p_env_release

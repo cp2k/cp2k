@@ -58,15 +58,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given md_ener structure
 !> \param md_ener :
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE create_md_ener(md_ener, error)
+  SUBROUTINE create_md_ener(md_ener)
     TYPE(md_ener_type), POINTER              :: md_ener
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ener', &
       routineP = moduleN//':'//routineN
@@ -76,9 +73,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
     ALLOCATE(md_ener,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     last_md_ener_id=last_md_ener_id+1
     md_ener%id_nr=last_md_ener_id
 
@@ -95,15 +92,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given md_ener structure
 !> \param md_ener :
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE retain_md_ener(md_ener, error)
+  SUBROUTINE retain_md_ener(md_ener)
     TYPE(md_ener_type), POINTER              :: md_ener
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_md_ener', &
       routineP = moduleN//':'//routineN
@@ -112,23 +106,20 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
-    CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
+    CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,failure)
     md_ener%ref_count=md_ener%ref_count+1
   END SUBROUTINE retain_md_ener
 
 ! *****************************************************************************
 !> \brief releases the given md_ener structure
 !> \param md_ener :
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE release_md_ener(md_ener, error)
+  SUBROUTINE release_md_ener(md_ener)
     TYPE(md_ener_type), POINTER              :: md_ener
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_md_ener', &
       routineP = moduleN//':'//routineN
@@ -139,36 +130,36 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(md_ener)) THEN
-       CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,failure)
        md_ener%ref_count=md_ener%ref_count-1
        IF (md_ener%ref_count==0) THEN
           IF(ASSOCIATED(md_ener%temp_kind))THEN
              DEALLOCATE(md_ener%temp_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF(ASSOCIATED(md_ener%ekin_kind))THEN
              DEALLOCATE(md_ener%ekin_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF(ASSOCIATED(md_ener%nfree_kind))THEN
              DEALLOCATE(md_ener%nfree_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF(ASSOCIATED(md_ener%temp_shell_kind))THEN
              DEALLOCATE(md_ener%temp_shell_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF(ASSOCIATED(md_ener%ekin_shell_kind))THEN
              DEALLOCATE(md_ener%ekin_shell_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           IF(ASSOCIATED(md_ener%nfree_shell_kind))THEN
              DEALLOCATE(md_ener%nfree_shell_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
 
           DEALLOCATE(md_ener,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE release_md_ener
@@ -178,16 +169,13 @@ CONTAINS
 !> \param md_ener :
 !> \param tkind ...
 !> \param tshell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
+  SUBROUTINE zero_md_ener(md_ener, tkind, tshell)
     TYPE(md_ener_type), POINTER              :: md_ener
     LOGICAL, INTENT(IN)                      :: tkind, tshell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     md_ener%ekin        = 0.0_dp
     md_ener%temp_part   = 0.0_dp

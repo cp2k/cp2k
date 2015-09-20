@@ -61,10 +61,9 @@ CONTAINS
 !> \param matrix_s ...
 !> \param output_unit ...
 !> \param marked_states ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE wfn_mix(mos, particle_set, dft_section, atomic_kind_set, qs_kind_set,&
-                    unoccupied_orbs, scf_env, matrix_s, output_unit, marked_states,error)
+                    unoccupied_orbs, scf_env, matrix_s, output_unit, marked_states)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -83,7 +82,6 @@ CONTAINS
     INTEGER                                  :: output_unit
     INTEGER, DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: marked_states
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix', &
       routineP = moduleN//':'//routineN
@@ -103,8 +101,8 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error)
-    CALL section_vals_get(wfn_mix_section,explicit=explicit, error=error)
+    wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX")
+    CALL section_vals_get(wfn_mix_section,explicit=explicit)
 
     ! only perform action if explicitly required
     IF (explicit) THEN
@@ -117,42 +115,42 @@ CONTAINS
 
        ALLOCATE(mos_new(SIZE(mos)))
        DO ispin=1,SIZE(mos)
-          CALL duplicate_mo_set(mos_new(ispin)%mo_set,mos(ispin)%mo_set,error)
+          CALL duplicate_mo_set(mos_new(ispin)%mo_set,mos(ispin)%mo_set)
        ENDDO
 
        ! a single vector matrix structure
        NULLIFY(fm_struct_vector)
        CALL cp_fm_struct_create(fm_struct_vector,template_fmstruct=mos(1)%mo_set%mo_coeff%matrix_struct, &
-                                ncol_global=1, error=error)
-       CALL cp_fm_create(matrix_x,fm_struct_vector,name="x",error=error)
-       CALL cp_fm_create(matrix_y,fm_struct_vector,name="y",error=error)
-       CALL cp_fm_struct_release(fm_struct_vector,error)
+                                ncol_global=1)
+       CALL cp_fm_create(matrix_x,fm_struct_vector,name="x")
+       CALL cp_fm_create(matrix_y,fm_struct_vector,name="y")
+       CALL cp_fm_struct_release(fm_struct_vector)
 
-       update_section=>section_vals_get_subs_vals(wfn_mix_section,"UPDATE",error=error)
-       CALL section_vals_get(update_section,n_repetition=n_rep,error=error)
-       CALL section_vals_get(update_section,explicit=explicit, error=error)
+       update_section=>section_vals_get_subs_vals(wfn_mix_section,"UPDATE")
+       CALL section_vals_get(update_section,n_repetition=n_rep)
+       CALL section_vals_get(update_section,explicit=explicit)
        IF (.NOT. explicit) n_rep=0
 
        DO i_rep=1,n_rep
 
-          CALL section_vals_val_get(update_section,"RESULT_MO_INDEX",i_rep_section=i_rep,i_val=result_mo_index,error=error)
-          CALL section_vals_val_get(update_section,"RESULT_MARKED_STATE",i_rep_section=i_rep,i_val=mark_number,error=error)
-          CALL section_vals_val_get(update_section,"RESULT_SPIN_INDEX",i_rep_section=i_rep,i_val=result_spin_index,error=error)
-          CALL section_vals_val_get(update_section,"RESULT_SCALE",i_rep_section=i_rep,r_val=result_scale,error=error)
+          CALL section_vals_val_get(update_section,"RESULT_MO_INDEX",i_rep_section=i_rep,i_val=result_mo_index)
+          CALL section_vals_val_get(update_section,"RESULT_MARKED_STATE",i_rep_section=i_rep,i_val=mark_number)
+          CALL section_vals_val_get(update_section,"RESULT_SPIN_INDEX",i_rep_section=i_rep,i_val=result_spin_index)
+          CALL section_vals_val_get(update_section,"RESULT_SCALE",i_rep_section=i_rep,r_val=result_scale)
 
           mark_ind=1
           IF(mark_number.GT.0)result_mo_index=marked_states(mark_number,result_spin_index,mark_ind)
 
-          CALL section_vals_val_get(update_section,"ORIG_MO_INDEX",i_rep_section=i_rep,i_val=orig_mo_index,error=error)
-          CALL section_vals_val_get(update_section,"ORIG_MARKED_STATE",i_rep_section=i_rep,i_val=mark_number,error=error)
-          CALL section_vals_val_get(update_section,"ORIG_SPIN_INDEX",i_rep_section=i_rep,i_val=orig_spin_index,error=error)
-          CALL section_vals_val_get(update_section,"ORIG_SCALE",i_rep_section=i_rep,r_val=orig_scale,error=error)
-          CALL section_vals_val_get(update_section,"ORIG_IS_VIRTUAL",i_rep_section=i_rep,l_val=orig_is_virtual,error=error)
+          CALL section_vals_val_get(update_section,"ORIG_MO_INDEX",i_rep_section=i_rep,i_val=orig_mo_index)
+          CALL section_vals_val_get(update_section,"ORIG_MARKED_STATE",i_rep_section=i_rep,i_val=mark_number)
+          CALL section_vals_val_get(update_section,"ORIG_SPIN_INDEX",i_rep_section=i_rep,i_val=orig_spin_index)
+          CALL section_vals_val_get(update_section,"ORIG_SCALE",i_rep_section=i_rep,r_val=orig_scale)
+          CALL section_vals_val_get(update_section,"ORIG_IS_VIRTUAL",i_rep_section=i_rep,l_val=orig_is_virtual)
 
           IF(orig_is_virtual)mark_ind=2
           IF(mark_number.GT.0)orig_mo_index=marked_states(mark_number,orig_spin_index,mark_ind)
 
-          CALL section_vals_val_get(wfn_mix_section,"OVERWRITE_MOS",l_val=overwrite_mos,error=error)
+          CALL section_vals_val_get(wfn_mix_section,"OVERWRITE_MOS",l_val=overwrite_mos)
 
           ! first get a copy of the proper orig
           IF (.NOT. ORIG_IS_VIRTUAL) THEN
@@ -166,7 +164,7 @@ CONTAINS
                            1,mos_new(result_spin_index)%mo_set%nmo-result_mo_index+1,1)
 
           ! properly mix
-          CALL cp_fm_scale_and_add(result_scale,matrix_y,orig_scale,matrix_x,error)
+          CALL cp_fm_scale_and_add(result_scale,matrix_y,orig_scale,matrix_x)
 
           ! and copy back in the result mos
           CALL cp_fm_to_fm(matrix_y,mos_new(result_spin_index)%mo_set%mo_coeff, &
@@ -174,13 +172,13 @@ CONTAINS
 
        ENDDO
 
-       CALL cp_fm_release(matrix_x,error)
-       CALL cp_fm_release(matrix_y,error)
+       CALL cp_fm_release(matrix_x)
+       CALL cp_fm_release(matrix_y)
 
        IF(scf_env%method==special_diag_method_nr) THEN
-         CALL calculate_orthonormality(orthonormality,mos,error=error)
+         CALL calculate_orthonormality(orthonormality,mos)
        ELSE
-         CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix,error=error)
+         CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix)
        END IF
 
        IF (output_unit>0) THEN
@@ -194,20 +192,18 @@ CONTAINS
 
        DO ispin=1,SIZE(mos_new)
           IF(overwrite_mos)THEN
-             CALL cp_fm_to_fm(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff,error)
+             CALL cp_fm_to_fm(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff)
              IF(mos_new(1)%mo_set%use_mo_coeff_b)&
-                CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos_new(ispin)%mo_set%mo_coeff_b,&
-                                      error=error)
+                CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos_new(ispin)%mo_set%mo_coeff_b)
           END IF 
           IF(mos(1)%mo_set%use_mo_coeff_b)&
-             CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b,&
-                                   error=error)
+             CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b)
        END DO
        CALL write_mo_set(mos_new,particle_set,dft_section=dft_section, &
-                         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,error=error)
+                         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
 
        DO ispin=1,SIZE(mos_new)
-          CALL deallocate_mo_set(mos_new(ispin)%mo_set,error)
+          CALL deallocate_mo_set(mos_new(ispin)%mo_set)
        ENDDO
        DEALLOCATE(mos_new)
 

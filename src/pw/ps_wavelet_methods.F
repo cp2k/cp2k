@@ -52,16 +52,13 @@ CONTAINS
 !> \param poisson_params ...
 !> \param wavelet wavelet to create
 !> \param pw_grid the grid that is used to create the wavelet kernel
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Flroian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE ps_wavelet_create(poisson_params,wavelet,pw_grid, error)
+  SUBROUTINE ps_wavelet_create(poisson_params,wavelet,pw_grid)
     TYPE(pw_poisson_parameter_type), &
       INTENT(IN)                             :: poisson_params
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_create', &
       routineP = moduleN//':'//routineN
@@ -79,7 +76,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(wavelet, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     nx = pw_grid % npts ( 1 )
     ny = pw_grid % npts ( 2 )
@@ -105,14 +102,14 @@ CONTAINS
        IF (hx.NE.hy) &
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Poisson solver for non cubic cells not yet implemented",&
-                error=error,failure=failure)
+                failure=failure)
         IF(hz.NE.hy) &
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                 "Poisson solver for non cubic cells not yet implemented",&
-                 error=error,failure=failure)
+                 failure=failure)
     END IF
 
-    CALL RS_z_slice_distribution(wavelet,pw_grid, error)
+    CALL RS_z_slice_distribution(wavelet,pw_grid)
 
     CALL timestop(handle)
   END SUBROUTINE ps_wavelet_create
@@ -121,13 +118,11 @@ CONTAINS
 !> \brief ...
 !> \param wavelet ...
 !> \param pw_grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE RS_z_slice_distribution(wavelet,pw_grid, error)
+  SUBROUTINE RS_z_slice_distribution(wavelet,pw_grid)
 
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'RS_z_slice_distribution', &
       routineP = moduleN//':'//routineN
@@ -169,10 +164,10 @@ CONTAINS
     z_dim=md2/nproc
     !!!!!!!!!      indicies y and z are interchanged    !!!!!!!
     ALLOCATE(wavelet%rho_z_sliced(md1,md3,z_dim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
-                       pw_grid % para % rs_group ,error)
+                       pw_grid % para % rs_group)
 
     CALL timestop(handle)
   END SUBROUTINE RS_z_slice_distribution
@@ -182,14 +177,12 @@ CONTAINS
 !> \param density ...
 !> \param wavelet ...
 !> \param pw_grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp2k_distribution_to_z_slices (density , wavelet, pw_grid, error)
+  SUBROUTINE cp2k_distribution_to_z_slices (density , wavelet, pw_grid)
 
     TYPE(pw_type), POINTER                   :: density
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'cp2k_distribution_to_z_slices', &
@@ -209,7 +202,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,failure)
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc=pw_grid % para % rs_mpo
@@ -363,14 +356,12 @@ CONTAINS
 !> \param density ...
 !> \param wavelet ...
 !> \param pw_grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE z_slices_to_cp2k_distribution(density , wavelet, pw_grid, error)
+  SUBROUTINE z_slices_to_cp2k_distribution(density , wavelet, pw_grid)
 
     TYPE(pw_type), POINTER                   :: density
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'z_slices_to_cp2k_distribution', &
@@ -388,7 +379,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,failure)
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc=pw_grid % para % rs_mpo
@@ -499,13 +490,11 @@ CONTAINS
 !> \brief ...
 !> \param wavelet ...
 !> \param pw_grid ...
-!> \param error ...
 ! *****************************************************************************
-    SUBROUTINE ps_wavelet_solve(wavelet,pw_grid,error)
+    SUBROUTINE ps_wavelet_solve(wavelet,pw_grid)
 
     TYPE(ps_wavelet_type), POINTER           :: wavelet
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_solve', &
       routineP = moduleN//':'//routineN
@@ -527,7 +516,7 @@ CONTAINS
     hz = pw_grid % dr ( 3 )
 
     CALL PSolver(geocode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
-         wavelet%rho_z_sliced,wavelet%karray,pw_grid,error)
+         wavelet%rho_z_sliced,wavelet%karray,pw_grid)
     CALL timestop(handle)
   END SUBROUTINE ps_wavelet_solve
 

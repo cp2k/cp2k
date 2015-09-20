@@ -41,11 +41,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param efield ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_efield_matrices(efield,error)
+  SUBROUTINE init_efield_matrices(efield)
     TYPE(efield_berry_type), POINTER         :: efield
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_efield_matrices', &
       routineP = moduleN//':'//routineN
@@ -61,14 +59,14 @@ CONTAINS
     IF(ASSOCIATED(efield)) THEN
        field_energy = efield%field_energy
        polarisation = efield%polarisation
-       CALL efield_berry_release(efield,error)
+       CALL efield_berry_release(efield)
     ELSE
        field_energy = 0.0_dp
        polarisation = 0.0_dp
     END IF
 
     ALLOCATE(efield,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY(efield%cosmat)
     NULLIFY(efield%sinmat)
     NULLIFY(efield%dipmat)
@@ -103,11 +101,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param efield ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE efield_berry_release(efield,error)
+  SUBROUTINE efield_berry_release(efield)
     TYPE(efield_berry_type), POINTER         :: efield
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_berry_release', &
       routineP = moduleN//':'//routineN
@@ -118,14 +114,14 @@ CONTAINS
     failure =.FALSE.
     IF(ASSOCIATED(efield))THEN
        IF(ASSOCIATED(efield%sinmat).AND.ASSOCIATED(efield%cosmat))THEN
-          CALL cp_dbcsr_deallocate_matrix_set ( efield%cosmat, error )
-          CALL cp_dbcsr_deallocate_matrix_set ( efield%sinmat, error )
+          CALL cp_dbcsr_deallocate_matrix_set ( efield%cosmat)
+          CALL cp_dbcsr_deallocate_matrix_set ( efield%sinmat)
        END IF
        IF(ASSOCIATED(efield%dipmat))THEN
-          CALL cp_dbcsr_deallocate_matrix_set ( efield%dipmat, error )
+          CALL cp_dbcsr_deallocate_matrix_set ( efield%dipmat)
        END IF
        DEALLOCATE(efield,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE efield_berry_release
 

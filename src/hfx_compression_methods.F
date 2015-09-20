@@ -65,14 +65,12 @@ MODULE hfx_compression_methods
 !> \param memory_usage ...
 !> \param use_disk_storage ...
 !> \param max_val_memory ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE hfx_add_single_cache_element(value, nbits, cache, container, memory_usage, use_disk_storage, &
-                                          max_val_memory, error)
+                                          max_val_memory)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
     TYPE(hfx_cache_type)                     :: cache
@@ -80,7 +78,6 @@ MODULE hfx_compression_methods
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
     INTEGER(int_8), OPTIONAL                 :: max_val_memory
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER(int_8)                           :: int_val
 
@@ -92,7 +89,7 @@ MODULE hfx_compression_methods
     ELSE
       cache%data(CACHE_SIZE) = int_val
       CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
-                              max_val_memory, error)
+                              max_val_memory)
       cache%element_counter = 1
     END IF
   END SUBROUTINE hfx_add_single_cache_element
@@ -106,21 +103,18 @@ MODULE hfx_compression_methods
 !> \param memory_usage ...
 !> \param use_disk_storage ...
 !> \param max_val_memory ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE hfx_compress_cache(full_array, container, nbits, memory_usage, use_disk_storage, &
-                                max_val_memory, error)
+                                max_val_memory)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(hfx_container_type)                 :: container
     INTEGER, INTENT(IN)                      :: nbits
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
     INTEGER(int_8), OPTIONAL                 :: max_val_memory
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_compress_cache', &
       routineP = moduleN//':'//routineN
@@ -152,7 +146,7 @@ MODULE hfx_compression_methods
       ELSE
         !! Allocate new list entry
         ALLOCATE(container%current%next, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         !$OMP ATOMIC
         memory_usage = memory_usage + 1
         container%current%next%next => NULL()
@@ -315,22 +309,18 @@ MODULE hfx_compression_methods
 !> \param container container that contains the compressed elements
 !> \param memory_usage ...
 !> \param use_disk_storage ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_flush_last_cache(nbits, cache, container, memory_usage, use_disk_storage, error)
+  SUBROUTINE hfx_flush_last_cache(nbits, cache, container, memory_usage, use_disk_storage)
     INTEGER                                  :: nbits
     TYPE(hfx_cache_type)                     :: cache
     TYPE(hfx_container_type)                 :: container
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
-                            error=error)
+    CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
 
     !!If we store to file, we have to make sure, that the last container is also written to disk
     IF( use_disk_storage ) THEN
@@ -354,14 +344,12 @@ MODULE hfx_compression_methods
 !> \param pmax_entry ...
 !> \param memory_usage ...
 !> \param use_disk_storage ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE hfx_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, &
-                                          use_disk_storage, error)
+                                          use_disk_storage)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(hfx_cache_type)                     :: cache
@@ -369,7 +357,6 @@ MODULE hfx_compression_methods
     REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: end_idx, i, start_idx, &
                                                 tmp_elements
@@ -409,8 +396,7 @@ MODULE hfx_compression_methods
           cache%data(i+start_idx-1) = shift
         END IF
       END DO
-      CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
-                              error=error)
+      CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
       DO i=tmp_elements+1, nints
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN

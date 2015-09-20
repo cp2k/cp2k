@@ -50,18 +50,16 @@ CONTAINS
 !> \param paw_atom ...
 !> \param paw_type_forced ...
 !> \param gpw_type_forced ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_soft_basis(orb_basis,soft_basis,eps_fit,rc,paw_atom,&
-       paw_type_forced,gpw_type_forced,error)
+       paw_type_forced,gpw_type_forced)
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
     REAL(dp), INTENT(IN)                     :: eps_fit, rc
     LOGICAL, INTENT(OUT)                     :: paw_atom
     LOGICAL, INTENT(IN)                      :: paw_type_forced, &
                                                 gpw_type_forced
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_soft_basis', &
       routineP = moduleN//':'//routineN
@@ -105,7 +103,7 @@ CONTAINS
        CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
 
        ALLOCATE(iset_s2h(nset),stat=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
        iset_s2h = 0
        iset_s = 0
@@ -267,9 +265,9 @@ CONTAINS
           CALL reallocate(soft_basis%m,1,nsgf)
           CALL reallocate(soft_basis%norm_cgf,1,ncgf)
           ALLOCATE (soft_basis%cgf_symbol(ncgf),STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           ALLOCATE (soft_basis%sgf_symbol(nsgf),STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
           ncgf = 0
           nsgf = 0
@@ -300,16 +298,16 @@ CONTAINS
           soft_basis%norm_type = orb_basis%norm_type
           soft_basis%norm_cgf = orb_basis%norm_cgf
           ! *** Initialize the transformation matrices ***
-          CALL init_cphi_and_sphi(soft_basis,error)
+          CALL init_cphi_and_sphi(soft_basis)
        ENDIF
 
        DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,iset_s2h,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
 
     IF (.NOT. paw_atom) THEN
        DEALLOCATE (soft_basis,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        soft_basis => orb_basis
     END IF
 

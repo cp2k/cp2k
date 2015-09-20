@@ -84,16 +84,14 @@ CONTAINS
 !> \param qs_env ...
 !> \param unit_number ...
 !> \param q_max ...
-!> \param error ...
 !> \date   30.11.2005
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE xray_diffraction_spectrum(qs_env,unit_number,q_max,error)
+  SUBROUTINE xray_diffraction_spectrum(qs_env,unit_number,q_max)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: unit_number
     REAL(KIND=dp), INTENT(IN)                :: q_max
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xray_diffraction_spectrum', &
       routineP = moduleN//':'//routineN
@@ -130,7 +128,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
 
     IF (.NOT.failure) THEN
 
@@ -172,12 +170,10 @@ CONTAINS
                       particle_set=particle_set,&
                       pw_env=pw_env,&
                       rho=rho,&
-                      rho_atom_set=rho_atom_set,&
-                      error=error)
+                      rho_atom_set=rho_atom_set)
 
       CALL pw_env_get(pw_env=pw_env,&
-                      auxbas_pw_pool=auxbas_pw_pool,&
-                      error=error)
+                      auxbas_pw_pool=auxbas_pw_pool)
 
       group = para_env%group
       npe = para_env%num_pe
@@ -188,17 +184,15 @@ CONTAINS
       CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
                              pw=rhotot_elec_gspace%pw,&
                              use_data=COMPLEXDATA1D,&
-                             in_space=RECIPROCALSPACE,&
-                             error=error)
-      CALL pw_zero(rhotot_elec_gspace%pw,error=error)
+                             in_space=RECIPROCALSPACE)
+      CALL pw_zero(rhotot_elec_gspace%pw)
 
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             dr=dr,&
                             npts=npts,&
                             cutoff=cutoff,&
                             ngpts=ngpts,&
-                            gsquare=gsq,&
-                            error=error)
+                            gsquare=gsq)
 
       dg(:) = twopi/(npts(:)*dr(:))
 
@@ -209,8 +203,7 @@ CONTAINS
                                         rhotot_elec_gspace=rhotot_elec_gspace,&
                                         q_max=q_max,&
                                         rho_hard=rho_hard,&
-                                        rho_soft=rho_soft,&
-                                        error=error)
+                                        rho_soft=rho_soft)
 
       rho_total = rho_hard + rho_soft
 
@@ -232,7 +225,7 @@ CONTAINS
       ng_shell(1) = 1
 
       DO ig=2,ng
-        CPPostcondition(gsq(ig)>=gsq(jg),cp_failure_level,routineP,error,failure)
+        CPPostcondition(gsq(ig)>=gsq(jg),cp_failure_level,routineP,failure)
         IF (ABS(gsq(ig) - gsq(jg)) > 1.0E-12_dp) THEN
           nshell = nshell + 1
           IF (nshell > SIZE(q_shell)) THEN
@@ -317,12 +310,12 @@ CONTAINS
 
       IF (ASSOCIATED(offset_pe)) THEN
         DEALLOCATE (offset_pe,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(nshell_pe)) THEN
         DEALLOCATE (nshell_pe,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       ! Print X-ray diffraction spectrum (I/O node only)
@@ -383,7 +376,7 @@ CONTAINS
 
         IF (ASSOCIATED(aux_index)) THEN
           DEALLOCATE (aux_index,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
         END IF
 
         ! Allocate the final arrays for printing with their real size
@@ -441,77 +434,76 @@ CONTAINS
 
       IF (ASSOCIATED(fmin)) THEN
         DEALLOCATE (fmin,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(fmax)) THEN
         DEALLOCATE (fmax,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(fsum)) THEN
         DEALLOCATE (fsum,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(f2sum)) THEN
         DEALLOCATE (f2sum,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(f4sum)) THEN
         DEALLOCATE (f4sum,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(ng_shell)) THEN
         DEALLOCATE (ng_shell,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(q_shell)) THEN
         DEALLOCATE (q_shell,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(fmin_gather)) THEN
         DEALLOCATE (fmin_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(fmax_gather)) THEN
         DEALLOCATE (fmax_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(fsum_gather)) THEN
         DEALLOCATE (fsum_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(f2sum_gather)) THEN
         DEALLOCATE (f2sum_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(f4sum_gather)) THEN
         DEALLOCATE (f4sum_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(ng_shell_gather)) THEN
         DEALLOCATE (ng_shell_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(q_shell_gather)) THEN
         DEALLOCATE (q_shell_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool,&
-                                rhotot_elec_gspace%pw,&
-                                error=error)
+                                rhotot_elec_gspace%pw)
 
       CALL timestop(handle)
 
@@ -529,14 +521,13 @@ CONTAINS
 !> \param rho_hard ...
 !> \param rho_soft ...
 !> \param fsign ...
-!> \param error ...
 !> \date   14.03.2008 (splitted from the routine xray_diffraction_spectrum)
 !> \author Matthias Krack
 !> \note   This code assumes that the g-vectors are ordered (in gsq and %cc)
 ! *****************************************************************************
   SUBROUTINE calculate_rhotot_elec_gspace(qs_env,auxbas_pw_pool,&
                                           rhotot_elec_gspace,q_max,rho_hard,&
-                                          rho_soft,fsign,error)
+                                          rho_soft,fsign)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -544,7 +535,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: q_max
     REAL(KIND=dp), INTENT(OUT)               :: rho_hard, rho_soft
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fsign
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rhotot_elec_gspace', &
       routineP = moduleN//':'//routineN
@@ -583,8 +573,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,failure)
 
     IF (.NOT.failure) THEN
 
@@ -617,10 +607,9 @@ CONTAINS
                       dft_control=dft_control,&
                       particle_set=particle_set,&
                       rho=rho,&
-                      rho_atom_set=rho_atom_set,&
-                      error=error)
+                      rho_atom_set=rho_atom_set)
 
-      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+      CALL qs_rho_get(rho, rho_r=rho_r)
       eps_rho_gspace = dft_control%qs_control%eps_rho_gspace
       nkind = SIZE(atomic_kind_set)
       nspin = dft_control%nspins
@@ -630,38 +619,35 @@ CONTAINS
       CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
                              pw=rho_elec_gspace%pw,&
                              use_data=COMPLEXDATA1D,&
-                             in_space=RECIPROCALSPACE,&
-                             error=error)
+                             in_space=RECIPROCALSPACE)
 
-      CALL pw_zero(rhotot_elec_gspace%pw,error=error)
+      CALL pw_zero(rhotot_elec_gspace%pw)
 
       DO ispin=1,nspin
-        CALL pw_zero(rho_elec_gspace%pw,error=error)
-        CALL pw_transfer(rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.,error=error)
+        CALL pw_zero(rho_elec_gspace%pw)
+        CALL pw_transfer(rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.)
         IF (PRESENT(fsign).AND.(ispin == 2)) THEN
           alpha = fsign
         ELSE
           alpha = 1.0_dp
         END IF
-        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw,alpha=alpha,error=error)
+        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw,alpha=alpha)
       END DO
 
       ! Release the auxiliary PW grid for the calculation of the soft
       ! contribution
 
       CALL pw_pool_give_back_pw(pool=auxbas_pw_pool,&
-                                pw=rho_elec_gspace%pw,&
-                                error=error)
+                                pw=rho_elec_gspace%pw)
 
-      rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1,error=error)
+      rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)
 
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             vol=volume,&
-                            orthorhombic=orthorhombic,&
-                            error=error)
-      CPPostcondition(orthorhombic,cp_failure_level,routineP,error,failure)
+                            orthorhombic=orthorhombic)
+      CPPostcondition(orthorhombic,cp_failure_level,routineP,failure)
 
-      CALL pw_scale(rhotot_elec_gspace%pw,volume,error=error)
+      CALL pw_scale(rhotot_elec_gspace%pw,volume)
 
       ! Add the hard contribution of the electronic density
 
@@ -677,7 +663,7 @@ CONTAINS
        CALL get_qs_kind(qs_kind_set(ikind),&
                              basis_set=orb_basis_set,&
                              paw_proj_set=paw_proj,&
-                             paw_atom=paw_atom, error=error)
+                             paw_atom=paw_atom)
 
         IF (.NOT.paw_atom) CYCLE ! no PAW atom: nothing to do
 
@@ -793,7 +779,7 @@ CONTAINS
         END DO ! next atom "iatom" of atomic kind "ikind"
       END DO ! next atomic kind "ikind"
 
-      rho_total = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1,error=error)/volume
+      rho_total = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)/volume
 
       rho_hard = rho_total - rho_soft
 
@@ -801,17 +787,17 @@ CONTAINS
 
       IF (ASSOCIATED(delta_cpc)) THEN
         DEALLOCATE (delta_cpc,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(work)) THEN
         DEALLOCATE (work,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       IF (ASSOCIATED(pab)) THEN
         DEALLOCATE (pab,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
 
       CALL timestop(handle)

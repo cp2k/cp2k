@@ -85,14 +85,12 @@ CONTAINS
 !> \param force_env ...
 !> \param simpar ...
 !> \param itimes ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE metadyn_initialise_plumed(force_env, simpar, itimes, error)
+  SUBROUTINE metadyn_initialise_plumed(force_env, simpar, itimes)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     INTEGER, INTENT(IN)                      :: itimes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'metadyn_initialise_plumed', &
       routineP = moduleN//':'//routineN
@@ -118,13 +116,12 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
 
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
     NULLIFY(cell,subsys)
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, &
-                       error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell)
     CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
     timestep_plumed=simpar%dt
     natom_plumed=subsys%particles%n_els
@@ -170,7 +167,7 @@ CONTAINS
                    routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
                    " not compiled with plumed support."//&
                    CPSourceFileRef,&
-                   error,failure)
+                   failure)
 #endif
 
     CALL timestop(handle)
@@ -203,20 +200,18 @@ END SUBROUTINE
 !> \param itimes ...
 !> \param vel ...
 !> \param rand ...
-!> \param error ...
 !> \date   01.2009
 !> \par History
 !>      01.2009 created
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE metadyn_integrator(force_env, itimes, vel, rand, error)
+  SUBROUTINE metadyn_integrator(force_env, itimes, vel, rand)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: vel
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rand
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_integrator', &
       routineP = moduleN//':'//routineN
@@ -251,7 +246,7 @@ END SUBROUTINE
         IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
             plumed_itimes = itimes
 #if defined (__PLUMED_CP2K)
-            CALL force_env_get(force_env, subsys=subsys,cell=cell, error=error)
+            CALL force_env_get(force_env, subsys=subsys,cell=cell)
             natom_plumed=subsys%particles%n_els
             ALLOCATE (pos_plumed(1:3,natom_plumed))
             ALLOCATE (force_plumed(1:3,natom_plumed))
@@ -277,7 +272,7 @@ END SUBROUTINE
             DEALLOCATE (force_plumed, pos_plumed)
 #endif
 #if defined (__PLUMED2)
-            CALL force_env_get(force_env, meta_env=meta_env, subsys=subsys,cell=cell, error=error)
+            CALL force_env_get(force_env, meta_env=meta_env, subsys=subsys,cell=cell)
             natom_plumed=subsys%particles%n_els
             ALLOCATE (pos_plumed_x(natom_plumed))
             ALLOCATE (pos_plumed_y(natom_plumed))
@@ -314,7 +309,7 @@ END SUBROUTINE
             ! virial
             plu_vir(:,:)=0.0d0
   
-            CALL force_env_get(force_env, potential_energy=stpcfg, error=error)
+            CALL force_env_get(force_env, potential_energy=stpcfg)
   
             CALL plumed_f_gcmd("setStep"//CHAR(0),plumed_itimes)      
             CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) 
@@ -345,7 +340,7 @@ END SUBROUTINE
             DEALLOCATE (mass_plumed)
 
             ! Constraints ONLY of Fixed Atom type
-            CALL fix_atom_control(force_env, error=error)
+            CALL fix_atom_control(force_env)
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
@@ -353,7 +348,7 @@ END SUBROUTINE
                    routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
                    " not compiled with plumed support."//&
                    CPSourceFileRef,&
-                   error,failure)
+                   failure)
 #endif
 
 
@@ -362,19 +357,19 @@ END SUBROUTINE
               IF (.NOT.PRESENT(rand)) THEN
                  CALL cp_unimplemented_error(fromWhere=routineP, &
                       message="Langevin on COLVAR not implemented for this MD ensemble!", &
-                      error=error, error_level=cp_fatal_level)
+                      error_level=cp_fatal_level)
               END IF
               !    *** Velocity Verlet for Langevin S(t)->S(t+1)
-              CALL metadyn_position_colvar(force_env, error=error)
+              CALL metadyn_position_colvar(force_env)
               !    *** Forces from Vs and  S(X(t+1))
-              CALL metadyn_forces(force_env, error=error)
+              CALL metadyn_forces(force_env)
               !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
-              CALL metadyn_velocities_colvar(force_env, rand,error=error)
+              CALL metadyn_velocities_colvar(force_env, rand)
             ELSE
-              CALL metadyn_forces(force_env, vel,error=error)
+              CALL metadyn_forces(force_env, vel)
             ENDIF
             !    *** Write down COVAR informations
-            CALL metadyn_write_colvar(force_env, error=error)
+            CALL metadyn_write_colvar(force_env)
         END IF
     ENDIF
 
@@ -387,15 +382,13 @@ END SUBROUTINE
 !>      possibly modifies the velocites (if reflective walls are applied)
 !> \param force_env ...
 !> \param vel ...
-!> \param error ...
 !> \par History
 !>      04.2004 created
 ! *****************************************************************************
-  SUBROUTINE metadyn_forces(force_env,vel,error)
+  SUBROUTINE metadyn_forces(force_env,vel)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: vel
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_forces', &
       routineP = moduleN//':'//routineN
@@ -422,9 +415,9 @@ END SUBROUTINE
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     NULLIFY(colvar_p,subsys,cv,ss0_section, vvp_section)
-    CALL force_env_get(force_env, subsys=subsys, error=error)
+    CALL force_env_get(force_env, subsys=subsys)
 
     dt = meta_env%dt
     IF (.NOT.meta_env%restart) meta_env%n_steps=meta_env%n_steps+1
@@ -434,7 +427,7 @@ END SUBROUTINE
        meta_env%ekin_s = 0.0_dp
        DO i_c=1,meta_env%n_colvar
           cv => meta_env%metavar(i_c)
-          cv%vvp = next_random_number(force_env%globenv%gaussian_rng_stream,error=error)
+          cv%vvp = next_random_number(force_env%globenv%gaussian_rng_stream)
           meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
        END DO
        ekin_w = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar,KIND=dp)
@@ -451,7 +444,7 @@ END SUBROUTINE
     DO i_c=1,meta_env%n_colvar
        cv => meta_env%metavar(i_c)
        icolvar = cv%icolvar
-       CALL colvar_eval_glob_f(icolvar,force_env,error=error)
+       CALL colvar_eval_glob_f(icolvar,force_env)
        cv%ss       = subsys%colvar_p(icolvar)%colvar%ss
 
        ! Setup the periodic flag if the COLVAR is (-pi,pi] periodic
@@ -460,20 +453,20 @@ END SUBROUTINE
        ! Restart for Extended Lagrangian Metadynamics
        IF (meta_env%restart) THEN
           ! Initialize the position of the collective variable in the extended lagrange
-          ss0_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
-          CALL section_vals_get(ss0_section, explicit=explicit, error=error)
+          ss0_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0")
+          CALL section_vals_get(ss0_section, explicit=explicit)
           IF (explicit) THEN
              CALL section_vals_val_get(ss0_section,"_DEFAULT_KEYWORD_",&
-                  i_rep_val=i_c, r_val=rval, error=error)
+                  i_rep_val=i_c, r_val=rval)
              cv%ss0 = rval
           ELSE
              cv%ss0 = cv%ss
           END IF
-          vvp_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP",error=error)
-          CALL section_vals_get(vvp_section, explicit=explicit, error=error)
+          vvp_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP")
+          CALL section_vals_get(vvp_section, explicit=explicit)
           IF (explicit) THEN
              CALL section_vals_val_get(vvp_section,"_DEFAULT_KEYWORD_",&
-                  i_rep_val=i_c, r_val=rval, error=error)
+                  i_rep_val=i_c, r_val=rval)
              cv%vvp = rval
           END IF
        END IF
@@ -484,10 +477,10 @@ END SUBROUTINE
        END IF
     ENDDO
     ! History dependent forces (evaluated at s0)
-    IF(meta_env%do_hills) CALL  hills(meta_env,error)
+    IF(meta_env%do_hills) CALL  hills(meta_env)
 
     ! Apply walls to the colvars
-    CALL meta_walls(meta_env, error)
+    CALL meta_walls(meta_env)
 
     meta_env%restart = .FALSE.
     IF(.NOT.meta_env%extended_lagrange)THEN
@@ -502,7 +495,7 @@ END SUBROUTINE
           icolvar=cv%icolvar
           NULLIFY(particles)
           CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
-               particles=particles,error=error)
+               particles=particles)
           DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
              i=colvar_p(icolvar)%colvar%i_atom(ii)
              fft = cv%ff_hills + cv%ff_walls
@@ -526,7 +519,7 @@ END SUBROUTINE
           ! forces on the atoms
           NULLIFY(particles)
           CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
-               particles=particles,error=error)
+               particles=particles)
           DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
              i=colvar_p(icolvar)%colvar%i_atom(ii)
              particles%els(i)%f=particles%els(i)%f- cv%ff_s*colvar_p(icolvar)%colvar%dsdr(:,ii)
@@ -588,7 +581,7 @@ END SUBROUTINE
        END IF
     ENDIF
     ! Constraints ONLY of Fixed Atom type
-    CALL fix_atom_control(force_env, error=error)
+    CALL fix_atom_control(force_env)
 
     ! Reflective Wall only for ss
     DO i_c = 1, meta_env%n_colvar
@@ -607,7 +600,7 @@ END SUBROUTINE
                 END SELECT
                 NULLIFY(particles)
                 icolvar=cv%icolvar
-                CALL cp_subsys_get(subsys, colvar_p=colvar_p, particles=particles,error=error)
+                CALL cp_subsys_get(subsys, colvar_p=colvar_p, particles=particles)
                 scal=0.0_dp
                 scalf=0.0_dp
                 norm=0.0_dp
@@ -656,15 +649,13 @@ END SUBROUTINE
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
 !> \param force_env ...
 !> \param rand ...
-!> \param error ...
 !> \date  01.2009
 !> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE metadyn_velocities_colvar(force_env,rand,error)
+  SUBROUTINE metadyn_velocities_colvar(force_env,rand)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: rand
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_velocities_colvar', &
       routineP = moduleN//':'//routineN
@@ -682,13 +673,13 @@ END SUBROUTINE
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     ! Add citation
     IF (meta_env%langevin) CALL cite_reference(VandenCic2006)
 
     dt = meta_env%dt
     ! History dependent forces (evaluated at s0)
-    IF(meta_env%do_hills) CALL  hills(meta_env,error)
+    IF(meta_env%do_hills) CALL  hills(meta_env)
 
     ! Evolve Velocities
     meta_env%ekin_s = 0.0_dp
@@ -718,13 +709,11 @@ END SUBROUTINE
 !> \brief Evolves COLVAR position
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
 !> \param force_env ...
-!> \param error ...
 !> \date  01.2009
 !> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE metadyn_position_colvar(force_env,error)
+  SUBROUTINE metadyn_position_colvar(force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_position_colvar', &
       routineP = moduleN//':'//routineN
@@ -742,7 +731,7 @@ END SUBROUTINE
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! Add citation
     IF (meta_env%langevin) CALL cite_reference(VandenCic2006)
@@ -765,13 +754,11 @@ END SUBROUTINE
 !> \brief Write down COLVAR information evolved  according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
 !> \param force_env ...
-!> \param error ...
 !> \date  01.2009
 !> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE metadyn_write_colvar(force_env,error)
+  SUBROUTINE metadyn_write_colvar(force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_write_colvar', &
       routineP = moduleN//':'//routineN
@@ -789,7 +776,7 @@ END SUBROUTINE
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! If Langevin we need to recompute few quantities
     ! This does not apply to the standard lagrangian scheme since it is
@@ -816,7 +803,7 @@ END SUBROUTINE
 
     ! write COLVAR file
     iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-         "PRINT%COLVAR",extension=".metadynLog",error=error)
+         "PRINT%COLVAR",extension=".metadynLog")
     IF (iw>0) THEN
        IF (meta_env%extended_lagrange) THEN
           WRITE(iw,'(f16.8,70f15.8)')meta_env%time*femtoseconds, &
@@ -840,7 +827,7 @@ END SUBROUTINE
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-         "PRINT%COLVAR", error=error)
+         "PRINT%COLVAR")
 
     ! Temperature for COLVAR
     IF (meta_env%extended_lagrange) THEN
@@ -848,7 +835,7 @@ END SUBROUTINE
        meta_env%avg_temp = (meta_env%avg_temp*REAL(meta_env%n_steps,KIND=dp)+&
             temp)/REAL(meta_env%n_steps+1,KIND=dp)
        iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-            "PRINT%TEMPERATURE_COLVAR",extension=".metadynLog",error=error)
+            "PRINT%TEMPERATURE_COLVAR",extension=".metadynLog")
        IF (iw > 0) THEN
           WRITE (iw, '(T2,79("-"))')
           WRITE (iw,'( A,T51,f10.2,T71,f10.2)' )' COLVARS INSTANTANEOUS/AVERAGE TEMPERATURE ',&
@@ -856,7 +843,7 @@ END SUBROUTINE
           WRITE (iw, '(T2,79("-"))')
        ENDIF
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-            "PRINT%TEMPERATURE_COLVAR", error=error)
+            "PRINT%TEMPERATURE_COLVAR")
     END IF
     CALL timestop(handle)
 
@@ -866,15 +853,13 @@ END SUBROUTINE
 !> \brief Major driver for adding hills and computing forces due to the history
 !>        dependent term
 !> \param meta_env ...
-!> \param error ...
 !> \par History
 !>      04.2004 created
 !>      10.2008 Teodoro Laino [tlaino] - University of Zurich
 !>              Major rewriting and addition of multiple walkers
 ! *****************************************************************************
-  SUBROUTINE hills(meta_env,error)
+  SUBROUTINE hills(meta_env)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
       routineP = moduleN//':'//routineN
@@ -900,26 +885,26 @@ END SUBROUTINE
     failure   = .FALSE.
     NULLIFY(hills_env, multiple_walkers, logger, colvars, ddp, local_last_hills)
     hills_env => meta_env%hills_env
-    logger    => cp_error_get_logger(error)
+    logger    => cp_get_default_logger()
     colvars   => meta_env%metavar
     n_colvar  =  meta_env%n_colvar
     n_step    =  meta_env%n_steps
 
     ! Create a temporary logger level specific for metadynamics
-    CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS",error=error)
-    CALL get_meta_iter_level(meta_env, iter_nr, error)
-    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_nr,error=error)
+    CALL cp_add_iter_level(logger%iter_info,"METADYNAMICS")
+    CALL get_meta_iter_level(meta_env, iter_nr)
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_nr)
 
     ! Set-up restart if any
     IF (meta_env%hills_env%restart) THEN
        meta_env%hills_env%restart = .FALSE.
        IF (meta_env%well_tempered) THEN
           CALL restart_hills(hills_env%ss_history, hills_env%delta_s_history, hills_env%ww_history,&
-               hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section, error,&
+               hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section,&
                invdt_history=hills_env%invdt_history)
        ELSE
           CALL restart_hills(hills_env%ss_history, hills_env%delta_s_history, hills_env%ww_history,&
-               hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section, error)
+               hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section)
        END IF
     END IF
 
@@ -930,9 +915,9 @@ END SUBROUTINE
     IF ((hills_env%min_disp > 0.0_dp).AND.(hills_env%old_hill_number > 0).AND.&
         (intermeta_steps >= hills_env%min_nt_hills)) THEN
        ALLOCATE (ddp(meta_env%n_colvar), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ALLOCATE (local_last_hills(meta_env%n_colvar), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
 
        local_last_hills(1:n_colvar) = hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
 
@@ -950,21 +935,19 @@ END SUBROUTINE
        IF (dp2 > hills_env%min_disp) THEN
           force_gauss = .TRUE.
           iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-                                    "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",&
-                                    error=error)
+                                    "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog")
           IF (iw > 0) THEN
              WRITE (UNIT=iw,FMT="(A,F0.6,A,F0.6)")&
               " METADYN| Threshold value for COLVAR displacement exceeded: ",&
               dp2," > ",hills_env%min_disp
           END IF
           CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-                                            "PRINT%PROGRAM_RUN_INFO",&
-                                            error=error)
+                                            "PRINT%PROGRAM_RUN_INFO")
        END IF
        DEALLOCATE (ddp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE (local_last_hills, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
 
     !RG keep into account adaptive hills
@@ -993,9 +976,9 @@ END SUBROUTINE
           ENDDO
           wtww=hills_env%ww*EXP(-V_now_here*meta_env%invdt)
           ww=wtww*(1.0_dp + meta_env%wttemperature*meta_env%invdt)
-          CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error, meta_env%invdt)
+          CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar,meta_env%invdt)
        ELSE
-          CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
+          CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar)
        END IF
        ! Update local n_hills counter
        IF (meta_env%do_multiple_walkers) multiple_walkers%n_hills_local = multiple_walkers%n_hills_local+1
@@ -1004,12 +987,12 @@ END SUBROUTINE
        hills_env%old_hill_step=n_step
 
        ! Update iteration level for printing
-       CALL get_meta_iter_level(meta_env, iter_nr, error)
-       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_nr,error=error)
+       CALL get_meta_iter_level(meta_env, iter_nr)
+       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_nr)
 
        ! Print just program_run_info
        iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-            "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",error=error)
+            "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog")
        IF (iw>0) THEN
           IF (meta_env%do_multiple_walkers) THEN
              WRITE(iw,'(/,1X,"METADYN|",A,I0,A,I0,A,/)')&
@@ -1020,13 +1003,13 @@ END SUBROUTINE
           END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)
+            "PRINT%PROGRAM_RUN_INFO")
 
        ! Handle Multiple Walkers
        IF (meta_env%do_multiple_walkers) THEN
           ! Print Local Hills file if requested
           iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-               "PRINT%HILLS",middle_name="LOCAL",extension=".metadynLog",error=error)
+               "PRINT%HILLS",middle_name="LOCAL",extension=".metadynLog")
           IF (iw>0) THEN
              WRITE(iw,'(f12.1,30f13.5)')meta_env%time*femtoseconds,&
                   (hills_env%ss_history(ih,hills_env%n_hills),ih=1,n_colvar),&
@@ -1034,17 +1017,17 @@ END SUBROUTINE
                    hills_env%ww_history(hills_env%n_hills)
           END IF
           CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-               "PRINT%HILLS", error=error)
+               "PRINT%HILLS")
 
           ! Check the communication buffer of the other walkers
           CALL synchronize_multiple_walkers(multiple_walkers, hills_env, colvars,&
-               n_colvar, meta_env%metadyn_section, error)
+               n_colvar, meta_env%metadyn_section)
        END IF
 
        ! Print Hills file if requested (for multiple walkers this file includes
        ! the Hills coming from all the walkers).
        iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-            "PRINT%HILLS",extension=".metadynLog",error=error)
+            "PRINT%HILLS",extension=".metadynLog")
        IF (iw>0) THEN
           DO i_hills = n_hills_start+1, hills_env%n_hills
              WRITE(iw,'(f12.1,30f13.5)')meta_env%time*femtoseconds,&
@@ -1054,18 +1037,18 @@ END SUBROUTINE
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-            "PRINT%HILLS", error=error)
+            "PRINT%HILLS")
     END IF
 
     ! Computes forces due to the hills: history dependent term
     ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(diff_ss(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(numf(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(denf(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
 
     hills_env%energy = 0.0_dp
     DO ih=1,n_colvar
@@ -1120,15 +1103,15 @@ END SUBROUTINE
        ENDDO
     ENDDO
     DEALLOCATE(ddp, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     DEALLOCATE(diff_ss, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     DEALLOCATE(numf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     DEALLOCATE(denf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
 
-    CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS")
 
     CALL timestop(handle)
 

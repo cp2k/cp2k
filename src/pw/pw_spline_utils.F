@@ -127,17 +127,14 @@ CONTAINS
 !>      interpolates the given values
 !> \param spline_g on entry the FFT of the values to interpolate as cc,
 !>        will contain the FFT of the coefficents of the spline
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 !> \note
 !>      does not work with spherical cutoff
 ! *****************************************************************************
-  SUBROUTINE pw_spline2_interpolate_values_g(spline_g,error)
+  SUBROUTINE pw_spline2_interpolate_values_g(spline_g)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'pw_spline2_interpolate_values_g', &
@@ -156,15 +153,15 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)),&
          cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
@@ -198,7 +195,7 @@ CONTAINS
 
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_interpolate_values_g
@@ -208,8 +205,6 @@ CONTAINS
 !>      interpolates the given values
 !> \param spline_g on entry the FFT of the values to interpolate as cc,
 !>        will contain the FFT of the coefficents of the spline
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -218,9 +213,8 @@ CONTAINS
 !>      stupid distribution for cos calculation, it should calculate only the
 !>      needed cos, and avoid the mp_sum
 ! *****************************************************************************
-  SUBROUTINE pw_spline3_interpolate_values_g(spline_g,error)
+  SUBROUTINE pw_spline3_interpolate_values_g(spline_g)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'pw_spline3_interpolate_values_g', &
@@ -239,16 +233,16 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),&
          cosJVals(gbo(1,2):gbo(2,2)),&
          cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
@@ -288,7 +282,7 @@ CONTAINS
 
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_interpolate_values_g
@@ -299,15 +293,12 @@ CONTAINS
 !>      pw_spline_interpolate_values_g)
 !> \param spline_g on entry the FFT of the coefficents of the spline as cr3d,
 !>        will contain the FFT of the values of the spline
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE pw_spline2_evaluate_values_g(spline_g,error)
+  SUBROUTINE pw_spline2_evaluate_values_g(spline_g)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_evaluate_values_g', &
       routineP = moduleN//':'//routineN
@@ -328,15 +319,15 @@ CONTAINS
     gbo = spline_g%pw_grid%bounds
     inv64=1.0_dp/64.0_dp
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
          cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do default(none) private(i) shared(gbo,cosIVals,coeff)
@@ -368,7 +359,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_evaluate_values_g
@@ -382,8 +373,6 @@ CONTAINS
 !>        element, coeffs(2) the coeff of the 6 element with distance 1,
 !>        coeff(3) the coeff of the 12 elements at distance sqrt(2),
 !>        coeff(4) the coeff of the 8 elements at distance sqrt(3).
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -393,10 +382,9 @@ CONTAINS
 !>      is equivalent to pw_spline3_evaluate_values_g, with
 !>      coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
 ! *****************************************************************************
-  SUBROUTINE pw_nn_smear_g(spline_g,coeffs,error)
+  SUBROUTINE pw_nn_smear_g(spline_g,coeffs)
     TYPE(pw_type), POINTER                   :: spline_g
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
       routineP = moduleN//':'//routineN
@@ -422,15 +410,15 @@ CONTAINS
     r_coeffs(3)=r_coeffs(3)*4.0_dp
     r_coeffs(4)=r_coeffs(4)*8.0_dp
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
          cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(gbo,coeff,cosIVals)
@@ -462,7 +450,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_nn_smear_g
@@ -473,15 +461,12 @@ CONTAINS
 !>      pw_spline_interpolate_values_g)
 !> \param spline_g on entry the FFT of the values to interpolate as cc3d,
 !>        will contain the FFT of the coefficents of the spline
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE pw_spline3_evaluate_values_g(spline_g,error)
+  SUBROUTINE pw_spline3_evaluate_values_g(spline_g)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_evaluate_values_g', &
       routineP = moduleN//':'//routineN
@@ -502,15 +487,15 @@ CONTAINS
     gbo = spline_g%pw_grid%bounds
     inv27=1.0_dp/27.0_dp
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
          cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(coeff,cosIVals,gbo)
@@ -549,7 +534,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_evaluate_values_g
@@ -560,17 +545,14 @@ CONTAINS
 !> \param transpose if true applies the transpose of the map (defaults to
 !>        false)
 !> \param scale a scaling factor (defaults to 1.0)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,transpose,scale,error)
+  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,transpose,scale)
     TYPE(pw_p_type), DIMENSION(3)            :: deriv_vals_r
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv', &
       routineP = moduleN//':'//routineN
@@ -656,18 +638,15 @@ CONTAINS
 !> \param spline_g on entry the FFT of the coefficents of the spline
 !>        will contain the FFT of the derivative
 !> \param idir direction of the derivative
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 !> \note
 !>      the distance between gridpoints is assumed to be 1
 ! *****************************************************************************
-  SUBROUTINE pw_spline3_deriv_g(spline_g,idir,error)
+  SUBROUTINE pw_spline3_deriv_g(spline_g,idir)
     TYPE(pw_type), POINTER                   :: spline_g
     INTEGER, INTENT(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g', &
       routineP = moduleN//':'//routineN
@@ -688,16 +667,16 @@ CONTAINS
     bo = spline_g%pw_grid%bounds_local
     gbo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(csIVals(gbo(1,1):gbo(2,1)),&
          csJVals(gbo(1,2):gbo(2,2)),&
          csKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
@@ -791,7 +770,7 @@ CONTAINS
     END SELECT
 
     DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_deriv_g
@@ -802,18 +781,15 @@ CONTAINS
 !> \param spline_g on entry the FFT of the coefficents of the spline
 !>        will contain the FFT of the derivative
 !> \param idir direction of the derivative
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 !> \note
 !>      the distance between gridpoints is assumed to be 1
 ! *****************************************************************************
-  SUBROUTINE pw_spline2_deriv_g(spline_g,idir,error)
+  SUBROUTINE pw_spline2_deriv_g(spline_g,idir)
     TYPE(pw_type), POINTER                   :: spline_g
     INTEGER, INTENT(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g', &
       routineP = moduleN//':'//routineN
@@ -833,15 +809,15 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
+    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
 
     ALLOCATE(csIVals(bo(1,1):bo(2,1)),csJVals(bo(1,2):bo(2,2)),&
          csKVals(bo(1,3):bo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
@@ -935,7 +911,7 @@ CONTAINS
     END SELECT
 
     DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_deriv_g
@@ -1175,11 +1151,9 @@ END SUBROUTINE pw_compose_stripe2
 !> \param pw_in pw to be able to get the needed meta data about in_val and
 !>        out_val
 !> \param bo boundaries of in_val and out_val
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
+SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     INTEGER, DIMENSION(2, 3)                 :: bo
     TYPE(pw_type), POINTER                   :: pw_in
@@ -1189,7 +1163,6 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
     REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
       1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
       3)), INTENT(in)                        :: in_val
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_work', &
       routineP = moduleN//':'//routineN
@@ -1217,7 +1190,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
      ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
      CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
           gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
@@ -1231,7 +1204,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
           gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
           pw_in%pw_grid%para%group)
      DEALLOCATE(tmp,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
   END IF
 
   !$omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
@@ -1262,7 +1235,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
   END DO
   IF (has_boundary) THEN
      DEALLOCATE(l_boundary,u_boundary,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
   END IF
 END SUBROUTINE pw_nn_compose_r_work
 
@@ -1271,16 +1244,13 @@ END SUBROUTINE pw_nn_compose_r_work
 !> \param weights a 3x3x3 array with the linear operator
 !> \param pw_in the argument for the linear operator
 !> \param pw_out place where the value of the linear oprator should be added
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      has specialized versions for derivative operator (with central values==0)
 ! *****************************************************************************
-SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
+SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
       routineP = moduleN//':'//routineN
@@ -1290,20 +1260,19 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
 
   CALL timeset(routineN,handle)
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_in%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,failure)
+  CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,failure)
+  CPPrecondition(pw_in%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+  CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,failure)
+  CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,failure)
+  CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,failure)
   IF (.NOT.ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3))) THEN
      CALL cp_assert(.FALSE.,&
           cp_failure_level,cp_assertion_failed,routineP,&
-          "wrong pw distribution",error,failure)
+          "wrong pw distribution",failure)
   END IF
   CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
-       out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
-       error=error)
+       out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local)
   CALL timestop(handle)
 END SUBROUTINE pw_nn_compose_r
 
@@ -1316,8 +1285,6 @@ END SUBROUTINE pw_nn_compose_r
 !>        element, coeffs(2) the coeff of the 6 element with distance 1,
 !>        coeff(3) the coeff of the 12 elements at distance sqrt(2),
 !>        coeff(4) the coeff of the 8 elements at distance sqrt(3).
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Fawzi Mohamed
 !> \note
 !>      does not normalize the smear to 1.
@@ -1325,10 +1292,9 @@ END SUBROUTINE pw_nn_compose_r
 !>      is equivalent to pw_spline3_evaluate_values_g, with
 !>      coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
 ! *****************************************************************************
-  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,error)
+  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_r', &
       routineP = moduleN//':'//routineN
@@ -1345,8 +1311,7 @@ END SUBROUTINE pw_nn_compose_r
        END DO
     END DO
 
-    CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
-         error=error)
+    CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out)
   END SUBROUTINE pw_nn_smear_r
 
 ! *****************************************************************************
@@ -1366,8 +1331,6 @@ END SUBROUTINE pw_nn_compose_r
 !>        element, coeffs(2) the coeff of the 4 element with distance 1,
 !>        coeff(3) the coeff of the 4 elements at distance sqrt(2)
 !> \param idir ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Fawzi Mohamed
 !> \note
 !>      with coeff=(/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /)
@@ -1376,11 +1339,10 @@ END SUBROUTINE pw_nn_compose_r
 !>      to pw_spline2_deriv_r
 !>      coeff=(/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
 ! *****************************************************************************
-  SUBROUTINE pw_nn_deriv_r(pw_in,pw_out,coeffs,idir,error)
+  SUBROUTINE pw_nn_deriv_r(pw_in,pw_out,coeffs,idir)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: coeffs
     INTEGER                                  :: idir
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_deriv_r', &
       routineP = moduleN//':'//routineN
@@ -1404,7 +1366,7 @@ END SUBROUTINE pw_nn_compose_r
              CASE default
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                      routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")",&
-                     error,failure)
+                     failure)
              END SELECT
              IF (idirVal==0) THEN
                 weights(i,j,k)=0.0_dp
@@ -1415,8 +1377,7 @@ END SUBROUTINE pw_nn_compose_r
        END DO
     END DO
 
-    CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
-         error=error)
+    CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out)
   END SUBROUTINE pw_nn_deriv_r
 
 ! *****************************************************************************
@@ -1452,8 +1413,6 @@ END SUBROUTINE pw_nn_compose_r
 !>        (used if pbc is false)
 !> \param pbc if periodic boundary conditions should be applied
 !> \param safe_computation ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      coarse looping is continuos, I did not check if keeping the fine looping
@@ -1466,7 +1425,7 @@ END SUBROUTINE pw_nn_compose_r
 !>      probabily irrelevant because it is not critical) [fawzi].
 ! *****************************************************************************
   SUBROUTINE add_coarse2fine(coarse_coeffs_pw,fine_values_pw,&
-       weights_1d,w_border0,w_border1,pbc,safe_computation,error)
+       weights_1d,w_border0,w_border1,pbc,safe_computation)
     TYPE(pw_type), POINTER                   :: coarse_coeffs_pw, &
                                                 fine_values_pw
     REAL(kind=dp), DIMENSION(4), INTENT(in)  :: weights_1d
@@ -1474,7 +1433,6 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
     LOGICAL, INTENT(in)                      :: pbc
     LOGICAL, INTENT(in), OPTIONAL            :: safe_computation
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_coarse2fine', &
       routineP = moduleN//':'//routineN
@@ -1508,7 +1466,7 @@ END SUBROUTINE pw_nn_compose_r
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
          fine_values_pw%pw_grid%para%group,ii)
     IF (ii>1) THEN
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
     my_coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
     coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
@@ -1536,11 +1494,11 @@ END SUBROUTINE pw_nn_compose_r
     has_i_lbound=(fine_gbo(1,1)/=fine_bo(1,1)).or.pbc.and.is_split
 
     IF (pbc) THEN
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+1+f_shift),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
+       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+1+f_shift),cp_failure_level,routineP,failure)
     ELSE
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift),cp_failure_level,routineP,failure)
+       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
     END IF
 
     coarse_coeffs => coarse_coeffs_pw%cr3d
@@ -1557,7 +1515,7 @@ END SUBROUTINE pw_nn_compose_r
        ALLOCATE(send_size(0:n_procs-1),send_offset(0:n_procs-1),&
             sent_size(0:n_procs-1),rcv_size(0:n_procs-1), &
             rcv_offset(0:n_procs-1),real_rcv_size(0:n_procs-1), stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        ! ** rcv size count
 
@@ -1639,7 +1597,7 @@ END SUBROUTINE pw_nn_compose_r
           send_tot_size=send_tot_size+send_size(ip)
        END DO
        ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        rcv_tot_size=0
        DO ip=0,n_procs-1
@@ -1651,10 +1609,10 @@ END SUBROUTINE pw_nn_compose_r
                cp_failure_level,cp_assertion_failed,routineP,&
                "Error calculating rcv_tot_size "//&
 CPSourceFileRef,&
-               error,failure)
+               failure)
        END IF
        ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        ! ** fill send buffer
 
@@ -1748,11 +1706,11 @@ CPSourceFileRef,&
           END DO
        END IF
 
-       CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
-       CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,failure)
+       CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,failure)
        ! test send/rcv sizes
        CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
-       CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
+       CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,failure)
        ! all2all
        CALL mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
             rb=rcv_buf, rcount=rcv_size, rdispl=rcv_offset, &
@@ -1764,7 +1722,7 @@ CPSourceFileRef,&
        ALLOCATE(coarse_coeffs(coarse_bo(1,1):coarse_bo(2,1),&
             coarse_bo(1,2):coarse_bo(2,2),&
             coarse_bo(1,3):coarse_bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        my_lb=MAX(coarse_gbo(1,1),coarse_bo(1,1))
        my_ub=MIN(coarse_gbo(2,1),coarse_bo(2,1))
@@ -1823,14 +1781,14 @@ CPSourceFileRef,&
           sent_size(p_old)=sent_size(p_old)+coarse_slice_size
        END DO
 
-       CPPostcondition(ALL(sent_size(0:n_procs-2)==rcv_offset(1:)),cp_failure_level,routineP,error,failure)
-       CPPostcondition(sent_size(n_procs-1)==rcv_tot_size,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ALL(sent_size(0:n_procs-2)==rcv_offset(1:)),cp_failure_level,routineP,failure)
+       CPPostcondition(sent_size(n_procs-1)==rcv_tot_size,cp_failure_level,routineP,failure)
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        DEALLOCATE(send_buf,rcv_buf,real_rcv_size,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        CALL timestop(handle2)
 
     END IF
@@ -1859,7 +1817,7 @@ CPSourceFileRef,&
                    CASE(-3)
                       wk=w_border1(3)
                    CASE default
-                      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
                       CYCLE
                    END SELECT
                 ELSE
@@ -1871,7 +1829,7 @@ CPSourceFileRef,&
                    CASE(-1)
                       wk=w_border1(1)
                    CASE default
-                      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
                       CYCLE
                    END SELECT
                 END IF
@@ -2007,7 +1965,7 @@ CPSourceFileRef,&
                               cp_assertion_failed,routineN,&
                               "unexpected start index "//&
                               TRIM(cp_to_string(coarse_bo(1,1)))//" "//&
-                              TRIM(cp_to_string(fi)),error,failure)
+                              TRIM(cp_to_string(fi)),failure)
                       END IF
                    END IF
                    fi=fi+1
@@ -2016,7 +1974,7 @@ CPSourceFileRef,&
                            ww0(1)*v0+ww0(2)*v1+&
                            ww0(3)*v2
                    ELSE
-                      CPPrecondition(fi+1==fine_bo(1,1),cp_failure_level,routineP,error,failure)
+                      CPPrecondition(fi+1==fine_bo(1,1),cp_failure_level,routineP,failure)
                    END IF
 !                      CALL timestop(handle2)
 !                      CALL timeset(routineN//"_core",handle2)
@@ -2232,7 +2190,7 @@ CPSourceFileRef,&
                       fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
                            w_border0*wj*v2
                    END IF
-                   CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,error,failure)
+                   CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,failure)
                 END IF
 !                   CALL timestop(handle2)
              END DO
@@ -2242,7 +2200,7 @@ CPSourceFileRef,&
 
     IF (is_split) THEN
        DEALLOCATE(coarse_coeffs,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
     CALL timestop(handle)
   END SUBROUTINE add_coarse2fine
@@ -2279,14 +2237,12 @@ CPSourceFileRef,&
 !>        (w_border1(1) is the weight of the coefficent at the border)
 !> \param pbc ...
 !> \param safe_computation ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      see coarse2fine for some relevant notes
 ! *****************************************************************************
   SUBROUTINE add_fine2coarse(fine_values_pw,coarse_coeffs_pw,&
-       weights_1d,w_border0,w_border1,pbc,safe_computation,error)
+       weights_1d,w_border0,w_border1,pbc,safe_computation)
     TYPE(pw_type), POINTER                   :: fine_values_pw, &
                                                 coarse_coeffs_pw
     REAL(kind=dp), DIMENSION(4), INTENT(in)  :: weights_1d
@@ -2294,7 +2250,6 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
     LOGICAL, INTENT(in)                      :: pbc
     LOGICAL, INTENT(in), OPTIONAL            :: safe_computation
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_fine2coarse', &
       routineP = moduleN//':'//routineN
@@ -2349,19 +2304,19 @@ CPSourceFileRef,&
     has_i_lbound=(fine_gbo(1,1)/=fine_bo(1,1)).or.pbc.and.is_split
 
     IF (pbc) THEN
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift+1),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
+       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift+1),cp_failure_level,routineP,failure)
     ELSE
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift),cp_failure_level,routineP,failure)
+       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
     END IF
-    CPPrecondition(coarse_gbo(2,1)-coarse_gbo(1,2)>1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(coarse_gbo(2,1)-coarse_gbo(1,2)>1,cp_failure_level,routineP,failure)
     local_data=is_split ! ANY(coarse_bo/=my_coarse_bo)
     IF (local_data) THEN
        ALLOCATE(coarse_coeffs(coarse_bo(1,1):coarse_bo(2,1),&
             coarse_bo(1,2):coarse_bo(2,2),&
             coarse_bo(1,3):coarse_bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        coarse_coeffs=0._dp
     ELSE
        coarse_coeffs => coarse_coeffs_pw%cr3d
@@ -2397,7 +2352,7 @@ CPSourceFileRef,&
                 CASE(-3)
                    wk=w_border1(3)
                 CASE default
-                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                   CPAssert(.FALSE.,cp_failure_level,routineP,failure)
                    CYCLE
                 END SELECT
              ELSE
@@ -2409,7 +2364,7 @@ CPSourceFileRef,&
                 CASE(-1)
                    wk=w_border1(1)
                 CASE default
-                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                   CPAssert(.FALSE.,cp_failure_level,routineP,failure)
                    CYCLE
                 END SELECT
              END IF
@@ -2439,7 +2394,7 @@ CPSourceFileRef,&
                       CASE(-3)
                          wj=w_border1(3)*wk
                       CASE default
-                         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
                          CYCLE
                       END SELECT
                    ELSE
@@ -2451,7 +2406,7 @@ CPSourceFileRef,&
                       CASE(3)
                          wj=w_border1(3)*wk
                       CASE default
-                         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
                          CYCLE
                       END SELECT
                    END IF
@@ -2593,11 +2548,11 @@ CPSourceFileRef,&
                       CALL cp_assert(.FALSE.,&
                            cp_failure_level,cp_assertion_failed,routineP,&
                            "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4",&
-                           error,failure)
+                           failure)
                    END IF
                    rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)-6,4)
                    i=FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3-rest_b+4
-                   CPPrecondition(fi==(i-2)*2+f_shift(1),cp_failure_level,routineP,error,failure)
+                   CPPrecondition(fi==(i-2)*2+f_shift(1),cp_failure_level,routineP,failure)
                    IF (rest_b>0) THEN
                       fi=fi+1
                       vv0=fine_values(fi,fj,fk)
@@ -2799,7 +2754,7 @@ CPSourceFileRef,&
                               +wj*(w_border1(1)*vv0+w_border0*vv1)
                       END IF
                    END IF
-                   CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,error,failure)
+                   CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,failure)
                 END IF
              END DO
           END DO
@@ -2816,7 +2771,7 @@ CPSourceFileRef,&
             sent_size(0:n_procs-1),rcv_size(0:n_procs-1), &
             rcv_offset(0:n_procs-1), pp_lb(0:n_procs-1),&
             pp_ub(0:n_procs-1),real_rcv_size(0:n_procs-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        ! ** send size count
 
@@ -2889,9 +2844,9 @@ CPSourceFileRef,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "Error calculating send_tot_size "//&
 CPSourceFileRef,&
-            error,failure)
+            failure)
        ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        rcv_tot_size=0
        DO ip=0,n_procs-1
@@ -2899,7 +2854,7 @@ CPSourceFileRef,&
           rcv_tot_size=rcv_tot_size+rcv_size(ip)
        END DO
        ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
 
        ! ** fill send buffer
 
@@ -2920,26 +2875,26 @@ CPSourceFileRef,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 1 filling send buffer "//&
 CPSourceFileRef,&
-            error,failure)
+            failure)
        CALL cp_assert(sent_size(n_procs-1)==send_tot_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 2 filling send buffer "//&
 CPSourceFileRef,&
-            error,failure)
+            failure)
 
     IF (local_data) THEN
        DEALLOCATE(coarse_coeffs,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     ELSE
        NULLIFY(coarse_coeffs)
     END IF
 
-       CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
-       CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,failure)
+       CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,failure)
        ! test send/rcv sizes
        CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
 
-       CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
+       CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,failure)
        ! all2all
        CALL mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
             rb=rcv_buf, rcount=rcv_size, rdispl=rcv_offset, &
@@ -2995,23 +2950,23 @@ CPSourceFileRef,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 1 handling the rcv buffer "//&
 CPSourceFileRef,&
-            error,failure)
+            failure)
        CALL cp_assert(sent_size(n_procs-1)==rcv_tot_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 2 handling the rcv buffer "//&
 CPSourceFileRef,&
-            error,failure)
+            failure)
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        DEALLOCATE(send_buf,rcv_buf,real_rcv_size, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        DEALLOCATE(pp_ub,pp_lb,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        CALL timestop(handle2)
     ELSE
-       CPPostcondition(.NOT.local_data,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.NOT.local_data,cp_failure_level,routineP,failure)
     END IF
 
     CALL timestop(handle)
@@ -3025,17 +2980,14 @@ CPSourceFileRef,&
 !>        precondition
 !> \param pbc if periodic boundary conditions should be applied
 !> \param transpose ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
-       pool,pbc,transpose,error)
+       pool,pbc,transpose)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     INTEGER, INTENT(in)                      :: precond_kind
     TYPE(pw_pool_type), POINTER              :: pool
     LOGICAL, INTENT(in)                      :: pbc, transpose
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
       routineP = moduleN//':'//routineN
@@ -3046,7 +2998,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     ALLOCATE(preconditioner,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
     last_precond_id=last_precond_id+1
     preconditioner%id_nr=last_precond_id
     preconditioner%ref_count=1
@@ -3054,8 +3006,8 @@ CPSourceFileRef,&
     preconditioner%pool => pool
     preconditioner%pbc=pbc
     preconditioner%transpose=transpose
-    CALL pw_pool_retain(pool,error=error)
-    CALL pw_spline_precond_set_kind(preconditioner,precond_kind,error=error)
+    CALL pw_pool_retain(pool)
+    CALL pw_spline_precond_set_kind(preconditioner,precond_kind)
   END SUBROUTINE pw_spline_precond_create
 
 ! *****************************************************************************
@@ -3064,16 +3016,13 @@ CPSourceFileRef,&
 !> \param precond_kind the new kind of preconditioner to use
 !> \param pbc ...
 !> \param transpose ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,&
-       transpose,error)
+       transpose)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     INTEGER, INTENT(in)                      :: precond_kind
     LOGICAL, INTENT(in), OPTIONAL            :: pbc, transpose
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind', &
       routineP = moduleN//':'//routineN
@@ -3083,8 +3032,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
-    CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,failure)
+    CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,failure)
     IF (PRESENT(transpose)) preconditioner%transpose=transpose
     do_3d_coeff=.FALSE.
     preconditioner%kind=precond_kind
@@ -3123,7 +3072,7 @@ CPSourceFileRef,&
        preconditioner%normalize=.FALSE.
        do_3d_coeff=.TRUE.
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
     IF (do_3d_coeff) THEN
        s=1._dp
@@ -3158,13 +3107,10 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief retains the preconditioner
 !> \param preconditioner the preconditioner to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_spline_precond_retain(preconditioner,error)
+  SUBROUTINE pw_spline_precond_retain(preconditioner)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain', &
       routineP = moduleN//':'//routineN
@@ -3173,21 +3119,18 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(preconditioner%ref_count>1,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(preconditioner%ref_count>1,cp_failure_level,routineP)
     preconditioner%ref_count=preconditioner%ref_count+1
   END SUBROUTINE pw_spline_precond_retain
 
 ! *****************************************************************************
 !> \brief releases the preconditioner
 !> \param preconditioner the preconditioner to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_spline_precond_release(preconditioner,error)
+  SUBROUTINE pw_spline_precond_release(preconditioner)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
       routineP = moduleN//':'//routineN
@@ -3198,12 +3141,12 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (ASSOCIATED(preconditioner)) THEN
-       CPPreconditionNoFail(preconditioner%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(preconditioner%ref_count>0,cp_failure_level,routineP)
        preconditioner%ref_count=preconditioner%ref_count-1
        IF (preconditioner%ref_count==0) THEN
-          CALL pw_pool_release(preconditioner%pool,error=error)
+          CALL pw_pool_release(preconditioner%pool)
           DEALLOCATE(preconditioner,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
   END SUBROUTINE pw_spline_precond_release
@@ -3214,14 +3157,11 @@ CPSourceFileRef,&
 !> \param preconditioner the preconditioner to apply
 !> \param in_v the grid on which the preconditioner should be applied
 !> \param out_v place to store the preconditioner applied on v_out
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
+  SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     TYPE(pw_type), POINTER                   :: in_v, out_v
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond', &
       routineP = moduleN//':'//routineN
@@ -3230,35 +3170,35 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
-    CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,failure)
+    CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,failure)
     SELECT CASE(preconditioner%kind)
     CASE(no_precond)
-       CALL pw_copy(in_v,out_v,error=error)
+       CALL pw_copy(in_v,out_v)
     CASE (precond_spl3_aint,precond_spl3_1)
-       CALL pw_zero(out_v,error=error)
+       CALL pw_zero(out_v)
        IF (preconditioner%pbc) THEN
           CALL pw_nn_smear_r(pw_in=in_v,pw_out=out_v,&
-               coeffs=preconditioner%coeffs,error=error)
+               coeffs=preconditioner%coeffs)
        ELSE
           CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d,&
                pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen,&
                normalize=preconditioner%normalize,&
-               transpose=preconditioner%transpose,error=error)
+               transpose=preconditioner%transpose)
        END IF
     CASE(precond_spl3_3,precond_spl3_2,precond_spl3_aint2)
-       CALL pw_zero(out_v,error=error)
+       CALL pw_zero(out_v)
        IF (preconditioner%pbc) THEN
           CALL pw_nn_smear_r(pw_in=in_v,pw_out=out_v,&
-               coeffs=preconditioner%coeffs,error=error)
+               coeffs=preconditioner%coeffs)
        ELSE
           CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d,&
                pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen,&
                normalize=preconditioner%normalize, smooth_boundary=.TRUE.,&
-               transpose=preconditioner%transpose,error=error)
+               transpose=preconditioner%transpose)
        END IF
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
   END SUBROUTINE pw_spline_do_precond
 
@@ -3276,28 +3216,23 @@ CPSourceFileRef,&
 !> \param eps_r the requested precision on the residual
 !> \param eps_x the requested precision on the solution
 !> \param max_iter maximum number of iteration allowed
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
-       eps_r,eps_x,max_iter,error) RESULT(res)
+       eps_r,eps_x,max_iter) RESULT(res)
     TYPE(pw_type), POINTER                   :: values, coeffs
     INTERFACE
 ! *****************************************************************************
-       SUBROUTINE linOp(pw_in,pw_out,error)
+       SUBROUTINE linOp(pw_in,pw_out)
          USE pw_types, ONLY: pw_type
-         USE cp_error_handling, ONLY: cp_error_type
          TYPE(pw_type), POINTER :: pw_in,pw_out
-         TYPE(cp_error_type), INTENT(inout)  :: error
        END SUBROUTINE linOp
     END INTERFACE
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     TYPE(pw_pool_type), POINTER              :: pool
     REAL(kind=dp), INTENT(in)                :: eps_r, eps_x
     INTEGER, INTENT(in)                      :: max_iter
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_coeffs', &
@@ -3315,52 +3250,48 @@ CPSourceFileRef,&
     last=.FALSE.
 
     res=.FALSE.
-    logger => cp_error_get_logger(error)
-    CALL pw_pool_create_pw(pool,r,use_data=REALDATA3D,in_space=REALSPACE,&
-         error=error)
-    CALL pw_pool_create_pw(pool,z,use_data=REALDATA3D,in_space=REALSPACE,&
-         error=error)
-    CALL pw_pool_create_pw(pool,p,use_data=REALDATA3D,in_space=REALSPACE,&
-         error=error)
-    CALL pw_pool_create_pw(pool,Ap,use_data=REALDATA3D,in_space=REALSPACE,&
-         error=error)
+    logger => cp_get_default_logger()
+    CALL pw_pool_create_pw(pool,r,use_data=REALDATA3D,in_space=REALSPACE)
+    CALL pw_pool_create_pw(pool,z,use_data=REALDATA3D,in_space=REALSPACE)
+    CALL pw_pool_create_pw(pool,p,use_data=REALDATA3D,in_space=REALSPACE)
+    CALL pw_pool_create_pw(pool,Ap,use_data=REALDATA3D,in_space=REALSPACE)
 
-    !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
+    !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
     ext_do:DO iiter=1,max_iter,10
-       CALL pw_zero(r,error=error)
-       CALL linOp(pw_in=coeffs,pw_out=r,error=error)
+       CALL pw_zero(r)
+       CALL linOp(pw_in=coeffs,pw_out=r)
        r%cr3d=-r%cr3d
-       CALL pw_axpy(values,r,error=error)
-       CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
-       CALL pw_copy(z,p,error=error)
-       r_z=pw_integral_ab(r,z,error=error)
+       CALL pw_axpy(values,r)
+       CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z)
+       CALL pw_copy(z,p)
+       r_z=pw_integral_ab(r,z)
 
        DO iter=iiter,MIN(iiter+9,max_iter)
-          eps_r_att=SQRT(pw_integral_ab(r,r,error=error))
+          eps_r_att=SQRT(pw_integral_ab(r,r))
           IF (eps_r_att==0._dp) THEN
              eps_x_att=0._dp
              last=.TRUE.
           ELSE
-             CALL pw_zero(Ap,error=error)
-             CALL linOp(pw_in=p,pw_out=Ap,error=error)
-             alpha=r_z/pw_integral_ab(Ap,p,error=error)
+             CALL pw_zero(Ap)
+             CALL linOp(pw_in=p,pw_out=Ap)
+             alpha=r_z/pw_integral_ab(Ap,p)
 
-             CALL pw_axpy(p,coeffs,alpha=alpha,error=error)
+             CALL pw_axpy(p,coeffs,alpha=alpha)
 
-             eps_x_att=alpha*SQRT(pw_integral_ab(p,p,error=error)) ! try to spare if unneded?
+             eps_x_att=alpha*SQRT(pw_integral_ab(p,p)) ! try to spare if unneded?
              IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
           END IF
-          !CALL cp_iterate(logger%iter_info,last=last,error=error)
+          !CALL cp_iterate(logger%iter_info,last=last)
           IF (last) THEN
              res=.TRUE.
              EXIT ext_do
           END IF
 
-          CALL pw_axpy(Ap,r,alpha=-alpha,error=error)
+          CALL pw_axpy(Ap,r,alpha=-alpha)
 
-          CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
+          CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z)
 
-          r_z_new=pw_integral_ab(r,z,error=error)
+          r_z_new=pw_integral_ab(r,z)
           beta=r_z_new/r_z
           r_z=r_z_new
 
@@ -3375,12 +3306,12 @@ CPSourceFileRef,&
 
        END DO
     END DO ext_do
-    !CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
+    !CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS")
 
-    CALL pw_pool_give_back_pw(pool,r,error=error)
-    CALL pw_pool_give_back_pw(pool,z,error=error)
-    CALL pw_pool_give_back_pw(pool,p,error=error)
-    CALL pw_pool_give_back_pw(pool,Ap,error=error)
+    CALL pw_pool_give_back_pw(pool,r)
+    CALL pw_pool_give_back_pw(pool,z)
+    CALL pw_pool_give_back_pw(pool,p)
+    CALL pw_pool_give_back_pw(pool,Ap)
   END FUNCTION find_coeffs
 
 
@@ -3396,17 +3327,14 @@ CPSourceFileRef,&
 !> \param normalize ...
 !> \param transpose ...
 !> \param smooth_boundary ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d,pw_in,pw_out,&
-       sharpen,normalize,transpose,smooth_boundary,error)
+       sharpen,normalize,transpose,smooth_boundary)
     REAL(kind=dp), DIMENSION(-1:1)           :: weights_1d
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     LOGICAL, INTENT(in), OPTIONAL            :: sharpen, normalize, &
                                                 transpose, smooth_boundary
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_no_pbc', &
       routineP = moduleN//':'//routineN
@@ -3437,8 +3365,8 @@ CPSourceFileRef,&
     IF (PRESENT(transpose)) my_transpose=transpose
     my_smooth_boundary=.FALSE.
     IF (PRESENT(smooth_boundary)) my_smooth_boundary=smooth_boundary
-    CPAssert(.not.my_normalize.OR.my_sharpen,cp_failure_level,routineP,error,failure)
-    CPAssert(.NOT.my_smooth_boundary.OR..NOT.my_sharpen,cp_failure_level,routineP,error,failure)
+    CPAssert(.not.my_normalize.OR.my_sharpen,cp_failure_level,routineP,failure)
+    CPAssert(.NOT.my_smooth_boundary.OR..NOT.my_sharpen,cp_failure_level,routineP,failure)
     DO i=1,3
        s(i)=bo(2,i)-bo(1,i)+1
     END DO
@@ -3451,7 +3379,7 @@ CPSourceFileRef,&
        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
@@ -3465,7 +3393,7 @@ CPSourceFileRef,&
             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
             pw_in%pw_grid%para%group)
        DEALLOCATE(tmp,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
 
     n_els=s(1)
@@ -3562,7 +3490,7 @@ CPSourceFileRef,&
                 IF (has_l_boundary) THEN
                    IF (my_transpose) THEN
                       IF (s(1)==1) THEN
-                         CPAssert(.not.has_u_boundary,cp_failure_level,routineP,error,failure)
+                         CPAssert(.not.has_u_boundary,cp_failure_level,routineP,failure)
                          in_val_tmp=u_boundary(myj,myk)
                       ELSE
                          in_val_tmp=in_val(bo(1,1)+1,myj,myk)
@@ -3620,7 +3548,7 @@ CPSourceFileRef,&
                    IF (my_transpose) THEN
                       in_val_l=in_val(bo(2,1),myj,myk)
                       IF (s(1)==1) THEN
-                         CPAssert(.not.has_l_boundary,cp_failure_level,routineP,error,failure)
+                         CPAssert(.not.has_l_boundary,cp_failure_level,routineP,failure)
                          in_val_tmp=l_boundary(myj,myk)
                       ELSE
                          in_val_tmp=in_val(bo(2,1)-1,myj,myk)
@@ -3740,7 +3668,7 @@ CPSourceFileRef,&
 
     IF (is_split) THEN
        DEALLOCATE(l_boundary,u_boundary,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
   END SUBROUTINE pw_nn_compose_r_no_pbc
 
@@ -3748,46 +3676,38 @@ CPSourceFileRef,&
 !> \brief ...
 !> \param pw_in ...
 !> \param pw_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE spl3_nopbc(pw_in,pw_out,error)
+  SUBROUTINE spl3_nopbc(pw_in,pw_out)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL pw_zero(pw_out,error=error)
+    CALL pw_zero(pw_out)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
-         pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,error=error)
+         pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.)
   END SUBROUTINE spl3_nopbc
 
 ! *****************************************************************************
 !> \brief ...
 !> \param pw_in ...
 !> \param pw_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE spl3_nopbct(pw_in,pw_out,error)
+  SUBROUTINE spl3_nopbct(pw_in,pw_out)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL pw_zero(pw_out,error=error)
+    CALL pw_zero(pw_out)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
-         pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,transpose=.TRUE.,&
-         error=error)
+         pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,transpose=.TRUE.)
   END SUBROUTINE spl3_nopbct
 
 ! *****************************************************************************
 !> \brief ...
 !> \param pw_in ...
 !> \param pw_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE spl3_pbc(pw_in,pw_out,error)
+  SUBROUTINE spl3_pbc(pw_in,pw_out)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL pw_zero(pw_out,error=error)
-    CALL pw_nn_smear_r(pw_in,pw_out,coeffs=spline3_coeffs,&
-         error=error)
+    CALL pw_zero(pw_out)
+    CALL pw_nn_smear_r(pw_in,pw_out,coeffs=spline3_coeffs)
   END SUBROUTINE spl3_pbc
 
 ! *****************************************************************************
@@ -3795,8 +3715,6 @@ CPSourceFileRef,&
 !>      input vector (vec)
 !> \param vec ...
 !> \param pw ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval val ...
 !> \par History
 !>      12.2007 Adapted for use with distributed grids [rdeclerck]
@@ -3804,10 +3722,9 @@ CPSourceFileRef,&
 !> \note
 !>      Requires the Spline coefficients to be computed with PBC
 ! *****************************************************************************
-  FUNCTION Eval_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
+  FUNCTION Eval_Interp_Spl3_pbc(vec,pw) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
     TYPE(pw_type), POINTER                   :: pw
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Eval_Interp_Spl3_pbc', &
@@ -3953,8 +3870,6 @@ CPSourceFileRef,&
 !>      function on the generic input vector (vec)
 !> \param vec ...
 !> \param pw ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval val ...
 !> \par History
 !>      12.2007 Adapted for use with distributed grids [rdeclerck]
@@ -3962,10 +3877,9 @@ CPSourceFileRef,&
 !> \note
 !>      Requires the Spline coefficients to be computed with PBC
 ! *****************************************************************************
-  FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
+  FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
     TYPE(pw_type), POINTER                   :: pw
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: val(3)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Eval_d_Interp_Spl3_pbc', &

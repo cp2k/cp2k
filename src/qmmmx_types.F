@@ -36,14 +36,12 @@ CONTAINS
 !> \param subsys ...
 !> \param potential_energy ...
 !> \param kinetic_energy ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qmmmx_env_get(qmmmx_env,subsys,potential_energy,kinetic_energy,error)
+  SUBROUTINE qmmmx_env_get(qmmmx_env,subsys,potential_energy,kinetic_energy)
     TYPE(qmmmx_env_type), POINTER            :: qmmmx_env
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
                                                 kinetic_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_get', &
       routineP = moduleN//':'//routineN
@@ -52,16 +50,15 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qmmmx_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qmmmx_env%ref_count>0,cp_failure_level,routineP,failure)
 
     ! get the underlying energies from primary subsys.  This is the only subsys
     ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
     CALL qmmm_env_get(qmmmx_env%ext,&
                       kinetic_energy=kinetic_energy,&
                       potential_energy=potential_energy,&
-                      subsys=subsys,&
-                      error=error)
+                      subsys=subsys)
 
   END SUBROUTINE qmmmx_env_get
 
@@ -69,13 +66,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qmmmx_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE qmmmx_env_retain(qmmmx_env,error)
+  SUBROUTINE qmmmx_env_retain(qmmmx_env)
     TYPE(qmmmx_env_type), POINTER            :: qmmmx_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_retain', &
       routineP = moduleN//':'//routineN
@@ -84,8 +78,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(qmmmx_env%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(qmmmx_env%ref_count>0,cp_failure_level,routineP)
     qmmmx_env%ref_count = qmmmx_env%ref_count+1
   END SUBROUTINE qmmmx_env_retain
 
@@ -93,13 +87,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given qmmmx_env (see doc/ReferenceCounting.html)
 !> \param qmmmx_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE qmmmx_env_release(qmmmx_env,error)
+  SUBROUTINE qmmmx_env_release(qmmmx_env)
     TYPE(qmmmx_env_type), POINTER            :: qmmmx_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_release', &
       routineP = moduleN//':'//routineN
@@ -109,11 +100,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qmmmx_env)) THEN
-       CPPreconditionNoFail(qmmmx_env%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(qmmmx_env%ref_count>0,cp_failure_level,routineP)
        qmmmx_env%ref_count = qmmmx_env%ref_count-1
        IF (qmmmx_env%ref_count==0) THEN
-          CALL qmmm_env_release(qmmmx_env%core, error)
-          CALL qmmm_env_release(qmmmx_env%ext, error)
+          CALL qmmm_env_release(qmmmx_env%core)
+          CALL qmmm_env_release(qmmmx_env%ext)
           DEALLOCATE(qmmmx_env)
        END IF
     END IF

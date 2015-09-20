@@ -52,14 +52,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Computes the external density on the grid
 !> \param qs_env ...
-!> \param error ...
 !> \date   03.2011
 !> \author D. Varsano 
 ! *****************************************************************************
-  SUBROUTINE external_read_density(qs_env,error)
+  SUBROUTINE external_read_density(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'external_read_density', &
       routineP = moduleN//':'//routineN
@@ -98,33 +96,30 @@ CONTAINS
                     rho_external=rho_external,&
                     input=input,&
                     pw_env=pw_env,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     IF (dft_control%apply_external_density) THEN
       CALL qs_rho_get(rho_external,&
                     rho_r=rho_ext_r,&
                     rho_g=rho_ext_g,&
-                    tot_rho_r=tot_rho_r_ext,&
-                    error=error)
+                    tot_rho_r=tot_rho_r_ext)
 
       gridlevel_info=>pw_env%gridlevel_info
 
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
+      CALL pw_env_get(pw_env, rs_descs=rs_descs)
 
       ALLOCATE (rs_rho_ext(gridlevel_info%ngrid_levels),STAT=stat)
 
       DO igrid_level=1,gridlevel_info%ngrid_levels
         CALL rs_grid_create(rs_rho_ext(igrid_level)%rs_grid,&
-                            rs_descs(igrid_level)%rs_desc, error=error)
+                            rs_descs(igrid_level)%rs_desc)
         CALL rs_grid_zero(rs_rho_ext(igrid_level)%rs_grid)
       ENDDO
 
       igrid_level=igrid_level-1
 
-      ext_den_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_DENSITY",&
-                                                    error=error)
-      CALL section_vals_val_get(ext_den_section,"FILE_DENSITY",c_val=filename,error=error)
+      ext_den_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_DENSITY")
+      CALL section_vals_val_get(ext_den_section,"FILE_DENSITY",c_val=filename)
 
       gid     = rho_ext_r(1)%pw%pw_grid%para%group
       my_rank = rho_ext_r(1)%pw%pw_grid%para%my_pos
@@ -210,8 +205,8 @@ CONTAINS
       ENDIF
 
 
-      CALL density_rs2pw(pw_env,rs_rho_ext,rho=rho_ext_r(1),rho_gspace=rho_ext_g(1),error=error)
-      tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw,isign=1,error=error)
+      CALL density_rs2pw(pw_env,rs_rho_ext,rho=rho_ext_r(1),rho_gspace=rho_ext_g(1))
+      tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw,isign=1)
       IF (my_rank == 0) THEN
         WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ",&
                tot_rho_r_ext(1)
@@ -227,14 +222,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Read external vxc potential
 !> \param qs_env ...
-!> \param error ...
 !> \date   03.2011
 !> \author DV 
 ! *****************************************************************************
-  SUBROUTINE external_read_vxc(qs_env,error)
+  SUBROUTINE external_read_vxc(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'external_read_vxc', &
       routineP = moduleN//':'//routineN
@@ -259,10 +252,9 @@ CONTAINS
                     cell=cell,&
                     external_vxc=vxc_ext,&
                     input=input,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
     IF (dft_control%apply_external_vxc) THEN
-      ext_vxc_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_VXC",error=error)
+      ext_vxc_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_VXC")
       IF (dft_control%read_external_vxc) THEN
         dr=vxc_ext%pw%pw_grid%dr
         dvol=vxc_ext%pw%pw_grid%dvol
@@ -275,7 +267,7 @@ CONTAINS
           lbounds(i) = bo_local(1,i)
           ubounds(i) = bo_local(2,i)
         ENDDO
-        CALL section_vals_val_get(ext_vxc_section,"FILE_VXC",c_val=filename,error=error)
+        CALL section_vals_val_get(ext_vxc_section,"FILE_VXC",c_val=filename)
         WRITE(*,*) "NOW READING VXC FILE:   ", filename
         extunit=get_unit_number()
         CALL open_file(file_name=filename,file_status="OLD",&

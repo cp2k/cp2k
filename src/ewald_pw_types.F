@@ -77,11 +77,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the structure ewald_pw_type
 !> \param ewald_pw ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_retain(ewald_pw,error)
+  SUBROUTINE ewald_pw_retain(ewald_pw)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_retain', &
       routineP = moduleN//':'//routineN
@@ -90,8 +88,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(ewald_pw),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ewald_pw),cp_failure_level,routineP,failure)
+    CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,failure)
     ewald_pw%ref_count=ewald_pw%ref_count+1
   END SUBROUTINE ewald_pw_retain
 
@@ -102,14 +100,12 @@ CONTAINS
 !> \param cell ...
 !> \param cell_ref ...
 !> \param print_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
+  SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, print_section)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
       routineP = moduleN//':'//routineN
@@ -121,18 +117,17 @@ CONTAINS
     NULLIFY ( dg )
     failure=.FALSE.
     ALLOCATE ( ewald_pw, stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY ( ewald_pw % pw_big_pool )
     NULLIFY ( ewald_pw % pw_small_pool )
     NULLIFY ( ewald_pw % rs_desc )
     NULLIFY ( ewald_pw % poisson_env )
-    CALL dg_create ( dg, error )
+    CALL dg_create ( dg)
     ewald_pw % dg => dg
     ewald_pw%ref_count=1
     last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
     ewald_pw%id_nr=last_ewald_pw_id_nr
-    CALL ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section,&
-         error=error )
+    CALL ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section)
   END SUBROUTINE ewald_pw_create
 
 !****f* ewald_pw_types/ewald_pw_release [1.0] *
@@ -140,11 +135,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the memory used by the ewald_pw
 !> \param ewald_pw ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_release ( ewald_pw, error )
+  SUBROUTINE ewald_pw_release ( ewald_pw)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_release', &
       routineP = moduleN//':'//routineN
@@ -155,16 +148,16 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     IF (ASSOCIATED(ewald_pw)) THEN
-       CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,failure)
        ewald_pw%ref_count=ewald_pw%ref_count-1
        IF (ewald_pw%ref_count<1) THEN
-          CALL pw_pool_release ( ewald_pw % pw_small_pool, error = error )
-          CALL pw_pool_release ( ewald_pw % pw_big_pool, error = error )
-          CALL rs_grid_release_descriptor ( ewald_pw % rs_desc, error = error )
-          CALL pw_poisson_release ( ewald_pw % poisson_env, error = error )
-          CALL dg_release ( ewald_pw % dg, error )
+          CALL pw_pool_release ( ewald_pw % pw_small_pool)
+          CALL pw_pool_release ( ewald_pw % pw_big_pool)
+          CALL rs_grid_release_descriptor ( ewald_pw % rs_desc)
+          CALL pw_poisson_release ( ewald_pw % poisson_env)
+          CALL dg_release ( ewald_pw % dg)
           DEALLOCATE (  ewald_pw , stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY ( ewald_pw )
@@ -180,19 +173,17 @@ CONTAINS
 !> \param cell ...
 !> \param cell_ref ...
 !> \param print_section ...
-!> \param error ...
 !> \par History
 !>      JGH (12-Jan-2001): Added SPME part
 !>      JGH (15-Mar-2001): Work newly distributed between initialize, setup,
 !>                         and force routine
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
+  SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
@@ -222,10 +213,10 @@ CONTAINS
     NULLIFY ( pw_big_grid )
     NULLIFY ( pw_small_grid, poisson_section )
 
-    CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED ( cell ),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED ( cell ),cp_failure_level,routineP,failure)
+    CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,failure)
     CALL ewald_env_get ( ewald_env = ewald_env,&
                          para_env = para_env, &
                          gmax = gmax, alpha = alpha,&
@@ -233,16 +224,16 @@ CONTAINS
                          ewald_type = ewald_type, &
                          o_spline=o_spline,&
                          poisson_section=poisson_section,&
-                         epsilon = epsilon ,error=error)
+                         epsilon = epsilon)
 
-    rs_grid_section => section_vals_get_subs_vals(poisson_section,"EWALD%RS_GRID",error=error)
+    rs_grid_section => section_vals_get_subs_vals(poisson_section,"EWALD%RS_GRID")
 
     SELECT CASE ( ewald_type )
     CASE ( do_ewald_ewald )
        ! set up Classic EWALD sum
-       logger => cp_error_get_logger ( error )
-       output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log",error=error)
-       CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF ,error=error)
+       logger => cp_get_default_logger()
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log")
+       CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF)
 
        IF ( ANY(gmax == 2 * ( gmax / 2 )) ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,"gmax has to be odd.")
@@ -250,24 +241,24 @@ CONTAINS
        bo ( 1, : ) = -gmax / 2
        bo ( 2, : ) = +gmax / 2
        CALL pw_grid_setup ( cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
-                             fft_usage=.FALSE., iounit=output_unit, error=error)
+                             fft_usage=.FALSE., iounit=output_unit)
        NULLIFY ( pw_pool )
-       CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid ,error=error)
+       CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid)
        ewald_pw % pw_big_pool => pw_pool
-       CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
-       CALL pw_pool_release ( pw_pool ,error=error)
-       CALL pw_grid_release ( pw_big_grid, error )
-       CALL cp_print_key_finished_output(output_unit,logger,print_section,"",error=error)
+       CALL pw_pool_retain ( ewald_pw % pw_big_pool)
+       CALL pw_pool_release ( pw_pool)
+       CALL pw_grid_release ( pw_big_grid)
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,"")
 
     CASE ( do_ewald_pme )
        ! set up Particle-Mesh EWALD sum
-       logger => cp_error_get_logger ( error )
-       output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log",error=error)
+       logger => cp_get_default_logger()
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log")
        IF (.NOT.ASSOCIATED(ewald_pw%poisson_env)) THEN
-          CALL pw_poisson_create(ewald_pw%poisson_env,error=error)
+          CALL pw_poisson_create(ewald_pw%poisson_env)
        END IF
-       CALL pw_grid_create( pw_small_grid, MPI_COMM_SELF ,error=error)
-       CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
+       CALL pw_grid_create( pw_small_grid, MPI_COMM_SELF)
+       CALL pw_grid_create( pw_big_grid, para_env%group)
        IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,"ns_max has to be odd.")
        END IF
@@ -279,7 +270,7 @@ CONTAINS
 
        CALL dg_pme_grid_setup ( cell_ref%hmat, npts_s, cutoff_radius,   &
             pw_small_grid, pw_big_grid, rs_dims=(/para_env%num_pe,1/),&
-            iounit=output_unit, fft_usage=.TRUE., error=error )
+            iounit=output_unit, fft_usage=.TRUE.)
        ! Write some useful info
        IF ( output_unit > 0 ) THEN
           WRITE ( output_unit, '( A,T71,E10.4 )' ) &
@@ -292,88 +283,88 @@ CONTAINS
 
        ! pw pools initialized
        NULLIFY ( pw_pool )
-       CALL pw_pool_create( pw_pool, pw_grid = pw_big_grid ,error=error)
+       CALL pw_pool_create( pw_pool, pw_grid = pw_big_grid)
        ewald_pw % pw_big_pool => pw_pool
-       CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
-       CALL pw_pool_release ( pw_pool ,error=error)
+       CALL pw_pool_retain ( ewald_pw % pw_big_pool)
+       CALL pw_pool_release ( pw_pool)
 
        NULLIFY ( pw_pool )
-       CALL pw_pool_create( pw_pool, pw_grid = pw_small_grid ,error=error)
+       CALL pw_pool_create( pw_pool, pw_grid = pw_small_grid)
        ewald_pw%pw_small_pool => pw_pool
-       CALL pw_pool_retain ( ewald_pw % pw_small_pool ,error=error)
-       CALL pw_pool_release ( pw_pool ,error=error)
+       CALL pw_pool_retain ( ewald_pw % pw_small_pool)
+       CALL pw_pool_release ( pw_pool)
 
        NULLIFY ( rs_desc )
        CALL init_input_type(input_settings,nsmax=MAXVAL ( pw_small_grid % npts(1:3) ),&
                             rs_grid_section=rs_grid_section,ilevel=1, &
-                            higher_grid_layout=(/-1,-1,-1/),error=error)
-       CALL rs_grid_create_descriptor(rs_desc,pw_big_grid, input_settings, error=error)
+                            higher_grid_layout=(/-1,-1,-1/))
+       CALL rs_grid_create_descriptor(rs_desc,pw_big_grid, input_settings)
 
-       CALL rs_grid_create(rs, rs_desc, error)
-       CALL rs_grid_print(rs,output_unit,error=error)
-       CALL rs_grid_release(rs, error)
+       CALL rs_grid_create(rs, rs_desc)
+       CALL rs_grid_print(rs,output_unit)
+       CALL rs_grid_release(rs)
 
-       CALL cp_print_key_finished_output(output_unit,logger,print_section,"",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,"")
 
        ewald_pw%rs_desc => rs_desc
 
-       CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc, error)
-       CALL rs_grid_release_descriptor ( rs_desc, error)
+       CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc)
+       CALL rs_grid_release_descriptor ( rs_desc)
 
-       CALL pw_grid_release ( pw_small_grid, error )
-       CALL pw_grid_release ( pw_big_grid, error )
+       CALL pw_grid_release ( pw_small_grid)
+       CALL pw_grid_release ( pw_big_grid)
 
     CASE ( do_ewald_spme )
        ! set up the Smooth-Particle-Mesh EWALD sum
-       logger => cp_error_get_logger ( error )
-       output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log",error=error)
+       logger => cp_get_default_logger()
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",extension=".Log")
        IF (.NOT.ASSOCIATED(ewald_pw%poisson_env)) THEN
-          CALL pw_poisson_create(ewald_pw%poisson_env,error=error)
+          CALL pw_poisson_create(ewald_pw%poisson_env)
        END IF
-       CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
+       CALL pw_grid_create( pw_big_grid, para_env%group)
        npts_s = gmax
        CALL pw_grid_setup ( cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
-            rs_dims=(/para_env%num_pe,1/), iounit=output_unit, fft_usage=.TRUE., error=error)
+            rs_dims=(/para_env%num_pe,1/), iounit=output_unit, fft_usage=.TRUE.)
 
        ! pw pools initialized
        NULLIFY ( pw_pool )
-       CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid,error=error)
+       CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid)
        ewald_pw%pw_big_pool => pw_pool
-       CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
-       CALL pw_pool_release ( pw_pool ,error=error)
+       CALL pw_pool_retain ( ewald_pw % pw_big_pool)
+       CALL pw_pool_release ( pw_pool)
 
        NULLIFY ( rs_desc )
        CALL init_input_type(input_settings,nsmax=o_spline,&
                             rs_grid_section=rs_grid_section,ilevel=1, &
-                            higher_grid_layout=(/-1,-1,-1/),error=error)
-       CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings, error=error)
+                            higher_grid_layout=(/-1,-1,-1/))
+       CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings)
 
-       CALL rs_grid_create(rs, rs_desc, error)
-       CALL rs_grid_print(rs,output_unit,error=error)
-       CALL rs_grid_release(rs, error)
-       CALL cp_print_key_finished_output(output_unit,logger,print_section,"",error=error)
+       CALL rs_grid_create(rs, rs_desc)
+       CALL rs_grid_print(rs,output_unit)
+       CALL rs_grid_release(rs)
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,"")
 
        ewald_pw%rs_desc => rs_desc
 
-       CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc, error)
-       CALL rs_grid_release_descriptor ( rs_desc, error)
+       CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc)
+       CALL rs_grid_release_descriptor ( rs_desc)
 
-       CALL pw_grid_release ( pw_big_grid, error )
+       CALL pw_grid_release ( pw_big_grid)
     CASE ( do_ewald_none )
        ! No EWALD sums..
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
     ! Poisson Environment
     IF (ASSOCIATED(ewald_pw%poisson_env)) THEN
        ALLOCATE(pw_pools(1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
        pw_pools(1)%pool => ewald_pw%pw_big_pool
-       CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+       CALL pw_poisson_read_parameters(poisson_section, poisson_params)
        CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_params,&
-            use_level=1,pw_pools=pw_pools,error=error)
+            use_level=1,pw_pools=pw_pools)
        DEALLOCATE(pw_pools,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ewald_pw_init
@@ -420,11 +411,10 @@ CONTAINS
 !> \param rs_desc ...
 !> \param dg ...
 !> \param poisson_env ...
-!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool, pw_small_pool, rs_desc, dg,&
-       poisson_env, error )
+       poisson_env)
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
@@ -432,35 +422,34 @@ CONTAINS
       OPTIONAL, POINTER                      :: rs_desc
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_set', &
       routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( pw_big_pool ) )  THEN
-        CALL pw_pool_retain ( pw_big_pool ,error=error)
-        CALL pw_pool_release ( ewald_pw % pw_big_pool ,error=error)
+        CALL pw_pool_retain ( pw_big_pool)
+        CALL pw_pool_release ( ewald_pw % pw_big_pool)
         ewald_pw % pw_big_pool => pw_big_pool
     ENDIF
     IF ( PRESENT ( pw_small_pool ) )  THEN
-        CALL pw_pool_retain ( pw_small_pool ,error=error)
-        CALL pw_pool_release ( ewald_pw % pw_small_pool ,error=error)
+        CALL pw_pool_retain ( pw_small_pool)
+        CALL pw_pool_release ( ewald_pw % pw_small_pool)
         ewald_pw % pw_small_pool => pw_small_pool
     ENDIF
     IF ( PRESENT ( rs_desc ) )  THEN
-        CALL rs_grid_retain_descriptor (rs_desc, error=error)
-        CALL rs_grid_release_descriptor (ewald_pw % rs_desc, error=error)
+        CALL rs_grid_retain_descriptor (rs_desc)
+        CALL rs_grid_release_descriptor (ewald_pw % rs_desc)
         ewald_pw % rs_desc => rs_desc
     ENDIF
     IF ( PRESENT ( dg ) )  THEN
-        CALL dg_retain ( dg ,error=error)
-        CALL dg_release ( ewald_pw % dg, error = error )
+        CALL dg_retain ( dg)
+        CALL dg_release ( ewald_pw % dg)
         ewald_pw % dg => dg
     ENDIF
     IF (PRESENT(poisson_env)) THEN
        IF (ASSOCIATED(poisson_env)) &
-            CALL pw_poisson_retain(poisson_env,error=error)
-       CALL pw_poisson_release(ewald_pw%poisson_env,error=error)
+            CALL pw_poisson_retain(poisson_env)
+       CALL pw_poisson_release(ewald_pw%poisson_env)
        ewald_pw%poisson_env => poisson_env
     END IF
 

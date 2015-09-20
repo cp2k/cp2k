@@ -51,19 +51,16 @@ CONTAINS
 !>        (defaults to the min(size(matrix)))
 !> \param para_env ...
 !> \param blacs_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [JVdV]
 !>      12.2002 updated, added n optional parm [fawzi]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_cholesky_decompose(matrix,n,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_cholesky_decompose(matrix,n,para_env,blacs_env)
     TYPE(cp_dbcsr_type)                      :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_cholesky_decompose', &
       routineP = moduleN//':'//routineN
@@ -88,16 +85,16 @@ CONTAINS
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix")
+    CALL cp_fm_struct_release(fm_struct)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
 
     my_n = MIN(fm_matrix%matrix_struct%nrow_global,&
          fm_matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,error,failure)
+       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
        my_n=n
     END IF
 
@@ -123,11 +120,11 @@ CONTAINS
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(info==0,cp_failure_level,routineP,failure)
 
-    CALL copy_fm_to_dbcsr(fm_matrix, matrix, error=error)
+    CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
-    CALL cp_fm_release(fm_matrix, error)
+    CALL cp_fm_release(fm_matrix)
 
     CALL timestop(handle)
 
@@ -140,19 +137,16 @@ CONTAINS
 !> \param para_env ...
 !> \param blacs_env ...
 !> \param upper_to_full ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_cholesky_invert(matrix,n,para_env,blacs_env,upper_to_full,error)
+  SUBROUTINE cp_dbcsr_cholesky_invert(matrix,n,para_env,blacs_env,upper_to_full)
     TYPE(cp_dbcsr_type)                           :: matrix
     INTEGER, INTENT(in), OPTIONAL             :: n
     TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(cp_blacs_env_type), POINTER          :: blacs_env
     LOGICAL, INTENT(IN)                       :: upper_to_full
-    TYPE(cp_error_type), INTENT(inout)        :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='dbcsr_cholesky_invert',&
          routineP=moduleN//':'//routineN
@@ -176,16 +170,16 @@ CONTAINS
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullrows_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullrows_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix")
+    CALL cp_fm_struct_release(fm_struct)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
 
     my_n = MIN(fm_matrix%matrix_struct%nrow_global,&
          fm_matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,error,failure)
+       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
        my_n=n
     END IF
 
@@ -212,17 +206,17 @@ CONTAINS
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(info==0,cp_failure_level,routineP,failure)
 
     IF(upper_to_full) THEN
-       CALL cp_fm_create(fm_matrix_tmp,fm_matrix%matrix_struct,name="fm_matrix_tmp",error=error)
-       CALL cp_fm_upper_to_full(fm_matrix, fm_matrix_tmp, error)
-       CALL cp_fm_release(fm_matrix_tmp, error)
+       CALL cp_fm_create(fm_matrix_tmp,fm_matrix%matrix_struct,name="fm_matrix_tmp")
+       CALL cp_fm_upper_to_full(fm_matrix, fm_matrix_tmp)
+       CALL cp_fm_release(fm_matrix_tmp)
     ENDIF
 
-    CALL copy_fm_to_dbcsr(fm_matrix, matrix, error=error)
+    CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
-    CALL cp_fm_release(fm_matrix, error)
+    CALL cp_fm_release(fm_matrix)
 
     CALL timestop(handle)
 
@@ -238,17 +232,14 @@ CONTAINS
 !> \param matrixb the cholesky decomposition of matrix B
 !> \param para_env ...
 !> \param blacs_env ...
-!> \param error variable to control error logging, stopping,...
-!>              see module cp_error_handling
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_cholesky_reduce(matrix,matrixb,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_cholesky_reduce(matrix,matrixb,para_env,blacs_env)
     TYPE(cp_dbcsr_type)                           :: matrix,matrixb
     TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(cp_blacs_env_type), POINTER          :: blacs_env
-    TYPE(cp_error_type), INTENT(inout)        :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='dbcsr_cholesky_reduce',&
          routineP=moduleN//':'//routineN
@@ -272,20 +263,20 @@ CONTAINS
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix")
+    CALL cp_fm_struct_release(fm_struct)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
 
     CALL cp_dbcsr_get_info(matrixb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb")
+    CALL cp_fm_struct_release(fm_struct)
 
-    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb, error=error)
+    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
 
     n = fm_matrix%matrix_struct%nrow_global
     itype =1
@@ -306,19 +297,19 @@ CONTAINS
          routineP,&
          "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
 CPSourceFileRef,&
-         error,failure)
+         failure)
 #else
 
     CALL dsygst(itype,'U',n,a(1,1),n,b(1,1),n,info)
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(info==0,cp_failure_level,routineP,failure)
 
-    CALL copy_fm_to_dbcsr(fm_matrix, matrix, error=error)
+    CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
-    CALL cp_fm_release(fm_matrix, error)
-    CALL cp_fm_release(fm_matrixb, error)
+    CALL cp_fm_release(fm_matrix)
+    CALL cp_fm_release(fm_matrixb)
 
     CALL timestop(handle)
 
@@ -336,10 +327,9 @@ CPSourceFileRef,&
 !> \param transa ...
 !> \param para_env ...
 !> \param blacs_env ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
-       para_env,blacs_env,error)
+       para_env,blacs_env)
     TYPE(cp_dbcsr_type)                                :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                            :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )           :: op
@@ -347,7 +337,6 @@ CPSourceFileRef,&
     CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: transa
     TYPE(cp_para_env_type), POINTER                :: para_env
     TYPE(cp_blacs_env_type), POINTER               :: blacs_env
-    TYPE(cp_error_type), INTENT(inout)             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='dbcsr_cholesky_restore',&
          routineP=moduleN//':'//routineN
@@ -377,24 +366,24 @@ CPSourceFileRef,&
 
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix")
+    CALL cp_fm_struct_release(fm_struct)
 
     CALL cp_dbcsr_get_info(matrixb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb")
+    CALL cp_fm_struct_release(fm_struct)
 
     CALL cp_dbcsr_get_info(matrixout,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-         ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrixout,fm_struct,name="fm_matrixout",error=error)
-    CALL cp_fm_struct_release(fm_struct,error=error)
+         ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrixout,fm_struct,name="fm_matrixout")
+    CALL cp_fm_struct_release(fm_struct)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
-    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb, error=error)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
     !CALL copy_dbcsr_to_fm(matrixout, fm_matrixout)
 
     context => fm_matrix%matrix_struct%context
@@ -406,7 +395,7 @@ CPSourceFileRef,&
          cp_failure_level,cp_assertion_failed,routineP,&
          "wrong argument op"//&
 CPSourceFileRef,&
-         error,failure)
+         failure)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -419,7 +408,7 @@ CPSourceFileRef,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "wrong argument pos"//&
 CPSourceFileRef,&
-               error,failure)
+               failure)
        END SELECT
     ELSE
        chol_pos='L'
@@ -433,7 +422,7 @@ CPSourceFileRef,&
          routineP,&
          "not the same precision"//&
 CPSourceFileRef,&
-         error,failure)
+         failure)
 
     ! notice b is the cholesky guy
     a => fm_matrix%local_data
@@ -495,11 +484,11 @@ CPSourceFileRef,&
 
 #endif
 
-    CALL copy_fm_to_dbcsr(fm_matrixout, matrixout, error=error)
+    CALL copy_fm_to_dbcsr(fm_matrixout, matrixout)
 
-    CALL cp_fm_release(fm_matrix, error)
-    CALL cp_fm_release(fm_matrixb, error)
-    CALL cp_fm_release(fm_matrixout, error)
+    CALL cp_fm_release(fm_matrix)
+    CALL cp_fm_release(fm_matrixb)
+    CALL cp_fm_release(fm_matrixout)
 
     CALL timestop(handle)
 

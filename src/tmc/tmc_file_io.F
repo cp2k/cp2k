@@ -67,14 +67,11 @@ CONTAINS
 !>        (instead of the ending) 
 !> \param file_name original file name 
 !> \param extra string to be added before the file extention
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION expand_file_name_ending(file_name, extra, error) RESULT(result_file_name)
+  FUNCTION expand_file_name_ending(file_name, extra) RESULT(result_file_name)
     CHARACTER(LEN=*)                         :: file_name, extra
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=default_path_length)       :: result_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_ending', &
@@ -84,7 +81,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
     IF(.NOT.ind.EQ.0) THEN
@@ -94,7 +91,7 @@ CONTAINS
        WRITE(result_file_name,*)TRIM(file_name),".",extra
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
   END FUNCTION expand_file_name_ending
 
 ! *****************************************************************************
@@ -102,14 +99,11 @@ CONTAINS
 !>        (before the file extention) 
 !> \param file_name original file name 
 !> \param extra string to be added before the file extention
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION expand_file_name_char(file_name, extra, error) RESULT(result_file_name)
+  FUNCTION expand_file_name_char(file_name, extra) RESULT(result_file_name)
     CHARACTER(LEN=*)                         :: file_name, extra
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=default_path_length)       :: result_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_char', &
@@ -119,7 +113,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
     IF(.NOT.ind.EQ.0) THEN
@@ -129,7 +123,7 @@ CONTAINS
        WRITE(result_file_name,*)TRIM(file_name),"_",extra
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
   END FUNCTION expand_file_name_char
 
 ! *****************************************************************************
@@ -137,15 +131,12 @@ CONTAINS
 !>        (before the file extention) 
 !> \param file_name original file name 
 !> \param rvalue temperature to be added
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION expand_file_name_temp(file_name,rvalue, error) RESULT(result_file_name)
+  FUNCTION expand_file_name_temp(file_name,rvalue) RESULT(result_file_name)
     CHARACTER(LEN=*)                         :: file_name
     REAL(KIND=dp)                            :: rvalue
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=default_path_length)       :: result_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_temp', &
@@ -156,7 +147,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
 
     rval_to_string = ""
 
@@ -174,7 +165,7 @@ CONTAINS
        END IF
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
   END FUNCTION expand_file_name_temp
 
 ! *****************************************************************************
@@ -182,15 +173,12 @@ CONTAINS
 !>        (before the file extention) 
 !> \param file_name original file name 
 !> \param ivalue number to be added
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION expand_file_name_int(file_name,ivalue, error) RESULT(result_file_name)
+  FUNCTION expand_file_name_int(file_name,ivalue) RESULT(result_file_name)
     CHARACTER(LEN=*)                         :: file_name
     INTEGER                                  :: ivalue
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=default_path_length)       :: result_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_int', &
@@ -201,7 +189,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
 
     rval_to_string = ""
 
@@ -220,7 +208,7 @@ CONTAINS
        END IF
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,error,failure)
+    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
   END FUNCTION expand_file_name_int
 
 !------------------------------------------------------------------------------
@@ -233,15 +221,12 @@ CONTAINS
 !>        temperatures
 !> \param job_counts the counters for counting the submitted different job types
 !> \param timings ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE print_restart_file(tmc_env, job_counts, timings, error)
+  SUBROUTINE print_restart_file(tmc_env, job_counts, timings)
     TYPE(tmc_env_type), POINTER              :: tmc_env
     INTEGER, DIMENSION(:)                    :: job_counts
     REAL(KIND=dp), DIMENSION(4)              :: timings
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_restart_file', &
       routineP = moduleN//':'//routineN
@@ -252,17 +237,17 @@ CONTAINS
 
     failure = .FALSE.
     c_tmp=""
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error, failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error, failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,error, failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,error, failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
 
     IF(failure) RETURN
 
     WRITE(c_tmp, FMT='(I9.9)') tmc_env%m_env%result_count(0)
     file_name=TRIM(expand_file_name_char(&
                         file_name=tmc_default_restart_out_file_name, &
-                        extra=c_tmp, error=error)) 
+                        extra=c_tmp)) 
     CALL open_file(file_name=file_name, file_status="REPLACE", &
                    file_action="WRITE", file_form="UNFORMATTED", &
                    unit_number=f_unit)
@@ -312,16 +297,13 @@ CONTAINS
 !> \param job_counts the counters for counting the submitted different job types
 !> \param timings ...
 !> \param file_name the restart file name
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE read_restart_file(tmc_env, job_counts, timings, file_name, error)
+  SUBROUTINE read_restart_file(tmc_env, job_counts, timings, file_name)
     TYPE(tmc_env_type), POINTER              :: tmc_env
     INTEGER, DIMENSION(:)                    :: job_counts
     REAL(KIND=dp), DIMENSION(4)              :: timings
     CHARACTER(LEN=*)                         :: file_name
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_restart_file', &
       routineP = moduleN//':'//routineN
@@ -332,15 +314,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(nr_mv_types)    :: mv_weight_tmp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error, failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error, failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,error, failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,error, failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
     IF(failure) RETURN
 
     IF(file_name.EQ.tmc_default_restart_in_file_name) THEN
       INQUIRE(FILE=tmc_default_restart_in_file_name, EXIST=flag)
-      CPPrecondition(flag,cp_failure_level,routineP,error, failure)
+      CPPrecondition(flag,cp_failure_level,routineP,failure)
       CALL open_file(file_name=tmc_default_restart_in_file_name, file_status="OLD", &
                    file_action="READ", unit_number=file_ptr)
       READ(file_ptr,*) file_name
@@ -354,7 +336,7 @@ CONTAINS
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the actual specified temperatures does not "//&
                    "fit in amount with the one from restart file ",&
-                   error, failure=flag)
+                   failure=flag)
     ALLOCATE(tmp_temp(temp_size))
     READ(file_ptr) tmp_temp(:), &
                    tmc_env%m_env%gt_act%nr, &
@@ -376,11 +358,11 @@ CONTAINS
     CALL cp_assert(ALL(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .LT. 0.005),&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the temperatures differ from the previous calculation. There were the following temperatures used:",&
-                   error, failure=flag)
+                   failure=flag)
     CALL cp_assert(ALL(mv_weight_tmp(:).EQ.tmc_env%params%move_types%mv_weight(:)),&
                    cp_warning_level,cp_assertion_failed,routineP,&
                    "The amount of mv types differs between the original and the restart run. ",&
-                   error, failure=flag)
+                   failure=flag)
 
     DO i=1, SIZE(tmc_env%params%Temp)
        tmc_env%m_env%gt_act%conf(i)%elem => tmc_env%m_env%result_list(i)%elem
@@ -411,19 +393,16 @@ CONTAINS
 !> \param conf_updated index of the updated (modified element)
 !> \param accepted acceptance flag
 !> \param tmc_params TMC environment parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE write_result_list_element(result_list, result_count,conf_updated,&
-                                       accepted, tmc_params, error)
+                                       accepted, tmc_params)
     TYPE(elem_array_type), DIMENSION(:), &
       POINTER                                :: result_list
     INTEGER, DIMENSION(:), POINTER           :: result_count
     INTEGER                                  :: conf_updated
     LOGICAL, INTENT(IN)                      :: accepted
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_result_list_element', &
       routineP = moduleN//':'//routineN
@@ -435,12 +414,12 @@ CONTAINS
     failure   = .FALSE.
     file_name = ""
 
-    CPPrecondition(ASSOCIATED(result_list),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(result_count),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,error,failure)
-    CPPrecondition(conf_updated.GE.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(conf_updated.LE.SIZE(tmc_params%Temp),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(result_list),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(result_count),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,failure)
+    CPPrecondition(conf_updated.GE.0,cp_failure_level,routineP,failure)
+    CPPrecondition(conf_updated.LE.SIZE(tmc_params%Temp),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -451,8 +430,7 @@ CONTAINS
         WRITE(file_name,*)"every_step_",TRIM(tmc_default_trajectory_file_name)
         CALL write_element_in_file(elem=result_list(i)%elem, &
                tmc_params=tmc_params, conf_nr=result_count(0),&
-               file_name=expand_file_name_temp(file_name=file_name,rvalue=tmc_params%Temp(i), error=error), &
-               error=error)
+               file_name=expand_file_name_temp(file_name=file_name,rvalue=tmc_params%Temp(i)))
       END DO
     ELSE
       IF((.NOT.tmc_params%print_only_diff_conf).OR.&
@@ -460,8 +438,7 @@ CONTAINS
         CALL write_element_in_file(elem=result_list(conf_updated)%elem, &
                tmc_params=tmc_params, conf_nr=result_count(conf_updated),&
                file_name=expand_file_name_temp(file_name=TRIM(tmc_default_trajectory_file_name),&
-                           rvalue=tmc_params%Temp(conf_updated), error=error),&
-               error=error)
+                           rvalue=tmc_params%Temp(conf_updated)))
       END IF
     END IF
     ! end the timing
@@ -476,19 +453,16 @@ CONTAINS
 !> \param file_name file name will be extended by type of file (pos, cell,...)
 !> \param conf_nr Markov chain element number
 !> \param conf_info whole header line
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE write_element_in_file(elem, tmc_params, temp_index, file_name, conf_nr, &
-                                   conf_info, error)
+                                   conf_info)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_param_type), POINTER            :: tmc_params
     INTEGER, OPTIONAL                        :: temp_index
     CHARACTER(LEN=*), OPTIONAL               :: file_name
     INTEGER, OPTIONAL                        :: conf_nr
     CHARACTER(LEN=*), OPTIONAL               :: conf_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_element_in_file', &
       routineP = moduleN//':'//routineN
@@ -506,10 +480,10 @@ CONTAINS
     header    = ""
     print_it  = .TRUE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error,failure)
-    CPPrecondition(PRESENT(conf_nr).OR.PRESENT(conf_info),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,failure)
+    CPPrecondition(PRESENT(conf_nr).OR.PRESENT(conf_info),cp_failure_level,routineP,failure)
 
     IF(print_it) THEN
       ! start the timing
@@ -517,13 +491,13 @@ CONTAINS
   
       ! set default file name
       IF(PRESENT(file_name)) THEN
-        CPPrecondition(file_name.NE."",cp_failure_level,routineP,error,failure)
+        CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
         file_name_act = file_name
       ELSE
-        CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,error,failure)
-        CPPrecondition(PRESENT(temp_index),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,failure)
+        CPPrecondition(PRESENT(temp_index),cp_failure_level,routineP,failure)
         file_name_act = expand_file_name_temp(file_name=tmc_default_trajectory_file_name, &
-                                          rvalue=tmc_params%Temp(temp_index), error=error)
+                                          rvalue=tmc_params%Temp(temp_index))
       END IF
   
       nr_atoms=SIZE(elem%pos)/tmc_params%dim_per_elem
@@ -541,7 +515,7 @@ CONTAINS
   
       ! write the coordinates
       IF(tmc_params%print_trajectory) THEN
-        tmp_name = expand_file_name_ending(file_name_act,"xyz",error)
+        tmp_name = expand_file_name_ending(file_name_act,"xyz")
         CALL open_file(file_name=tmp_name, file_status="UNKNOWN", &
                        file_action="WRITE", file_position="APPEND", &
                        unit_number=file_ptr)
@@ -557,7 +531,7 @@ CONTAINS
   
       ! write the forces
       IF(tmc_params%print_forces) THEN
-         tmp_name = expand_file_name_ending(file_name_act,"frc",error)
+         tmp_name = expand_file_name_ending(file_name_act,"frc")
          CALL open_file(file_name=tmp_name, file_status="UNKNOWN", &
                        file_action="WRITE", file_position="APPEND", &
                        unit_number=file_ptr)
@@ -574,12 +548,12 @@ CONTAINS
       ! write the cell dipoles
       IF(tmc_params%print_dipole) THEN
          CALL write_dipoles_in_file(file_name=file_name_act, &
-                conf_nr=conf_nr, dip=elem%dipole, error=error)
+                conf_nr=conf_nr, dip=elem%dipole)
       END IF
 
       ! write the cell file
       IF(tmc_params%print_cell) THEN
-         tmp_name = expand_file_name_ending(file_name_act,"cell",error)
+         tmp_name = expand_file_name_ending(file_name_act,"cell")
          ! header
          INQUIRE(FILE=tmp_name, EXIST=file_exists)   ! file_exists will be TRUE if the file exist
          IF(.NOT.file_exists) THEN
@@ -595,7 +569,7 @@ CONTAINS
          END IF
          CALL get_scaled_cell(cell=tmc_params%cell, &
                 box_scale=elem%box_scale, scaled_hmat=hmat_scaled, &
-                vol=vol, error=error)
+                vol=vol)
          WRITE (file_ptr,FMT="(I8,9(1X,F19.10),1X,F24.10)") conf_nr, &
            hmat_scaled(:,:)*au2a, vol* au2a**3 
            !TODO better cell output e.g. using cell_types routine
@@ -604,7 +578,7 @@ CONTAINS
 
       ! write the different energies
       IF(tmc_params%print_energies) THEN
-         tmp_name = expand_file_name_ending(file_name_act,"ener",error)
+         tmp_name = expand_file_name_ending(file_name_act,"ener")
          ! header
          INQUIRE(FILE=tmp_name, EXIST=file_exists)   ! file_exists will be TRUE if the file exist
          IF(.NOT.file_exists) THEN
@@ -633,17 +607,14 @@ CONTAINS
 !> \param conf_nr ...
 !> \param dip ...
 !> \param file_ext ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE write_dipoles_in_file(file_name, conf_nr, dip, file_ext, error)
+  SUBROUTINE write_dipoles_in_file(file_name, conf_nr, dip, file_ext)
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: conf_nr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dip
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: file_ext
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dipoles_in_file', &
       routineP = moduleN//':'//routineN
@@ -652,13 +623,13 @@ CONTAINS
     INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure, file_exists
 
-    CPPrecondition(ASSOCIATED(dip),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dip),cp_failure_level,routineP,failure)
 
     IF(PRESENT(file_ext)) THEN
-      CPPrecondition(file_ext.NE."",cp_failure_level,routineP,error,failure)
-      file_name_tmp = expand_file_name_ending(file_name,TRIM(file_ext),error)
+      CPPrecondition(file_ext.NE."",cp_failure_level,routineP,failure)
+      file_name_tmp = expand_file_name_ending(file_name,TRIM(file_ext))
     ELSE
-      file_name_tmp = expand_file_name_ending(file_name,"dip",error)
+      file_name_tmp = expand_file_name_ending(file_name,"dip")
     END IF
     INQUIRE(FILE=file_name_tmp, EXIST=file_exists)
     IF(.NOT.file_exists) THEN
@@ -686,15 +657,12 @@ CONTAINS
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
 !> \param stat ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE read_element_from_file(elem, tmc_ana, conf_nr, stat, error)
+  SUBROUTINE read_element_from_file(elem, tmc_ana, conf_nr, stat)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
     INTEGER                                  :: conf_nr, stat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_element_from_file', &
       routineP = moduleN//':'//routineN
@@ -708,9 +676,9 @@ CONTAINS
     conf_nr_old = conf_nr
     files_conf_missmatch = .FALSE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana%atoms),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana%atoms),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -719,16 +687,16 @@ CONTAINS
     IF(tmc_ana%id_traj.GT.0) THEN
       i_tmp = conf_nr_old
       CALL read_pos_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
-                              conf_nr=i_tmp, error=error)
+                              conf_nr=i_tmp)
       IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
         CALL cp_assert(.FALSE.,&
              cp_warning_level,cp_assertion_failed,routineP,&
              'end of position file reached at line '//&
              cp_to_string(REAL(tmc_ana%lc_traj,KIND=dp))//", last element "//&
              cp_to_string(tmc_ana%last_elem%nr),&
-             error, failure=flag, only_ionode=.TRUE.)
+             failure=flag, only_ionode=.TRUE.)
       ELSE
-        CPPostcondition(i_tmp.GT.conf_nr_old,cp_failure_level,routineP,error,failure)
+        CPPostcondition(i_tmp.GT.conf_nr_old,cp_failure_level,routineP,failure)
         conf_nr = i_tmp
         elem%nr = i_tmp
       END IF
@@ -742,13 +710,13 @@ CONTAINS
       i_tmp = conf_nr_old
       search_conf_dip: DO
         CALL read_dipole_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
-                                   conf_nr=i_tmp, error=error)
+                                   conf_nr=i_tmp)
         IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN 
           CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'end of dipole file reached at line'//&
                  cp_to_string(REAL(tmc_ana%lc_dip,KIND=dp)),&
-                 error, failure=flag, only_ionode=.TRUE.)
+                 failure=flag, only_ionode=.TRUE.)
           EXIT search_conf_dip
         END IF
         ! check consitence with pos file
@@ -774,13 +742,13 @@ CONTAINS
     IF(tmc_ana%id_cell.GT.0 .AND. stat.EQ.TMC_STATUS_OK) THEN
       search_conf_cell: DO
         CALL read_cell_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
-                                 conf_nr=i_tmp, error=error)
+                                 conf_nr=i_tmp)
         IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
           CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'end of cell file reached at line at line'//&
                  cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)),&
-                 error, failure=flag, only_ionode=.TRUE.)
+                 failure=flag, only_ionode=.TRUE.)
           EXIT search_conf_cell
         END IF
         ! check consitence with pos file
@@ -813,7 +781,7 @@ CONTAINS
            cp_to_string(tmc_ana%lc_traj)//"|"//&
            cp_to_string(tmc_ana%lc_cell)//"|"//&
            cp_to_string(tmc_ana%lc_dip), &
-           error, failure=flag, only_ionode=.TRUE.)
+           failure=flag, only_ionode=.TRUE.)
 
     ! end the timing
     CALL timestop(handle)
@@ -827,16 +795,13 @@ CONTAINS
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
 !> \param header_info ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE read_pos_from_file(elem, tmc_ana, stat, conf_nr, header_info, error)
+  SUBROUTINE read_pos_from_file(elem, tmc_ana, stat, conf_nr, header_info)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
     INTEGER                                  :: stat, conf_nr
     CHARACTER(LEN=*), OPTIONAL               :: header_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_pos_from_file', &
       routineP = moduleN//':'//routineN
@@ -848,10 +813,10 @@ CONTAINS
     failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
-    CPPrecondition(tmc_ana%id_traj.GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPPrecondition(tmc_ana%id_traj.GT.0,cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -863,7 +828,7 @@ CONTAINS
       CALL cp_assert(status.LE.0,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "configuration header read error at line: "//&
-               cp_to_string(tmc_ana%lc_traj)//": "//c_tmp, error)
+               cp_to_string(tmc_ana%lc_traj)//": "//c_tmp)
       IF(status .LT. 0) THEN ! end of file reached
         stat = TMC_STATUS_WAIT_FOR_NEW_TASK
         EXIT search_next_conf
@@ -873,7 +838,7 @@ CONTAINS
         CALL cp_assert(status.EQ.0,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "configuration header read error (for conf nr) at line: "//&
-               cp_to_string(tmc_ana%lc_traj), error)
+               cp_to_string(tmc_ana%lc_traj))
         IF(i_tmp .GT. conf_nr) THEN
           ! TODO we could also read the energy ...
           conf_nr = i_tmp
@@ -893,7 +858,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                  cp_failure_level,cp_assertion_failed,routineP,&
                  "configuration pos read error at line: "//&
-                 cp_to_string(tmc_ana%lc_traj), error)
+                 cp_to_string(tmc_ana%lc_traj))
         END IF
       END DO pos_loop
       elem%pos(:) = elem%pos(:)/au2a
@@ -910,15 +875,12 @@ CONTAINS
 !> \param stat ...
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE read_dipole_from_file(elem, tmc_ana, stat, conf_nr, error)
+  SUBROUTINE read_dipole_from_file(elem, tmc_ana, stat, conf_nr)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
     INTEGER                                  :: stat, conf_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_dipole_from_file', &
       routineP = moduleN//':'//routineN
@@ -930,10 +892,10 @@ CONTAINS
     failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%dipole),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
-    CPPrecondition(tmc_ana%id_dip.GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%dipole),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPPrecondition(tmc_ana%id_dip.GT.0,cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -957,7 +919,7 @@ CONTAINS
     ELSE
       CALL cp_assert(status.EQ.0,&
              cp_warning_level,cp_assertion_failed,routineP,&
-             "configuration dipole read error at line: "//cp_to_string(tmc_ana%lc_dip), error)
+             "configuration dipole read error at line: "//cp_to_string(tmc_ana%lc_dip))
       stat = TMC_STATUS_FAILED
     END IF
 
@@ -972,15 +934,12 @@ CONTAINS
 !> \param stat ...
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE read_cell_from_file(elem, tmc_ana, stat, conf_nr, error)
+  SUBROUTINE read_cell_from_file(elem, tmc_ana, stat, conf_nr)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
     INTEGER                                  :: stat, conf_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_cell_from_file', &
       routineP = moduleN//':'//routineN
@@ -994,10 +953,10 @@ CONTAINS
     failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana%cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(tmc_ana%id_cell.GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana%cell),cp_failure_level,routineP,failure)
+    CPPrecondition(tmc_ana%id_cell.GT.0,cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1021,14 +980,14 @@ CONTAINS
     ELSE IF(status.GT.0) THEN
       CALL cp_assert(status.EQ.0,&
            cp_failure_level,cp_assertion_failed,routineP,&
-           "configuration cell read error at line: "//cp_to_string(tmc_ana%lc_cell), error)
+           "configuration cell read error at line: "//cp_to_string(tmc_ana%lc_cell))
       stat = TMC_STATUS_FAILED
     ELSE
       IF(elem%nr.LT.0) elem%nr=conf_nr
       hmat(:,:) = hmat(:,:)/au2a
       ! get the box scaling
       CALL get_cell_scaling(cell=tmc_ana%cell, scaled_hmat=hmat, &
-                            box_scale=elem%box_scale, error=error)
+                            box_scale=elem%box_scale)
       stat = TMC_STATUS_OK
     END IF
     ! end the timing
@@ -1044,16 +1003,13 @@ CONTAINS
 !> \param tmc_ana ...
 !> \param stat ...
 !> \param dir_ind ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analyse_files_open(tmc_ana, stat, dir_ind, error)
+  SUBROUTINE analyse_files_open(tmc_ana, stat, dir_ind)
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
     INTEGER                                  :: stat
     INTEGER, OPTIONAL                        :: dir_ind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'analyse_files_open', &
       routineP = moduleN//':'//routineN
@@ -1064,7 +1020,7 @@ CONTAINS
     LOGICAL                                  :: failure, file_exists
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
 
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
 
@@ -1072,9 +1028,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(PRESENT(dir_ind)) THEN
-      CPPrecondition(ASSOCIATED(tmc_ana%dirs),cp_failure_level,routineP,error,failure)
-      CPPrecondition(dir_ind.GT.0,cp_failure_level,routineP,error,failure)
-      CPPrecondition(dir_ind.LE.SIZE(tmc_ana%dirs),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(tmc_ana%dirs),cp_failure_level,routineP,failure)
+      CPPrecondition(dir_ind.GT.0,cp_failure_level,routineP,failure)
+      CPPrecondition(dir_ind.LE.SIZE(tmc_ana%dirs),cp_failure_level,routineP,failure)
 
       IF(INDEX(tmc_ana%dirs(dir_ind),"/", BACK=.TRUE.).EQ.&
          LEN_TRIM(tmc_ana%dirs(dir_ind))) THEN
@@ -1089,13 +1045,13 @@ CONTAINS
     ! open the files 
     file_name_temp = expand_file_name_temp(&
                        file_name=tmc_default_trajectory_file_name, &
-                       rvalue=tmc_ana%temperature, error=error)
+                       rvalue=tmc_ana%temperature)
     ! position file
     IF(tmc_ana%costum_pos_file_name.NE."") THEN
       file_name_act = TRIM(dir_name)//tmc_ana%costum_pos_file_name
     ELSE
       file_name_act = TRIM(dir_name)//&
-                      expand_file_name_ending(file_name_temp,"xyz",error)
+                      expand_file_name_ending(file_name_temp,"xyz")
     END IF
     INQUIRE(FILE=file_name_act, EXIST=file_exists)
     IF(file_exists) THEN
@@ -1110,7 +1066,7 @@ CONTAINS
       file_name_act = TRIM(dir_name)//tmc_ana%costum_cell_file_name
     ELSE 
       file_name_act = TRIM(dir_name)//&
-                      expand_file_name_ending(file_name_temp,"cell",error)
+                      expand_file_name_ending(file_name_temp,"cell")
     END IF
     INQUIRE(FILE=file_name_act, EXIST=file_exists)
     IF(file_exists) THEN
@@ -1125,7 +1081,7 @@ CONTAINS
       file_name_act = TRIM(dir_name)//tmc_ana%costum_dip_file_name
     ELSE 
       file_name_act = TRIM(dir_name)//&
-                      expand_file_name_ending(file_name_temp,"dip",error)
+                      expand_file_name_ending(file_name_temp,"dip")
     END IF
     INQUIRE(FILE=file_name_act, EXIST=file_exists)
     IF(file_exists) THEN
@@ -1142,8 +1098,7 @@ CONTAINS
       CALL cp_assert(.FALSE.,&
            cp_warning_level,cp_assertion_failed,routineP,&
            "There is no file to open for temperature "//cp_to_string(tmc_ana%temperature)//&
-           "K in directory "//TRIM(dir_name),&
-           error)
+           "K in directory "//TRIM(dir_name))
     END IF
     ! end the timing
     CALL timestop(handle)
@@ -1152,14 +1107,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief close the files for reading configurations data to analyze
 !> \param tmc_ana ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analyse_files_close(tmc_ana, error)
+  SUBROUTINE analyse_files_close(tmc_ana)
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'analyse_files_close', &
       routineP = moduleN//':'//routineN
@@ -1168,7 +1120,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)

@@ -64,15 +64,13 @@ CONTAINS
 !> \param store_int_env ...
 !> \param se_section ...
 !> \param compression ...
-!> \param error ...
 !> \date   05.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_si_create(store_int_env, se_section, compression, error)
+  SUBROUTINE semi_empirical_si_create(store_int_env, se_section, compression)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(section_vals_type), POINTER         :: se_section
     LOGICAL, INTENT(in), OPTIONAL            :: compression
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_create', &
       routineP = moduleN//':'//routineN
@@ -82,22 +80,22 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: se_mem_section
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(store_int_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(store_int_env),cp_failure_level,routineP,failure)
     ALLOCATE (store_int_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     store_int_env%filling_containers = .TRUE.
     store_int_env%nbuffer             = 0
     NULLIFY(store_int_env%max_val_buffer, store_int_env%uncompressed_container)
 
     ! Memory section
-    se_mem_section => section_vals_get_subs_vals(se_section,"MEMORY",error=error)
+    se_mem_section => section_vals_get_subs_vals(se_section,"MEMORY")
     IF ( PRESENT(compression) ) THEN
       store_int_env%compress = compression
     ELSE
-      CALL section_vals_val_get(se_mem_section,"COMPRESS",l_val=store_int_env%compress,error=error)
+      CALL section_vals_val_get(se_mem_section,"COMPRESS",l_val=store_int_env%compress)
     END IF
     CALL parse_memory_section(store_int_env%memory_parameter, se_mem_section, skip_disk=.TRUE.,&
-         skip_in_core_forces =.TRUE., error=error)
+         skip_in_core_forces =.TRUE.)
     store_int_env%memory_parameter%ram_counter = 0
     ! If we don't compress there's no cache
     IF (.NOT.store_int_env%compress) THEN
@@ -113,15 +111,15 @@ CPSourceFileRef,&
     ! Allocate containers/caches for integral storage if requested
     IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN
        ALLOCATE(store_int_env%integral_containers(64), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(store_int_env%integral_caches(64), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i=1,64
           store_int_env%integral_caches(i)%element_counter = 1
           store_int_env%integral_caches(i)%data = 0
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           store_int_env%integral_containers(i)%first%prev => NULL()
           store_int_env%integral_containers(i)%first%next => NULL()
           store_int_env%integral_containers(i)%current => store_int_env%integral_containers(i)%first
@@ -134,13 +132,11 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
 !> \param store_int_env ...
-!> \param error ...
 !> \date   05.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_si_release(store_int_env, error)
+  SUBROUTINE semi_empirical_si_release(store_int_env)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_release', &
       routineP = moduleN//':'//routineN
@@ -157,28 +153,28 @@ CPSourceFileRef,&
              DO i=1,64
                 CALL hfx_init_container(store_int_env%integral_containers(i),&
                      store_int_env%memory_parameter%actual_memory_usage,&
-                     .FALSE., error)
+                     .FALSE.)
                 DEALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END DO
              IF (ASSOCIATED(store_int_env%max_val_buffer)) THEN
                 DEALLOCATE(store_int_env%max_val_buffer,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              DEALLOCATE(store_int_env%integral_containers,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              DEALLOCATE(store_int_env%integral_caches,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ELSE
              IF (ASSOCIATED(store_int_env%uncompressed_container)) THEN
                 DEALLOCATE(store_int_env%uncompressed_container,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
           END IF
        END IF
        ! Deallocate the full store_int_env
        DEALLOCATE (store_int_env,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE semi_empirical_si_release
@@ -187,14 +183,12 @@ CPSourceFileRef,&
 !> \brief Deallocate the semi-empirical store integrals type
 !> \param store_int_env ...
 !> \param geometry_did_change ...
-!> \param error ...
 !> \date   05.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_si_initialize(store_int_env, geometry_did_change, error)
+  SUBROUTINE semi_empirical_si_initialize(store_int_env, geometry_did_change)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     LOGICAL, INTENT(IN)                      :: geometry_did_change
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_initialize', &
       routineP = moduleN//':'//routineN
@@ -216,7 +210,7 @@ CPSourceFileRef,&
                 DO i=1,64
                    CALL hfx_init_container(store_int_env%integral_containers(i),&
                         store_int_env%memory_parameter%actual_memory_usage,&
-                        .FALSE., error)
+                        .FALSE.)
                 END DO
              ELSE
                 ! Skip compression
@@ -246,14 +240,12 @@ CPSourceFileRef,&
 !> \brief Deallocate the semi-empirical store integrals type
 !> \param store_int_env ...
 !> \param geometry_did_change ...
-!> \param error ...
 !> \date   05.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_si_finalize(store_int_env, geometry_did_change, error)
+  SUBROUTINE semi_empirical_si_finalize(store_int_env, geometry_did_change)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     LOGICAL, INTENT(IN)                      :: geometry_did_change
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_finalize', &
       routineP = moduleN//':'//routineN
@@ -270,7 +262,7 @@ CPSourceFileRef,&
                 DO i=1,64
                    CALL hfx_flush_last_cache(i, store_int_env%integral_caches(i),&
                         store_int_env%integral_containers(i),&
-                        store_int_env%memory_parameter%actual_memory_usage, .FALSE., error)
+                        store_int_env%memory_parameter%actual_memory_usage, .FALSE.)
                 END DO
                 ! Reallocate this array with the proper size
                 CALL reallocate(store_int_env%max_val_buffer, 1, store_int_env%nbuffer)

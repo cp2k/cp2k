@@ -66,12 +66,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   create the dg structure
 !> \param dg ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE dg_create ( dg, error )
+  SUBROUTINE dg_create ( dg)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_create', &
       routineP = moduleN//':'//routineN
@@ -80,9 +78,9 @@ CONTAINS
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
     ALLOCATE ( dg, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
     NULLIFY ( dg_rho0 )
-    CALL dg_rho0_create ( dg_rho0, error )
+    CALL dg_rho0_create ( dg_rho0)
     dg % dg_rho0 => dg_rho0
     last_dg_id=last_dg_id+1
     dg%id_nr=last_dg_id
@@ -93,17 +91,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given dg_type
 !> \param dg the dg_type to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE dg_retain ( dg, error)
+  SUBROUTINE dg_retain ( dg)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_retain', &
       routineP = moduleN//':'//routineN
@@ -112,25 +107,22 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(dg),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(dg),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP)
     dg%ref_count=dg%ref_count+1
   END SUBROUTINE dg_retain
 
 ! *****************************************************************************
 !> \brief releases the given dg_type
 !> \param dg the dg_type to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE dg_release(dg, error)
+  SUBROUTINE dg_release(dg)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_release', &
       routineP = moduleN//':'//routineN
@@ -141,12 +133,12 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(dg)) THEN
-       CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP)
        dg%ref_count=dg%ref_count-1
        IF (dg%ref_count==0) THEN
-          CALL dg_rho0_release ( dg % dg_rho0, error = error )
+          CALL dg_rho0_release ( dg % dg_rho0)
           DEALLOCATE (  dg, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY(dg)
@@ -157,21 +149,19 @@ CONTAINS
 !> \param dg ...
 !> \param dg_rho0 ...
 !> \param grid_index ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE dg_set ( dg, dg_rho0, grid_index, error )
+  SUBROUTINE dg_set ( dg, dg_rho0, grid_index)
     TYPE(dg_type), POINTER                   :: dg
     TYPE(dg_rho0_type), OPTIONAL, POINTER    :: dg_rho0
     INTEGER, OPTIONAL                        :: grid_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_set', &
       routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( dg_rho0 ) ) THEN
-       CALL dg_rho0_retain ( dg_rho0 ,error=error)
-       CALL dg_rho0_release ( dg % dg_rho0 ,error=error)
+       CALL dg_rho0_retain ( dg_rho0)
+       CALL dg_rho0_release ( dg % dg_rho0)
        dg % dg_rho0 => dg_rho0
     END IF
     IF ( PRESENT ( grid_index ) ) dg % grid_index = grid_index

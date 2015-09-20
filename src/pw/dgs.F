@@ -91,10 +91,9 @@ CONTAINS
 !> \param rs_dims ...
 !> \param iounit ...
 !> \param fft_usage ...
-!> \param error ...
 ! *****************************************************************************
 SUBROUTINE dg_pme_grid_setup ( b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_b, &
-           grid_ref, rs_dims, iounit, fft_usage, error )
+           grid_ref, rs_dims, iounit, fft_usage)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: b_cell_hmat
@@ -106,23 +105,21 @@ SUBROUTINE dg_pme_grid_setup ( b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(IN), OPTIONAL            :: iounit
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER, DIMENSION(2, 3)                 :: bo
     REAL(KIND=dp)                            :: cutoff, ecut
     REAL(KIND=dp), DIMENSION(3, 3)           :: s_cell_hmat, unit_cell_hmat
 
-  CALL dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_b, cutoff ,error=error)
+  CALL dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_b, cutoff)
 
   ecut = 0.5_dp * cutoff * cutoff
   bo = grid_b % bounds
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup (b_cell_hmat, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
-          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage,&
-          error=error)
+          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage)
   ELSE
      CALL pw_grid_setup (b_cell_hmat, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE.,&
-          rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage, error=error)
+          rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage)
   ENDIF
 
   CALL dg_find_basis ( grid_b % npts, b_cell_hmat, unit_cell_hmat)
@@ -130,8 +127,7 @@ SUBROUTINE dg_pme_grid_setup ( b_cell_hmat, npts_s, cutoff_radius, grid_s, grid_
   CALL dg_set_cell ( grid_s % npts, unit_cell_hmat, s_cell_hmat )
 
   bo = grid_s % bounds
-  CALL pw_grid_setup (s_cell_hmat, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, fft_usage=fft_usage,&
-                       error=error)
+  CALL pw_grid_setup (s_cell_hmat, grid_s, bounds=bo, cutoff=ecut, iounit=iounit, fft_usage=fft_usage)
 
 END SUBROUTINE dg_pme_grid_setup
 
@@ -166,10 +162,9 @@ END FUNCTION get_cell_lengths
 !> \param grid_s ...
 !> \param grid_b ...
 !> \param cutoff ...
-!> \param error ...
 ! *****************************************************************************
 SUBROUTINE dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s,  &
-                            grid_b, cutoff, error)
+                            grid_b, cutoff)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: b_cell_hmat
@@ -177,7 +172,6 @@ SUBROUTINE dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s,  &
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     REAL(KIND=dp), INTENT(OUT)               :: cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_find_cutoff', &
       routineP = moduleN//':'//routineN
@@ -231,7 +225,7 @@ SUBROUTINE dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s,  &
   grid_s % grid_span = HALFSPACE
   grid_s % npts = nout
 
-  cutoff = pw_find_cutoff ( grid_b % npts, b_cell_h_inv, error=error)
+  cutoff = pw_find_cutoff ( grid_b % npts, b_cell_h_inv)
 
 END SUBROUTINE  dg_find_cutoff
 
@@ -256,13 +250,11 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 !> \param b_cell_hmat ...
 !> \param grid_b ...
 !> \param grid_s ...
-!> \param error ...
 ! *****************************************************************************
-SUBROUTINE dg_grid_change (b_cell_hmat, grid_b, grid_s, error)
+SUBROUTINE dg_grid_change (b_cell_hmat, grid_b, grid_s)
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: b_cell_hmat
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: s_cell_hmat, unit_cell_hmat
 

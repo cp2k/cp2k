@@ -88,13 +88,11 @@ CONTAINS
 !> \brief creates rtp_type, gets the initial state, either by reading MO's
 !>        from file or calling SCF run
 !> \param force_env ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE rt_prop_setup(force_env,error)
+  SUBROUTINE rt_prop_setup(force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_setup', &
       routineP = moduleN//':'//routineN
@@ -114,58 +112,57 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(qs_env,rtp_control,dft_control)
 
-    CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
-    CALL get_qs_env(qs_env, dft_control=dft_control,energy=energy, error=error)
+    CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv)
+    CALL get_qs_env(qs_env, dft_control=dft_control,energy=energy)
     rtp_control=>dft_control%rtp_control
 
 
     ! Takes care that an initial wavefunction/density is available
     ! Can either be by performing an scf loop or reading a restart
-    CALL rt_initial_guess(qs_env,force_env,rtp_control,error)
+    CALL rt_initial_guess(qs_env,force_env,rtp_control)
 
     ! Initializes the extrapolation
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,input=input,error=error)
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,input=input)
     aspc_order=rtp_control%aspc_order
-    CALL rtp_history_create(rtp,aspc_order,error=error)
+    CALL rtp_history_create(rtp,aspc_order)
 
 
     ! Reads the simulation parameters from the input
-    motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
-    md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
-    hfx_sections => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%DFT%XC%HF",error=error)
-    CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt,error=error)
-    CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=qs_env%rtp%i_start,error=error)
-    CALL section_vals_val_get(md_section,"STEPS",i_val=rtp%nsteps,error=error)
+    motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION")
+    md_section     => section_vals_get_subs_vals(motion_section,"MD")
+    hfx_sections => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%DFT%XC%HF")
+    CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt)
+    CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=qs_env%rtp%i_start)
+    CALL section_vals_val_get(md_section,"STEPS",i_val=rtp%nsteps)
 
-    ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF",error=error)
-    CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=rtp%filter_eps,error=error)
+    ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF")
+    CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=rtp%filter_eps)
     IF(.NOT.qs_env%rtp%linear_scaling) rtp%filter_eps = 0.0_dp
     IF(rtp_control%acc_ref<1) rtp_control%acc_ref=1
     rtp%filter_eps_small=rtp%filter_eps/rtp_control%acc_ref
-    CALL section_vals_val_get(ls_scf_section,"EPS_LANCZOS",r_val=rtp%lanzcos_threshold,error=error)
-    CALL section_vals_val_get(ls_scf_section,"MAX_ITER_LANCZOS",i_val=rtp%lanzcos_max_iter,error=error)
-    CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order,error=error)
-    CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
+    CALL section_vals_val_get(ls_scf_section,"EPS_LANCZOS",r_val=rtp%lanzcos_threshold)
+    CALL section_vals_val_get(ls_scf_section,"MAX_ITER_LANCZOS",i_val=rtp%lanzcos_max_iter)
+    CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order)
+    CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx)
 
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this
     IF(rtp%do_hfx)&
-       CALL rtp_hfx_rebuild(qs_env,error)
+       CALL rtp_hfx_rebuild(qs_env)
 
-    CALL init_propagation_run(qs_env,error)
+    CALL init_propagation_run(qs_env)
     IF(.NOT.rtp_control%fixed_ions) THEN
        !derivativs of the overlap needed for EMD
-       CALL calc_S_derivs(qs_env,error)
+       CALL calc_S_derivs(qs_env)
        ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
        ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE
     END IF
-    CALL init_propagators(qs_env,error)
+    CALL init_propagators(qs_env)
     IF(rtp_control%fixed_ions) THEN
-       CALL run_propagation(qs_env,force_env,globenv,error)
+       CALL run_propagation(qs_env,force_env,globenv)
     ELSE
        rtp_control%initial_step=.TRUE.
-       CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
-            error=error)
+       CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
        rtp_control%initial_step=.FALSE.
        rtp%energy_old=energy%total
     END IF
@@ -176,13 +173,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates the matrices needed in the first step of EMD/RTP
 !> \param qs_env ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE init_propagation_run(qs_env,error)
+  SUBROUTINE init_propagation_run(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
@@ -203,54 +198,52 @@ CONTAINS
     CALL get_qs_env(qs_env,&
                     rtp=rtp,&
                     matrix_s=matrix_s,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
     rtp_control=>dft_control%rtp_control
 
     IF(.NOT.rtp%linear_scaling) THEN
-       CALL get_qs_env(qs_env,mos=mos,error=error)
-       CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+       CALL get_qs_env(qs_env,mos=mos)
+       CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new)
        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
          IF (rtp_control%apply_delta_pulse) THEN
             IF(dft_control%qs_control%dftb)&
-               CALL build_dftb_overlap(qs_env,1,matrix_s,error)
+               CALL build_dftb_overlap(qs_env,1,matrix_s)
             IF (rtp_control%periodic) THEN
-              CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
+              CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new)
             ELSE
-              CALL apply_delta_pulse(qs_env,mos_old,mos_new,error)
+              CALL apply_delta_pulse(qs_env,mos_old,mos_new)
             ENDIF
          ELSE
             DO i=1,SIZE(mos)
-                CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
-                CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
+                CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix)
+                CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero)
             END DO
          ENDIF
        END IF
 
        DO i=1,SIZE(mos_old)
-          CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
+          CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix)
        END DO
-       CALL calc_update_rho(qs_env,error)
+       CALL calc_update_rho(qs_env)
     ELSE
        IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
           CALL get_qs_env(qs_env,&
                           matrix_ks=matrix_ks,&
                           mos=mos,&
-                          nelectron_spin=nelectron_spin,&
-                          error=error)
+                          nelectron_spin=nelectron_spin)
           IF(ASSOCIATED(mos)) THEN
              !The wavefunction was minimized by an mo based algorith. P is therefore calculated from the mos
-             CALL rt_initialize_rho_from_mos(rtp,mos,matrix_s,rtp_control%orthonormal,error=error)
+             CALL rt_initialize_rho_from_mos(rtp,mos,matrix_s,rtp_control%orthonormal)
           ELSE
              !The wavefunction was minimized using a linear scaling method. Because the rho in the qs_env has the sparsity of S
              !the matrix P needs to be recalculated from H
-             CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
+             CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal)
           ENDIF
        ENDIF
-       CALL calc_update_rho_sparse(qs_env,error)
+       CALL calc_update_rho_sparse(qs_env)
     END IF
 
-    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
 
   END SUBROUTINE init_propagation_run
 
@@ -260,15 +253,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param force_env ...
 !> \param globenv ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE run_propagation(qs_env,force_env,globenv,error)
+  SUBROUTINE run_propagation(qs_env,force_env,globenv)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'run_propagation', &
       routineP = moduleN//':'//routineN
@@ -288,9 +279,9 @@ CONTAINS
     should_stop=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger,dft_control,energy,rtp,rtp_control)
-    logger   => cp_error_get_logger(error)
+    logger   => cp_get_default_logger()
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,rtp=rtp,energy=energy,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,rtp=rtp,energy=energy)
 
     rtp_control=>dft_control%rtp_control
     max_steps=rtp%nsteps
@@ -301,47 +292,47 @@ CONTAINS
 
     rtp%energy_old=energy%total
     time_iter_start=m_walltime()
-    CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
-    CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
+    CALL cp_add_iter_level(logger%iter_info,"MD")
+    CALL cp_iterate(logger%iter_info,iter_nr=0)
     DO i_step=rtp%i_start+1,max_steps
        energy%efield_core=0.0_dp
        qs_env%sim_time=REAL(i_step,dp)*rtp%dt
        qs_env%sim_step=i_step
        rtp%istep=i_step-rtp%i_start
-       CALL calculate_ecore_efield(qs_env,.FALSE.,error=error)
-       CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
-       CALL external_e_potential(qs_env,error=error)
-       CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
+       CALL calculate_ecore_efield(qs_env,.FALSE.)
+       CALL external_c_potential(qs_env,calculate_forces=.FALSE.)
+       CALL external_e_potential(qs_env)
+       CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step)
        rtp%converged=.FALSE.
        DO i_iter=1,max_iter
           IF(i_step==rtp%i_start+1.AND.i_iter==2.AND.rtp_control%hfx_redistribute)&
-              CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
+              CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.)
           rtp%iter=i_iter
-          CALL propagation_step(qs_env,rtp, rtp_control, error=error)
-          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
+          CALL propagation_step(qs_env,rtp, rtp_control)
+          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
           rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
-          CALL rt_prop_output(qs_env,real_time_propagation,rtp%delta_iter,error=error)
+          CALL rt_prop_output(qs_env,real_time_propagation,rtp%delta_iter)
        END DO
        IF(rtp%converged)THEN
-          CALL external_control(should_stop,"MD",globenv=globenv,error=error)
-          IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
+          CALL external_control(should_stop,"MD",globenv=globenv)
+          IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step)
           time_iter_stop=m_walltime()
           used_time= time_iter_stop - time_iter_start
           time_iter_start=time_iter_stop
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=rtp%delta_iter,used_time=used_time,error=error)
-          CALL rt_write_input_restart(force_env=force_env,error=error)
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=rtp%delta_iter,used_time=used_time)
+          CALL rt_write_input_restart(force_env=force_env)
           IF (should_stop)  EXIT
        ELSE
           EXIT
        END IF
     END DO
-    CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"MD")
 
     IF(.NOT.rtp%converged)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
          routineP,"propagation did not converge, either increase MAX_ITER or use a smaller TIMESTEP",&
-         error,failure)
+         failure)
 
     CALL timestop(handle)
 
@@ -352,15 +343,13 @@ CONTAINS
 !>        file will contain the appropriate information
 !> \param md_env ...
 !> \param force_env ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE rt_write_input_restart(md_env,force_env,error)
+  SUBROUTINE rt_write_input_restart(md_env,force_env)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_write_input_restart', &
       routineP = moduleN//':'//routineN
@@ -369,15 +358,15 @@ CONTAINS
                                                 rt_section
 
     root_section => force_env%root_section
-    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-    rt_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
-    CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart,error=error)
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION")
+    rt_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")
+    CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart)
     ! coming from RTP
     IF (.NOT. PRESENT(md_env)) THEN
-     CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step,error=error)
+     CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step)
     ENDIF
 
-    CALL write_restart(md_env=md_env,root_section=root_section,error=error)
+    CALL write_restart(md_env=md_env,root_section=root_section)
 
   END SUBROUTINE rt_write_input_restart
 
@@ -387,15 +376,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param force_env ...
 !> \param rtp_control ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE rt_initial_guess(qs_env,force_env,rtp_control,error)
+  SUBROUTINE rt_initial_guess(qs_env,force_env,rtp_control)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initial_guess', &
       routineP = moduleN//':'//routineN
@@ -410,7 +397,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
 
     NULLIFY(matrix_s,dft_control)
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
 
     SELECT CASE(rtp_control%initial_wfn)
     CASE(use_scf_wfn)
@@ -420,15 +407,15 @@ CONTAINS
        !in the linear scaling case we need a correct kohn-sham matrix, which we cannot get with consistent energies
        IF(rtp_control%linear_scaling) energy_consistency=.FALSE.
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-            consistent_energies=energy_consistency,error=error)
+            consistent_energies=energy_consistency)
        qs_env%run_rtp=.TRUE.
        ALLOCATE(qs_env%rtp)
-       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s)
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
+                           rtp_control%linear_scaling,qs_env%mos_aux_fit)
 
     CASE(use_restart_wfn,use_rt_restart)
-       CALL qs_energies_init(qs_env, .FALSE. , error)
+       CALL qs_energies_init(qs_env, .FALSE.)
        IF(.NOT.rtp_control%linear_scaling.OR.rtp_control%initial_wfn==use_restart_wfn) THEN
           DO ispin=1,SIZE(qs_env%mos)
              CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
@@ -436,31 +423,28 @@ CONTAINS
                 CALL init_mo_set(qs_env%mos(ispin)%mo_set,&
                      qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
                      name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                     "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                     error=error)
+                     "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
              END IF
           END DO
           IF(dft_control%do_admm) THEN
-             CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
-                  error=error)
-             CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
+             CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
+             CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,failure)
              DO ispin=1,SIZE(qs_env%mos_aux_fit)
                 CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
                 IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
                    CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
                         ao_mo_fm_pools_aux_fit(ispin)%pool,&
                         name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                        "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                        error=error)
+                        "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
                 END IF
              END DO
           END IF
        ENDIF
        ALLOCATE(qs_env%rtp)
-       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s)
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
-       CALL get_restart_wfn(qs_env,error)
+                           rtp_control%linear_scaling,qs_env%mos_aux_fit)
+       CALL get_restart_wfn(qs_env)
 
        qs_env%run_rtp=.TRUE.
     END SELECT

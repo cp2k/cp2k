@@ -92,17 +92,15 @@ CONTAINS
 !> \param natom ...
 !> \param globenv ...
 !> \param dimer_section ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE dimer_env_create(dimer_env, natom, globenv, dimer_section, error)
+  SUBROUTINE dimer_env_create(dimer_env, natom, globenv, dimer_section)
     TYPE(dimer_env_type), POINTER            :: dimer_env
     INTEGER, INTENT(IN)                      :: natom
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: dimer_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
       routineP = moduleN//':'//routineN
@@ -116,10 +114,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: nvec_section
 
     failure=.FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(dimer_env),cp_failure_level,routineP,failure)
     ALLOCATE(dimer_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    logger => cp_error_get_logger(error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    logger => cp_get_default_logger()
     dimer_env%ref_count=1
     last_dimer_id=last_dimer_id+1
     dimer_env%id_nr=last_dimer_id
@@ -128,32 +126,32 @@ CONTAINS
          dimer_env%tsl%tls_vec)
     ! Allocate the working arrays
     ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(dimer_env%rot%g0(natom*3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(dimer_env%rot%g1(natom*3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(dimer_env%rot%g1p(natom*3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Check if the dimer vector is available in the input or not..
-    nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR",error=error)
-    CALL section_vals_get(nvec_section, explicit=explicit, error=error)
+    nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR")
+    CALL section_vals_get(nvec_section, explicit=explicit)
     IF (explicit) THEN
        CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
             message="Reading Dimer Vector from file!",local=.FALSE.)
        NULLIFY(array)
-       CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep_val,error=error)
+       CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep_val)
        isize = 0
        DO i = 1, n_rep_val
-          CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",r_vals=array,i_rep_val=i,error=error)
+          CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",r_vals=array,i_rep_val=i)
           DO j = 1, SIZE(array)
              isize = isize + 1
              dimer_env%nvec(isize) = array(j)
           END DO
        END DO
-       CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,error,failure)
+       CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,failure)
     ELSE
-       CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
+       CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream)
     END IF
     ! Check for translation in the dimer vector and remove them
     IF (natom>1) THEN
@@ -180,29 +178,27 @@ CPSourceFileRef,&
          only_ionode=.TRUE.)
     dimer_env%nvec = dimer_env%nvec / norm
     dimer_env%rot%rotation_step= do_first_rotation_step
-    CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr,error=error)
+    CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr)
     CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
-         l_val=dimer_env%rot%interpolate_gradient,error=error)
+         l_val=dimer_env%rot%interpolate_gradient)
     CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
-         r_val=dimer_env%rot%angle_tol,error=error)
+         r_val=dimer_env%rot%angle_tol)
     dimer_env%cg_rot%norm_h         = 1.0_dp
     dimer_env%cg_rot%norm_theta     = 0.0_dp
     dimer_env%cg_rot%norm_theta_old = 0.0_dp
     ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE dimer_env_create
 
 ! *****************************************************************************
 !> \brief ...
 !> \param dimer_env ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE dimer_env_retain(dimer_env, error)
+  SUBROUTINE dimer_env_retain(dimer_env)
     TYPE(dimer_env_type), POINTER            :: dimer_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_retain', &
       routineP = moduleN//':'//routineN
@@ -211,22 +207,20 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(dimer_env%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(dimer_env%ref_count>0,cp_failure_level,routineP)
     dimer_env%ref_count=dimer_env%ref_count+1
   END SUBROUTINE dimer_env_retain
 
 ! *****************************************************************************
 !> \brief ...
 !> \param dimer_env ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE dimer_env_release(dimer_env, error)
+  SUBROUTINE dimer_env_release(dimer_env)
     TYPE(dimer_env_type), POINTER            :: dimer_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_release', &
       routineP = moduleN//':'//routineN
@@ -237,33 +231,33 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (ASSOCIATED(dimer_env)) THEN
-       CPPreconditionNoFail(dimer_env%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(dimer_env%ref_count>0,cp_failure_level,routineP)
        dimer_env%ref_count=dimer_env%ref_count-1
        IF (dimer_env%ref_count==0) THEN
           IF (ASSOCIATED(dimer_env%nvec)) THEN
              DEALLOCATE(dimer_env%nvec, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
           IF (ASSOCIATED(dimer_env%rot%g0)) THEN
              DEALLOCATE(dimer_env%rot%g0, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
           IF (ASSOCIATED(dimer_env%rot%g1)) THEN
              DEALLOCATE(dimer_env%rot%g1, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
           IF (ASSOCIATED(dimer_env%rot%g1p)) THEN
              DEALLOCATE(dimer_env%rot%g1p, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
           IF (ASSOCIATED(dimer_env%cg_rot%nvec_old)) THEN
              DEALLOCATE(dimer_env%cg_rot%nvec_old, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           END IF
           ! No need to deallocate tls_vec (just a pointer to aother local array)
           NULLIFY(dimer_env%tsl%tls_vec)
           DEALLOCATE(dimer_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE dimer_env_release

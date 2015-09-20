@@ -72,14 +72,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prepares the initial matrices for the propagators
 !> \param qs_env ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE init_propagators(qs_env,error)
+  SUBROUTINE init_propagators(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_propagators', &
       routineP = moduleN//':'//routineN
@@ -103,30 +101,29 @@ CONTAINS
          dft_control=dft_control,&
          matrix_s=s_mat,&
          matrix_ks=matrix_ks,&
-         matrix_ks_im=matrix_ks_im,&
-         error=error)
+         matrix_ks_im=matrix_ks_im)
 
     rtp_control=>dft_control%rtp_control
     CALL get_rtp (rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,&
-                  propagator_matrix=propagator_matrix,dt=dt,error=error)
-    CALL s_matrices_create (s_mat,rtp,error)
-    CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
+                  propagator_matrix=propagator_matrix,dt=dt)
+    CALL s_matrices_create (s_mat,rtp)
+    CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control)
     DO i=1,SIZE(exp_H_old)
-       CALL cp_dbcsr_copy(exp_H_old(i)%matrix,exp_H_new(i)%matrix,error=error)
+       CALL cp_dbcsr_copy(exp_H_old(i)%matrix,exp_H_new(i)%matrix)
     END DO
     ! use the fact that CN propagator is a first order pade approximation on the EM propagator
     IF(rtp_control%propagator==do_cn)THEN
        rtp%orders(1,:)=0;rtp%orders(2,:)=1; rtp_control%mat_exp=do_pade; rtp_control%propagator=do_em
     ELSE IF(rtp_control%mat_exp==do_pade.OR.rtp_control%mat_exp==do_taylor) THEN
        IF(rtp%linear_scaling) THEN
-          CALL get_maxabs_eigval_sparse(rtp,s_mat,matrix_ks,rtp_control,error)
+          CALL get_maxabs_eigval_sparse(rtp,s_mat,matrix_ks,rtp_control)
        ELSE
-          CALL get_maxabs_eigval(rtp,s_mat,matrix_ks,rtp_control,error)
+          CALL get_maxabs_eigval(rtp,s_mat,matrix_ks,rtp_control)
        END IF
     END IF
     IF(rtp_control%mat_exp==do_pade.AND.rtp%linear_scaling) THEN
        ! get a useful output_unit
-       logger => cp_error_get_logger(error)
+       logger => cp_get_default_logger()
        IF (logger%para_env%mepos==logger%para_env%source) THEN
           unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
           WRITE(unit_nr,*) "linear_scaling currently does not support pade exponentials, switching to taylor"
@@ -142,8 +139,8 @@ CONTAINS
         prefac=-1.0_dp*dt
     END SELECT 
     DO imat=1,SIZE(exp_H_new)
-        CALL cp_dbcsr_copy(propagator_matrix(imat)%matrix,exp_H_new(imat)%matrix,error=error)
-        CALL cp_dbcsr_scale(propagator_matrix(imat)%matrix,prefac,error=error)
+        CALL cp_dbcsr_copy(propagator_matrix(imat)%matrix,exp_H_new(imat)%matrix)
+        CALL cp_dbcsr_scale(propagator_matrix(imat)%matrix,prefac)
     END DO
 
     ! For ETRS this bit could be avoided but it drastically simplifies the workflow afterwards.
@@ -153,30 +150,30 @@ CONTAINS
     IF(rtp_control%propagator==do_etrs)THEN
        IF(rtp_control%mat_exp==do_arnoldi)THEN
           rtp%iter=0
-          CALL propagate_arnoldi(rtp,rtp_control,error)
-          CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_next=mos_next,error=error)
+          CALL propagate_arnoldi(rtp,rtp_control)
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_next=mos_next)
           DO imat=1,SIZE(mos_new)
-             CALL cp_fm_to_fm(mos_new(imat)%matrix,mos_next(imat)%matrix,error)
+             CALL cp_fm_to_fm(mos_new(imat)%matrix,mos_next(imat)%matrix)
           END DO
        ELSEIF(rtp_control%mat_exp==do_bch) THEN
        ELSE
           IF(rtp%linear_scaling) THEN
-             CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
+             CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp)
           ELSE
-             CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
+             CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp)
           END IF
           DO imat=1,SIZE(exp_H_new)
-             CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
+             CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix)
           END DO
        END IF
     END IF
 
     IF(rtp%linear_scaling) THEN
-       CALL get_rtp (rtp=rtp,rho_old=rho_old,error=error)
+       CALL get_rtp (rtp=rtp,rho_old=rho_old)
     ELSE
-       CALL get_rtp (rtp=rtp,mos_old=mos_old,error=error)
+       CALL get_rtp (rtp=rtp,mos_old=mos_old)
     ENDIF
-    CALL put_data_to_history(rtp,mos=mos_old,s_mat=s_mat,ihist=1,rho=rho_old,error=error)
+    CALL put_data_to_history(rtp,mos=mos_old,s_mat=s_mat,ihist=1,rho=rho_old)
 
   END SUBROUTINE init_propagators
 
@@ -188,16 +185,14 @@ CONTAINS
 !> \param s_mat ...
 !> \param matrix_ks ...
 !> \param rtp_control ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE get_maxabs_eigval(rtp,s_mat,matrix_ks,rtp_control,error)
+  SUBROUTINE get_maxabs_eigval(rtp,s_mat,matrix_ks,rtp_control)
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat, matrix_ks
     TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_maxabs_eigval', &
       routineP = moduleN//':'//routineN
@@ -217,33 +212,28 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
+    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t)
 
     CALL cp_fm_create(S_inv_fm,&
           matrix_struct=rtp%ao_ao_fmstruct,&
-          name="S_inv",&
-          error=error)
-    CALL copy_dbcsr_to_fm(S_inv,S_inv_fm,error=error)
+          name="S_inv")
+    CALL copy_dbcsr_to_fm(S_inv,S_inv_fm)
 
     CALL cp_fm_create(S_half,&
           matrix_struct=rtp%ao_ao_fmstruct,&
-          name="S_half",&
-          error=error)
+          name="S_half")
 
     CALL cp_fm_create(S_minus_half,&
           matrix_struct=rtp%ao_ao_fmstruct,&
-          name="S_minus_half",&
-          error=error)
+          name="S_minus_half")
 
     CALL cp_fm_create(H_fm,&
          matrix_struct=rtp%ao_ao_fmstruct,&
-         name="RTP_H_FM",&
-         error=error)
+         name="RTP_H_FM")
 
     CALL cp_fm_create(tmp_mat_H,&
          matrix_struct=rtp%ao_ao_fmstruct,&
-         name="TMP_H",&
-         error=error)
+         name="TMP_H")
 
     ndim=S_inv_fm%matrix_struct%nrow_global
     scale=1.0_dp
@@ -254,29 +244,27 @@ CONTAINS
 
     CALL cp_fm_create(tmp,&
          matrix_struct=rtp%ao_ao_fmstruct,&
-         name="tmp_mat",&
-         error=error)
+         name="tmp_mat")
 
     CALL cp_fm_create(eigvec_H,&
          matrix_struct=rtp%ao_ao_fmstruct,&
-         name="tmp_EVEC",&
-         error=error)
+         name="tmp_EVEC")
 
     ALLOCATE(eigval_H(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp,error=error)
-    CALL cp_fm_upper_to_full(tmp,eigvec_H,error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp)
+    CALL cp_fm_upper_to_full(tmp,eigvec_H)
 
-    CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error=error)
+    CALL cp_fm_syevd(tmp,eigvec_H,eigval_H)
 
     eigval_H(:)=one/eigval_H(:)
-    CALL backtransform_matrix(eigval_H,eigvec_H,S_inv_fm,error)
+    CALL backtransform_matrix(eigval_H,eigvec_H,S_inv_fm)
     eigval_H(:)=SQRT(eigval_H(:))
-    CALL backtransform_matrix(eigval_H,eigvec_H,S_minus_half,error)
+    CALL backtransform_matrix(eigval_H,eigvec_H,S_minus_half)
     eigval_H(:)=one/eigval_H(:)
-    CALL backtransform_matrix(eigval_H,eigvec_H,S_half,error)
-    CALL cp_fm_release(eigvec_H,error)
-    CALL cp_fm_release(tmp,error)
+    CALL backtransform_matrix(eigval_H,eigvec_H,S_half)
+    CALL cp_fm_release(eigvec_H)
+    CALL cp_fm_release(tmp)
 
     IF(rtp_control%mat_exp==do_taylor)method=1
     IF(rtp_control%mat_exp==do_pade)method=2
@@ -284,32 +272,32 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_ks)
 
-       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
-       CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
-       CALL cp_fm_scale(t,H_fm,error)
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm)
+       CALL cp_fm_upper_to_full(H_fm,tmp_mat_H)
+       CALL cp_fm_scale(t,H_fm)
 
        CALL cp_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
-            tmp_mat_H,error)
+            tmp_mat_H)
        CALL cp_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat_H,zero,&
-            H_fm,error)
+            H_fm)
 
-       CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H,error=error)
+       CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H)
        min_eval=MINVAL(eigval_H)
        max_eval=MAXVAL(eigval_H)
        norm2=2.0_dp*MAX(ABS(min_eval),ABS(max_eval))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-            rtp_control%eps_exp,method ,emd,error)
+            rtp_control%eps_exp,method ,emd)
     END DO
 
     DEALLOCATE(eigval_H,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL copy_fm_to_dbcsr(S_inv_fm,S_inv,error=error)
-    CALL cp_fm_release(S_inv_fm,error)
-    CALL cp_fm_release(S_half,error)
-    CALL cp_fm_release(S_minus_half,error)
-    CALL cp_fm_release(H_fm,error)
-    CALL cp_fm_release(tmp_mat_H,error)
+    CALL copy_fm_to_dbcsr(S_inv_fm,S_inv)
+    CALL cp_fm_release(S_inv_fm)
+    CALL cp_fm_release(S_half)
+    CALL cp_fm_release(S_minus_half)
+    CALL cp_fm_release(H_fm)
+    CALL cp_fm_release(tmp_mat_H)
 
     CALL timestop(handle)
 
@@ -323,16 +311,14 @@ CONTAINS
 !> \param s_mat ...
 !> \param matrix_ks ...
 !> \param rtp_control ...
-!> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
-  SUBROUTINE get_maxabs_eigval_sparse(rtp,s_mat,matrix_ks,rtp_control,error)
+  SUBROUTINE get_maxabs_eigval_sparse(rtp,s_mat,matrix_ks,rtp_control)
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat, matrix_ks
     TYPE(rtp_control_type), POINTER          :: rtp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_maxabs_eigval_sparse', &
       routineP = moduleN//':'//routineN
@@ -347,24 +333,24 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL get_rtp(rtp=rtp,dt=t,error=error)
+    CALL get_rtp(rtp=rtp,dt=t)
 
     NULLIFY(s_half)
     ALLOCATE(s_half)
-    CALL cp_dbcsr_init(s_half,error=error)
-    CALL cp_dbcsr_create(s_half,template=s_mat(1)%matrix,error=error)
+    CALL cp_dbcsr_init(s_half)
+    CALL cp_dbcsr_create(s_half,template=s_mat(1)%matrix)
     NULLIFY(s_minus_half)
     ALLOCATE(s_minus_half)
-    CALL cp_dbcsr_init(s_minus_half,error=error)
-    CALL cp_dbcsr_create(s_minus_half,template=s_mat(1)%matrix,error=error)
+    CALL cp_dbcsr_init(s_minus_half)
+    CALL cp_dbcsr_create(s_minus_half,template=s_mat(1)%matrix)
     NULLIFY(tmp)
     ALLOCATE(tmp)
-    CALL cp_dbcsr_init(tmp,error=error)
-    CALL cp_dbcsr_create(tmp,template=s_mat(1)%matrix,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(tmp)
+    CALL cp_dbcsr_create(tmp,template=s_mat(1)%matrix,matrix_type="N")
     NULLIFY(tmp2)
     ALLOCATE(tmp2)
-    CALL cp_dbcsr_init(tmp2,error=error)
-    CALL cp_dbcsr_create(tmp2,template=s_mat(1)%matrix,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(tmp2)
+    CALL cp_dbcsr_create(tmp2,template=s_mat(1)%matrix,matrix_type="N")
     scale=1.0_dp
     IF(rtp_control%propagator==do_etrs)scale=2.0_dp
     t=-t/scale
@@ -373,23 +359,23 @@ CONTAINS
     IF(rtp_control%mat_exp==do_taylor)method=1
     IF(rtp_control%mat_exp==do_pade)method=2
     CALL matrix_sqrt_Newton_Schulz(s_half,s_minus_half,s_mat(1)%matrix,rtp%filter_eps,&
-         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
+         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter)
     DO ispin=1,SIZE(matrix_ks)
        CALL cp_dbcsr_multiply("N","N",t,matrix_ks(ispin)%matrix,s_minus_half,zero,tmp,&
-            filter_eps=rtp%filter_eps,error=error)
+            filter_eps=rtp%filter_eps)
        CALL cp_dbcsr_multiply("N","N",one,s_minus_half,tmp,zero,tmp2,&
-            filter_eps=rtp%filter_eps,error=error)
+            filter_eps=rtp%filter_eps)
        CALL cp_dbcsr_arnoldi_extremal(tmp2, max_ev, min_ev, threshold=rtp%lanzcos_threshold, &
-            max_iter=rtp%lanzcos_max_iter, converged=converged, error=error)
+            max_iter=rtp%lanzcos_max_iter, converged=converged)
        norm2=2.0_dp*MAX(ABS(min_ev),ABS(max_ev))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-            rtp_control%eps_exp,method,emd,error)
+            rtp_control%eps_exp,method,emd)
     END DO
 
-    CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
-    CALL cp_dbcsr_deallocate_matrix(s_minus_half,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
+    CALL cp_dbcsr_deallocate_matrix(s_half)
+    CALL cp_dbcsr_deallocate_matrix(s_minus_half)
+    CALL cp_dbcsr_deallocate_matrix(tmp)
+    CALL cp_dbcsr_deallocate_matrix(tmp2)
 
     CALL timestop(handle)
 
@@ -401,15 +387,13 @@ CONTAINS
 !> \param Eval ...
 !> \param eigenvec ...
 !> \param matrix ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
+  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix)
 
     REAL(dp), DIMENSION(:), INTENT(in)       :: Eval
     TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
       routineP = moduleN//':'//routineN
@@ -423,14 +407,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL cp_fm_create(tmp,&
          matrix_struct=matrix%matrix_struct,&
-         name="TMP_BT",&
-         error=error)
+         name="TMP_BT")
     CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
-         row_indices=row_indices,col_indices=col_indices,error=error)
+         row_indices=row_indices,col_indices=col_indices)
 
     ndim=matrix%matrix_struct%nrow_global
 
-    CALL cp_fm_set_all(tmp,zero,zero,error)
+    CALL cp_fm_set_all(tmp,zero,zero)
     DO i=1,ncol_local
        l=col_indices(i)
        DO j=1,nrow_local
@@ -438,9 +421,9 @@ CONTAINS
        END DO
     END DO
     CALL cp_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
-         matrix ,error)
+         matrix)
 
-    CALL cp_fm_release(tmp,error)
+    CALL cp_fm_release(tmp)
     CALL timestop(handle)
 
   END SUBROUTINE backtransform_matrix
@@ -453,18 +436,16 @@ CONTAINS
 !> \param matrix_s ...
 !> \param nelectron_spin ...
 !> \param orthonormal ...
-!> \param error ...
 !> \author Samuel Andermatt (03.14)
 ! *****************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,orthonormal,error)
+   SUBROUTINE rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,orthonormal)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     INTEGER, DIMENSION(2)                    :: nelectron_spin
     LOGICAL                                  :: orthonormal
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
       routineP = moduleN//':'//routineN
@@ -477,14 +458,14 @@ CONTAINS
       POINTER                                :: rho_new, rho_old
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,rho_new=rho_new,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,rho_new=rho_new)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
     CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
-         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
+         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter)
     NULLIFY(tmp)
     ALLOCATE(tmp)
-    CALL cp_dbcsr_init(tmp,error=error)
-    CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(tmp)
+    CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N")
 
     e_homo = 0.0_dp
     e_lumo = 0.0_dp
@@ -496,20 +477,20 @@ CONTAINS
        IF(SIZE(matrix_ks)==1) nelectron_spin_real=nelectron_spin_real/2
        CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
             nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
-            max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
-       IF(SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
+            max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold)
+       IF(SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp)
        IF(orthonormal) THEN
-          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small)
        ENDIF
-       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
+       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps)
     END DO
 
     DO i=1,SIZE(rho_new)
-       CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
+       CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix)
     ENDDO
 
-    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp)
    END SUBROUTINE rt_initialize_rho_from_ks
    
 ! *****************************************************************************
@@ -518,11 +499,10 @@ CONTAINS
 !> \param mos ...
 !> \param matrix_s ...
 !> \param orthonormal ...
-!> \param error ...
 !> \author Samuel Andermatt (08.15)
 ! *****************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_mos(rtp,mos,matrix_s,orthonormal,error)
+   SUBROUTINE rt_initialize_rho_from_mos(rtp,mos,matrix_s,orthonormal)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -530,7 +510,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     LOGICAL                                  :: orthonormal
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_mos', &
       routineP = moduleN//':'//routineN
@@ -542,34 +521,34 @@ CONTAINS
       POINTER                                :: rho_new, rho_old
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new)
     IF(orthonormal) THEN
-       CALL get_rtp(rtp=rtp,S_half=S_half,S_minus_half=S_minus_half,error=error)
+       CALL get_rtp(rtp=rtp,S_half=S_half,S_minus_half=S_minus_half)
        NULLIFY(tmp)
        ALLOCATE(tmp)
-       CALL cp_dbcsr_init(tmp,error=error)
-       CALL cp_dbcsr_create(tmp,template=rho_old(1)%matrix,matrix_type="N",error=error)
+       CALL cp_dbcsr_init(tmp)
+       CALL cp_dbcsr_create(tmp,template=rho_old(1)%matrix,matrix_type="N")
        !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
        CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
-            rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
+            rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter)
     ENDIF
     
     DO ispin=1,SIZE(mos)
        re=2*ispin-1
        alpha=3.0_dp-REAL(SIZE(mos),dp)
-       CALL cp_dbcsr_set(rho_old(re)%matrix,0.0_dp,error=error)
-       CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=ncol,error=error)
+       CALL cp_dbcsr_set(rho_old(re)%matrix,0.0_dp)
+       CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=ncol)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix,&
-            matrix_v=mos(ispin)%mo_set%mo_coeff,ncol=ncol,alpha=alpha,keep_sparsity=.FALSE.,error=error)
+            matrix_v=mos(ispin)%mo_set%mo_coeff,ncol=ncol,alpha=alpha,keep_sparsity=.FALSE.)
        IF(orthonormal) THEN
-          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small)
        ENDIF
-       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
-       CALL cp_dbcsr_copy(rho_new(re)%matrix,rho_old(re)%matrix,error=error)
+       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps)
+       CALL cp_dbcsr_copy(rho_new(re)%matrix,rho_old(re)%matrix)
     END DO
     
-    IF(orthonormal) CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    IF(orthonormal) CALL cp_dbcsr_deallocate_matrix(tmp)
     
    END SUBROUTINE rt_initialize_rho_from_mos
 

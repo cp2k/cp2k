@@ -69,7 +69,6 @@ CONTAINS
 !>                        atomic matrix
 !> \param blk_col_start : first col in each atomic blk col in the
 !>                        atomic matrix
-!> \param error : the data container for CP2K error logs
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_calc_size(dbcsr_mat, &
@@ -77,13 +76,11 @@ CONTAINS
                                    nrows, &
                                    ncols, &
                                    blk_row_start, &
-                                   blk_col_start, &
-                                   error)
+                                   blk_col_start)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(OUT)                     :: nrows, ncols
     INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_row_start, blk_col_start
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size', &
       routineP = moduleN//':'//routineN
@@ -102,12 +99,11 @@ CONTAINS
     col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
-                            halo_atoms=halo_atoms, &
-                            error=error)
+                            halo_atoms=halo_atoms)
     check_ok = SIZE(blk_row_start) .GE. (natoms_in_halo + 1)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     check_ok = SIZE(blk_col_start) .GE. (natoms_in_halo + 1)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     blk_row_start = 0
     blk_col_start = 0
     nrows = 0
@@ -141,7 +137,6 @@ CONTAINS
 !>                        atomic matrix
 !> \param blk_col_start : first col in each atomic blk col in the
 !>                        atomic matrix
-!> \param error : the data container for CP2K error logs
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_construct(dbcsr_mat, &
@@ -149,15 +144,13 @@ CONTAINS
                                    para_env, &
                                    atomic_matrix, &
                                    blk_row_start, &
-                                   blk_col_start, &
-                                   error)
+                                   blk_col_start)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: atomic_matrix
     INTEGER, DIMENSION(:), INTENT(IN)        :: blk_row_start, blk_col_start
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
       routineP = moduleN//':'//routineN
@@ -193,26 +186,23 @@ CONTAINS
     END IF
 
     ! generate send and receiv atomic pairs
-    CALL fb_com_atom_pairs_create(atom_pairs_send, error)
-    CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
+    CALL fb_com_atom_pairs_create(atom_pairs_send)
+    CALL fb_com_atom_pairs_create(atom_pairs_recv)
     CALL fb_atmatrix_generate_com_pairs(dbcsr_mat, &
                                         atomic_halo, &
                                         para_env, &
                                         atom_pairs_send, &
-                                        atom_pairs_recv, &
-                                        error)
+                                        atom_pairs_recv)
 
     ! get com pair informations
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
                                pairs=pairs_send, &
                                npairs=npairs_send, &
-                               natoms_encode=send_encode, &
-                               error=error)
+                               natoms_encode=send_encode)
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_recv, &
                                pairs=pairs_recv, &
                                npairs=npairs_recv, &
-                               natoms_encode=recv_encode, &
-                               error=error)
+                               natoms_encode=recv_encode)
 
     ! get para_env info
     numprocs = para_env%num_pe
@@ -223,13 +213,13 @@ CONTAINS
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -239,21 +229,20 @@ CONTAINS
                                              send_sizes, &
                                              send_disps, &
                                              send_pair_count, &
-                                             send_pair_disps, &
-                                             error)
+                                             send_pair_disps)
     ! allocate send buffer
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     ! allocate temporary arrays for recv
     ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -263,11 +252,10 @@ CONTAINS
                                              recv_sizes, &
                                              recv_disps, &
                                              recv_pair_count, &
-                                             recv_pair_disps, &
-                                             error)
+                                             recv_pair_disps)
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ! do packing
     DO ipe = 1, numprocs
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
@@ -303,15 +291,15 @@ CONTAINS
 
     ! cleanup temporary arrays no longer needed
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(send_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(send_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     ! do unpacking
     DO ipe = 1, numprocs
@@ -329,12 +317,12 @@ CONTAINS
           ! this particular atomic_halo
           CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
                                                iatom, iatom_in_halo, &
-                                               found, error)
-          CPPostcondition(found, cp_failure_level, routineP, error, failure)
+                                               found)
+          CPPostcondition(found, cp_failure_level, routineP,failure)
           CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
                                                jatom, jatom_in_halo, &
-                                               found, error)
-          CPPostcondition(found, cp_failure_level, routineP, error, failure)
+                                               found)
+          CPPostcondition(found, cp_failure_level, routineP,failure)
           ! put block into the full conventional matrix
           DO jj = 1, ncols_blk
              DO ii = 1, nrows_blk
@@ -351,17 +339,17 @@ CONTAINS
 
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(recv_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL fb_com_atom_pairs_release(atom_pairs_send, error)
-    CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CALL fb_com_atom_pairs_release(atom_pairs_send)
+    CALL fb_com_atom_pairs_release(atom_pairs_recv)
 
     CALL timestop(handle)
 
@@ -385,21 +373,18 @@ CONTAINS
 !>                        atomic matrix
 !> \param blk_col_start : first col in each atomic blk col in the
 !>                        atomic matrix
-!> \param error : the data container for CP2K error logs
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_construct_2(matrix_storage, &
                                      atomic_halo, &
                                      atomic_matrix, &
                                      blk_row_start, &
-                                     blk_col_start, &
-                                     error)
+                                     blk_col_start)
     TYPE(fb_matrix_data_obj), INTENT(IN)     :: matrix_storage
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: atomic_matrix
     INTEGER, DIMENSION(:), INTENT(IN)        :: blk_row_start, blk_col_start
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct_2', &
       routineP = moduleN//':'//routineN
@@ -416,9 +401,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_storage)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     check_ok = fb_atomic_halo_has_data(atomic_halo)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
 
     NULLIFY(halo_atoms, blk_p)
 
@@ -430,8 +415,7 @@ CONTAINS
     ! get atomic halo information
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
-                            halo_atoms=halo_atoms, &
-                            error=error)
+                            halo_atoms=halo_atoms)
 
     ! construct atomic matrix using data from matrix_storage
     DO iatom = 1, natoms_in_halo
@@ -442,8 +426,7 @@ CONTAINS
                                   iatom_global, &
                                   jatom_global, &
                                   blk_p, &
-                                  found, &
-                                  error)
+                                  found)
           ! copy data to atomic_matrix if found
           IF (found) THEN
              DO jj = 1, SIZE(blk_p, 2)
@@ -475,22 +458,19 @@ CONTAINS
 !>                          data to be sent
 !> \param atom_pairs_recv : list of atom blocks from remote DBCSR matrix
 !>                          data to be recveived
-!> \param error : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_generate_com_pairs(dbcsr_mat, &
                                             atomic_halo, &
                                             para_env, &
                                             atom_pairs_send, &
-                                            atom_pairs_recv, &
-                                            error)
+                                            atom_pairs_recv)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fb_com_atom_pairs_obj), &
       INTENT(INOUT)                          :: atom_pairs_send, &
                                                 atom_pairs_recv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_atmatrix_generate_com_pairs', &
@@ -517,21 +497,20 @@ CONTAINS
 
     ! initialise atom_pairs_send and atom_pairs_receive
     IF (fb_com_atom_pairs_has_data(atom_pairs_send)) THEN
-       CALL fb_com_atom_pairs_init(atom_pairs_send, error)
+       CALL fb_com_atom_pairs_init(atom_pairs_send)
     ELSE
-       CALL fb_com_atom_pairs_create(atom_pairs_send, error)
+       CALL fb_com_atom_pairs_create(atom_pairs_send)
     END IF
     IF (fb_com_atom_pairs_has_data(atom_pairs_recv)) THEN
-       CALL fb_com_atom_pairs_init(atom_pairs_recv, error)
+       CALL fb_com_atom_pairs_init(atom_pairs_recv)
     ELSE
-       CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
+       CALL fb_com_atom_pairs_create(atom_pairs_recv)
     END IF
 
     ! get atomic halo information
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
-                            halo_atoms=halo_atoms, &
-                            error=error)
+                            halo_atoms=halo_atoms)
 
     ! get the total number of atoms, we can obtain this directly
     ! from the global block row dimension of the dbcsr matrix
@@ -551,7 +530,7 @@ CONTAINS
     ntasks_recv = natoms_in_halo*natoms_in_halo
 
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     ! now that tasks_recv has been allocated, generate the tasks
     itask = 1
@@ -586,26 +565,24 @@ CONTAINS
     END DO ! iatom
 
     ! create tasks
-    CALL fb_com_tasks_create(com_tasks_recv, error)
-    CALL fb_com_tasks_create(com_tasks_send, error)
+    CALL fb_com_tasks_create(com_tasks_recv)
+    CALL fb_com_tasks_create(com_tasks_send)
 
     CALL fb_com_tasks_set(com_tasks=com_tasks_recv, &
                           task_dim=TASK_N_RECORDS, &
                           ntasks=ntasks_recv, &
                           nencode=nblkrows_total, &
-                          tasks=tasks_recv, &
-                          error=error)
+                          tasks=tasks_recv)
 
     ! genearte the send task list (tasks_send) from the recv task list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, ">", com_tasks_send, &
-                                         para_env, error)
+                                         para_env)
 
 
     CALL fb_com_tasks_get(com_tasks=com_tasks_send, &
                           ntasks=ntasks_send, &
                           tasks=tasks_send, &
-                          nencode=nencode, &
-                          error=error)
+                          nencode=nencode)
 
     ! because the atomic_halos and the neighbor_list_set used to
     ! generate the sparse structure of the DBCSR matrix do not
@@ -640,13 +617,12 @@ CONTAINS
 
     ! tasks_send is set through the pointer already
     CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
-                          ntasks=ntasks_send, &
-                          error=error)
+                          ntasks=ntasks_send)
 
     ! now, re-distribute the new send tasks list to other processors
     ! to build the updated recv tasks list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
-                                         para_env, error)
+                                         para_env)
 
     ! task lists are now complete, now construct the atom_pairs_send
     ! and atom_pairs_recv from the tasks lists
@@ -654,18 +630,16 @@ CONTAINS
                                        atom_pairs=atom_pairs_send, &
                                        natoms_encode=nencode, &
                                        send_or_recv="send", &
-                                       symmetric=.FALSE., &
-                                       error=error)
+                                       symmetric=.FALSE.)
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
                                        natoms_encode=nencode, &
                                        send_or_recv="recv", &
-                                       symmetric=.FALSE., &
-                                       error=error)
+                                       symmetric=.FALSE.)
 
     ! cleanup
-    CALL fb_com_tasks_release(com_tasks_recv, error)
-    CALL fb_com_tasks_release(com_tasks_send, error)
+    CALL fb_com_tasks_release(com_tasks_recv)
+    CALL fb_com_tasks_release(com_tasks_send)
 
     CALL timestop(handle)
 
@@ -685,15 +659,13 @@ CONTAINS
 !>                          data to be sent
 !> \param atom_pairs_recv : list of atom blocks from remote DBCSR matrix
 !>                          data to be recveived
-!> \param error : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_generate_com_pairs_2(dbcsr_mat, &
                                               atomic_halos, &
                                               para_env, &
                                               atom_pairs_send, &
-                                              atom_pairs_recv, &
-                                              error)
+                                              atom_pairs_recv)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
@@ -701,7 +673,6 @@ CONTAINS
     TYPE(fb_com_atom_pairs_obj), &
       INTENT(INOUT)                          :: atom_pairs_send, &
                                                 atom_pairs_recv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_atmatrix_generate_com_pairs_2', &
@@ -730,21 +701,20 @@ CONTAINS
 
     ! initialise atom_pairs_send and atom_pairs_receive
     IF (fb_com_atom_pairs_has_data(atom_pairs_send)) THEN
-       CALL fb_com_atom_pairs_init(atom_pairs_send, error)
+       CALL fb_com_atom_pairs_init(atom_pairs_send)
     ELSE
-       CALL fb_com_atom_pairs_create(atom_pairs_send, error)
+       CALL fb_com_atom_pairs_create(atom_pairs_send)
     END IF
     IF (fb_com_atom_pairs_has_data(atom_pairs_recv)) THEN
-       CALL fb_com_atom_pairs_init(atom_pairs_recv, error)
+       CALL fb_com_atom_pairs_init(atom_pairs_recv)
     ELSE
-       CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
+       CALL fb_com_atom_pairs_create(atom_pairs_recv)
     END IF
 
     ! get atomic halo list information
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
-                                 halos=halos, &
-                                 error=error)
+                                 halos=halos)
     ! get the total number of atoms, we can obtain this directly
     ! from the global block row dimension of the dbcsr matrix
     CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
@@ -754,12 +724,11 @@ CONTAINS
     ntasks_recv = 0
     DO ihalo = 1, nhalos
        CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
-                               natoms=natoms_in_halo, &
-                               error=error)
+                               natoms=natoms_in_halo)
        ntasks_recv = ntasks_recv + natoms_in_halo*natoms_in_halo
     END DO
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
 
     ! now that tasks_recv has been allocated, generate the tasks
 
@@ -769,8 +738,7 @@ CONTAINS
     DO ihalo = 1, nhalos
        CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                natoms=natoms_in_halo, &
-                               halo_atoms=halo_atoms, &
-                               error=error)
+                               halo_atoms=halo_atoms)
        DO iatom = 1, natoms_in_halo
           iatom_global = halo_atoms(iatom)
           DO jatom = 1, natoms_in_halo
@@ -803,25 +771,23 @@ CONTAINS
     END DO ! ihalo
 
     ! create tasks
-    CALL fb_com_tasks_create(com_tasks_recv, error)
-    CALL fb_com_tasks_create(com_tasks_send, error)
+    CALL fb_com_tasks_create(com_tasks_recv)
+    CALL fb_com_tasks_create(com_tasks_send)
 
     CALL fb_com_tasks_set(com_tasks=com_tasks_recv, &
                           task_dim=TASK_N_RECORDS, &
                           ntasks=ntasks_recv, &
                           nencode=nblkrows_total, &
-                          tasks=tasks_recv, &
-                          error=error)
+                          tasks=tasks_recv)
 
     ! genearte the send task list (tasks_send) from the recv task list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, ">", com_tasks_send, &
-                                         para_env, error)
+                                         para_env)
 
     CALL fb_com_tasks_get(com_tasks=com_tasks_send, &
                           ntasks=ntasks_send, &
                           tasks=tasks_send, &
-                          nencode=nencode, &
-                          error=error)
+                          nencode=nencode)
 
     ! because the atomic_halos and the neighbor_list_set used to
     ! generate the sparse structure of the DBCSR matrix do not
@@ -856,13 +822,12 @@ CONTAINS
 
     ! tasks_send is set through the pointer already
     CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
-                          ntasks=ntasks_send, &
-                          error=error)
+                          ntasks=ntasks_send)
 
     ! now, re-distribute the new send tasks list to other processors
     ! to build the updated recv tasks list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
-                                         para_env, error)
+                                         para_env)
 
     ! task lists are now complete, now construct the atom_pairs_send
     ! and atom_pairs_recv from the tasks lists
@@ -870,18 +835,16 @@ CONTAINS
                                        atom_pairs=atom_pairs_send, &
                                        natoms_encode=nencode, &
                                        send_or_recv="send", &
-                                       symmetric=.FALSE., &
-                                       error=error)
+                                       symmetric=.FALSE.)
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
                                        natoms_encode=nencode, &
                                        send_or_recv="recv", &
-                                       symmetric=.FALSE., &
-                                       error=error)
+                                       symmetric=.FALSE.)
 
     ! cleanup
-    CALL fb_com_tasks_release(com_tasks_recv, error)
-    CALL fb_com_tasks_release(com_tasks_send, error)
+    CALL fb_com_tasks_release(com_tasks_recv)
+    CALL fb_com_tasks_release(com_tasks_send)
 
     CALL timestop(handle)
 

@@ -65,14 +65,12 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief  Writes out a line of text to the default output unit.
 !> \param line ...
-!> \param error ...
 !> \date   2009-07-10
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  SUBROUTINE pint_write_line(line,error)
+  SUBROUTINE pint_write_line(line)
 
     CHARACTER(len=*), INTENT(IN)             :: line
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_line', &
       routineP = moduleN//':'//routineN
@@ -82,7 +80,7 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     my_label = "PINT|"
 
     IF (logger%para_env%ionode) THEN
@@ -97,16 +95,14 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief Write out the trajectory of the centroid (positions and velocities)
 !> \param pint_env ...
-!> \param error ...
 !> \par History
 !>      various bug fixes - hforbert
 !>      2010-11-25 rewritten, added support for velocity printing,
 !>                 calc of the stddev of the beads turned off [lwalewski]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pint_write_centroids(pint_env,error)
+  SUBROUTINE pint_write_centroids(pint_env)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids', &
       routineP = moduleN//':'//routineN
@@ -124,7 +120,6 @@ MODULE pint_io
     LOGICAL                                  :: failure, new_file
     REAL(kind=dp)                            :: nb, ss, unit_conv, vv
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
@@ -134,8 +129,8 @@ MODULE pint_io
     CALL timeset(routineN,handle1)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
     IF (failure) THEN
       CALL timestop(handle1)
       RETURN
@@ -156,30 +151,29 @@ MODULE pint_io
           ", E_vir =",pint_env%energy(e_kin_virial_id)
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v)
 
     ! iterate over the properties that we know how to print
     ! (currently positions and velocities)
     DO id = 1, n_ids
 
       print_key => section_vals_get_subs_vals(pint_env%input,&
-                   TRIM(sect_path(id)), error=error)
+                   TRIM(sect_path(id)))
 
       should_output = cp_print_key_should_output(&
                       iteration_info=logger%iter_info,&
-                      basis_section=print_key, error=error)
+                      basis_section=print_key)
       IF ( .NOT. BTEST(should_output,cp_p_file) ) CONTINUE
 
       ! get units of measure for output (if available)
       CALL section_vals_val_get(print_key,"UNIT",&
-           c_val=unit_str,error=error)
-      unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+           c_val=unit_str)
+      unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
       ! get the format for output
-      CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,&
-           error=error)
+      CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat)
 
       SELECT CASE(outformat)
         CASE (dump_dcd,dump_dcd_aligned_cell)
@@ -192,16 +186,15 @@ MODULE pint_io
           form="FORMATTED"
           ext=".xyz"
         CASE default
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
       END SELECT
 
       NULLIFY(f_env,cell,subsys)
       CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-           f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+           f_env=f_env,failure=failure, handle=handle)
       CALL force_env_get(force_env=f_env%force_env,&
-           cell=cell, subsys=subsys, error=new_error)
-      CALL cp_subsys_get(subsys,particles=particles,&
-           error=new_error)
+           cell=cell, subsys=subsys)
+      CALL cp_subsys_get(subsys,particles=particles)
 
       ! calculate and copy the requested property
       ! to the particles structure
@@ -230,13 +223,12 @@ MODULE pint_io
       unit_nr = cp_print_key_unit_nr(logger=logger, &
                 basis_section=print_key, print_key_path="", &
                 extension=TRIM(ext), middle_name=TRIM(my_middle_name), &
-                local=.FALSE., file_form=form, is_new_file=new_file, &
-                error=new_error)
+                local=.FALSE., file_form=form, is_new_file=new_file)
 
       ! don't write the 0-th frame if the file already exists
       IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
         CALL cp_print_key_finished_output(unit_nr,logger,&
-             print_key, error=new_error)
+             print_key)
         CONTINUE
       END IF
 
@@ -250,16 +242,15 @@ MODULE pint_io
              content=content_id(id), &
              title=title(id), &
              cell=cell, &
-             unit_conv=unit_conv, &
-             error=error)
+             unit_conv=unit_conv)
 
         CALL cp_print_key_finished_output(unit_nr,logger,&
-             print_key, "", local=.FALSE., error=new_error)
+             print_key, "", local=.FALSE.)
 
       END IF
 
-      CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
-      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+      CALL f_env_rm_defaults(f_env,ierr,handle)
+      CPAssert(ierr==0,cp_failure_level,routineP,failure)
 
     END DO
 
@@ -270,14 +261,12 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief  Write out the trajectory of the beads (positions and velocities)
 !> \param pint_env ...
-!> \param error ...
 !> \par    History
 !>         2010-11-25 added support for velocity printing [lwalewski]
 !> \author hforbert
 ! *****************************************************************************
-  SUBROUTINE pint_write_trajectory(pint_env,error)
+  SUBROUTINE pint_write_trajectory(pint_env)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory', &
       routineP = moduleN//':'//routineN
@@ -296,7 +285,6 @@ MODULE pint_io
     LOGICAL                                  :: failure, new_file
     REAL(kind=dp)                            :: unit_conv
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
@@ -306,8 +294,8 @@ MODULE pint_io
     CALL timeset(routineN,handle1)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
     IF (failure) THEN
       CALL timestop(handle1)
       RETURN
@@ -321,30 +309,29 @@ MODULE pint_io
     content_id(vel_id) = "VEL"
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v)
 
     ! iterate over the properties that we know how to print
     ! (currently positions and velocities)
     DO id = 1, n_ids
 
       print_key => section_vals_get_subs_vals(pint_env%input,&
-                   TRIM(sect_path(id)), error=error)
+                   TRIM(sect_path(id)))
 
       should_output = cp_print_key_should_output(&
                       iteration_info=logger%iter_info,&
-                      basis_section=print_key, error=error)
+                      basis_section=print_key)
       IF ( .NOT. BTEST(should_output,cp_p_file) ) CONTINUE
 
       ! get units of measure for output (if available)
       CALL section_vals_val_get(print_key,"UNIT",&
-           c_val=unit_str,error=error)
-      unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+           c_val=unit_str)
+      unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
       ! get the format for output
-      CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,&
-           error=error)
+      CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat)
 
       SELECT CASE(outformat)
         CASE (dump_dcd,dump_dcd_aligned_cell)
@@ -357,16 +344,15 @@ MODULE pint_io
           form="FORMATTED"
           ext=".xyz"
         CASE default
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
       END SELECT
 
       NULLIFY(f_env,cell,subsys)
       CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-           f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+           f_env=f_env,failure=failure, handle=handle)
       CALL force_env_get(force_env=f_env%force_env,&
-           cell=cell, subsys=subsys, error=new_error)
-      CALL cp_subsys_get(subsys,particles=particles,&
-           error=new_error)
+           cell=cell, subsys=subsys)
+      CALL cp_subsys_get(subsys,particles=particles)
 
       ! iterate over beads
       DO ib = 1, pint_env%p
@@ -390,13 +376,12 @@ MODULE pint_io
         unit_nr = cp_print_key_unit_nr(logger=logger, &
                   basis_section=print_key, print_key_path="", &
                   extension=TRIM(ext), middle_name=TRIM(my_middle_name), &
-                  local=.FALSE., file_form=form, is_new_file=new_file, &
-                  error=new_error)
+                  local=.FALSE., file_form=form, is_new_file=new_file)
 
         ! don't write the 0-th frame if the file already exists
         IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
           CALL cp_print_key_finished_output(unit_nr,logger,&
-               print_key, error=new_error)
+               print_key)
           CONTINUE
         END IF
 
@@ -416,18 +401,17 @@ MODULE pint_io
                content=content_id(id), &
                title=title, &
                cell=cell, &
-               unit_conv=unit_conv, &
-               error=error)
+               unit_conv=unit_conv)
 
           CALL cp_print_key_finished_output(unit_nr,logger,&
-               print_key, "", local=.FALSE., error=new_error)
+               print_key, "", local=.FALSE.)
 
         END IF
 
       END DO
 
-      CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
-      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+      CALL f_env_rm_defaults(f_env,ierr,handle)
+      CPAssert(ierr==0,cp_failure_level,routineP,failure)
 
     END DO
 
@@ -438,14 +422,12 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief  Write center of mass (COM) position according to PINT%PRINT%COM
 !> \param pint_env ...
-!> \param error ...
 !> \date   2010-02-17
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  SUBROUTINE pint_write_com( pint_env, error )
+  SUBROUTINE pint_write_com( pint_env)
 
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_com', &
       routineP = moduleN//':'//routineN
@@ -459,34 +441,34 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! decide whether to write anything or not
     NULLIFY(print_key)
     print_key => section_vals_get_subs_vals(pint_env%input, &
-      "MOTION%PINT%PRINT%COM", error=error)
+      "MOTION%PINT%PRINT%COM")
     should_output = BTEST(cp_print_key_should_output( &
       iteration_info=logger%iter_info,&
-      basis_section=print_key,error=error),cp_p_file)
+      basis_section=print_key),cp_p_file)
     IF ( .NOT. should_output ) THEN
       RETURN
     END IF
 
-    com_r = pint_com_pos( pint_env, error )
+    com_r = pint_com_pos( pint_env)
     DO ic = 1, 3
-      com_r(ic) = cp_unit_from_cp2k(com_r(ic), "angstrom", error=error)
+      com_r(ic) = cp_unit_from_cp2k(com_r(ic), "angstrom")
     END DO
 
     unit_nr=cp_print_key_unit_nr(logger, print_key, is_new_file=new_file,&
-            middle_name="com-pos",extension=".xyz",error=error)
+            middle_name="com-pos",extension=".xyz")
 
     ! don't write the 0-th frame if the file already exists
     IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
       CALL cp_print_key_finished_output(unit_nr,logger,&
-           print_key, error=error)
+           print_key)
       RETURN
     END IF
 
@@ -504,7 +486,7 @@ MODULE pint_io
 
     END IF
 
-    CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+    CALL cp_print_key_finished_output(unit_nr,logger,print_key)
 
     RETURN
   END SUBROUTINE pint_write_com
@@ -512,16 +494,13 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief  Writes out the energies according to PINT%PRINT%ENERGY
 !> \param  pint_env path integral environment
-!> \param  error variable to control error logging, stopping,...
-!>         see module cp_error_handling
 !> \par    History
 !>           various bug fixes [hforbert]
 !>           2009-11-16 energy components calc moved out of here [lwalewski]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE pint_write_ener(pint_env,error)
+  SUBROUTINE pint_write_ener(pint_env)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
@@ -533,24 +512,24 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
     IF ( failure ) RETURN
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(pint_env%input, &
-      "MOTION%PINT%PRINT%ENERGY", error=error)
-    logger => cp_error_get_logger(error)
+      "MOTION%PINT%PRINT%ENERGY")
+    logger => cp_get_default_logger()
     IF ( BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
-      basis_section=print_key,error=error),cp_p_file) ) THEN
+      basis_section=print_key),cp_p_file) ) THEN
 
       unit_nr=cp_print_key_unit_nr(logger,print_key,middle_name="energy",&
-        extension=".dat",is_new_file=file_is_new,error=error )
+        extension=".dat",is_new_file=file_is_new)
 
       ! don't write the 0-th frame if the file already exists
       IF ( .NOT. file_is_new .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
         CALL cp_print_key_finished_output(unit_nr,logger,&
-             print_key, error=error)
+             print_key)
         RETURN
       END IF
 
@@ -571,7 +550,7 @@ MODULE pint_io
                         "     CPU [s]"
         END IF
 
-        t=cp_unit_from_cp2k(pint_env%t,"fs",error=error)
+        t=cp_unit_from_cp2k(pint_env%t,"fs")
 
         ndof = pint_env%p
         IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
@@ -579,7 +558,7 @@ MODULE pint_io
         END IF
         temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
                REAL(ndof,dp)/REAL(pint_env%ndim,dp),&
-               "K",error=error)
+               "K")
 
         WRITE (unit_nr,"(I8,1X,F12.3,1X,5(F20.9,1X),F12.1)")&
                pint_env%iter,&
@@ -594,7 +573,7 @@ MODULE pint_io
 
       END IF
 
-      CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+      CALL cp_print_key_finished_output(unit_nr,logger,print_key)
     END IF
 
     RETURN
@@ -604,15 +583,13 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief  Write step info to the output file.
 !> \param pint_env ...
-!> \param error ...
 !> \date   2009-11-16
 !> \par History
 !>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  SUBROUTINE pint_write_step_info( pint_env, error )
+  SUBROUTINE pint_write_step_info( pint_env)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_step_info', &
       routineP = moduleN//':'//routineN
@@ -624,10 +601,10 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     time_used = pint_env%time_per_step
     time_unit = "sec"
@@ -670,14 +647,12 @@ MODULE pint_io
 ! ***************************************************************************
 !> \brief  Write radii of gyration according to PINT%PRINT%CENTROID_GYR
 !> \param pint_env ...
-!> \param error ...
 !> \date   2011-01-07
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  SUBROUTINE pint_write_rgyr( pint_env, error )
+  SUBROUTINE pint_write_rgyr( pint_env)
 
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_rgyr', &
       routineP = moduleN//':'//routineN
@@ -691,25 +666,25 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! decide whether to write anything or not
     NULLIFY(print_key)
     print_key => section_vals_get_subs_vals(pint_env%input, &
-      "MOTION%PINT%PRINT%CENTROID_GYR", error=error)
+      "MOTION%PINT%PRINT%CENTROID_GYR")
     should_output = BTEST(cp_print_key_should_output( &
       iteration_info=logger%iter_info,&
-      basis_section=print_key,error=error),cp_p_file)
+      basis_section=print_key),cp_p_file)
     IF ( .NOT. should_output ) THEN
       RETURN
     END IF
 
     ! get the units conversion factor
-    CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str,error=error)
-    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
     ! calculate the centroid positions
     nb=REAL(pint_env%p,dp)
@@ -739,12 +714,12 @@ MODULE pint_io
     END DO
 
     unit_nr=cp_print_key_unit_nr(logger, print_key, is_new_file=new_file, &
-            middle_name="centroid-gyr",extension=".dat",error=error)
+            middle_name="centroid-gyr",extension=".dat")
 
     ! don't write the 0-th frame if the file already exists
     IF ( .NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step) ) THEN
       CALL cp_print_key_finished_output(unit_nr,logger,&
-           print_key, error=error)
+           print_key)
       RETURN
     END IF
 
@@ -760,7 +735,7 @@ MODULE pint_io
 
     END IF
 
-    CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+    CALL cp_print_key_finished_output(unit_nr,logger,print_key)
 
     RETURN
   END SUBROUTINE pint_write_rgyr

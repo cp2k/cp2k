@@ -40,9 +40,8 @@ CONTAINS
 !> \param particles_z ...
 !> \param stride ...
 !> \param zero_tails ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pw_to_cube ( pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, error )
+  SUBROUTINE pw_to_cube ( pw, unit_nr, title, particles_r, particles_z, stride, zero_tails)
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: unit_nr
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
@@ -52,7 +51,6 @@ CONTAINS
       OPTIONAL                               :: particles_z
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: stride
     LOGICAL, INTENT(IN), OPTIONAL            :: zero_tails
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', &
       routineP = moduleN//':'//routineN
@@ -81,9 +79,9 @@ CPSourceFileRef,&
        ELSE
           my_stride = stride(1:3)
        END IF
-       CPPrecondition(my_stride(1)>0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(my_stride(2)>0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(my_stride(3)>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_stride(1)>0,cp_failure_level,routineP,failure)
+       CPPrecondition(my_stride(2)>0,cp_failure_level,routineP,failure)
+       CPPrecondition(my_stride(3)>0,cp_failure_level,routineP,failure)
     END IF
 
     IF (unit_nr>0) THEN
@@ -96,10 +94,10 @@ CPSourceFileRef,&
          WRITE(unit_nr,*) "No Title"
       ENDIF
 
-      CPPrecondition(PRESENT(particles_z) .EQV. PRESENT(particles_r),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(particles_z) .EQV. PRESENT(particles_r),cp_failure_level,routineP,failure)
       np=0
       IF(PRESENT(particles_z)) THEN
-         CPPrecondition(SIZE(particles_z) == SIZE(particles_r, dim=2),cp_failure_level,routineP,error,failure)
+         CPPrecondition(SIZE(particles_z) == SIZE(particles_r, dim=2),cp_failure_level,routineP,failure)
          ! cube files can only be written for 99999 particles due to a format limitation (I5)
          ! so we limit the number of particles written.
          np=MIN(99999,SIZE(particles_z))
@@ -133,7 +131,7 @@ CPSourceFileRef,&
     U3=pw%pw_grid%bounds(2,3)
 
     ALLOCATE(buf(L3:U3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     my_rank     = pw%pw_grid%para%my_pos
     gid         = pw%pw_grid%para%group
@@ -146,10 +144,10 @@ CPSourceFileRef,&
     IF (unit_nr>0) checksum=1
 
     CALL mp_sum(checksum,gid)
-    CPPostcondition(checksum==1,cp_failure_level,routineP,error,failure)
+    CPPostcondition(checksum==1,cp_failure_level,routineP,failure)
 
     CALL mp_maxloc(rank,gid)
-    CPPostcondition(rank(1)>0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(rank(1)>0,cp_failure_level,routineP,failure)
 
     dest = rank(2)
     DO I1=L1,U1,my_stride(1)
@@ -214,16 +212,14 @@ CPSourceFileRef,&
 !> \param grid     pw to read from cube file
 !> \param filename name of cube file
 !> \param scaling  scale values before storing
-!> \param error ...
 !> \date   01.2014
 !> \author M.Watkins
 ! *****************************************************************************
-  SUBROUTINE cube_to_pw(grid, filename, scaling, error)
+  SUBROUTINE cube_to_pw(grid, filename, scaling)
 
     TYPE(pw_type), POINTER                   :: grid
     CHARACTER(len=*), INTENT(in)             :: filename
     REAL(kind=dp), INTENT(in)                :: scaling
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw', &
       routineP = moduleN//':'//routineN
@@ -239,7 +235,7 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
     failure=.FALSE.

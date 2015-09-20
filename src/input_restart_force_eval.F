@@ -76,18 +76,15 @@ CONTAINS
 !> \param force_env ...
 !> \param root_section ...
 !> \param write_binary_restart_file ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_force_eval(force_env,root_section,&
-                               write_binary_restart_file,error)
+                               write_binary_restart_file)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN)                      :: write_binary_restart_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
@@ -107,48 +104,48 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(rng_section, subsys_section, cell_section, virial, subsys, cell)
     ! If it's not a dynamical run don't update the velocity section
-    CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid)
     skip_vel_section =((myid /= mol_dyn_run).AND.&
                        (myid /= mon_car_run).AND.&
                        (myid /= pint_run).AND.&
                        (myid /= ehrenfest))
 
     ! Go on updatig the force_env_section
-    force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-    CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+    force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL")
+    CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval)
     ! The update of the input MUST be realized only on the main force_eval
     ! All the others will be left not updated because there is no real need to update them...
     iforce_eval=1
     subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-         i_rep_section=i_force_eval(iforce_eval),error=error)
+         i_rep_section=i_force_eval(iforce_eval))
     CALL update_subsys(subsys_section,force_env,skip_vel_section,&
-                       write_binary_restart_file,error)
+                       write_binary_restart_file)
 
-    rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
-    CALL update_rng_particle(rng_section,force_env,error)
+    rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT")
+    CALL update_rng_particle(rng_section,force_env)
 
     qmmm_section   => section_vals_get_subs_vals3(force_env_sections,"QMMM",&
-         i_rep_section=i_force_eval(iforce_eval),error=error)
-    CALL update_qmmm(qmmm_section,force_env,error)
+         i_rep_section=i_force_eval(iforce_eval))
+    CALL update_qmmm(qmmm_section,force_env)
 
     ! And now update only the cells of all other force_eval
     ! This is to make consistent for cell variable runs..
     IF (nforce_eval>1) THEN
-       CALL force_env_get(force_env, subsys=subsys, cell=cell, error=error)
-       CALL cp_subsys_get(subsys, virial=virial, error=error)
-       CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",l_val=multiple_subsys,error=error)
+       CALL force_env_get(force_env, subsys=subsys, cell=cell)
+       CALL cp_subsys_get(subsys, virial=virial)
+       CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",l_val=multiple_subsys)
        IF (virial%pv_availability.AND.multiple_subsys) THEN
           DO iforce_eval = 2, nforce_eval
              subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-                  i_rep_section=i_force_eval(iforce_eval),error=error)
-             cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-             CALL update_cell_section(cell, cell_section, error)
+                  i_rep_section=i_force_eval(iforce_eval))
+             cell_section => section_vals_get_subs_vals(subsys_section,"CELL")
+             CALL update_cell_section(cell, cell_section)
           END DO
        END IF
     END IF
 
     IF(myid == ehrenfest)CALL section_vals_val_set(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN",&
-                                                   i_val=use_rt_restart,error=error)
+                                                   i_val=use_rt_restart)
     DEALLOCATE(i_force_eval)
 
   END SUBROUTINE update_force_eval
@@ -157,16 +154,13 @@ CONTAINS
 !> \brief Updates the qmmm section if needed
 !> \param qmmm_section ...
 !> \param force_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_qmmm(qmmm_section,force_env,error)
+  SUBROUTINE update_qmmm(qmmm_section,force_env)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm', &
       routineP = moduleN//':'//routineN
@@ -178,13 +172,13 @@ CONTAINS
     failure = .FALSE.
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
-       CALL section_vals_get(qmmm_section, explicit=explicit, error=error)
-       CPPostcondition(explicit,cp_failure_level,routineP,error,failure)
+       CALL section_vals_get(qmmm_section, explicit=explicit)
+       CPPostcondition(explicit,cp_failure_level,routineP,failure)
 
        ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work = force_env%qmmm_env%qm%transl_v
-       CALL section_vals_val_set(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
+       CALL section_vals_val_set(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work)
     END SELECT
 
   END SUBROUTINE update_qmmm
@@ -194,17 +188,14 @@ CONTAINS
 !>      Write current status of the parallel random number generator (RNG)
 !> \param rng_section ...
 !> \param force_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_rng_particle(rng_section,force_env,error)
+  SUBROUTINE update_rng_particle(rng_section,force_env)
 
     TYPE(section_vals_type), POINTER         :: rng_section
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng_particle', &
       routineP = moduleN//':'//routineN
@@ -220,16 +211,16 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_list_type), POINTER        :: particles
 
-    CALL force_env_get(force_env, subsys=subsys, para_env=para_env, error=error)
+    CALL force_env_get(force_env, subsys=subsys, para_env=para_env)
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles,&
-         particles=particles, error=error)
+         particles=particles)
 
     IF (ASSOCIATED(local_particles%local_particle_set)) THEN
        nparticle_kind = atomic_kinds%n_els
        nparticle = particles%n_els
 
        ALLOCATE (ascii(rng_record_length,nparticle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ascii = 0
 
        DO iparticle=1,nparticle
@@ -239,7 +230,7 @@ CONTAINS
                 IF (iparticle == local_particles%list(iparticle_kind)%array(iparticle_local)) THEN
                    CALL dump_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
                          rng(iparticle_local)%stream,&
-                        rng_record=rng_record, error=error)
+                        rng_record=rng_record)
                    CALL string_to_ascii(rng_record,ascii(:,iparticle))
                 END IF
              END DO
@@ -248,11 +239,10 @@ CONTAINS
 
        CALL mp_sum(ascii,para_env%group)
 
-       CALL section_rng_val_set(rng_section=rng_section,nsize=nparticle,ascii=ascii,&
-            error=error)
+       CALL section_rng_val_set(rng_section=rng_section,nsize=nparticle,ascii=ascii)
 
        DEALLOCATE (ascii,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE update_rng_particle
@@ -263,19 +253,16 @@ CONTAINS
 !> \param force_env ...
 !> \param skip_vel_section ...
 !> \param write_binary_restart_file ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_subsys(subsys_section,force_env,skip_vel_section,&
-                           write_binary_restart_file,error)
+                           write_binary_restart_file)
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN)                      :: skip_vel_section, &
                                                 write_binary_restart_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
@@ -299,34 +286,31 @@ CONTAINS
     NULLIFY (work_section, core_particles, particles, shell_particles, &
              subsys, cell, para_env, multipoles)
     CALL timeset(routineN,handle)
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env, &
-                       error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env)
 
     CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
          shell_particles=shell_particles, core_particles=core_particles,&
-         multipoles=multipoles, error=error)
+         multipoles=multipoles)
 
     ! Remove the multiple_unit_cell from the input structure.. at this point we have
     ! already all the information we need..
     ALLOCATE(multiple_unit_cell(3),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     multiple_unit_cell = 1
     CALL section_vals_val_set(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
-         i_vals_ptr=multiple_unit_cell, error=error)
+         i_vals_ptr=multiple_unit_cell)
 
     ! Coordinates and Velocities
-    work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-    CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-    CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
-    conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    work_section => section_vals_get_subs_vals(subsys_section,"COORD")
+    CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+    CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
+    conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
     IF (.NOT.write_binary_restart_file) THEN
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_FORMAT",&
-                                 i_val=coord_file_format,&
-                                 error=error)
+                                 i_val=coord_file_format)
        IF (coord_file_format == do_coord_cp2k) THEN
           CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
-                                    c_val=coord_file_name,&
-                                    error=error)
+                                    c_val=coord_file_name)
           output_unit = 0
           IF (para_env%ionode) THEN
              CALL open_file(file_name=TRIM(ADJUSTL(coord_file_name)),&
@@ -338,85 +322,84 @@ CONTAINS
             CALL dump_coordinates_cp2k(particles,molecules,cell,conv_factor,&
                                        output_unit=output_unit,&
                                        core_or_shell=.FALSE.,&
-                                       scaled_coordinates=scale,&
-                                       error=error)
+                                       scaled_coordinates=scale)
             CALL close_file(unit_number=output_unit)
           END IF
        ELSE
           CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-                                     cell, error=error)
+                                     cell)
        END IF
     END IF
-    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=particles%n_els,error=error)
-    work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=particles%n_els)
+    work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY")
     IF (.NOT.skip_vel_section) THEN
        IF (.NOT.write_binary_restart_file) THEN
-          CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+          CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp)
        END IF
     ELSE
-       CALL section_vals_remove_values(work_section, error)
+       CALL section_vals_remove_values(work_section)
     END IF
 
     ! Write restart input for core-shell model
     IF (.NOT.write_binary_restart_file) THEN
        IF (ASSOCIATED(shell_particles)) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
-          conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD")
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
+          conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
           CALL section_coord_val_set(work_section, shell_particles, molecules, &
-                                     conv_factor, scale, cell, shell=.TRUE., error=error)
+                                     conv_factor, scale, cell, shell=.TRUE.)
           IF (.NOT.skip_vel_section) THEN
-             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-             CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY")
+             CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp)
           END IF
        END IF
        IF (ASSOCIATED(core_particles)) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
-          conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD")
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
+          conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
           CALL section_coord_val_set(work_section, core_particles, molecules, &
-                                     conv_factor, scale, cell, shell=.TRUE., error=error)
+                                     conv_factor, scale, cell, shell=.TRUE.)
           IF (.NOT.skip_vel_section) THEN
-             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-             CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY")
+             CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp)
           END IF
        END IF
     END IF
 
     ! Updating cell info
-    CALL force_env_get(force_env, cell=cell, error=error)
-    work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-    CALL update_cell_section(cell, cell_section=work_section, error=error)
+    CALL force_env_get(force_env, cell=cell)
+    work_section => section_vals_get_subs_vals(subsys_section,"CELL")
+    CALL update_cell_section(cell, cell_section=work_section)
 
     ! Updating cell_ref info
     use_ref_cell=.FALSE.
     SELECT CASE(force_env%in_use)
       CASE(use_qs_force)
-         CALL get_qs_env(force_env%qs_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
+         CALL get_qs_env(force_env%qs_env,cell_ref=cell,use_ref_cell=use_ref_cell)
       CASE(use_eip_force)
-         CALL eip_env_get(force_env%eip_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
+         CALL eip_env_get(force_env%eip_env,cell_ref=cell,use_ref_cell=use_ref_cell)
     END SELECT
     IF(use_ref_cell) THEN
-       work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
-       CALL update_cell_section(cell, cell_section=work_section, error=error)
+       work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF")
+       CALL update_cell_section(cell, cell_section=work_section)
     ENDIF
 
     ! Updating multipoles
     IF (ASSOCIATED(multipoles)) THEN
-       work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES",error=error)
+       work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES")
        DO
           IF (SIZE(work_section%values,2)==1) EXIT
-          CALL section_vals_add_values(work_section,error=error)
+          CALL section_vals_add_values(work_section)
        END DO
        IF (ASSOCIATED(multipoles%dipoles)) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%DIPOLES",error=error)
-          CALL update_dipoles_section(multipoles%dipoles, work_section, error)
+          work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%DIPOLES")
+          CALL update_dipoles_section(multipoles%dipoles, work_section)
        END IF
        IF (ASSOCIATED(multipoles%quadrupoles)) THEN
-          work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%QUADRUPOLES",error=error)
-          CALL update_quadrupoles_section(multipoles%quadrupoles, work_section, error)
+          work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%QUADRUPOLES")
+          CALL update_quadrupoles_section(multipoles%quadrupoles, work_section)
        END IF
     END IF
     CALL timestop(handle)
@@ -427,13 +410,11 @@ CONTAINS
 !> \brief Routine to update a cell section
 !> \param cell ...
 !> \param cell_section ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE update_cell_section(cell, cell_section, error)
+  SUBROUTINE update_cell_section(cell, cell_section)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: cell_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_cell_section', &
       routineP = moduleN//':'//routineN
@@ -448,26 +429,26 @@ CONTAINS
     ! CELL VECTORS - A
     ALLOCATE(work(3))
     work(1:3) = cell%hmat(1:3,1)
-    CALL section_vals_val_set(cell_section,"A",r_vals_ptr=work,error=error)
+    CALL section_vals_val_set(cell_section,"A",r_vals_ptr=work)
 
     ! CELL VECTORS - B
     ALLOCATE(work(3))
     work(1:3) = cell%hmat(1:3,2)
-    CALL section_vals_val_set(cell_section,"B",r_vals_ptr=work,error=error)
+    CALL section_vals_val_set(cell_section,"B",r_vals_ptr=work)
 
     ! CELL VECTORS - C
     ALLOCATE(work(3))
     work(1:3) = cell%hmat(1:3,3)
-    CALL section_vals_val_set(cell_section,"C",r_vals_ptr=work,error=error)
+    CALL section_vals_val_set(cell_section,"C",r_vals_ptr=work)
 
     ! MULTIPLE_UNIT_CELL
     ALLOCATE(iwork(3))
     iwork = 1
-    CALL section_vals_val_set(cell_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,error=error)
+    CALL section_vals_val_set(cell_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork)
 
     ! Unset unused or misleading information
-    CALL section_vals_val_unset(cell_section,"ABC",error=error)
-    CALL section_vals_val_unset(cell_section,"ALPHA_BETA_GAMMA",error=error)
+    CALL section_vals_val_unset(cell_section,"ABC")
+    CALL section_vals_val_unset(cell_section,"ALPHA_BETA_GAMMA")
 
     CALL timestop(handle)
   END SUBROUTINE update_cell_section
@@ -482,14 +463,12 @@ CONTAINS
 !> \param scale ...
 !> \param cell ...
 !> \param shell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor,&
-       scale, cell, shell, error)
+       scale, cell, shell)
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -497,7 +476,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: scale
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
@@ -520,22 +498,22 @@ CONTAINS
     NULLIFY(my_val, old_val, section, vals)
     my_shell = .FALSE.
     IF(PRESENT(shell)) my_shell = shell
-    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,failure)
+    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,failure)
     section => coord_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
 
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
-       CALL section_vals_add_values(coord_section,error=error)
+       CALL section_vals_add_values(coord_section)
     END DO
     vals  => coord_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     imol=0
     last_atom=0
@@ -551,7 +529,7 @@ CONTAINS
          END IF
          WRITE (UNIT=line,FMT="(A,3(1X,ES25.16),1X,I0)")&
            TRIM(name),s(1:3),particles%els(irk)%atom_index
-         CALL val_create(my_val,lc_val=line,error=error)
+         CALL val_create(my_val,lc_val=line)
          IF (Nlist /= 0) THEN
             IF (irk==1) THEN
                new_pos => vals
@@ -559,16 +537,16 @@ CONTAINS
                new_pos => new_pos%rest
             END IF
             old_val => new_pos%first_el
-            CALL val_release(old_val,error=error)
+            CALL val_release(old_val)
             new_pos%first_el => my_val
          ELSE
             IF (irk==1) THEN
                NULLIFY(new_pos)
-               CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+               CALL cp_sll_val_create(new_pos,first_el=my_val)
                vals => new_pos
             ELSE
                NULLIFY(new_pos%rest)
-               CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+               CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
                new_pos => new_pos%rest
             END IF
          END IF
@@ -598,7 +576,7 @@ CONTAINS
             WRITE (UNIT=line,FMT="(A,3(1X,ES25.16))")&
               TRIM(name),s(1:3)
          END IF
-         CALL val_create(my_val,lc_val=line,error=error)
+         CALL val_create(my_val,lc_val=line)
 
          IF (Nlist /= 0) THEN
             IF (irk==1) THEN
@@ -607,16 +585,16 @@ CONTAINS
                new_pos => new_pos%rest
             END IF
             old_val => new_pos%first_el
-            CALL val_release(old_val,error=error)
+            CALL val_release(old_val)
             new_pos%first_el => my_val
          ELSE
             IF (irk==1) THEN
                NULLIFY(new_pos)
-               CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+               CALL cp_sll_val_create(new_pos,first_el=my_val)
                vals => new_pos
             ELSE
                NULLIFY(new_pos%rest)
-               CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+               CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
                new_pos => new_pos%rest
             END IF
          END IF
@@ -632,18 +610,14 @@ CONTAINS
 !> \brief routine to dump dipoles.. fast implementation
 !> \param dipoles ...
 !> \param dipoles_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2007 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_dipoles_section(dipoles, dipoles_section, error)
+  SUBROUTINE update_dipoles_section(dipoles, dipoles_section)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipoles
     TYPE(section_vals_type), POINTER         :: dipoles_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_dipoles_section', &
       routineP = moduleN//':'//routineN
@@ -659,31 +633,31 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(dipoles_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(dipoles_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dipoles_section),cp_failure_level,routineP,failure)
+    CPPrecondition(dipoles_section%ref_count>0,cp_failure_level,routineP,failure)
     section => dipoles_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
 
     ! At least one of the two arguments must be present..
     nloop = SIZE(dipoles,2)
     DO
        IF (SIZE(dipoles_section%values,2)==1) EXIT
-       CALL section_vals_add_values(dipoles_section,error=error)
+       CALL section_vals_add_values(dipoles_section)
     END DO
     vals  => dipoles_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nloop
        ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Always stored in A.U.
        work = dipoles(1:3,irk)
-       CALL val_create(my_val,r_vals_ptr=work,error=error)
+       CALL val_create(my_val,r_vals_ptr=work)
 
        IF (Nlist /= 0) THEN
           IF (irk==1) THEN
@@ -692,16 +666,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -716,19 +690,15 @@ CONTAINS
 !> \brief routine to dump quadrupoles.. fast implementation
 !> \param quadrupoles ...
 !> \param quadrupoles_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2007 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_quadrupoles_section(quadrupoles, quadrupoles_section, error)
+  SUBROUTINE update_quadrupoles_section(quadrupoles, quadrupoles_section)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: quadrupoles
     TYPE(section_vals_type), POINTER         :: quadrupoles_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_quadrupoles_section', &
       routineP = moduleN//':'//routineN
@@ -744,28 +714,28 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(quadrupoles_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(quadrupoles_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(quadrupoles_section),cp_failure_level,routineP,failure)
+    CPPrecondition(quadrupoles_section%ref_count>0,cp_failure_level,routineP,failure)
     section => quadrupoles_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
 
     ! At least one of the two arguments must be present..
     nloop = SIZE(quadrupoles,2)
     DO
        IF (SIZE(quadrupoles_section%values,2)==1) EXIT
-       CALL section_vals_add_values(quadrupoles_section,error=error)
+       CALL section_vals_add_values(quadrupoles_section)
     END DO
     vals  => quadrupoles_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nloop
        ALLOCATE(work(6),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Always stored in A.U.
        ind = 0
        DO i = 1, 3
@@ -774,7 +744,7 @@ CONTAINS
              work(ind) = quadrupoles(j,i,irk)
           END DO
        END DO
-       CALL val_create(my_val,r_vals_ptr=work,error=error)
+       CALL val_create(my_val,r_vals_ptr=work)
 
        IF (Nlist /= 0) THEN
           IF (irk==1) THEN
@@ -783,16 +753,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -813,7 +783,6 @@ CONTAINS
 !> \param output_unit ...
 !> \param core_or_shell ...
 !> \param scaled_coordinates ...
-!> \param error ...
 !> \par History
 !>      07.02.2011 (Creation, MK)
 !> \author  Matthias Krack (MK)
@@ -821,7 +790,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dump_coordinates_cp2k(particles,molecules,cell,conv_factor,&
                                    output_unit,core_or_shell,&
-                                   scaled_coordinates,error)
+                                   scaled_coordinates)
 
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -830,7 +799,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: core_or_shell, &
                                                 scaled_coordinates
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_coordinates_cp2k', &
       routineP = moduleN//':'//routineN
@@ -846,12 +814,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,failure)
     IF (.NOT.core_or_shell) THEN
-       CPPrecondition(ASSOCIATED(molecules),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(molecules),cp_failure_level,routineP,failure)
     END IF
     IF (scaled_coordinates) THEN
-       CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
     END IF
 
     kind_name = ""

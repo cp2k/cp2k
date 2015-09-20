@@ -71,16 +71,14 @@ CONTAINS
 !> \brief Allocates data 
 !> \param env ...
 !> \param nfrags - number of entries
-!> \param error ...
 !> \par History
 !>       2014.10 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE molecular_scf_guess_env_init(env,nfrags,error)
+  SUBROUTINE molecular_scf_guess_env_init(env,nfrags)
   
     TYPE(molecular_scf_guess_env_type)       :: env
     INTEGER, INTENT(IN)                      :: nfrags
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'molecular_scf_guess_env_init', &
       routineP = moduleN//':'//routineN
@@ -89,7 +87,7 @@ CONTAINS
 !IF (env%nfrags.ne.0) THEN
 !   ! do not allow re-initialization
 !   ! to prevent recursive calls
-!   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+!   CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
 !ENDIF
 
     env%nfrags = nfrags
@@ -104,15 +102,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Destroyes both data and environment
 !> \param env ...
-!> \param error ...
 !> \par History
 !>       2014.10 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE molecular_scf_guess_env_destroy(env,error)
+  SUBROUTINE molecular_scf_guess_env_destroy(env)
   
     TYPE(molecular_scf_guess_env_type)       :: env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'molecular_scf_guess_env_destroy', &
@@ -123,7 +119,7 @@ CONTAINS
     IF (ALLOCATED(env%mos_of_frag)) THEN
        DO ifrag=1,SIZE(env%mos_of_frag,1)
          DO jfrag=1,env%nmosets_of_frag(ifrag)
-            CALL cp_dbcsr_release(env%mos_of_frag(ifrag,jfrag),error=error)
+            CALL cp_dbcsr_release(env%mos_of_frag(ifrag,jfrag))
          ENDDO
        ENDDO
        DEALLOCATE(env%mos_of_frag)
@@ -140,18 +136,16 @@ CONTAINS
 !> \param mscfg_env - env containing MOs of fragments
 !> \param matrix_out - all existing blocks will be deleted!
 !> \param iset - which set of MOs in mscfg_env has to be converted (e.g. spin)
-!> \param error ...
 !> \par History
 !>       10.2014 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE get_matrix_from_submatrices(mscfg_env, matrix_out, iset, error)
+  SUBROUTINE get_matrix_from_submatrices(mscfg_env, matrix_out, iset)
 
     TYPE(molecular_scf_guess_env_type), &
       INTENT(IN)                             :: mscfg_env
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_out
     INTEGER, INTENT(IN)                      :: iset
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_matrix_from_submatrices', &
       routineP = moduleN//':'//routineN
@@ -164,14 +158,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(iset.le.mscfg_max_moset_size,cp_failure_level,routineP,error,failure)
+    CPPostcondition(iset.le.mscfg_max_moset_size,cp_failure_level,routineP,failure)
     
-    CALL cp_dbcsr_init(matrix_temp,error)
+    CALL cp_dbcsr_init(matrix_temp)
     CALL cp_dbcsr_create(matrix_temp,&
             template=matrix_out,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
-    CALL cp_dbcsr_set(matrix_out, 0.0_dp, error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_set(matrix_out, 0.0_dp)
     
     matrix_size(1) = cp_dbcsr_nfullrows_total(matrix_out)
     matrix_size(2) = cp_dbcsr_nfullcols_total(matrix_out)
@@ -182,15 +175,15 @@ CONTAINS
 
     DO ifrag=1, mscfg_env%nfrags
 
-       CPPostcondition(iset.le.mscfg_env%nmosets_of_frag(ifrag),cp_failure_level,routineP,error,failure)
+       CPPostcondition(iset.le.mscfg_env%nmosets_of_frag(ifrag),cp_failure_level,routineP,failure)
        
        submatrix_size(1) = cp_dbcsr_nfullrows_total(mscfg_env%mos_of_frag(ifrag,iset))
        submatrix_size(2) = cp_dbcsr_nfullcols_total(mscfg_env%mos_of_frag(ifrag,iset))
 
        CALL copy_submatrix_into_matrix(mscfg_env%mos_of_frag(ifrag,iset),&
-               matrix_temp, offset, submatrix_size, matrix_size, error)
+               matrix_temp, offset, submatrix_size, matrix_size)
 
-       CALL cp_dbcsr_add(matrix_out,matrix_temp,1.0_dp,1.0_dp,error=error)
+       CALL cp_dbcsr_add(matrix_out,matrix_temp,1.0_dp,1.0_dp)
        
        offset(1)=offset(1)+submatrix_size(1)
        offset(2)=offset(2)+submatrix_size(2)
@@ -201,10 +194,10 @@ CONTAINS
     ! is exactly the same as the size of the big matrix
     ! This is to prevent unexpected conversion errors
     ! If however such conversion is intended - remove these safeguards
-    CPPostcondition(offset(1).eq.matrix_size(1),cp_failure_level,routineP,error,failure)
-    CPPostcondition(offset(2).eq.matrix_size(2),cp_failure_level,routineP,error,failure)
+    CPPostcondition(offset(1).eq.matrix_size(1),cp_failure_level,routineP,failure)
+    CPPostcondition(offset(2).eq.matrix_size(2),cp_failure_level,routineP,failure)
     
-    CALL cp_dbcsr_release(matrix_temp,error=error)
+    CALL cp_dbcsr_release(matrix_temp)
 
     CALL timestop (handle)
 
@@ -217,19 +210,17 @@ CONTAINS
 !> \param offset ...
 !> \param submatrix_size ...
 !> \param matrix_size ...
-!> \param error ...
 !> \par History
 !>       10.2014 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE copy_submatrix_into_matrix(submatrix_in, matrix_out,&
-    offset, submatrix_size, matrix_size, error)
+    offset, submatrix_size, matrix_size)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: submatrix_in
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_out
     INTEGER, DIMENSION(2), INTENT(IN)        :: offset, submatrix_size, &
                                                 matrix_size
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_into_matrix', &
       routineP = moduleN//':'//routineN
@@ -323,18 +314,18 @@ CONTAINS
      reuse_arrays=.TRUE.)
 
     ! Create big the matrix
-    CALL cp_dbcsr_init(matrix_new,error=error)
+    CALL cp_dbcsr_init(matrix_new)
     CALL cp_dbcsr_create(matrix_new, "BIG_AND_FAKE",&
             dist_new, dbcsr_type_no_symmetry,&
             row_sizes_new, col_sizes_new,&
-            reuse_arrays=.TRUE., error=error)
+            reuse_arrays=.TRUE.)
     CALL cp_dbcsr_distribution_release(dist_new)
     
-    !CALL cp_dbcsr_finalize(matrix_new,error=error)
+    !CALL cp_dbcsr_finalize(matrix_new)
 
     ! copy blocks of the small matrix to the big matrix
     !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_new)))
-    CALL cp_dbcsr_work_create(matrix_new, work_mutable=.TRUE., error=error)
+    CALL cp_dbcsr_work_create(matrix_new, work_mutable=.TRUE.)
 
     ! iterate over local blocks of the small matrix
     CALL cp_dbcsr_iterator_start(iter,submatrix_in)
@@ -353,22 +344,21 @@ CONTAINS
                iblock_col+add_blocks_before(2),&
                p_new_block)
    
-       CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
-       CPPostcondition(SIZE(p_new_block,1).eq.SIZE(data_p,1),cp_failure_level,routineP,error,failure)
-       CPPostcondition(SIZE(p_new_block,2).eq.SIZE(data_p,2),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+       CPPostcondition(SIZE(p_new_block,1).eq.SIZE(data_p,1),cp_failure_level,routineP,failure)
+       CPPostcondition(SIZE(p_new_block,2).eq.SIZE(data_p,2),cp_failure_level,routineP,failure)
        
        p_new_block(:,:) = data_p(:,:)
    
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
    
-    CALL cp_dbcsr_finalize(matrix_new,error=error)
+    CALL cp_dbcsr_finalize(matrix_new)
 
     ! finally call complete redistribute to get the matrix of the entire system
-    CALL cp_dbcsr_set(matrix_out, 0.0_dp, error=error)
-    CALL cp_dbcsr_complete_redistribute(matrix_new, matrix_out,&
-            error=error);
-    CALL cp_dbcsr_release (matrix_new, error=error)
+    CALL cp_dbcsr_set(matrix_out, 0.0_dp)
+    CALL cp_dbcsr_complete_redistribute(matrix_new, matrix_out)
+    CALL cp_dbcsr_release (matrix_new)
 
   END SUBROUTINE copy_submatrix_into_matrix
   

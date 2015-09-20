@@ -82,14 +82,12 @@ CONTAINS
 !> \param occupation ...
 !> \param wfnocc ...
 !> \param multiplicity ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_set_occupation(ostring,occupation,wfnocc,multiplicity,error)
+  SUBROUTINE atom_set_occupation(ostring,occupation,wfnocc,multiplicity)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: ostring
     REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation, wfnocc
     INTEGER, INTENT(OUT), OPTIONAL           :: multiplicity
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
       routineP = moduleN//':'//routineN
@@ -105,8 +103,8 @@ CONTAINS
 
     occupation = 0._dp
 
-    CPPrecondition(ASSOCIATED(ostring),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(ostring) > 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ostring),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(ostring) > 0,cp_failure_level,routineP,failure)
 
     no = SIZE(ostring)
 
@@ -117,7 +115,7 @@ CONTAINS
       IF ( INDEX(ostring(is),"(") /= 0 ) THEN
         i1 = INDEX(ostring(is),"(")
         i2 = INDEX(ostring(is),")")
-        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
+        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,failure)
         elem = ostring(is)(i1+1:i2-1)
         IF ( INDEX(elem,"HS") /= 0 ) THEN
           mult=-2 !High spin
@@ -141,7 +139,7 @@ CONTAINS
         ! core occupation from element [XX]
         i1 = INDEX(ostring(is),"[")
         i2 = INDEX(ostring(is),"]")
-        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
+        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,failure)
         elem = ostring(is)(i1+1:i2-1)
         ielem=0
         DO k=1,nelem
@@ -150,7 +148,7 @@ CONTAINS
             EXIT
           END IF
         END DO
-        CPAssert(ielem /= 0,cp_failure_level,routineP,error,failure)
+        CPAssert(ielem /= 0,cp_failure_level,routineP,failure)
           DO l=0,3
           el = 2._dp * (2._dp*REAL(l,dp) + 1._dp)
           e0 = ptable(ielem)%e_conv(l)
@@ -172,41 +170,41 @@ CONTAINS
       jp = INDEX(pstring,"P")
       jd = INDEX(pstring,"D")
       jf = INDEX(pstring,"F")
-      CPAssert(js+jp+jd+jf > 0,cp_failure_level,routineP,error,failure)
+      CPAssert(js+jp+jd+jf > 0,cp_failure_level,routineP,failure)
       IF ( js > 0 ) THEN
-        CPAssert(jp+jd+jf == 0,cp_failure_level,routineP,error,failure)
+        CPAssert(jp+jd+jf == 0,cp_failure_level,routineP,failure)
         READ(pstring(1:js-1),*) n
         READ(pstring(js+1:),*) oo
-        CPAssert(n > 0,cp_failure_level,routineP,error,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,error,failure)
-        CPAssert(occupation(0,n)==0,cp_failure_level,routineP,error,failure)
+        CPAssert(n > 0,cp_failure_level,routineP,failure)
+        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
+        CPAssert(occupation(0,n)==0,cp_failure_level,routineP,failure)
         occupation(0,n) = oo
       END IF
       IF ( jp > 0 ) THEN
-        CPAssert(js+jd+jf == 0,cp_failure_level,routineP,error,failure)
+        CPAssert(js+jd+jf == 0,cp_failure_level,routineP,failure)
         READ(pstring(1:jp-1),*) n
         READ(pstring(jp+1:),*) oo
-        CPAssert(n > 1,cp_failure_level,routineP,error,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,error,failure)
-        CPAssert(occupation(1,n-1)==0,cp_failure_level,routineP,error,failure)
+        CPAssert(n > 1,cp_failure_level,routineP,failure)
+        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
+        CPAssert(occupation(1,n-1)==0,cp_failure_level,routineP,failure)
         occupation(1,n-1) = oo
       END IF
       IF ( jd > 0 ) THEN
-        CPAssert(js+jp+jf == 0,cp_failure_level,routineP,error,failure)
+        CPAssert(js+jp+jf == 0,cp_failure_level,routineP,failure)
         READ(pstring(1:jd-1),*) n
         READ(pstring(jd+1:),*) oo
-        CPAssert(n > 2,cp_failure_level,routineP,error,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,error,failure)
-        CPAssert(occupation(2,n-2)==0,cp_failure_level,routineP,error,failure)
+        CPAssert(n > 2,cp_failure_level,routineP,failure)
+        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
+        CPAssert(occupation(2,n-2)==0,cp_failure_level,routineP,failure)
         occupation(2,n-2) = oo
       END IF
       IF ( jf > 0 ) THEN
-        CPAssert(js+jp+jd == 0,cp_failure_level,routineP,error,failure)
+        CPAssert(js+jp+jd == 0,cp_failure_level,routineP,failure)
         READ(pstring(1:jf-1),*) n
         READ(pstring(jf+1:),*) oo
-        CPAssert(n > 3,cp_failure_level,routineP,error,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,error,failure)
-        CPAssert(occupation(3,n-3)==0,cp_failure_level,routineP,error,failure)
+        CPAssert(n > 3,cp_failure_level,routineP,failure)
+        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
+        CPAssert(occupation(3,n-3)==0,cp_failure_level,routineP,failure)
         occupation(3,n-3) = oo
       END IF
 
@@ -241,7 +239,7 @@ CONTAINS
       IF (js==0 .AND. mult==-2) mult=1
       IF (js==0 .AND. mult==-3) mult=1
       IF (js==0) THEN
-        CPAssert(mult==1,cp_failure_level,routineP,error,failure)
+        CPAssert(mult==1,cp_failure_level,routineP,failure)
       END IF
       IF (js==1) THEN
         l=i1
@@ -250,10 +248,10 @@ CONTAINS
         IF(k > (2*l+1)) k=2*(2*l+1)-k
         IF(mult==-2) mult=k+1
         IF(mult==-3) mult=MOD(k,2)+1
-        CPAssert(MOD(k+1-mult,2)==0,cp_failure_level,routineP,error,failure)
+        CPAssert(MOD(k+1-mult,2)==0,cp_failure_level,routineP,failure)
       END IF
       IF (js>1 .AND. mult/=-2) THEN
-        CPAssert(mult==-2,cp_failure_level,routineP,error,failure)
+        CPAssert(mult==-2,cp_failure_level,routineP,failure)
       END IF
 
     END IF
@@ -308,9 +306,8 @@ CONTAINS
 !> \param occ ...
 !> \param maxl ...
 !> \param maxn ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_denmat(pmat,wfn,nbas,occ,maxl,maxn,error)
+  SUBROUTINE atom_denmat(pmat,wfn,nbas,occ,maxl,maxn)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: pmat
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -320,7 +317,6 @@ CONTAINS
       INTENT(IN)                             :: occ
     INTEGER, INTENT(IN)                      :: maxl
     INTEGER, DIMENSION(0:3), INTENT(IN)      :: maxn
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_denmat', &
       routineP = moduleN//':'//routineN
@@ -348,9 +344,8 @@ CONTAINS
 !> \param maxl ...
 !> \param typ ...
 !> \param rr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_density(density,pmat,basis,maxl,typ,rr,error)
+  SUBROUTINE atom_density(density,pmat,basis,maxl,typ,rr)
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: pmat
@@ -359,7 +354,6 @@ CONTAINS
     CHARACTER(LEN=*), OPTIONAL               :: typ
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: rr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_density', &
       routineP = moduleN//':'//routineN
@@ -373,7 +367,7 @@ CONTAINS
     failure = .FALSE.
     IF(PRESENT(typ)) my_typ = typ(1:3)
     IF(my_typ == "KIN") THEN
-      CPPrecondition(PRESENT(rr),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(rr),cp_failure_level,routineP,failure)
     END IF
 
     density=0._dp
@@ -393,7 +387,7 @@ CONTAINS
               basis%dbf(:,i,l)*basis%dbf(:,j,l) + &
               REAL(l*(l+1),dp)*basis%bf(:,i,l)*basis%bf(:,j,l)/rr(:))
           ELSE
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           END IF
         END DO
       END DO
@@ -523,7 +517,6 @@ CONTAINS
     LOGICAL                                  :: ldm
     REAL(KIND=dp)                            :: rr
     REAL(KIND=dp), ALLOCATABLE               :: pmatread(:,:,:)
-    TYPE(cp_error_type)                      :: error
 
     filename=atom%ext_file
     ldm=atom%dm
@@ -572,7 +565,7 @@ CONTAINS
 
       CALL close_file(unit_number=extunit)
   
-      CALL atom_density(density,pmatread,atom%basis,maxl_occ,typ="RHO",error=error)
+      CALL atom_density(density,pmatread,atom%basis,maxl_occ,typ="RHO")
 
       extunit=get_unit_number()
       CALL open_file(file_name="rho_target.dat",file_status="UNKNOWN",&
@@ -653,15 +646,13 @@ CONTAINS
 !> \param rcov ...
 !> \param l ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_orbital_charge(charge,wfn,rcov,l,basis,error)
+  SUBROUTINE atom_orbital_charge(charge,wfn,rcov,l,basis)
     REAL(KIND=dp), INTENT(OUT)               :: charge
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
     REAL(KIND=dp), INTENT(IN)                :: rcov
     INTEGER, INTENT(IN)                      :: l
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_charge', &
       routineP = moduleN//':'//routineN
@@ -675,7 +666,7 @@ CONTAINS
     charge=0._dp
     m=SIZE(basis%bf,1)
     ALLOCATE(den(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     n=basis%nbas(l)
     den=0._dp
     DO i=1,n
@@ -689,7 +680,7 @@ CONTAINS
     END DO
     charge = SUM ( den(1:m) * basis%grid%wr(1:m) )
     DEALLOCATE(den,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE atom_orbital_charge
 ! *****************************************************************************
@@ -698,15 +689,13 @@ CONTAINS
 !> \param gthpot ...
 !> \param typ ...
 !> \param rr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_core_density(corden,gthpot,typ,rr,error)
+  SUBROUTINE atom_core_density(corden,gthpot,typ,rr)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: corden
     TYPE(atom_gthpot_type), INTENT(IN)       :: gthpot
     CHARACTER(LEN=*), OPTIONAL               :: typ
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_core_density', &
       routineP = moduleN//':'//routineN
@@ -724,7 +713,7 @@ CONTAINS
     IF(gthpot%nlcc) THEN
       m = SIZE(corden)
       ALLOCATE(fe(m),rc(m),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
       n=gthpot%nexp_nlcc
       DO i=1,n
         a=gthpot%alpha_nlcc(i)
@@ -740,12 +729,12 @@ CONTAINS
               corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i)/a
             END IF
           ELSE
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           END IF
         END DO
       END DO
       DEALLOCATE(fe,rc,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE atom_core_density
@@ -754,14 +743,12 @@ CONTAINS
 !> \param locpot ...
 !> \param gthpot ...
 !> \param rr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_local_potential(locpot,gthpot,rr,error)
+  SUBROUTINE atom_local_potential(locpot,gthpot,rr)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: locpot
     TYPE(atom_gthpot_type), INTENT(IN)       :: gthpot
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_local_potential', &
       routineP = moduleN//':'//routineN
@@ -774,7 +761,7 @@ CONTAINS
     failure = .FALSE.
     m = SIZE(locpot)
     ALLOCATE(fe(m),rc(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     rc(:)=rr(:)/gthpot%rc
     DO i=1,m
        locpot(i) = -gthpot%zion*erf(rc(i)/SQRT(2._dp))/rr(i)
@@ -796,7 +783,7 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(fe,rc,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE atom_local_potential
 ! *****************************************************************************
@@ -806,15 +793,13 @@ CONTAINS
 !> \param rcov ...
 !> \param l ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_orbital_max(rmax,wfn,rcov,l,basis,error)
+  SUBROUTINE atom_orbital_max(rmax,wfn,rcov,l,basis)
     REAL(KIND=dp), INTENT(OUT)               :: rmax
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
     REAL(KIND=dp), INTENT(IN)                :: rcov
     INTEGER, INTENT(IN)                      :: l
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_max', &
       routineP = moduleN//':'//routineN
@@ -827,7 +812,7 @@ CONTAINS
     failure = .FALSE.
     m=SIZE(basis%bf,1)
     ALLOCATE(dorb(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     n=basis%nbas(l)
     dorb=0._dp
     DO i=1,n
@@ -843,7 +828,7 @@ CONTAINS
       END IF
     END DO
     DEALLOCATE(dorb,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE atom_orbital_max
 ! *****************************************************************************
@@ -853,15 +838,13 @@ CONTAINS
 !> \param rcov ...
 !> \param l ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_orbital_nodes(node,wfn,rcov,l,basis,error)
+  SUBROUTINE atom_orbital_nodes(node,wfn,rcov,l,basis)
     INTEGER, INTENT(OUT)                     :: node
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
     REAL(KIND=dp), INTENT(IN)                :: rcov
     INTEGER, INTENT(IN)                      :: l
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
       routineP = moduleN//':'//routineN
@@ -875,7 +858,7 @@ CONTAINS
     node=0
     m=SIZE(basis%bf,1)
     ALLOCATE(orb(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     n=basis%nbas(l)
     orb=0._dp
     DO i=1,n
@@ -888,7 +871,7 @@ CONTAINS
       END IF
     END DO
     DEALLOCATE(orb,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE atom_orbital_nodes
 ! *****************************************************************************
@@ -896,13 +879,11 @@ CONTAINS
 !> \param value ...
 !> \param wfn ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_wfnr0(value,wfn,basis,error)
+  SUBROUTINE atom_wfnr0(value,wfn,basis)
     REAL(KIND=dp), INTENT(OUT)               :: value
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_wfnr0', &
       routineP = moduleN//':'//routineN
@@ -925,9 +906,8 @@ CONTAINS
 !> \param nb ...
 !> \param nv ...
 !> \param maxl ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl,error)
+  SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: hmat, umat
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -936,7 +916,6 @@ CONTAINS
       INTENT(INOUT)                          :: ener
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nb, nv
     INTEGER, INTENT(IN)                      :: maxl
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_solve', &
       routineP = moduleN//':'//routineN
@@ -948,7 +927,7 @@ CONTAINS
       DIMENSION(:, :)                        :: a
 
     failure = .FALSE.
-    CPPrecondition(ALL(nb >= nv),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ALL(nb >= nv),cp_failure_level,routineP,failure)
 
     orb = 0._dp
     DO l=0,maxl
@@ -957,7 +936,7 @@ CONTAINS
       IF ( n > 0 .AND. m > 0 ) THEN
         lwork = 10*m
         ALLOCATE(a(n,n),w(n),work(lwork),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
         a(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(hmat(1:n,1:n,l),umat(1:n,1:m,l)))
         CALL lapack_ssyev ( "V", "U", m, a(1:m,1:m), m, w(1:m), work, lwork, info )
         a(1:n,1:m) = MATMUL(umat(1:n,1:m,l),a(1:m,1:m))
@@ -967,7 +946,7 @@ CONTAINS
         ener(1:m,l) = w(1:m)
 
         DEALLOCATE(a,w,work,STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
       END IF
     END DO
 
@@ -1060,14 +1039,12 @@ CONTAINS
 !> \param cpot ...
 !> \param density ...
 !> \param grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE coulomb_potential_numeric ( cpot, density, grid, error )
+  SUBROUTINE coulomb_potential_numeric ( cpot, density, grid)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: cpot
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: density
     TYPE(grid_atom_type), INTENT(IN)         :: grid
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_numeric', &
       routineP = moduleN//':'//routineN
@@ -1087,7 +1064,7 @@ CONTAINS
     cpot(nc:) = int1/r(nc:)
 
     ! test that grid is decreasing
-    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,error,failure)
+    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,failure)
     DO i = 1, nc
       cpot(i) = int1/r(i) + int2
       int1 = int1 - fourpi * density(i)*wr(i)
@@ -1105,9 +1082,8 @@ CONTAINS
 !> \param basis ...
 !> \param grid ...
 !> \param maxl ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE coulomb_potential_analytic ( cpot, pmat, basis, grid, maxl, error )
+  SUBROUTINE coulomb_potential_analytic ( cpot, pmat, basis, grid, maxl)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: cpot
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -1115,7 +1091,6 @@ CONTAINS
     TYPE(atom_basis_type), INTENT(IN)        :: basis
     TYPE(grid_atom_type)                     :: grid
     INTEGER, INTENT(IN)                      :: maxl
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_analytic', &
       routineP = moduleN//':'//routineN
@@ -1130,7 +1105,7 @@ CONTAINS
     failure = .FALSE.
     m = SIZE(cpot)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
     cpot = 0._dp
 
@@ -1138,7 +1113,7 @@ CONTAINS
       IF ( MAXVAL(ABS(pmat(:,:,l))) < 1.e-14_dp ) CYCLE
       SELECT CASE ( basis%basis_type )
         CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
         CASE ( GTO_BASIS )
           DO i = 1, basis%nbas(l)
             DO j = i, basis%nbas(l)
@@ -1156,7 +1131,7 @@ CONTAINS
               expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
               SELECT CASE (l)
                 CASE DEFAULT
-                  CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                 CASE (0)
                   cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                 CASE (1)
@@ -1172,7 +1147,7 @@ CONTAINS
           n = basis%nprim(l)
           m = basis%nbas(l)
           ALLOCATE ( unp(n,n), STAT=ierr )
-          CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
           unp(1:n,1:n) = MATMUL ( MATMUL(basis%cm(1:n,1:m,l),pmat(1:m,1:m,l)),&
                                   TRANSPOSE(basis%cm(1:n,1:m,l)))
@@ -1192,7 +1167,7 @@ CONTAINS
               expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
               SELECT CASE (l)
                 CASE DEFAULT
-                  CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                 CASE (0)
                   cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                 CASE (1)
@@ -1206,11 +1181,11 @@ CONTAINS
           END DO
 
           DEALLOCATE ( unp, STAT=ierr )
-          CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
       END SELECT
     END DO
     DEALLOCATE ( erfa, expa, z, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE coulomb_potential_analytic
 
@@ -1223,9 +1198,8 @@ CONTAINS
 !> \param occ ...
 !> \param wfn ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE exchange_numeric ( kmat, state, occ, wfn, basis, error )
+  SUBROUTINE exchange_numeric ( kmat, state, occ, wfn, basis)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
     TYPE(atom_state), INTENT(IN)             :: state
@@ -1234,7 +1208,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: wfn
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exchange_numeric', &
       routineP = moduleN//':'//routineN
@@ -1259,7 +1232,7 @@ CONTAINS
 
     nr = basis%grid%nr
     ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
     DO lad = 0, state%maxl_calc
       DO lbc = 0 , state%maxl_occ
@@ -1267,7 +1240,7 @@ CONTAINS
         nbas = basis%nbas(lbc)
         ! calculate orbitals for angmom lbc
         ALLOCATE ( orb(nr,norb), STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
         orb = 0._dp
         DO i=1,norb
           DO k=1,nbas
@@ -1281,7 +1254,7 @@ CONTAINS
           DO ia=1,basis%nbas(lad)
             DO i=1,norb
               nai(:) = orb(:,i)*basis%bf(:,ia,lad)
-              CALL potential_numeric(cpot,nai,nu,basis%grid,error)
+              CALL potential_numeric(cpot,nai,nu,basis%grid)
               DO ib=1,basis%nbas(lad)
                 kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*occ(lbc,i)* &
                   integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
@@ -1291,12 +1264,12 @@ CONTAINS
 
         END DO
         DEALLOCATE ( orb, STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
       END DO
     END DO
 
     DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE exchange_numeric
 
@@ -1309,9 +1282,8 @@ CONTAINS
 !> \param occ ...
 !> \param wfn ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE exchange_semi_analytic ( kmat, state, occ, wfn, basis, error )
+  SUBROUTINE exchange_semi_analytic ( kmat, state, occ, wfn, basis)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
     TYPE(atom_state), INTENT(IN)             :: state
@@ -1320,7 +1292,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: wfn
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exchange_semi_analytic', &
       routineP = moduleN//':'//routineN
@@ -1348,9 +1319,9 @@ CONTAINS
     nr = basis%grid%nr
     nbas = MAXVAL(basis%nbas)
     ALLOCATE ( pot(nr,nbas,nbas), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
     DO lad = 0, state%maxl_calc
       DO lbc = 0 , state%maxl_occ
@@ -1358,7 +1329,7 @@ CONTAINS
         nbas = basis%nbas(lbc)
         ! calculate orbitals for angmom lbc
         ALLOCATE ( orb(nr,norb), STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
         orb = 0._dp
         DO i=1,norb
           DO k=1,nbas
@@ -1370,7 +1341,7 @@ CONTAINS
           almn = -0.5_dp*almn
           ! calculate potential for basis function pair (lad,lbc)
           pot = 0._dp
-          CALL potential_analytic ( pot, lad, lbc, nu, basis, error )
+          CALL potential_analytic ( pot, lad, lbc, nu, basis)
           DO ia=1,basis%nbas(lad)
             DO i=1,norb
               cpot = 0._dp
@@ -1385,14 +1356,14 @@ CONTAINS
           END DO
         END DO
         DEALLOCATE ( orb, STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
       END DO
     END DO
 
     DEALLOCATE ( pot, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE exchange_semi_analytic
 
@@ -1402,15 +1373,13 @@ CONTAINS
 !> \param density ...
 !> \param nu ...
 !> \param grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE potential_numeric ( cpot, density, nu, grid, error )
+  SUBROUTINE potential_numeric ( cpot, density, nu, grid)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: cpot
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: density
     INTEGER, INTENT(IN)                      :: nu
     TYPE(grid_atom_type), INTENT(IN)         :: grid
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'potential_numeric', &
       routineP = moduleN//':'//routineN
@@ -1430,7 +1399,7 @@ CONTAINS
     cpot(nc:) = int1/r(nc:)**(nu+1)
 
     ! test that grid is decreasing
-    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,error,failure)
+    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,failure)
     DO i = 1, nc
       cpot(i) = int1/r(i)**(nu+1) + int2*r(i)**nu
       int1 = int1 - r(i)**(nu)*density(i)*wr(i)
@@ -1445,14 +1414,12 @@ CONTAINS
 !> \param lb ...
 !> \param nu ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE potential_analytic ( cpot, la, lb, nu, basis, error )
+  SUBROUTINE potential_analytic ( cpot, la, lb, nu, basis)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: cpot
     INTEGER, INTENT(IN)                      :: la, lb, nu
     TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'potential_analytic', &
       routineP = moduleN//':'//routineN
@@ -1465,7 +1432,7 @@ CONTAINS
     failure = .FALSE.
     m = SIZE(cpot,1)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
     ll = la+lb
 
@@ -1473,7 +1440,7 @@ CONTAINS
 
     SELECT CASE ( basis%basis_type )
       CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
       CASE ( GTO_BASIS )
         DO i = 1, basis%nbas(la)
           DO j = 1, basis%nbas(lb)
@@ -1489,16 +1456,16 @@ CONTAINS
             expa(:)= EXP(-z(:)**2)/(sab**(ll+2))/(2._dp**((ll+nu)/2+2))
             SELECT CASE (ll)
               CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
               CASE (0)
-                CPPostcondition(nu==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(nu==0,cp_failure_level,routineP,failure)
               CASE (1)
-                CPPostcondition(nu==1,cp_failure_level,routineP,error,failure)
+                CPPostcondition(nu==1,cp_failure_level,routineP,failure)
                 cpot(:,i,j) = cpot(:,i,j)-6._dp*expa(:)/z(:)
               CASE (2)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-2._dp*expa(:)
                   CASE (2)
@@ -1507,7 +1474,7 @@ CONTAINS
               CASE (3)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (1)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(12._dp*z(:)+30._dp/z(:))
                   CASE (3)
@@ -1516,7 +1483,7 @@ CONTAINS
               CASE (4)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(4._dp*z(:)**2+14._dp)
                   CASE (2)
@@ -1527,7 +1494,7 @@ CONTAINS
               CASE (5)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (1)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
                   CASE (3)
@@ -1539,7 +1506,7 @@ CONTAINS
               CASE (6)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
                   CASE (2)
@@ -1568,16 +1535,16 @@ CONTAINS
             expa(:)= EXP(-z(:)**2)/sab**(ll+2)/2._dp**((ll+nu)/2+2)
             SELECT CASE (ll)
               CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
               CASE (0)
-                CPPostcondition(nu==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(nu==0,cp_failure_level,routineP,failure)
               CASE (1)
-                CPPostcondition(nu==1,cp_failure_level,routineP,error,failure)
+                CPPostcondition(nu==1,cp_failure_level,routineP,failure)
                 erfa(:) = erfa(:)-6._dp*expa(:)/z(:)
               CASE (2)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (0)
                     erfa(:) = erfa(:)-2._dp*expa(:)
                   CASE (2)
@@ -1586,7 +1553,7 @@ CONTAINS
               CASE (3)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (1)
                     erfa(:) = erfa(:)-expa(:)*(12._dp*z(:)+30._dp/z(:))
                   CASE (3)
@@ -1595,7 +1562,7 @@ CONTAINS
               CASE (4)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (0)
                     erfa(:) = erfa(:)-expa(:)*(4._dp*z(:)**2+14._dp)
                   CASE (2)
@@ -1606,7 +1573,7 @@ CONTAINS
               CASE (5)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (1)
                     erfa(:) = erfa(:)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
                   CASE (3)
@@ -1618,7 +1585,7 @@ CONTAINS
               CASE (6)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                   CASE (0)
                     erfa(:) = erfa(:)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
                   CASE (2)
@@ -1642,7 +1609,7 @@ CONTAINS
     END SELECT
 
     DEALLOCATE ( erfa, expa, z, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE potential_analytic
 ! *****************************************************************************
@@ -1651,13 +1618,11 @@ CONTAINS
 !> \brief ...
 !> \param opmat ...
 !> \param pmat ...
-!> \param error ...
 !> \retval trace ...
 ! *****************************************************************************
-  FUNCTION atom_trace(opmat,pmat,error) RESULT(trace)
+  FUNCTION atom_trace(opmat,pmat) RESULT(trace)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: opmat, pmat
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: trace
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_trace', &
@@ -1673,15 +1638,13 @@ CONTAINS
 !> \param cpot ...
 !> \param basis ...
 !> \param derivatives ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE numpot_matrix(imat,cpot,basis,derivatives,error)
+  SUBROUTINE numpot_matrix(imat,cpot,basis,derivatives)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: imat
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cpot
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     INTEGER, INTENT(IN)                      :: derivatives
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'numpot_matrix', &
       routineP = moduleN//':'//routineN
@@ -1728,7 +1691,7 @@ CONTAINS
           END DO
         END DO
       CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE numpot_matrix
@@ -1739,9 +1702,8 @@ CONTAINS
 !> \param pmat ...
 !> \param nsize ...
 !> \param all_nu ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE ceri_contract(jmat,erint,pmat,nsize,all_nu,error)
+  SUBROUTINE ceri_contract(jmat,erint,pmat,nsize,all_nu)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: jmat
     TYPE(eri), DIMENSION(:), INTENT(IN)      :: erint
@@ -1749,7 +1711,6 @@ CONTAINS
       INTENT(IN)                             :: pmat
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nsize
     LOGICAL, INTENT(IN), OPTIONAL            :: all_nu
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ceri_contract', &
       routineP = moduleN//':'//routineN
@@ -1818,16 +1779,14 @@ CONTAINS
 !> \param erint ...
 !> \param pmat ...
 !> \param nsize ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE eeri_contract(kmat,erint,pmat,nsize,error)
+  SUBROUTINE eeri_contract(kmat,erint,pmat,nsize)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
     TYPE(eri), DIMENSION(:), INTENT(IN)      :: erint
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: pmat
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nsize
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eeri_contract', &
       routineP = moduleN//':'//routineN
@@ -1902,16 +1861,14 @@ CONTAINS
 !> \param upmat ...
 !> \param nval ...
 !> \param nbs ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE err_matrix(emat,demax,kmat,pmat,umat,upmat,nval,nbs,error)
+  SUBROUTINE err_matrix(emat,demax,kmat,pmat,umat,upmat,nval,nbs)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(OUT)                            :: emat
     REAL(KIND=dp), INTENT(OUT)               :: demax
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: kmat, pmat, umat, upmat
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nval, nbs
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'err_matrix', &
       routineP = moduleN//':'//routineN
@@ -1928,7 +1885,7 @@ CONTAINS
       m = nbs(l)
       IF (m > 0) THEN
         ALLOCATE(tkmat(1:m,1:m),tpmat(1:m,1:m),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
         tkmat = 0._dp
         tpmat = 0._dp
         tkmat(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(kmat(1:n,1:n,l),umat(1:n,1:m,l)))
@@ -1938,7 +1895,7 @@ CONTAINS
         emat(1:m,1:m,l) = MATMUL(tkmat(1:m,1:m),tpmat(1:m,1:m)) - MATMUL(tpmat(1:m,1:m),tkmat(1:m,1:m))
 
         DEALLOCATE(tkmat,tpmat,STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
       END IF
     END DO
     demax = MAXVAL(ABS(emat))
@@ -1951,14 +1908,12 @@ CONTAINS
 !> \param zcore ...
 !> \param state ...
 !> \param grid ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE slater_density(density1,density2,zcore,state,grid,error)
+  SUBROUTINE slater_density(density1,density2,zcore,state,grid)
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density1, density2
     INTEGER, INTENT(IN)                      :: zcore
     TYPE(atom_state), INTENT(IN)             :: state
     TYPE(grid_atom_type), INTENT(IN)         :: grid
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'slater_density', &
       routineP = moduleN//':'//routineN
@@ -1991,12 +1946,10 @@ CONTAINS
 !> \brief ...
 !> \param rho ...
 !> \param vxc ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE wigner_slater_functional(rho,vxc,error)
+  SUBROUTINE wigner_slater_functional(rho,vxc)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vxc
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wigner_slater_functional', &
       routineP = moduleN//':'//routineN

@@ -11,11 +11,10 @@
 !> \param rjiv ...
 !> \param ij_matrix ...
 !> \param do_invert ...
-!> \param error ...
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
+SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_utils,        ONLY: rotmat
@@ -30,7 +29,6 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
   TYPE(rotmat_type), POINTER               :: ij_matrix
   LOGICAL, INTENT(IN)                      :: do_invert
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
        routineN = 'check_rotmat_der', routineP = moduleN//':'//routineN
@@ -43,9 +41,9 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
 
   NULLIFY(matrix_m, matrix_p, matrix_n, matrix)
   failure = .FALSE.
-  CALL rotmat_create(matrix_p, error)
-  CALL rotmat_create(matrix_m, error)
-  CALL rotmat_create(matrix_n, error)
+  CALL rotmat_create(matrix_p)
+  CALL rotmat_create(matrix_m)
+  CALL rotmat_create(matrix_n)
   dx = 1.0E-6_dp
   imap(1) = 1
   imap(2) = 2
@@ -65,8 +63,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
         IF (i==2) matrix => matrix_m
         r0 = rjiv + (-1.0_dp)**(i-1) * x
         r  = SQRT(DOT_PRODUCT(r0,r0))
-        CALL rotmat (sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=do_invert,&
-             error=error)
+        CALL rotmat (sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=do_invert)
      END DO
      ! SP
      matrix_n%sp_d(j, :, :) = (matrix_p%sp - matrix_m%sp)/(2.0_dp*dx)
@@ -128,9 +125,9 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
         END DO
      END IF
   END DO
-  CALL rotmat_release(matrix_p, error)
-  CALL rotmat_release(matrix_m, error)
-  CALL rotmat_release(matrix_n, error)
+  CALL rotmat_release(matrix_p)
+  CALL rotmat_release(matrix_m)
+  CALL rotmat_release(matrix_n)
 END SUBROUTINE check_rotmat_der
 
 ! *****************************************************************************
@@ -144,14 +141,13 @@ END SUBROUTINE check_rotmat_der
 !> \param ii ...
 !> \param kk ...
 !> \param v_d ...
-!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, v_d, error)
+SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, v_d)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_utils,        ONLY: rotmat
@@ -174,7 +170,6 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
   INTEGER, INTENT(IN)                      :: ii, kk
   REAL(KIND=dp), DIMENSION(3, 45, 45), &
     INTENT(IN)                             :: v_d
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
        routineN = 'rot_2el_2c_first', routineP = moduleN//':'//routineN
@@ -209,22 +204,21 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
         r0 = rijv + (-1.0_dp)**(i-1) * x
         r  = SQRT(DOT_PRODUCT(r0,r0))
 
-        CALL rotmat_create(matrix, error)
-        CALL rotmat (sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=invert,&
-             error=error)
+        CALL rotmat_create(matrix)
+        CALL rotmat (sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=invert)
 
         ! Compute integrals in diatomic frame
-        CALL terep_num(sepi,sepj,r,rep,se_taper=se_taper,se_int_control=se_int_control,error=error)
+        CALL terep_num(sepi,sepj,r,rep,se_taper=se_taper,se_int_control=se_int_control)
 
         IF (i==1) THEN
            CALL rot_2el_2c_first(sepi, sepj, r0, se_int_control, se_taper, invert, ii, kk, rep, logv, matrix,&
-                v_p, lgrad=.FALSE., error=error)
+                v_p, lgrad=.FALSE.)
         END IF
         IF (i==2) THEN
            CALL rot_2el_2c_first(sepi, sepj, r0, se_int_control, se_taper, invert, ii, kk, rep, logv, matrix,&
-                v_m, lgrad=.FALSE., error=error)
+                v_m, lgrad=.FALSE.)
         END IF
-        CALL rotmat_release(matrix, error)
+        CALL rotmat_release(matrix)
      END DO
      ! Check numerical VS analytical
      DO i = 1, 45
@@ -249,14 +243,13 @@ END SUBROUTINE rot_2el_2c_first_debug
 !> \param itype ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_taper,error)
+SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_taper)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: ssss_nucint_num
@@ -271,7 +264,6 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_tap
   INTEGER, INTENT(IN)                      :: itype
   TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
   TYPE(se_taper_type), POINTER                :: se_taper
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
        routineN = 'check_dssss_nucint_ana', routineP = moduleN//':'//routineN
@@ -282,9 +274,9 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_tap
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r + delta
-  CALL ssss_nucint_num(sepi,sepj,rn,ssssp,itype,se_taper,se_int_control,error=error)
+  CALL ssss_nucint_num(sepi,sepj,rn,ssssp,itype,se_taper,se_int_control)
   rn = r - delta
-  CALL ssss_nucint_num(sepi,sepj,rn,ssssm,itype,se_taper,se_int_control,error=error)
+  CALL ssss_nucint_num(sepi,sepj,rn,ssssm,itype,se_taper,se_int_control)
   nssss = od * (ssssp - ssssm)
   ! check
   WRITE(*,*)"DEBUG::"//routineP
@@ -303,14 +295,13 @@ END SUBROUTINE check_dssss_nucint_ana
 !> \param itype ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_taper,error)
+SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_taper)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: core_nucint_num
@@ -325,7 +316,6 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_tap
   INTEGER, INTENT(IN)                      :: itype
   TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
   TYPE(se_taper_type), POINTER             :: se_taper
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
        routineN = 'check_dcore_nucint_ana', routineP = moduleN//':'//routineN
@@ -338,9 +328,9 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_tap
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r + delta
-  CALL core_nucint_num(sepi,sepj,rn,corep,itype,se_taper,se_int_control,error=error)
+  CALL core_nucint_num(sepi,sepj,rn,corep,itype,se_taper,se_int_control)
   rn = r - delta
-  CALL core_nucint_num(sepi,sepj,rn,corem,itype,se_taper,se_int_control,error=error)
+  CALL core_nucint_num(sepi,sepj,rn,corem,itype,se_taper,se_int_control)
   ncore = od * (corep - corem)
   ! check
   WRITE(*,*)"DEBUG::"//routineP
@@ -405,14 +395,13 @@ END FUNCTION check_value
 !> \param e2a ...
 !> \param de1b ...
 !> \param de2a ...
-!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a, error)
+SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: rotnuc_num,&
@@ -431,7 +420,6 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
     OPTIONAL                               :: e1b, e2a
   REAL(dp), DIMENSION(3, 45), &
     INTENT(IN), OPTIONAL                   :: de1b, de2a
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
     routineN = 'check_drotnuc_ana', routineP = moduleN//':'//routineN
@@ -451,7 +439,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
   delta = 1.0E-5_dp
   ! Check value of integrals
   WRITE(*,*)"DEBUG::"//routineP
-  CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,itype,se_int_control,se_taper=se_taper,error=error)
+  CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,itype,se_int_control,se_taper=se_taper)
   IF (l_e1b) THEN
      DO j = 1, 45
         IF (.NOT.check_value(e1b2(j), e1b(j), delta, 0.1_dp)) THEN
@@ -472,7 +460,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
   ! Check derivatives
   IF (lgrad) THEN
      CALL drotnuc_num(sepi,sepj,rijv,de1b2,de2a2,itype,delta=delta,&
-          se_int_control=se_int_control,se_taper=se_taper,error=error)
+          se_int_control=se_int_control,se_taper=se_taper)
      IF (l_de1b) THEN
         DO i = 1, 3
            DO j = 1, 45
@@ -512,14 +500,13 @@ END SUBROUTINE check_drotnuc_ana
 !> \param se_taper ...
 !> \param enuc ...
 !> \param denuc ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper, enuc, denuc, error)
+SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper, enuc, denuc)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: corecore_num,&
@@ -537,7 +524,6 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
        OPTIONAL                            :: denuc
   TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
   TYPE(se_taper_type), POINTER             :: se_taper
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
        routineN = 'check_dcorecore_ana', routineP = moduleN//':'//routineN
@@ -551,14 +537,14 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
   delta = 1.0E-7_dp
   ! check
   IF (PRESENT(enuc)) THEN
-     CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,se_int_control,se_taper,error)
+     CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,se_int_control,se_taper)
      IF (.NOT.check_value(enuc, enuc_num, delta, 0.001_dp)) THEN
         WRITE(*,*)"ERROR for CORE-CORE energy value (numerical different from analytical)!!"
         STOP
      END IF
   END IF
   IF (PRESENT(denuc)) THEN
-     CALL dcorecore_num(sepi,sepj,rijv,denuc_num,itype,delta,se_int_control,se_taper,error)
+     CALL dcorecore_num(sepi,sepj,rijv,denuc_num,itype,delta,se_int_control,se_taper)
      DO j = 1, 3
         IF (.NOT.check_value(denuc(j), denuc_num(j), delta, 0.001_dp)) THEN
            WRITE(*,*)"ERROR for CORE-CORE energy derivative value (numerical different from analytical). DENUC(j), j::", j
@@ -578,14 +564,13 @@ END SUBROUTINE check_dcorecore_ana
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param lgrad ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,error)
+SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: terep_num
@@ -600,7 +585,6 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,er
   TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
   LOGICAL, INTENT(IN)                      :: lgrad
   TYPE(se_taper_type), POINTER             :: se_taper
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
        routineN = 'check_dterep_ana', routineP = moduleN//':'//routineN
@@ -613,12 +597,12 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,er
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r
-  CALL terep_num(sepi,sepj,rn,ri0,se_taper,se_int_control,error=error)
+  CALL terep_num(sepi,sepj,rn,ri0,se_taper,se_int_control)
   IF (lgrad) THEN
      rn = r + delta
-     CALL terep_num(sepi,sepj,rn,rip,se_taper,se_int_control,error=error)
+     CALL terep_num(sepi,sepj,rn,rip,se_taper,se_int_control)
      rn = r - delta
-     CALL terep_num(sepi,sepj,rn,rim,se_taper,se_int_control,error=error)
+     CALL terep_num(sepi,sepj,rn,rim,se_taper,se_int_control)
      nri = od * (rip - rim)
   END IF
   ! check
@@ -650,14 +634,13 @@ END SUBROUTINE check_dterep_ana
 !> \param dw ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 !> \note
 !>      Debug routine
 ! *****************************************************************************
-SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
+SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper)
   
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: rotint_num,&
@@ -675,7 +658,6 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
     INTENT(IN), OPTIONAL                   :: dw
   TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
   TYPE(se_taper_type), POINTER             :: se_taper
-  TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
        routineN = 'rotint_ana', routineP = moduleN//':'//routineN
@@ -690,7 +672,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
   WRITE(*,*)"DEBUG::"//routineP
   IF (PRESENT(w)) THEN
      w2=0.0_dp
-     CALL rotint_num(sepi,sepj,rijv,w2,se_int_control,se_taper=se_taper,error=error)
+     CALL rotint_num(sepi,sepj,rijv,w2,se_int_control,se_taper=se_taper)
      DO j = 1, 2025
         IF (.NOT.check_value(w(j), w2(j), delta, 0.1_dp)) THEN
            WRITE(*,*)"ERROR for integral value W(j), j::",j
@@ -703,8 +685,8 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
      ! First of all let's decide if the value we get for delta is compatible
      ! with a reasonable value of the integral.. (compatible if the value of the
      ! integral is greater than 1.0E-6)
-     CALL drotint_num(sepi,sepj,rijv,dw2,delta=delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
-     CALL rotint_num(sepi,sepj,rijv,w2,se_int_control=se_int_control,se_taper=se_taper,error=error)
+     CALL drotint_num(sepi,sepj,rijv,dw2,delta=delta,se_int_control=se_int_control,se_taper=se_taper)
+     CALL rotint_num(sepi,sepj,rijv,w2,se_int_control=se_int_control,se_taper=se_taper)
      DO i = 1, 3
         DO j = 1, 2025
            IF ((ABS(w2(j))>delta).AND.(ABS(dw2(i,j))>delta*10)) THEN

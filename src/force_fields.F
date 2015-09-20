@@ -81,12 +81,11 @@ CONTAINS
 !> \param shell_particle_set ...
 !> \param core_particle_set ...
 !> \param cell ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE force_field_control(atomic_kind_set, particle_set, &
        molecule_kind_set, molecule_set, ewald_env, fist_nonbond_env, &
        root_section, para_env, qmmm, qmmm_env, subsys_section, mm_section, &
-       shell_particle_set, core_particle_set, cell, error)
+       shell_particle_set, core_particle_set, cell)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -108,7 +107,6 @@ CONTAINS
       POINTER                                :: shell_particle_set, &
                                                 core_particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
       routineP = moduleN//':'//routineN
@@ -122,28 +120,28 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
-         extension=".mmLog",error=error)
+         extension=".mmLog")
 
     !-----------------------------------------------------------------------------
     ! 1. Initialize the ff_type structure type
     !-----------------------------------------------------------------------------
-    CALL init_ff_type(ff_type,error)
+    CALL init_ff_type(ff_type)
 
     !-----------------------------------------------------------------------------
     ! 2. Read in the force field section in the input file if any
     !-----------------------------------------------------------------------------
-    CALL read_force_field_section(ff_type,para_env,mm_section,error)
+    CALL read_force_field_section(ff_type,para_env,mm_section)
 
     !-----------------------------------------------------------------------------
     ! 2.1 In case exclusion 1-4 was requested, we need to modify the values of
     !     the scale factors setting them to zero..
     !-----------------------------------------------------------------------------
-    topology_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY",error=error)
-    CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=exclude_vdw,error=error)
-    CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=exclude_ei,error=error)
+    topology_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY")
+    CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=exclude_vdw)
+    CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=exclude_ei)
     IF (exclude_vdw==do_skip_14) ff_type%vdw_scale14 = 0.0_dp
     IF (exclude_ei ==do_skip_14) ff_type%ei_scale14  = 0.0_dp
 
@@ -169,11 +167,11 @@ CONTAINS
     !-----------------------------------------------------------------------------
     SELECT CASE (ff_type%ff_type)
     CASE (do_ff_charmm)
-       CALL read_force_field_charmm(ff_type,para_env,mm_section,error)
+       CALL read_force_field_charmm(ff_type,para_env,mm_section)
     CASE (do_ff_amber)
-       CALL read_force_field_amber(ff_type,para_env,mm_section,particle_set,error)
+       CALL read_force_field_amber(ff_type,para_env,mm_section,particle_set)
     CASE (do_ff_g87,do_ff_g96)
-       CALL read_force_field_gromos(ff_type,para_env,mm_section,error)
+       CALL read_force_field_gromos(ff_type,para_env,mm_section)
     CASE (do_ff_undef)
        ! Do Nothing
     CASE DEFAULT
@@ -184,7 +182,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 5. Possibly print the top file
     !-----------------------------------------------------------------------------
-    CALL print_pot_parameter_file(ff_type, mm_section, error)
+    CALL print_pot_parameter_file(ff_type, mm_section)
 
     !-----------------------------------------------------------------------------
     ! 6. Pack all force field info into different structures
@@ -192,26 +190,26 @@ CONTAINS
     CALL force_field_pack (particle_set,atomic_kind_set, molecule_kind_set,molecule_set,&
          ewald_env,fist_nonbond_env,ff_type,root_section, qmmm, qmmm_env, mm_section,&
          subsys_section, shell_particle_set=shell_particle_set, &
-         core_particle_set=core_particle_set, cell=cell, error=error)
+         core_particle_set=core_particle_set, cell=cell)
 
     !-----------------------------------------------------------------------------
     ! 7. Output total system charge assigned to qeff
     !-----------------------------------------------------------------------------
     CALL force_field_qeff_output (particle_set, molecule_kind_set,&
-         molecule_set, mm_section, fist_nonbond_env%charges, error)
+         molecule_set, mm_section, fist_nonbond_env%charges)
 
     !-----------------------------------------------------------------------------
     ! 8. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds
     !-----------------------------------------------------------------------------
-    CALL clean_intra_force_kind (molecule_kind_set,mm_section,error)
+    CALL clean_intra_force_kind (molecule_kind_set,mm_section)
 
     !-----------------------------------------------------------------------------
     ! 9. Cleanup the ff_type structure type
     !-----------------------------------------------------------------------------
-    CALL deallocate_ff_type(ff_type, error=error)
+    CALL deallocate_ff_type(ff_type)
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
-         "PRINT%FF_INFO",error=error)
+         "PRINT%FF_INFO")
     CALL timestop(handle)
 
   END SUBROUTINE force_field_control
@@ -220,14 +218,12 @@ CONTAINS
 !> \brief Prints force field information in a pot file
 !> \param ff_type ...
 !> \param mm_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino, teodoro.laino-AT-gmail.com] - 11.2008
 ! *****************************************************************************
-  SUBROUTINE print_pot_parameter_file(ff_type, mm_section, error)
+  SUBROUTINE print_pot_parameter_file(ff_type, mm_section)
 
     TYPE(force_field_type)                   :: ff_type
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_pot_parameter_file', &
       routineP = moduleN//':'//routineN
@@ -240,11 +236,11 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,mm_section,"PRINT%FF_PARAMETER_FILE",&
-         error=error),cp_p_file)) THEN
+    logger => cp_get_default_logger()
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,mm_section,"PRINT%FF_PARAMETER_FILE")&
+         ,cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_PARAMETER_FILE",&
-            middle_name="force_field",extension=".pot",error=error)
+            middle_name="force_field",extension=".pot")
        IF (iw>0) THEN
           ! Header
           WRITE(iw,1000)"Force Field Parameter File dumped into CHARMM FF style"
@@ -253,14 +249,14 @@ CONTAINS
        CASE (do_ff_charmm)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Dumping FF parameter file for CHARMM FF  not implemented!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        CASE (do_ff_amber)
           IF (iw>0) THEN
              ! Bonds
              WRITE(iw,1001)
              DO i = 1, SIZE(ff_type%amb_info%bond_a)
-                k = cp_unit_from_cp2k(ff_type%amb_info%bond_k(i),"kcalmol*angstrom^-2",error=error)
-                r0= cp_unit_from_cp2k(ff_type%amb_info%bond_r0(i),"angstrom",error=error)
+                k = cp_unit_from_cp2k(ff_type%amb_info%bond_k(i),"kcalmol*angstrom^-2")
+                r0= cp_unit_from_cp2k(ff_type%amb_info%bond_r0(i),"angstrom")
                 WRITE(iw, 2001) ff_type%amb_info%bond_a(i),&
                                 ff_type%amb_info%bond_b(i),&
                                 k, r0
@@ -268,8 +264,8 @@ CONTAINS
              ! Angles
              WRITE(iw,1002)
              DO i = 1, SIZE(ff_type%amb_info%bend_a)
-                k      = cp_unit_from_cp2k(ff_type%amb_info%bend_k(i),"kcalmol*rad^-2",error=error)
-                theta0 = cp_unit_from_cp2k(ff_type%amb_info%bend_theta0(i),"deg",error=error)
+                k      = cp_unit_from_cp2k(ff_type%amb_info%bend_k(i),"kcalmol*rad^-2")
+                theta0 = cp_unit_from_cp2k(ff_type%amb_info%bend_theta0(i),"deg")
                 WRITE(iw, 2002) ff_type%amb_info%bend_a(i),&
                                 ff_type%amb_info%bend_b(i),&
                                 ff_type%amb_info%bend_c(i),&
@@ -278,9 +274,9 @@ CONTAINS
              ! Torsions
              WRITE(iw,1003)
              DO i = 1, SIZE(ff_type%amb_info%torsion_a)
-                k    = cp_unit_from_cp2k(ff_type%amb_info%torsion_k(i),"kcalmol",error=error)
+                k    = cp_unit_from_cp2k(ff_type%amb_info%torsion_k(i),"kcalmol")
                 m    = ff_type%amb_info%torsion_m(i)
-                phi0 = cp_unit_from_cp2k(ff_type%amb_info%torsion_phi0(i),"deg",error=error)
+                phi0 = cp_unit_from_cp2k(ff_type%amb_info%torsion_phi0(i),"deg")
                 WRITE(iw, 2003) ff_type%amb_info%torsion_a(i),&
                                 ff_type%amb_info%torsion_b(i),&
                                 ff_type%amb_info%torsion_c(i),&
@@ -290,8 +286,8 @@ CONTAINS
              ! Lennard-Jones
              WRITE(iw,1005)
              DO i = 1, SIZE(ff_type%amb_info%nonbond_a)
-                eps   = cp_unit_from_cp2k(ff_type%amb_info%nonbond_eps(i),"kcalmol",error=error)
-                sigma = cp_unit_from_cp2k(ff_type%amb_info%nonbond_rmin2(i),"angstrom", error=error)
+                eps   = cp_unit_from_cp2k(ff_type%amb_info%nonbond_eps(i),"kcalmol")
+                sigma = cp_unit_from_cp2k(ff_type%amb_info%nonbond_rmin2(i),"angstrom")
                 WRITE(iw, 2005) ff_type%amb_info%nonbond_a(i),&
                                 eps, sigma
              END DO
@@ -299,17 +295,17 @@ CONTAINS
        CASE (do_ff_g87,do_ff_g96)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Dumping FF parameter file for GROMOS FF not implemented!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        CASE (do_ff_undef)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Dumping FF parameter file for INPUT FF  not implemented!", &
-               error=error, error_level=cp_warning_level)
+               error_level=cp_warning_level)
        END SELECT
        IF (iw>0) THEN
           WRITE(iw,'(/,A)')"END"
        END IF
        CALL cp_print_key_finished_output(iw,logger,mm_section,&
-            "PRINT%FF_PARAMETER_FILE",error=error)
+            "PRINT%FF_PARAMETER_FILE")
     END IF
     CALL timestop(handle)
     RETURN

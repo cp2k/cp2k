@@ -46,16 +46,14 @@ CONTAINS
 !> \param csvr ...
 !> \param npt ...
 !> \param group ...
-!> \param error ...
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE csvr_barostat ( csvr, npt, group, error )
+  SUBROUTINE csvr_barostat ( csvr, npt, group)
 
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
     INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'csvr_barostat', &
       routineP = moduleN//':'//routineN
@@ -67,19 +65,19 @@ CONTAINS
     map_info => csvr%map_info
 
     ! Compute the kinetic energy of the barostat
-    CALL ke_region_baro(map_info, npt, group, error)
+    CALL ke_region_baro(map_info, npt, group)
 
     ! Apply the Canonical Sampling through Velocity Rescaling
-    CALL do_csvr(csvr, map_info, error)
+    CALL do_csvr(csvr, map_info)
 
     ! Now scale the particle velocities
-    CALL vel_rescale_baro(map_info, npt, error)
+    CALL vel_rescale_baro(map_info, npt)
 
     ! Re-Compute the kinetic energy of the barostat
-    CALL ke_region_baro(map_info, npt, group, error)
+    CALL ke_region_baro(map_info, npt, group)
 
     ! Compute thermostat energy
-    CALL do_csvr_eval_energy(csvr, map_info, error)
+    CALL do_csvr_eval_energy(csvr, map_info)
 
     CALL timestop(handle)
   END SUBROUTINE csvr_barostat
@@ -98,13 +96,11 @@ CONTAINS
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error ...
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE csvr_particles( csvr, molecule_kind_set, molecule_set,  &
        particle_set, local_molecules, group, shell_adiabatic,&
-       shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
-       error)
+       shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
 
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -117,7 +113,6 @@ CONTAINS
                                                 core_particle_set( : )
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'csvr_particles', &
       routineP = moduleN//':'//routineN
@@ -133,22 +128,22 @@ CONTAINS
 
     ! Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, vel, error)
+         local_molecules, molecule_set, group, vel)
 
     ! Apply the Canonical Sampling through Velocity Rescaling
-    CALL do_csvr(csvr, map_info, error)
+    CALL do_csvr(csvr, map_info)
 
     ! Now scale the particle velocities
     CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
          local_molecules, my_shell_adiabatic, shell_particle_set,core_particle_set,&
-         vel, shell_vel, core_vel, error)
+         vel, shell_vel, core_vel)
 
     ! Re-Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, vel, error)
+         local_molecules, molecule_set, group, vel)
 
     ! Compute thermostat energy
-    CALL do_csvr_eval_energy(csvr, map_info, error)
+    CALL do_csvr_eval_energy(csvr, map_info)
 
     CALL timestop(handle)
   END SUBROUTINE csvr_particles
@@ -165,12 +160,10 @@ CONTAINS
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error ...
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE csvr_shells(csvr, atomic_kind_set, particle_set, local_particles, &
-       group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
-       error)
+       group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
 
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -181,7 +174,6 @@ CONTAINS
                                                 core_particle_set(:)
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'csvr_shells', &
       routineP = moduleN//':'//routineN
@@ -194,21 +186,21 @@ CONTAINS
 
     ! Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
-    group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
+    group, core_particle_set, shell_particle_set, core_vel, shell_vel)
 
     ! Apply the Canonical Sampling through Velocity Rescaling
-    CALL do_csvr(csvr, map_info, error)
+    CALL do_csvr(csvr, map_info)
 
     ! Now scale the particle velocities
     CALL vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
-         shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
+         shell_particle_set, core_particle_set, shell_vel, core_vel, vel)
 
     ! Re-Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
-    group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
+    group, core_particle_set, shell_particle_set, core_vel, shell_vel)
 
     ! Compute thermostat energy
-    CALL do_csvr_eval_energy(csvr, map_info, error)
+    CALL do_csvr_eval_energy(csvr, map_info)
 
     CALL timestop(handle)
   END SUBROUTINE csvr_shells
@@ -217,13 +209,11 @@ CONTAINS
 !> \brief ...
 !> \param csvr ...
 !> \param map_info ...
-!> \param error ...
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE do_csvr(csvr, map_info, error)
+  SUBROUTINE do_csvr(csvr, map_info)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr', &
       routineP = moduleN//':'//routineN
@@ -244,7 +234,7 @@ CONTAINS
        taut       =  csvr%tau_csvr/csvr%dt_fact
        rng_stream => csvr%nvt(i)%gaussian_rng_stream
        map_info%v_scale(imap) = rescaling_factor(kin_energy, kin_target, ndeg, taut,&
-            rng_stream, error)
+            rng_stream)
     END DO
 
   END SUBROUTINE do_csvr
@@ -253,13 +243,11 @@ CONTAINS
 !> \brief ...
 !> \param csvr ...
 !> \param map_info ...
-!> \param error ...
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE do_csvr_eval_energy(csvr, map_info, error)
+  SUBROUTINE do_csvr_eval_energy(csvr, map_info)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr_eval_energy', &
       routineP = moduleN//':'//routineN

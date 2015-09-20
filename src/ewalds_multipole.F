@@ -101,7 +101,6 @@ CONTAINS
 !> \param do_debug ...
 !> \param atomic_kind_set ...
 !> \param mm_section ...
-!> \param error ...
 !> \par    Note
 !>         atomic_kind_set and mm_section are between the arguments only
 !>         for debug purpose (therefore optional) and can be avoided when this
@@ -117,7 +116,7 @@ CONTAINS
        cell, particle_set, local_particles, energy_local, energy_glob, e_neut, e_self,&
        task, do_correction_bonded, do_forces, do_stress, do_efield, radii, charges, dipoles,&
        quadrupoles, forces_local, forces_glob, pv_local, pv_glob, efield0, efield1,&
-       efield2, iw, do_debug, atomic_kind_set, mm_section, error )
+       efield2, iw, do_debug, atomic_kind_set, mm_section)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -149,7 +148,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: mm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate', &
       routineP = moduleN//':'//routineN
@@ -171,29 +169,29 @@ CONTAINS
     CALL cite_reference(Aguado2003)
     CALL cite_reference(Laino2008)
     CALL timeset(routineN,handle)
-    CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,failure)
     check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field.OR.debug_e_field_en)&
          .EQV.debug_this_module
-    CPPostcondition(check_debug,cp_failure_level,routineP,error,failure)
+    CPPostcondition(check_debug,cp_failure_level,routineP,failure)
     check_forces = do_forces.EQV.(PRESENT(forces_local).AND.PRESENT(forces_glob))
-    CPPostcondition(check_forces,cp_failure_level,routineP,error,failure)
+    CPPostcondition(check_forces,cp_failure_level,routineP,failure)
     check_efield = do_efield.EQV.(PRESENT(efield0).OR.PRESENT(efield1).OR.PRESENT(efield2))
-    CPPostcondition(check_efield,cp_failure_level,routineP,error,failure)
+    CPPostcondition(check_efield,cp_failure_level,routineP,failure)
     ! Debugging this module
     IF (debug_this_module.AND.do_debug) THEN
        ! Debug specifically real space part
        IF (debug_r_space) THEN
           CALL debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
-               particle_set, local_particles, iw, debug_r_space, error)
+               particle_set, local_particles, iw, debug_r_space)
           STOP "Debug Multipole Requested:  Real Part!"
        END IF
        ! Debug electric fields and gradients as pure derivatives
        IF (debug_e_field) THEN
-          CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,error,failure)
-          CPPostcondition(PRESENT(mm_section),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,failure)
+          CPPostcondition(PRESENT(mm_section),cp_failure_level,routineP,failure)
           CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, radii, charges, dipoles,&
-               quadrupoles, task, iw, atomic_kind_set, mm_section, error)
+               quadrupoles, task, iw, atomic_kind_set, mm_section)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
        END IF
        ! Debug the potential, electric fields and electric fields gradient in oder
@@ -201,7 +199,7 @@ CONTAINS
        IF (debug_e_field_en) THEN
           CALL debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, radii, charges, dipoles,&
-               quadrupoles, task, iw, error)
+               quadrupoles, task, iw)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!"
        END IF
     END IF
@@ -233,9 +231,9 @@ CONTAINS
        IF (PRESENT(efield0)) THEN
           size1 = SIZE(efield0)
           ALLOCATE (efield0_sr(size1), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE (efield0_lr(size1), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           efield0_sr = 0.0_dp
           efield0_lr = 0.0_dp
        END IF
@@ -243,9 +241,9 @@ CONTAINS
           size1 = SIZE(efield1,1)
           size2 = SIZE(efield1,2)
           ALLOCATE (efield1_sr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE (efield1_lr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           efield1_sr = 0.0_dp
           efield1_lr = 0.0_dp
        END IF
@@ -253,9 +251,9 @@ CONTAINS
           size1 = SIZE(efield2,1)
           size2 = SIZE(efield2,2)
           ALLOCATE (efield2_sr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE (efield2_lr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           efield2_sr = 0.0_dp
           efield2_lr = 0.0_dp
        END IF
@@ -270,7 +268,7 @@ CONTAINS
        CALL ewald_multipole_SR (nonbond_env, ewald_env, atomic_kind_set,&
             particle_set, cell, e_rspace, my_task,&
             do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
-            forces_glob, pv_glob, efield0_sr, efield1_sr, efield2_sr, error)
+            forces_glob, pv_glob, efield0_sr, efield1_sr, efield2_sr)
        energy_glob = energy_glob + e_rspace
 
        IF (do_correction_bonded) THEN
@@ -279,7 +277,7 @@ CONTAINS
           CALL ewald_multipole_bonded(nonbond_env, particle_set, ewald_env, &
                cell, e_bonded, my_task, do_forces, do_efield, do_stress, &
                charges, dipoles, quadrupoles, forces_glob, pv_glob, &
-               efield0_sr, efield1_sr, efield2_sr, error)
+               efield0_sr, efield1_sr, efield2_sr)
           energy_glob = energy_glob + e_bonded
        END IF
     END IF
@@ -292,16 +290,16 @@ CONTAINS
        CALL ewald_multipole_LR(ewald_env, ewald_pw, cell, particle_set, &
             local_particles, energy_local, my_task, do_forces, do_efield, do_stress,&
             charges, dipoles, quadrupoles, forces_local, pv_local, efield0_lr, efield1_lr,&
-            efield2_lr, error)
+            efield2_lr)
 
        ! Self-Interactions corrections
        CALL ewald_multipole_self (ewald_env, cell, local_particles, e_self, &
             e_neut, my_task, do_efield, radii, charges, dipoles, quadrupoles, &
-            efield0_lr, efield1_lr, efield2_lr, error)
+            efield0_lr, efield1_lr, efield2_lr)
     END IF
 
     ! Sumup energy contributions for possible IO
-    CALL ewald_env_get (ewald_env, group=group, error=error)
+    CALL ewald_env_get (ewald_env, group=group)
     energy_glob_t = energy_glob
     e_rspace_t    = e_rspace
     e_bonded_t    = e_bonded
@@ -317,25 +315,25 @@ CONTAINS
           efield0 = efield0_sr + efield0_lr
           CALL mp_sum(efield0, group)
           DEALLOCATE (efield0_sr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (efield0_lr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (PRESENT(efield1)) THEN
           efield1 = efield1_sr + efield1_lr
           CALL mp_sum(efield1, group)
           DEALLOCATE (efield1_sr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (efield1_lr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (PRESENT(efield2)) THEN
           efield2 = efield2_sr + efield2_lr
           CALL mp_sum(efield2, group)
           DEALLOCATE (efield2_sr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (efield2_lr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
     CALL timestop(handle)
@@ -363,13 +361,12 @@ CONTAINS
 !> \param efield0 ...
 !> \param efield1 ...
 !> \param efield2 ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_SR (nonbond_env, ewald_env, atomic_kind_set,&
        particle_set, cell, energy, task,&
        do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
-       forces, pv, efield0, efield1, efield2, error)
+       forces, pv, efield0, efield1, efield2)
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -390,7 +387,6 @@ CONTAINS
       INTENT(INOUT), OPTIONAL                :: forces, pv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_SR', &
       routineP = moduleN//':'//routineN
@@ -438,8 +434,8 @@ CONTAINS
     END IF
     ! Get nonbond_env info
     CALL fist_nonbond_env_get (nonbond_env, nonbonded=nonbonded, natom_types = nkinds,&
-         r_last_update=r_last_update,r_last_update_pbc=r_last_update_pbc, error=error)
-    CALL ewald_env_get (ewald_env, alpha=alpha, rcut=rcut, error=error)
+         r_last_update=r_last_update,r_last_update_pbc=r_last_update_pbc)
+    CALL ewald_env_get (ewald_env, alpha=alpha, rcut=rcut)
     rab2_max = rcut**2
     IF (debug_r_space) THEN
        rab2_max = HUGE(0.0_dp)
@@ -553,12 +549,11 @@ CONTAINS
 !> \param efield0 ...
 !> \param efield1 ...
 !> \param efield2 ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_bonded (nonbond_env, particle_set, ewald_env, &
        cell, energy, task, do_forces, do_efield, do_stress, charges, &
-       dipoles, quadrupoles, forces, pv, efield0, efield1, efield2, error)
+       dipoles, quadrupoles, forces, pv, efield0, efield1, efield2)
 
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -578,7 +573,6 @@ CONTAINS
       INTENT(INOUT), OPTIONAL                :: forces, pv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_bonded', &
       routineP = moduleN//':'//routineN
@@ -614,8 +608,8 @@ CONTAINS
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
-    CALL ewald_env_get (ewald_env, alpha=alpha, error=error)
-    CALL fist_nonbond_env_get(nonbond_env, nonbonded=nonbonded, error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha)
+    CALL fist_nonbond_env_get(nonbond_env, nonbonded=nonbonded)
 
     ! Starting the force loop
     Lists: DO ilist=1,nonbonded%nlists
@@ -678,13 +672,11 @@ CONTAINS
 !> \param efield0 ...
 !> \param efield1 ...
 !> \param efield2 ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_LR(ewald_env, ewald_pw, cell, particle_set, &
        local_particles, energy, task, do_forces, do_efield, do_stress, &
-       charges, dipoles, quadrupoles, forces, pv, efield0, efield1, efield2,&
-       error)
+       charges, dipoles, quadrupoles, forces, pv, efield0, efield1, efield2)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -704,7 +696,6 @@ CONTAINS
       INTENT(INOUT), OPTIONAL                :: forces, pv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_LR', &
       routineP = moduleN//':'//routineN
@@ -740,7 +731,7 @@ CONTAINS
     do_efield2 = do_efield.AND.ASSOCIATED(efield2)
 
     ! Gathering data from the ewald environment
-    CALL ewald_env_get (ewald_env, alpha=alpha, group=group, error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, group=group)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg=dg)
     CALL dg_get (dg, dg_rho0=dg_rho0)
     rho0    => dg_rho0%density%pw%cr3d
@@ -756,13 +747,13 @@ CONTAINS
     CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 
     ALLOCATE (summe_ef(1:pw_grid%ngpts_cut), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     summe_ef = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     ! Stress Tensor
     IF (do_stress) THEN
        pv_tmp = 0.0_dp
        ALLOCATE (summe_st(3,1:pw_grid%ngpts_cut), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        summe_st = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     END IF
 
@@ -816,14 +807,14 @@ CONTAINS
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
              ! Density for energy and forces
              CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
-                  dipoles, quadrupoles, error)
+                  dipoles, quadrupoles)
              summe_tmp     = exp_igr%ex(lp,node)*exp_igr%ey(mp,node)*exp_igr%ez(np,node)
              summe_ef(gpt) = summe_ef(gpt) + atm_factor*summe_tmp
 
              ! Precompute pseudo-density for stress tensor calculation
              IF (do_stress) THEN
                 CALL get_atom_factor_stress(atm_factor_st, pw_grid, gpt, iparticle, task,&
-                     dipoles, quadrupoles, error)
+                     dipoles, quadrupoles)
                 summe_st(1:3,gpt) = summe_st(1:3,gpt) + atm_factor_st(1:3) *summe_tmp
              END IF
           END DO
@@ -904,7 +895,7 @@ CONTAINS
                 ! Forces
                 IF (do_forces) THEN
                    CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
-                        dipoles, quadrupoles, error)
+                        dipoles, quadrupoles)
 
                    tmp      = gauss * AIMAG(summe_ef(gpt) * (cnjg_fac * CONJG(atm_factor)))
                    forces(1,node) = forces(1,node) + tmp * pw_grid%g(1,gpt)
@@ -978,7 +969,7 @@ CONTAINS
 
     CALL structure_factor_deallocate (exp_igr)
     DEALLOCATE (summe_ef, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (do_stress) THEN
        pv_tmp = pv_tmp * pref
        ! Symmetrize the tensor
@@ -992,7 +983,7 @@ CONTAINS
        pv(3,2) = pv(2,3)
        pv(3,3) = pv(3,3) +  pv_tmp(3,3)
        DEALLOCATE (summe_st, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF (do_forces) THEN
        forces  = 2.0_dp * forces  * pref
@@ -1020,13 +1011,12 @@ CONTAINS
 !> \param charges ...
 !> \param dipoles ...
 !> \param quadrupoles ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
-       dipoles, quadrupoles, error)
+       dipoles, quadrupoles)
     COMPLEX(KIND=dp), INTENT(OUT)            :: atm_factor
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(IN)                      :: gpt
@@ -1038,7 +1028,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: quadrupoles
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor', &
       routineP = moduleN//':'//routineN
@@ -1081,13 +1070,12 @@ CONTAINS
 !> \param task ...
 !> \param dipoles ...
 !> \param quadrupoles ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE get_atom_factor_stress(atm_factor, pw_grid, gpt, iparticle, task,&
-       dipoles, quadrupoles, error)
+       dipoles, quadrupoles)
     COMPLEX(KIND=dp), INTENT(OUT)            :: atm_factor(3)
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(IN)                      :: gpt
@@ -1097,7 +1085,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: quadrupoles
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor_stress', &
       routineP = moduleN//':'//routineN
@@ -1143,12 +1130,11 @@ CONTAINS
 !> \param efield0 ...
 !> \param efield1 ...
 !> \param efield2 ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_self (ewald_env, cell, local_particles, e_self, &
        e_neut, task, do_efield, radii, charges, dipoles, quadrupoles, efield0, &
-       efield1, efield2, error)
+       efield1, efield2)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -1163,7 +1149,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_self', &
       routineP = moduleN//':'//routineN
@@ -1180,7 +1165,7 @@ CONTAINS
       fac2, fac3, fac4, q, q_neutg, q_self, q_sum, qu_qu_self, radius
 
     CALL ewald_env_get ( ewald_env, ewald_type=ewald_type, alpha=alpha,&
-         group=group, error=error)
+         group=group)
 
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)

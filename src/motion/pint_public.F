@@ -33,17 +33,15 @@ MODULE pint_public
 ! ***************************************************************************
 !> \brief  Return the center of mass of the PI system
 !> \param pint_env ...
-!> \param error ...
 !> \retval com_r ...
 !> \date   2009-07-24
 !> \par    History
 !>           2009-11-30 fixed serious bug in pint_env%x indexing [lwalewski]
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  FUNCTION pint_com_pos(pint_env,error) RESULT(com_r)
+  FUNCTION pint_com_pos(pint_env) RESULT(com_r)
 
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(kind=dp), DIMENSION(3)              :: com_r
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_com_pos', &
@@ -54,7 +52,7 @@ MODULE pint_public
     REAL(kind=dp)                            :: tmass
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
 
     tmass = 0.0_dp
     com_r(:) = 0.0_dp
@@ -78,15 +76,13 @@ MODULE pint_public
 ! ***************************************************************************
 !> \brief  Return the center of geometry of the PI system
 !> \param pint_env ...
-!> \param error ...
 !> \retval cntrd_r ...
 !> \date   2009-11-30
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  FUNCTION pint_cog_pos(pint_env,error) RESULT(cntrd_r)
+  FUNCTION pint_cog_pos(pint_env) RESULT(cntrd_r)
 
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(kind=dp), DIMENSION(3)              :: cntrd_r
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_cog_pos', &
@@ -96,7 +92,7 @@ MODULE pint_public
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
 
     cntrd_r(:) = 0.0_dp
     natoms = pint_env%ndim/3
@@ -119,14 +115,13 @@ MODULE pint_public
 !> \param rng_gaussian ...
 !> \param x ...
 !> \param nout ...
-!> \param error ...
 !> \date   2010-12-13
 !> \author Lukasz Walewski
 !> \note  This routine implements Levy argorithm (see e.g. Rev. Mod. Phys.
 !>         67 (1995) 279, eq. 5.35) and requires that n is a power of 2. The
 !>         resulting bead positions are centered around (0,0,0).
 ! *****************************************************************************
-  SUBROUTINE pint_free_part_bead_x( n, t, rng_gaussian, x, nout, error)
+  SUBROUTINE pint_free_part_bead_x( n, t, rng_gaussian, x, nout)
 !
 !TODO this routine gives wrong spread of the particles, please fix before usage.
 !
@@ -135,7 +130,6 @@ MODULE pint_public
     TYPE(rng_stream_type), POINTER           :: rng_gaussian
     REAL(kind=dp), DIMENSION(:), POINTER     :: x
     INTEGER, INTENT(OUT)                     :: nout
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x', &
       routineP = moduleN//':'//routineN
@@ -191,8 +185,7 @@ MODULE pint_public
         DO ic = 1, 3
           xc = ( x(3*i1+ic) + x(3*i2+ic) ) / 2.0
           xc = xc + next_random_number(rng_stream=rng_gaussian,&
-                                       variance=vrnc,&
-                                       error=error)
+                                       variance=vrnc)
           x(3*j+ic) = xc
         END DO
         nout = nout + 1
@@ -225,19 +218,17 @@ MODULE pint_public
 !> \param v ...
 !> \param x ...
 !> \param rng_gaussian ...
-!> \param error ...
 !> \date   2011-01-06
 !> \author Lukasz Walewski
 !> \note  This routine implements Levy argorithm (Phys. Rev. 143 (1966) 58)
 ! *****************************************************************************
-  SUBROUTINE pint_levy_walk( x0, n, v, x, rng_gaussian, error )
+  SUBROUTINE pint_levy_walk( x0, n, v, x, rng_gaussian)
 
     REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: x0
     INTEGER, INTENT(IN)                      :: n
     REAL(kind=dp), INTENT(IN)                :: v
     REAL(kind=dp), DIMENSION(:), POINTER     :: x
     TYPE(rng_stream_type), POINTER           :: rng_gaussian
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_levy_walk', &
       routineP = moduleN//':'//routineN
@@ -252,8 +243,7 @@ MODULE pint_public
     DO ib = 1, n-1
       DO ic = 1, 3
         r = next_random_number(rng_stream=rng_gaussian,&
-                               variance=1.0_dp,&
-                               error=error)
+                               variance=1.0_dp)
         tau_i = (REAL(ib,dp)-1.0_dp)/REAL(n,dp)
         tau_i1 = (REAL(ib+1,dp)-1.0_dp)/REAL(n,dp)
         x(ib*3+ic) = ( x((ib-1)*3+ic) * ( 1.0_dp-tau_i1 ) + &

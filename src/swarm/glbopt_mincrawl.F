@@ -89,7 +89,6 @@ MODULE glbopt_mincrawl
    TYPE(section_vals_type), POINTER                    :: mincrawl_section => Null()
    TYPE(rng_stream_type),POINTER                       :: rng_stream => Null()
    TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set => Null()
-   TYPE(cp_error_type)                                 :: error
  END TYPE mincrawl_type
 
  CONTAINS
@@ -102,16 +101,14 @@ MODULE glbopt_mincrawl
 !> \param n_workers ...
 !> \param iw ...
 !> \param particle_set ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE mincrawl_init(this, glbopt_section, n_workers, iw, particle_set, error)
+ SUBROUTINE mincrawl_init(this, glbopt_section, n_workers, iw, particle_set)
     TYPE(mincrawl_type)                      :: this
     TYPE(section_vals_type), POINTER         :: glbopt_section
     INTEGER, INTENT(IN)                      :: n_workers, iw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
     REAL(kind=dp)                            :: temp_in_kelvin
@@ -121,27 +118,27 @@ MODULE glbopt_mincrawl
     NULLIFY(logger, history_section)
 
     ! read input
-    this%mincrawl_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_CRAWLING", error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"TEMPSTEP_BASE",         r_val=this%tempstep_base,error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"TEMPSTEP_MAX",          i_val=this%tempstep_max,error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_INIT_WIDTH",   r_val=this%tempdist_init_width,error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_UPDATE_WIDTH", r_val=this%tempdist_update_width,error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_UPDATE_HEIGHT",r_val=this%tempdist_update_height,error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin,error=error)
+    this%mincrawl_section => section_vals_get_subs_vals(glbopt_section, "MINIMA_CRAWLING")
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPSTEP_BASE",         r_val=this%tempstep_base)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPSTEP_MAX",          i_val=this%tempstep_max)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_INIT_WIDTH",   r_val=this%tempdist_init_width)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_UPDATE_WIDTH", r_val=this%tempdist_update_width)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPDIST_UPDATE_HEIGHT",r_val=this%tempdist_update_height)
+    CALL section_vals_val_get(this%mincrawl_section,"TEMPERATURE_INIT", r_val=temp_in_kelvin)
     this%tempstep_init = temp2tempstep(this, temp_in_kelvin / kelvin)
-    CALL section_vals_val_get(this%mincrawl_section,"WORKER_PER_MINIMA", i_val=this%worker_per_min, error=error)
-    CALL section_vals_val_get(this%mincrawl_section,"ESCAPE_HISTORY_LENGTH", i_val=this%esc_hist_len, error=error)
+    CALL section_vals_val_get(this%mincrawl_section,"WORKER_PER_MINIMA", i_val=this%worker_per_min)
+    CALL section_vals_val_get(this%mincrawl_section,"ESCAPE_HISTORY_LENGTH", i_val=this%esc_hist_len)
 
     !init minima trajectory
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     this%minima_traj_unit = cp_print_key_unit_nr(logger, &
       this%mincrawl_section,"MINIMA_TRAJECTORY", &
       middle_name="minima", extension=".xyz", &
-      file_action="WRITE", file_position="REWIND", error=error)
+      file_action="WRITE", file_position="REWIND")
 
     !init history
-    history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY", error=error)
-    CALL history_init(this%history, history_section, iw=iw, error=error)
+    history_section => section_vals_get_subs_vals(glbopt_section, "HISTORY")
+    CALL history_init(this%history, history_section, iw=iw)
 
     !allocate data structures
     ALLOCATE(this%minimas(1000)) !will be grown if needed
@@ -150,7 +147,6 @@ MODULE glbopt_mincrawl
     this%n_workers = n_workers
     this%iw = iw
     this%particle_set => particle_set
-    this%error = error
 
     ! call fermi-like stepfunction for initial temp-dist
     ALLOCATE(this%tempdist_init(this%tempstep_max))
@@ -159,7 +155,7 @@ MODULE glbopt_mincrawl
         this%tempdist_init(i) = 1.0 / (1.0 + EXP((this%tempstep_init - i)/this%tempdist_init_width))
     ENDDO
 
-    CALL create_rng_stream(this%rng_stream, name="mincrawl", error=this%error)
+    CALL create_rng_stream(this%rng_stream, name="mincrawl")
  END SUBROUTINE mincrawl_init
 
 
@@ -284,10 +280,10 @@ MODULE glbopt_mincrawl
     REAL(KIND=dp)                            :: a, r
 
    DO
-      r = next_random_number(this%rng_stream, error=this%error)
+      r = next_random_number(this%rng_stream)
       step = INT(r*SIZE(minima%tempdist)) + 1
       a = 1.0 -  2.0*ABS(minima%tempdist(step)-0.5)
-      r = next_random_number(this%rng_stream, error=this%error)
+      r = next_random_number(this%rng_stream)
       IF(r < a) EXIT
    END DO
 
@@ -493,8 +489,8 @@ MODULE glbopt_mincrawl
 
     !get the conversion factor for the length unit
     CALL section_vals_val_get(this%mincrawl_section,"MINIMA_TRAJECTORY%UNIT",&
-            c_val=unit_str,error=this%error)
-    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=this%error)
+            c_val=unit_str)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
     CALL write_particle_coordinates(this%particle_set,&
                                     iunit=this%minima_traj_unit, &
@@ -502,8 +498,7 @@ MODULE glbopt_mincrawl
                                     content="POS", &
                                     title=TRIM(title), &
                                     array=positions,&
-                                    unit_conv=unit_conv,&
-                                    error=this%error)
+                                    unit_conv=unit_conv)
  END SUBROUTINE write_minima_traj
 
 
@@ -525,12 +520,12 @@ MODULE glbopt_mincrawl
        DEALLOCATE(this%minimas(i)%p)
     ENDDO
 
-    logger => cp_error_get_logger(this%error)
+    logger => cp_get_default_logger()
     CALL cp_print_key_finished_output(this%minima_traj_unit, logger, &
-      this%mincrawl_section, "MINIMA_TRAJECTORY", error=this%error)
+      this%mincrawl_section, "MINIMA_TRAJECTORY")
 
     CALL history_finalize(this%history)
-    CALL delete_rng_stream(this%rng_stream, error=this%error)
+    CALL delete_rng_stream(this%rng_stream)
  END SUBROUTINE mincrawl_finalize
 
 

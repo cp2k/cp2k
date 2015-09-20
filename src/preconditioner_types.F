@@ -82,14 +82,12 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param para_env ...
 !> \param blacs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
+  SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY(preconditioner_env%sparse_matrix)
     NULLIFY(preconditioner_env%fm)
@@ -107,20 +105,18 @@ CONTAINS
     preconditioner_env%condition_num=-1.0_dp
     preconditioner_env%ihistory=0
 
-    CALL cp_para_env_retain(preconditioner_env%para_env,error=error)
-    CALL cp_blacs_env_retain(preconditioner_env%ctxt,error=error)
+    CALL cp_para_env_retain(preconditioner_env%para_env)
+    CALL cp_blacs_env_retain(preconditioner_env%ctxt)
 
   END SUBROUTINE init_preconditioner
 
 ! *****************************************************************************
 !> \brief ...
 !> \param preconditioner_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE destroy_preconditioner(preconditioner_env, error)
+  SUBROUTINE destroy_preconditioner(preconditioner_env)
 
     TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_preconditioner', &
       routineP = moduleN//':'//routineN
@@ -130,21 +126,21 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix)
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
 
     IF (ASSOCIATED(preconditioner_env%fm)) THEN
-       CALL cp_fm_release(preconditioner_env%fm,error=error)
+       CALL cp_fm_release(preconditioner_env%fm)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
-       CALL cp_dbcsr_release_p (preconditioner_env%dbcsr_matrix, error=error)
+       CALL cp_dbcsr_release_p (preconditioner_env%dbcsr_matrix)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%max_ev_vector)) THEN
-       CALL cp_dbcsr_release_p (preconditioner_env%max_ev_vector, error=error)
+       CALL cp_dbcsr_release_p (preconditioner_env%max_ev_vector)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%min_ev_vector)) THEN
-       CALL cp_dbcsr_release_p (preconditioner_env%min_ev_vector, error=error)
+       CALL cp_dbcsr_release_p (preconditioner_env%min_ev_vector)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
        DEALLOCATE(preconditioner_env%occ_evals)
@@ -154,12 +150,12 @@ CONTAINS
     ENDIF
     IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
        DO i=1,SIZE(preconditioner_env%inverse_history)
-          CALL cp_dbcsr_release_p (preconditioner_env%inverse_history(i)%matrix, error=error)
+          CALL cp_dbcsr_release_p (preconditioner_env%inverse_history(i)%matrix)
        END DO
        DEALLOCATE(preconditioner_env%inverse_history)
     ENDIF
-    CALL cp_para_env_release(preconditioner_env%para_env,error=error)
-    CALL cp_blacs_env_release(preconditioner_env%ctxt,error=error)
+    CALL cp_para_env_release(preconditioner_env%para_env)
+    CALL cp_blacs_env_release(preconditioner_env%ctxt)
 
     preconditioner_env%in_use=0
 

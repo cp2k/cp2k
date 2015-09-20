@@ -51,18 +51,15 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE lyp_adiabatic_lda_info(reference,shortform, needs, max_deriv, error)
+  SUBROUTINE lyp_adiabatic_lda_info(reference,shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_info', &
       routineP = moduleN//':'//routineN
@@ -89,18 +86,15 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE lyp_adiabatic_lsd_info(reference,shortform, needs, max_deriv, error)
+  SUBROUTINE lyp_adiabatic_lsd_info(reference,shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -125,17 +119,15 @@ CONTAINS
 !> \param deriv_set ...
 !> \param grad_deriv ...
 !> \param lyp_adiabatic_params ...
-!> \param error ...
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE lyp_adiabatic_lda_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params,error)
+  SUBROUTINE lyp_adiabatic_lda_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: lyp_adiabatic_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -155,23 +147,23 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(bo)
 
-    CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda,error=error)
+    CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda)
     CALL cite_reference(Lee1988)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         drho_cutoff=epsilon_norm_drho,error=error)
+         drho_cutoff=epsilon_norm_drho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
       dummy=> rho
     END IF
@@ -182,39 +174,38 @@ CONTAINS
 
     IF (grad_deriv>=0) THEN
       deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+               allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+               allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rho)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-           allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+           allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
            message="derivatives bigger than 1 not implemented", &
-           error=error, error_level=cp_failure_level)
+           error_level=cp_failure_level)
     END IF
 
     !$omp parallel default(none) &
     !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho) &
     !$omp          shared(grad_deriv, npoints) &
-    !$omp          shared(epsilon_rho, lambda, error)
+    !$omp          shared(epsilon_rho, lambda)
 
     CALL lyp_adiabatic_lda_calc(rho=rho, norm_drho=norm_drho,&
          e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
          grad_deriv=grad_deriv,&
-         npoints=npoints,epsilon_rho=epsilon_rho,lambda=lambda,&
-         error=error)
+         npoints=npoints,epsilon_rho=epsilon_rho,lambda=lambda)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -232,21 +223,19 @@ CONTAINS
 !> \param npoints ...
 !> \param epsilon_rho ...
 !> \param lambda ...
-!> \param error ...
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lda_calc(rho, norm_drho,&
      e_0,e_rho,e_ndrho, &
-     grad_deriv,npoints,epsilon_rho, lambda,error)
+     grad_deriv,npoints,epsilon_rho, lambda)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, lambda
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -361,17 +350,15 @@ CONTAINS
 !> \param deriv_set ...
 !> \param grad_deriv ...
 !> \param lyp_adiabatic_params ...
-!> \param error ...
 !> \par History
 !>      01.2008 created [fawzi]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE lyp_adiabatic_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params,error)
+  SUBROUTINE lyp_adiabatic_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: lyp_adiabatic_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -390,25 +377,25 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(deriv, bo)
 
-    CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda,error=error)
+    CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda)
     CALL cite_reference(Lee1988)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,&
          rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
          norm_drhob=norm_drhob, norm_drho=norm_drho, &
          rho_cutoff=epsilon_rho,&
-         local_bounds=bo, error=error)
+         local_bounds=bo)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
       dummy=> rhoa
     END IF
@@ -433,37 +420,37 @@ CONTAINS
 
     IF (grad_deriv>=0) THEN
       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-      CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
     END IF
     IF (grad_deriv==1.OR.grad_deriv==-1) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ra,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ra)
       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rb,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rb)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndr,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndr)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndra,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndra)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrb,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrb)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
            message="derivatives bigger than 1 not implemented", &
-           error=error, error_level=cp_failure_level)
+           error_level=cp_failure_level)
     END IF
 
     !$omp parallel default(none) &
     !$omp          shared(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob) &
     !$omp          shared(e_0, e_ra, e_rb, e_ndr, e_ndra, e_ndrb) &
     !$omp          shared(grad_deriv, npoints) &
-    !$omp          shared(epsilon_rho, lambda, error)
+    !$omp          shared(epsilon_rho, lambda)
 
     CALL lyp_adiabatic_lsd_calc(&
          rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
@@ -471,13 +458,13 @@ CONTAINS
          e_ndr=e_ndr,&
          e_ndra=e_ndra, e_ndrb=e_ndrb,&
          grad_deriv=grad_deriv, npoints=npoints, &
-         epsilon_rho=epsilon_rho,lambda=lambda,error=error)
+         epsilon_rho=epsilon_rho,lambda=lambda)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -501,7 +488,6 @@ CONTAINS
 !> \param npoints ...
 !> \param epsilon_rho ...
 !> \param lambda ...
-!> \param error ...
 !> \par History
 !>      08.2008 created [mguidon]
 !> \author Manuel Guidon
@@ -510,7 +496,7 @@ CONTAINS
      e_0, e_ra, e_rb,&
      e_ndr,&
      e_ndra, e_ndrb, &
-     grad_deriv,npoints,epsilon_rho,lambda,error)
+     grad_deriv,npoints,epsilon_rho,lambda)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
                                                 norm_drhoa, norm_drhob
     REAL(kind=dp), DIMENSION(*), &
@@ -518,7 +504,6 @@ CONTAINS
                                                 e_ndra, e_ndrb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, lambda
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_calc', &
       routineP = moduleN//':'//routineN

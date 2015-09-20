@@ -97,15 +97,13 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE nmr_shift(nmr_env,current_env,qs_env,iB,error)
+  SUBROUTINE nmr_shift(nmr_env,current_env,qs_env,iB)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_shift', &
       routineP = moduleN//':'//routineN
@@ -145,7 +143,7 @@ CONTAINS
             pw_pools,particle_set,jrho1_g)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
-                    particle_set=particle_set,error=error)
+                    particle_set=particle_set)
 
     gapw = dft_control%qs_control%gapw
     natom = SIZE(particle_set,1)
@@ -155,28 +153,25 @@ CONTAINS
                      chemical_shift_loc=chemical_shift_loc,&
                      chemical_shift_nics=chemical_shift_nics,&
                      chemical_shift_nics_loc=chemical_shift_nics_loc,&
-                     interpolate_shift=interpolate_shift,&
-                     error=error)
+                     interpolate_shift=interpolate_shift)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
-                    auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-                    error=error)
+                    auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools)
     !
     !
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
-         & "PROPERTIES%LINRES%NMR",error=error)
+         & "PROPERTIES%LINRES%NMR")
     !
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
     ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
-                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                 error=error)
-          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw,error=error)
+                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
+          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
     !
@@ -184,13 +179,12 @@ CONTAINS
     CALL set_vecp(iB,iiB,iiiB)
     !
     CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
-                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                           error=error)
-    CALL pw_zero(pw_gspace_work%pw,error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
+    CALL pw_zero(pw_gspace_work%pw)
     DO ispin = 1,nspins
        !
        DO idir = 1,3
-          CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g, error=error)
+          CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
           jrho_gspace => jrho1_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z
@@ -198,42 +192,41 @@ CONTAINS
              IF(idir /= idir2) THEN
                 ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
                 CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,jrho_gspace,&
-                                       pw_gspace_work,idir2,0.0_dp,error=error)
+                                       pw_gspace_work,idir2,0.0_dp)
                 !
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)
                 scale_fac=fac_vecp(idir3,idir2,idir)
-                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,scale_fac,error=error)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,scale_fac)
              ENDIF
           ENDDO
           !
        ENDDO ! idir
     ENDDO ! ispin
     !
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw)
     !
     ! compute shildings
     IF(interpolate_shift) THEN
        CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
-                              use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                              use_data=REALDATA3D,in_space=REALSPACE)
        DO ispin = 1,nspins
           DO idir = 1,3
              ! Here first G->R and then interpolation to get the shifts.
              ! The interpolation doesnt work in parallel yet.
              ! The choice between both methods should be left to the user.
-             CALL pw_transfer(shift_pw_gspace(idir,ispin)%pw,shift_pw_rspace%pw,error=error)
+             CALL pw_transfer(shift_pw_gspace(idir,ispin)%pw,shift_pw_rspace%pw)
              CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-                                           iB,idir,nmr_section,error=error)
+                                           iB,idir,nmr_section)
           ENDDO
        ENDDO
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw)
     ELSE
        DO ispin = 1,nspins
           DO idir = 1,3
              ! Here the shifts are computed from summation of the coeff on the G-grip .
              CALL gsum_shift_pwgrid(nmr_env,particle_set,cell,&
-                                    shift_pw_gspace(idir,ispin),iB,idir,&
-                                    error=error)
+                                    shift_pw_gspace(idir,ispin),iB,idir)
           ENDDO
        ENDDO
     ENDIF
@@ -243,18 +236,18 @@ CONTAINS
           ! Finally the radial functions are multiplied by the YLM and properly summed
           ! The resulting array is J on the local grid. One array per atom.
           ! Local contributions by numerical integration over the spherical grids
-          CALL nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error=error)
+          CALL nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir)
        ENDDO ! idir
     ENDIF
     !
     ! Dellocate grids for the calculation of jrho and the shift
     DO ispin = 1,nspins
        DO idir = 1,3
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
     DEALLOCATE(shift_pw_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     !
     ! Finalize
     CALL timestop(handle)
@@ -269,15 +262,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param iB ...
 !> \param idir ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error)
+  SUBROUTINE nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_gapw', &
       routineP = moduleN//':'//routineN
@@ -322,7 +313,7 @@ CONTAINS
             jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,&
             atom_list,grid_atom,harmonics,logger)
     !
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     !
     CALL get_qs_env(qs_env=qs_env,&
@@ -331,8 +322,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     para_env=para_env,&
-                    particle_set=particle_set,&
-                    error=error)
+                    particle_set=particle_set)
 
     CALL get_nmr_env(nmr_env=nmr_env,&
                      chemical_shift_loc=chemical_shift_loc,&
@@ -340,12 +330,10 @@ CONTAINS
                      shift_gapw_radius=shift_gapw_radius,&
                      n_nics=n_nics,&
                      r_nics=r_nics,&
-                     do_nics=do_nics,&
-                     error=error)
+                     do_nics=do_nics)
 
     CALL get_current_env(current_env=current_env,&
-                         jrho1_atom_set=jrho1_atom_set,&
-                         error=error)
+                         jrho1_atom_set=jrho1_atom_set)
     !
     nkind = SIZE(atomic_kind_set,1)
     natom_tot = SIZE(particle_set,1)
@@ -358,12 +346,12 @@ CONTAINS
     !
     ALLOCATE(cs_loc_tmp(3,natom_tot),list_j(natom_tot),&
              dist_ij(3,natom_tot),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     cs_loc_tmp = 0.0_dp
     IF(do_nics) THEN
        ALLOCATE(cs_nics_loc_tmp(3,n_nics),list_nics_j(n_nics),&
                 dist_nics_ij(3,n_nics),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
        cs_nics_loc_tmp = 0.0_dp
     ENDIF
     !
@@ -379,7 +367,7 @@ CONTAINS
        CALL get_qs_kind(qs_kind_set(ikind),&
                         paw_atom=paw_atom,&
                         harmonics=harmonics,&
-                        grid_atom=grid_atom, error=error)
+                        grid_atom=grid_atom)
        !
        na = grid_atom%ng_sphere
        nr = grid_atom%nr
@@ -509,7 +497,7 @@ CONTAINS
          & - nmr_env%shift_factor_gapw * cs_loc_tmp(:,:) / 2.0_dp
     !
     DEALLOCATE(cs_loc_tmp,list_j,dist_ij,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     !
     IF(do_nics) THEN
        CALL mp_sum(cs_nics_loc_tmp,para_env%group)
@@ -517,7 +505,7 @@ CONTAINS
             & - nmr_env%shift_factor_gapw * cs_nics_loc_tmp(:,:) / 2.0_dp
        !
        DEALLOCATE(cs_nics_loc_tmp,list_nics_j,dist_nics_ij,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
     !
     CALL timestop(handle)
@@ -535,11 +523,10 @@ CONTAINS
 !> \param i_B component of the magnetic field for which the shift is calculated (row)
 !> \param idir component of the vector \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
 !> \param nmr_section ...
-!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-       i_B,idir,nmr_section,error)
+       i_B,idir,nmr_section)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -549,7 +536,6 @@ CONTAINS
     TYPE(pw_p_type)                          :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
     TYPE(section_vals_type), POINTER         :: nmr_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
       routineP = moduleN//':'//routineN
@@ -577,39 +563,37 @@ CONTAINS
     NULLIFY (auxbas_pw_pool,precond)
     NULLIFY (cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
 
-    CPPrecondition(ASSOCIATED(shift_pw_rspace%pw),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(shift_pw_rspace%pw),cp_failure_level,routineP,failure)
 
     interp_section =>  section_vals_get_subs_vals(nmr_section,&
-                      "INTERPOLATOR",error=error)
+                      "INTERPOLATOR")
     CALL section_vals_val_get(interp_section,"aint_precond", &
-                              i_val=aint_precond, error=error)
-    CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind, error=error)
-    CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter, error=error)
-    CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
-    CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
+                              i_val=aint_precond)
+    CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind)
+    CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter)
+    CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r)
+    CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x)
 
     ! calculate spline coefficients
-    CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool)
     CALL pw_pool_create_pw(auxbas_pw_pool,shiftspl%pw, &
-                           use_data=REALDATA3D,in_space=REALSPACE,&
-                           error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE)
 
     CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-        pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
-    CALL pw_spline_do_precond(precond,shift_pw_rspace%pw,shiftspl%pw,error=error)
-    CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+        pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.)
+    CALL pw_spline_do_precond(precond,shift_pw_rspace%pw,shiftspl%pw)
+    CALL pw_spline_precond_set_kind(precond,precond_kind)
     success=find_coeffs(values=shift_pw_rspace%pw,coeffs=shiftspl%pw,&
            linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
-           eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
-           error=error)
-    CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-    CALL pw_spline_precond_release(precond,error=error)
+           eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
+    CPPostconditionNoFail(success,cp_warning_level,routineP)
+    CALL pw_spline_precond_release(precond)
 
     CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
          chemical_shift=chemical_shift,&
          chemical_shift_nics=chemical_shift_nics,&
          n_nics=n_nics,r_nics=r_nics,&
-         do_nics=do_nics,error=error)
+         do_nics=do_nics)
 
     IF(ASSOCIATED(cs_atom_list)) THEN
       natom = SIZE(cs_atom_list,1)
@@ -620,7 +604,7 @@ CONTAINS
     DO iat = 1,natom
        iatom = cs_atom_list(iat)
        R_iatom = pbc(particle_set(iatom)%r,cell)
-       shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
+       shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw)
        chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
                                        nmr_env%shift_factor * twopi**2 * shift_val
     END DO
@@ -629,13 +613,13 @@ CONTAINS
        DO iatom = 1,n_nics
           ra(:) = r_nics(:,iatom)
           R_iatom = pbc(ra,cell)
-          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
+          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw)
           chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
                                                nmr_env%shift_factor * twopi**2 * shift_val
        END DO
     END IF
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw)
 
     !
     CALL timestop(handle)
@@ -650,17 +634,15 @@ CONTAINS
 !> \param shift_pw_gspace ...
 !> \param i_B ...
 !> \param idir ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE gsum_shift_pwgrid(nmr_env,particle_set,cell,shift_pw_gspace,&
-                               i_B,idir,error)
+                               i_B,idir)
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_p_type)                          :: shift_pw_gspace
     INTEGER, INTENT(IN)                      :: i_B, idir
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gsum_shift_pwgrid', &
       routineP = moduleN//':'//routineN
@@ -682,13 +664,12 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
-    CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,failure)
     !
     CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
                      chemical_shift=chemical_shift,&
                      chemical_shift_nics=chemical_shift_nics,&
-                     n_nics=n_nics,r_nics=r_nics,do_nics=do_nics,&
-                     error=error)
+                     n_nics=n_nics,r_nics=r_nics,do_nics=do_nics)
     !
     IF(ASSOCIATED(cs_atom_list)) THEN
        natom = SIZE(cs_atom_list,1)
@@ -752,14 +733,12 @@ CONTAINS
 !> \param nmr_env ...
 !> \param current_env ...
 !> \param qs_env ...
-!> \param error ...
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE nmr_shift_print(nmr_env,current_env,qs_env,error)
+  SUBROUTINE nmr_shift_print(nmr_env,current_env,qs_env)
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_print', &
       routineP = moduleN//':'//routineN
@@ -792,11 +771,11 @@ CONTAINS
 
     NULLIFY(cs,cs_nics,r_nics,cs_loc,cs_nics_loc,logger,particle_set,atom_kind,dft_control)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
-                                                 "PROPERTIES%LINRES%NMR",error=error)
+                                                 "PROPERTIES%LINRES%NMR")
 
     CALL get_nmr_env(nmr_env=nmr_env, &
                      chemical_shift=cs, &
@@ -806,13 +785,11 @@ CONTAINS
                      cs_atom_list=cs_atom_list, &
                      n_nics=n_nics, &
                      r_nics=r_nics, &
-                     do_nics=do_nics, &
-                     error=error)
+                     do_nics=do_nics)
     !
     CALL get_current_env(current_env=current_env,&
                          chi_tensor=chi_tensor,&
-                         chi_tensor_loc=chi_tensor_loc,&
-                         error=error)
+                         chi_tensor_loc=chi_tensor_loc)
     !
     ! multiply by the appropriate factor
     chi_tensor_tmp(:,:)     = 0.0_dp
@@ -822,18 +799,17 @@ CONTAINS
     !
     CALL get_qs_env(qs_env=qs_env, &
                     dft_control=dft_control, &
-                    particle_set=particle_set, &
-                    error=error)
+                    particle_set=particle_set)
 
     natom = SIZE(particle_set,1)
     gapw = dft_control%qs_control%gapw
     nat_print=SIZE(cs_atom_list,1)
 
     ALLOCATE(cs_tot(3,3,nat_print),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     IF(do_nics) THEN
        ALLOCATE(cs_nics_tot(3,3,n_nics),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
     ! Finalize Chi calculation
     ! Symmetrize
@@ -843,7 +819,7 @@ CONTAINS
             & + ( chi_tensor_loc_tmp(:,:) + TRANSPOSE(chi_tensor_loc_tmp(:,:)) ) / 2.0_dp
     ENDIF
     chi_tmp(:,:) = chi_sym_tot(:,:)
-    CALL diamat_all(chi_tmp,eig,error=error)
+    CALL diamat_all(chi_tmp,eig)
     chi_iso   = (eig(1)+ eig(2)+eig(3))/3.0_dp
     chi_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
     !
@@ -853,11 +829,10 @@ CONTAINS
     ENDIF
     !
     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-              "PRINT%CHI_TENSOR",error=error),cp_p_file)) THEN
+              "PRINT%CHI_TENSOR"),cp_p_file)) THEN
 
        unit_atoms=cp_print_key_unit_nr(logger,nmr_section,"PRINT%CHI_TENSOR",&
-                  extension=".data",middle_name="CHI",log_filename=.FALSE.,&
-                  error=error)
+                  extension=".data",middle_name="CHI",log_filename=.FALSE.)
 
        WRITE(title,'(A)') "Magnetic Susceptibility Tensor "
        IF(unit_atoms > 0) THEN
@@ -915,7 +890,7 @@ CONTAINS
        ENDIF
 
        CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
-            &                            "PRINT%CHI_TENSOR", error=error)
+            &                            "PRINT%CHI_TENSOR")
     ENDIF ! print chi
     !
     ! Add the chi part to the shifts
@@ -935,11 +910,11 @@ CONTAINS
     !
     ! print shifts
     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-              "PRINT%SHIELDING_TENSOR",error=error),cp_p_file)) THEN
+              "PRINT%SHIELDING_TENSOR"),cp_p_file)) THEN
 
        unit_atoms=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
                                        extension=".data",middle_name="SHIFT",&
-                                       log_filename=.FALSE.,error=error)
+                                       log_filename=.FALSE.)
 
        nat_print = SIZE(cs_atom_list,1)
        IF(unit_atoms > 0) THEN
@@ -951,7 +926,7 @@ CONTAINS
              atom_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
              shift_sym_tot(:,:) = 0.5_dp * (cs_tot(:,:,ir) + TRANSPOSE(cs_tot(:,:,ir)))
-             CALL  diamat_all(shift_sym_tot,eig,error=error)
+             CALL  diamat_all(shift_sym_tot,eig)
              shift_iso   = (eig(1) + eig(2) + eig(3)) / 3.0_dp
              shift_aniso =  eig(3) - (eig(2) + eig(1)) / 2.0_dp
              !
@@ -994,7 +969,7 @@ CONTAINS
           ENDDO ! ir
        ENDIF
        CALL cp_print_key_finished_output(unit_atoms,logger,nmr_section,&
-            &                            "PRINT%SHIELDING_TENSOR",error=error)
+            &                            "PRINT%SHIELDING_TENSOR")
 
        IF(do_nics) THEN
           !
@@ -1011,13 +986,13 @@ CONTAINS
           !
           unit_nics=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
                                          extension=".data",middle_name="NICS",&
-                                         log_filename=.FALSE.,error=error)
+                                         log_filename=.FALSE.)
           IF(unit_nics > 0) THEN
              WRITE(title,'(A,1X,I5)') "Shielding at nics positions. # tensors printed ", n_nics
              WRITE(unit_nics,'(T2,A)') title
              DO ir = 1,n_nics
                 shift_sym_tot(:,:) = 0.5_dp * (cs_nics_tot(:,:,ir) + TRANSPOSE(cs_nics_tot(:,:,ir)))
-                CALL  diamat_all(shift_sym_tot,eig,error=error)
+                CALL  diamat_all(shift_sym_tot,eig)
                 shift_iso   = (eig(1) + eig(2) + eig(3)) / 3.0_dp
                 shift_aniso =  eig(3) - (eig(2) + eig(1)) / 2.0_dp
                 !
@@ -1060,16 +1035,16 @@ CONTAINS
              ENDDO
           ENDIF
           CALL cp_print_key_finished_output(unit_nics,logger,nmr_section,&
-               &                            "PRINT%SHIELDING_TENSOR",error=error)
+               &                            "PRINT%SHIELDING_TENSOR")
        ENDIF
     ENDIF ! print shift
     !
     ! clean up
     DEALLOCATE(cs_tot,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     IF(do_nics) THEN
        DEALLOCATE(cs_nics_tot,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
     !
 !100 FORMAT(A,1X,I5)

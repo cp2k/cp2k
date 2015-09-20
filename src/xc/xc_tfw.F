@@ -70,14 +70,12 @@ CONTAINS
 !> \param shortform ...
 !> \param needs ...
 !> \param max_deriv ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_lda_info ( reference, shortform, needs, max_deriv, error)
+  SUBROUTINE tfw_lda_info ( reference, shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Thomas-Fermi-Weizsaecker kinetic energy functional {LDA version}"
@@ -100,14 +98,12 @@ CONTAINS
 !> \param shortform ...
 !> \param needs ...
 !> \param max_deriv ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_lsd_info ( reference, shortform, needs, max_deriv, error)
+  SUBROUTINE tfw_lsd_info ( reference, shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Thomas-Fermi-Weizsaecker kinetic energy functional"
@@ -129,13 +125,11 @@ CONTAINS
 !> \param rho_set ...
 !> \param deriv_set ...
 !> \param order ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_lda_eval (rho_set,deriv_set,order,error)
+  SUBROUTINE tfw_lda_eval (rho_set,deriv_set,order)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tfw_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -154,73 +148,72 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(bo)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rho_1_3=r13,rho=rho,&
-         norm_drho=grho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         error=error)
+         norm_drho=grho,local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL tfw_init(epsilon_rho)
 
     ALLOCATE ( s(npoints), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL calc_s(rho,grho,s, npoints)
 
     IF ( order>=0 ) THEN
        deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
 
-       CALL tfw_u_0 ( rho, r13, s, e_0, npoints, error )
+       CALL tfw_u_0 ( rho, r13, s, e_0, npoints)
     END IF
     IF ( order>=1.OR.order==-1 ) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
 
-       CALL tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
+       CALL tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints)
     END IF
     IF ( order>=2.OR.order==-2 ) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho)
        deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
 
        CALL tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho,&
-            e_ndrho_ndrho, npoints, error )
+            e_ndrho_ndrho, npoints)
     END IF
     IF ( order>=3.OR.order==-3 ) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+            "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho)
        deriv => xc_dset_get_derivative(deriv_set,&
-            "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+            "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho)
 
        CALL tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
-            e_rho_ndrho_ndrho, npoints, error )
+            e_rho_ndrho_ndrho, npoints)
     END IF
     IF ( order>3.OR.order<-3) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 3 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     DEALLOCATE ( s, STAT=stat )
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     CALL timestop(handle)
   END SUBROUTINE tfw_lda_eval
 
@@ -254,13 +247,11 @@ CONTAINS
 !> \param rho_set ...
 !> \param deriv_set ...
 !> \param order ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_lsd_eval(rho_set,deriv_set,order,error)
+  SUBROUTINE tfw_lsd_eval(rho_set,deriv_set,order)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tfw_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -288,85 +279,85 @@ CONTAINS
        NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
     END DO
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
          rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
          rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
          norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
-         local_bounds=bo, error=error)
+         local_bounds=bo)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL tfw_init(epsilon_rho)
 
     ALLOCATE ( s(npoints), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ispin=1,2
        CALL calc_s(rho(ispin)%array, norm_drho(ispin)%array, s, npoints)
 
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+               allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
           CALL tfw_p_0 ( rho(ispin)%array, &
-               rho_1_3(ispin)%array, s, e_0, npoints,error )
+               rho_1_3(ispin)%array, s, e_0, npoints)
        END IF
        IF ( order>=1.OR.order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin),&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+               allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho)
           deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin),&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+               allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
 
           CALL tfw_p_1 ( rho(ispin)%array, norm_drho(ispin)%array, &
-               rho_1_3(ispin)%array, s, e_rho, e_ndrho, npoints,error )
+               rho_1_3(ispin)%array, s, e_rho, e_ndrho, npoints)
        END IF
        IF ( order>=2.OR.order==-2 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-               rho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+               rho_spin_name(ispin),allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho)
           deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-               norm_drho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+               norm_drho_spin_name(ispin),allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho)
           deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin)//&
-               norm_drho_spin_name(ispin), allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+               norm_drho_spin_name(ispin), allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
 
           CALL tfw_p_2 ( rho(ispin)%array, norm_drho(ispin)%array, &
                rho_1_3(ispin)%array, s, e_rho_rho, e_rho_ndrho,&
-               e_ndrho_ndrho, npoints,error )
+               e_ndrho_ndrho, npoints)
        END IF
        IF ( order>=3 .OR. order==-3 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
                rho_spin_name(ispin)//rho_spin_name(ispin),&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+               allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho)
           deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
                rho_spin_name(ispin)//norm_drho_spin_name(ispin),&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+               allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho)
           deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
                norm_drho_spin_name(ispin)//norm_drho_spin_name(ispin), &
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+               allocate_deriv=.TRUE.)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho)
 
           CALL tfw_p_3 ( rho(ispin)%array, norm_drho(ispin)%array, &
                rho_1_3(ispin)%array, s, e_rho_rho_rho, e_rho_rho_ndrho,&
-               e_rho_ndrho_ndrho, npoints,error )
+               e_rho_ndrho_ndrho, npoints)
        END IF
        IF ( order>3.OR.order<-3) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="derivatives bigger than 3 not implemented", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END IF
     END DO
 
     DEALLOCATE ( s, STAT=stat )
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     CALL timestop(handle)
   END SUBROUTINE tfw_lsd_eval
 
@@ -377,15 +368,13 @@ CONTAINS
 !> \param s ...
 !> \param e_0 ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_u_0 ( rho, r13, s, e_0, npoints, error )
+  SUBROUTINE tfw_u_0 ( rho, r13, s, e_0, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
 
@@ -412,15 +401,13 @@ CONTAINS
 !> \param e_rho ...
 !> \param e_ndrho ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
+  SUBROUTINE tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -452,17 +439,15 @@ CONTAINS
 !> \param e_rho_ndrho ...
 !> \param e_ndrho_ndrho ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
-       npoints, error)
+       npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -495,10 +480,9 @@ CONTAINS
 !> \param e_rho_rho_ndrho ...
 !> \param e_rho_ndrho_ndrho ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
-       e_rho_ndrho_ndrho, npoints, error)
+       e_rho_ndrho_ndrho, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
@@ -506,7 +490,6 @@ CONTAINS
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -538,15 +521,13 @@ CONTAINS
 !> \param sa ...
 !> \param e_0 ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_p_0 ( rhoa, r13a, sa, e_0, npoints, error )
+  SUBROUTINE tfw_p_0 ( rhoa, r13a, sa, e_0, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
 
@@ -571,16 +552,13 @@ CONTAINS
 !> \param e_rho ...
 !> \param e_ndrho ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_p_1 ( rhoa, grhoa, r13a, sa, e_rho, e_ndrho, npoints,&
-       error )
+  SUBROUTINE tfw_p_1 ( rhoa, grhoa, r13a, sa, e_rho, e_ndrho, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -610,17 +588,15 @@ CONTAINS
 !> \param e_rho_ndrho ...
 !> \param e_ndrho_ndrho ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tfw_p_2 ( rhoa, grhoa, r13a, sa, e_rho_rho, e_rho_ndrho,&
-       e_ndrho_ndrho, npoints, error )
+       e_ndrho_ndrho, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -653,10 +629,9 @@ CONTAINS
 !> \param e_rho_rho_ndrho ...
 !> \param e_rho_ndrho_ndrho ...
 !> \param npoints ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tfw_p_3 ( rhoa, grhoa, r13a, sa, e_rho_rho_rho, e_rho_rho_ndrho,&
-       e_rho_ndrho_ndrho, npoints, error )
+       e_rho_ndrho_ndrho, npoints)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
@@ -664,7 +639,6 @@ CONTAINS
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f

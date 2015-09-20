@@ -38,12 +38,10 @@ MODULE swarm_input
 ! *****************************************************************************
 !> \brief Declares the SWARM input section
 !> \param swarm_section ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE create_swarm_section(swarm_section,error)
+  SUBROUTINE create_swarm_section(swarm_section)
     TYPE(section_type), POINTER              :: swarm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_section, printkey
@@ -53,7 +51,7 @@ MODULE swarm_input
     CALL section_create(swarm_section,name="SWARM",&
          description="Section to control swarm runs. "//&
          "The swarm framework provides a common ground for master/worker algorithms.",&
-         repeats=.FALSE., error=error)
+         repeats=.FALSE.)
 
     CALL keyword_create(keyword, name="BEHAVIOR",&
          description="Which behaviour should control the swarm.",&
@@ -61,63 +59,59 @@ MODULE swarm_input
          default_i_val=swarm_do_glbopt,&
          enum_c_vals=s2a("GLOBAL_OPT"),&
          enum_desc=s2a("Runs global geometry optimisation"),&
-         enum_i_vals=(/swarm_do_glbopt/),&
-         error=error)
-    CALL section_add_keyword(swarm_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         enum_i_vals=(/swarm_do_glbopt/))
+    CALL section_add_keyword(swarm_section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NUMBER_OF_WORKERS",&
         description="Number of workers used for swarm. "//&
         "Of the total number of processors one is used for the master, "//&
         "the remaining processors should be divisible by the number of workers.",&
-        type_of_var=integer_t,error=error)
-    CALL section_add_keyword(swarm_section, keyword, error=error)
-    CALL keyword_release(keyword, error=error)
+        type_of_var=integer_t)
+    CALL section_add_keyword(swarm_section, keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="REPLAY_COMMUNICATION_LOG",&
            description="Filename of communication log of previous run. Use this to restart a swarm.",&
            repeats=.FALSE.,&
-           usage="REPLAY_COMMUNICATION_LOG <CHARACTER>", default_lc_val="swarm_translog_replay.xyz", &
-           error=error)
-    CALL section_add_keyword(swarm_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+           usage="REPLAY_COMMUNICATION_LOG <CHARACTER>", default_lc_val="swarm_translog_replay.xyz")
+    CALL section_add_keyword(swarm_section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="MAX_ITER",&
         description="The maximum number iterations the master should perform",&
-        type_of_var=integer_t,default_i_val=HUGE(1),error=error)
-    CALL section_add_keyword(swarm_section, keyword, error=error)
-    CALL keyword_release(keyword, error=error)
+        type_of_var=integer_t,default_i_val=HUGE(1))
+    CALL section_add_keyword(swarm_section, keyword)
+    CALL keyword_release(keyword)
 
     CALL section_create(print_section,name="PRINT",&
          description="Controls the printing properties during a global optimization run",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
+         n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
     CALL cp_print_key_section_create(printkey,"WORKER_RUN_INFO",&
                description="Controls the printing of the worker's basic information during the global optimization", &
-               print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-               error=error)
-    CALL section_add_subsection(print_section,printkey,error=error)
-    CALL section_release(printkey,error=error)
+               print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__")
+    CALL section_add_subsection(print_section,printkey)
+    CALL section_release(printkey)
 
     CALL cp_print_key_section_create(printkey,"MASTER_RUN_INFO",&
                description="Controls the printing of the masters's basic information during the global optimization", &
-               print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-               error=error)
-    CALL section_add_subsection(print_section,printkey,error=error)
-    CALL section_release(printkey,error=error)
+               print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__")
+    CALL section_add_subsection(print_section,printkey)
+    CALL section_release(printkey)
 
     CALL cp_print_key_section_create(printkey,"COMMUNICATION_LOG",&
             description="Log all the communication between workers and master. Needed for restart.",&
             print_level=low_print_level, common_iter_levels=1,&
-            filename="",unit_str="angstrom",error=error)
-    CALL section_add_subsection(print_section,printkey,error=error)
-    CALL section_release(printkey,error=error)
+            filename="",unit_str="angstrom")
+    CALL section_add_subsection(print_section,printkey)
+    CALL section_release(printkey)
 
-    CALL section_add_subsection(swarm_section,print_section,error=error)
-    CALL section_release(print_section,error=error)
+    CALL section_add_subsection(swarm_section,print_section)
+    CALL section_release(print_section)
 
 
-    CALL glbopt_declare_input(swarm_section, error)
+    CALL glbopt_declare_input(swarm_section)
 
   END SUBROUTINE create_swarm_section
 

@@ -73,7 +73,6 @@ PROGRAM cp2k
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
   TYPE(section_type), POINTER          :: input_declaration
-  TYPE(cp_error_type)                  :: error
 
   NULLIFY(input_declaration)
 
@@ -250,17 +249,17 @@ PROGRAM cp2k
         ! if a manual is needed
         IF (manual) THEN
            IF (default_para_env%mepos==default_para_env%source) THEN
-              CALL write_cp2k_html_manual(error=error)
+              CALL write_cp2k_html_manual()
            END IF
         ENDIF
 
         IF (xml) THEN
           IF (default_para_env%mepos == default_para_env%source) THEN
-            CALL write_xml_file(error=error)
+            CALL write_xml_file()
           END IF
         END IF
 
-        CALL create_cp2k_root_section(input_declaration, error)
+        CALL create_cp2k_root_section(input_declaration)
 
         IF (check) THEN
            CALL check_input(input_declaration,input_file_name,output_file_name,&
@@ -287,7 +286,7 @@ PROGRAM cp2k
            ENDIF
         END IF
 
-        CALL section_release(input_declaration,error=error)
+        CALL section_release(input_declaration)
      ENDIF
   ELSE
      WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"

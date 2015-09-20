@@ -75,7 +75,6 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -86,7 +85,7 @@ CONTAINS
 !>      Analytical version of the MOPAC rotnuc routine
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,e1b,e2a,de1b,de2a,&
-       se_int_control,se_taper,error)
+       se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
@@ -96,7 +95,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_ana', &
       routineP = moduleN//':'//routineN
@@ -125,9 +123,8 @@ CONTAINS
        ! Compute Integrals in diatomic frame opportunely inverted
        rij  = SQRT(rij)
        ! Create the rotation matrix
-       CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert,&
-            error=error)
+       CALL rotmat_create(ij_matrix)
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert)
 
        IF (lgrad) THEN
           drij(1) = rijv(1)/rij
@@ -142,7 +139,7 @@ CONTAINS
        END IF
 
        CALL dcore_nucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,se_taper=se_taper,&
-            se_int_control=se_int_control,lgrad=lgrad,error=error)
+            se_int_control=se_int_control,lgrad=lgrad)
 
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
@@ -200,8 +197,8 @@ CONTAINS
              END DO
           END IF
        END DO
-       IF (invert.AND.l_e1b)  CALL invert_integral  (sepi, sepi, int1el=e1b, error=error)
-       IF (invert.AND.l_e2a)  CALL invert_integral  (sepj, sepj, int1el=e2a, error=error)
+       IF (invert.AND.l_e1b)  CALL invert_integral  (sepi, sepi, int1el=e1b)
+       IF (invert.AND.l_e2a)  CALL invert_integral  (sepj, sepj, int1el=e2a)
 
        ! Possibly compute derivatives
        task (1)         = l_de1b
@@ -318,13 +315,13 @@ CONTAINS
              END DO
           END IF
        END DO
-       IF (invert.AND.l_de1b) CALL invert_derivative(sepi, sepi, dint1el=de1b, error=error)
-       IF (invert.AND.l_de2a) CALL invert_derivative(sepj, sepj, dint1el=de2a, error=error)
-       CALL rotmat_release(ij_matrix, error)
+       IF (invert.AND.l_de1b) CALL invert_derivative(sepi, sepi, dint1el=de1b)
+       IF (invert.AND.l_de2a) CALL invert_derivative(sepj, sepj, dint1el=de2a)
+       CALL rotmat_release(ij_matrix)
 
        ! Possibly debug the analytical values versus the numerical ones
        IF (debug_this_module) THEN
-          CALL check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a, error)
+          CALL check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a)
        END IF
     END IF
   END SUBROUTINE rotnuc_ana
@@ -340,7 +337,6 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -351,7 +347,7 @@ CONTAINS
 !> \note
 !>      Analytical version of the MOPAC rotnuc routine
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,se_int_control,se_taper,error)
+  RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
@@ -360,7 +356,6 @@ CONTAINS
       OPTIONAL                               :: denuc
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_ana', &
       routineP = moduleN//':'//routineN
@@ -388,11 +383,11 @@ CONTAINS
             do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening, &
             max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
        CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,se_taper=se_taper,&
-            se_int_control=se_int_control_off,lgrad=l_denuc,error=error)
+            se_int_control=se_int_control_off,lgrad=l_denuc)
        ! In case let's compute the short-range part of the (ss|ss) integral
        IF (se_int_control%shortrange) THEN
           CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss_sr,dssss=dssss_sr,itype=itype,&
-               se_taper=se_taper, se_int_control=se_int_control, lgrad=l_denuc, error=error)
+               se_taper=se_taper, se_int_control=se_int_control, lgrad=l_denuc)
        ELSE
           ssss_sr  = ssss
           dssss_sr = dssss
@@ -637,7 +632,7 @@ CONTAINS
        END IF
        ! Debug statement
        IF (debug_this_module) THEN
-          CALL check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, enuc, denuc, error)
+          CALL check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, enuc, denuc)
        END IF
     ENDIF
   END SUBROUTINE corecore_ana
@@ -655,7 +650,6 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -667,7 +661,7 @@ CONTAINS
 !>      Analytical version of the MOPAC rotnuc routine
 ! *****************************************************************************
   RECURSIVE SUBROUTINE corecore_el_ana (sepi,sepj,rijv,itype,enuc,denuc,&
-       se_int_control,se_taper,error)
+       se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
@@ -676,7 +670,6 @@ CONTAINS
       OPTIONAL                               :: denuc
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el_ana', &
       routineP = moduleN//':'//routineN
@@ -698,11 +691,11 @@ CONTAINS
             do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening, &
             max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
        CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,se_taper=se_taper,&
-            se_int_control=se_int_control_off,lgrad=l_denuc,error=error)
+            se_int_control=se_int_control_off,lgrad=l_denuc)
        ! In case let's compute the short-range part of the (ss|ss) integral
        IF (se_int_control%shortrange.OR.se_int_control%pc_coulomb_int) THEN
           CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss_sr,dssss=dssss_sr,itype=itype,&
-               se_taper=se_taper, se_int_control=se_int_control, lgrad=l_denuc, error=error)
+               se_taper=se_taper, se_int_control=se_int_control, lgrad=l_denuc)
        ELSE
           ssss_sr  =  ssss
           dssss_sr = dssss
@@ -726,17 +719,15 @@ CONTAINS
 !> \param sepj ...
 !> \param int1el ...
 !> \param int2el ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      05.2008 New driver for integral invertion (supports d-orbitals)
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE invert_integral(sepi, sepj, int1el, int2el, error)
+  SUBROUTINE invert_integral(sepi, sepj, int1el, int2el)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(INOUT), &
       OPTIONAL                               :: int1el, int2el
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'invert_integral', &
       routineP = moduleN//':'//routineN
@@ -844,16 +835,14 @@ CONTAINS
 !> \param sepj ...
 !> \param dint1el ...
 !> \param dint2el ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE invert_derivative(sepi, sepj, dint1el, dint2el, error)
+  SUBROUTINE invert_derivative(sepi, sepj, dint1el, dint2el)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: dint1el, dint2el
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'invert_derivative', &
       routineP = moduleN//':'//routineN
@@ -866,10 +855,10 @@ CONTAINS
     ! Integral part
     DO i=1,3
        IF (PRESENT(dint1el)) THEN
-          CALL invert_integral(sepi, sepj, int1el=dint1el(i,:), error=error)
+          CALL invert_integral(sepi, sepj, int1el=dint1el(i,:))
        END IF
        IF (PRESENT(dint2el)) THEN
-          CALL invert_integral(sepi, sepj, int2el=dint2el(i,:), error=error)
+          CALL invert_integral(sepi, sepj, int2el=dint2el(i,:))
        END IF
     END DO
 
@@ -903,7 +892,6 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                          integrals (shortrange, R3 residual, screening type)
 !> \param lgrad ...
-!> \param error ...
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -915,7 +903,7 @@ CONTAINS
 !>
 ! *****************************************************************************
   SUBROUTINE dssss_nucint_ana(sepi, sepj, rij, ssss, dssss, itype, se_taper, se_int_control,&
-       lgrad, error)
+       lgrad)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss, dssss
@@ -923,7 +911,6 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dssss_nucint_ana', &
       routineP = moduleN//':'//routineN
@@ -938,27 +925,27 @@ CONTAINS
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
-       ft =  taper_eval(se_taper%taper, rij, error)
-       dft= dtaper_eval(se_taper%taper, rij, error)
+       ft =  taper_eval(se_taper%taper, rij)
+       dft= dtaper_eval(se_taper%taper, rij)
     END IF
     ! Evaluate additional taper function for dumped integrals
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
        se_int_screen%ft  = 1.0_dp
        se_int_screen%dft = 0.0_dp
        IF (itype/=do_method_pchg) THEN
-          se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij, error)
-          se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij, error)
+          se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij)
+          se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij)
        END IF
     END IF
 
     ! Value of the integrals for sp shell
     CALL  nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, se_int_control=se_int_control,&
-         se_int_screen=se_int_screen, error=error)
+         se_int_screen=se_int_screen)
 
     IF (lgrad) THEN
        ! Integrals derivatives for sp shell
        CALL dnucint_sp_ana(sepi, sepj, rij, dssss=dssss, itype=itype, se_int_control=se_int_control,&
-            se_int_screen=se_int_screen, error=error)
+            se_int_screen=se_int_screen)
     END IF
 
     ! Tapering the value of the integrals
@@ -969,7 +956,7 @@ CONTAINS
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
     IF (debug_this_module.AND.lgrad) THEN
-       CALL check_dssss_nucint_ana(sepi,sepj,rij,dssss,itype,se_int_control,se_taper=se_taper,error=error)
+       CALL check_dssss_nucint_ana(sepi,sepj,rij,dssss,itype,se_int_control,se_taper=se_taper)
     END IF
   END SUBROUTINE dssss_nucint_ana
 
@@ -991,7 +978,6 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                          integrals (shortrange, R3 residual, screening type)
 !> \param lgrad ...
-!> \param error ...
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -1003,7 +989,7 @@ CONTAINS
 !>
 ! *****************************************************************************
   SUBROUTINE dcore_nucint_ana ( sepi, sepj, rij, core, dcore, itype, se_taper, &
-       se_int_control, lgrad, error)
+       se_int_control, lgrad)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core, dcore
@@ -1011,7 +997,6 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dcore_nucint_ana', &
       routineP = moduleN//':'//routineN
@@ -1026,40 +1011,38 @@ CONTAINS
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
-       ft =  taper_eval(se_taper%taper, rij, error)
-       dft= dtaper_eval(se_taper%taper, rij, error)
+       ft =  taper_eval(se_taper%taper, rij)
+       dft= dtaper_eval(se_taper%taper, rij)
     END IF
     ! Evaluate additional taper function for dumped integrals
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
        se_int_screen%ft  = 1.0_dp
        se_int_screen%dft = 0.0_dp
        IF (itype/=do_method_pchg) THEN
-          se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij, error)
-          se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij, error)
+          se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij)
+          se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij)
        END IF
     END IF
 
     ! Value of the integrals for sp shell
     CALL  nucint_sp_num(sepi, sepj, rij, core=core, itype=itype,&
-         se_int_control=se_int_control, se_int_screen=se_int_screen, error=error)
+         se_int_control=se_int_control, se_int_screen=se_int_screen)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  nucint_d_num(sepi, sepj, rij, core, itype,&
-            se_int_control=se_int_control, se_int_screen=se_int_screen, error=error)
+            se_int_control=se_int_control, se_int_screen=se_int_screen)
     END IF
 
     IF (lgrad) THEN
        ! Integrals derivatives for sp shell
        CALL dnucint_sp_ana(sepi, sepj, rij, dcore=dcore, itype=itype,&
-            se_int_control=se_int_control, se_int_screen=se_int_screen,&
-            error=error)
+            se_int_control=se_int_control, se_int_screen=se_int_screen)
 
        IF (sepi%dorb.OR.sepj%dorb) THEN
           ! Integral derivatives involving d-orbitals
           CALL dnucint_d_ana(sepi, sepj, rij, dcore=dcore, itype=itype,&
-               se_int_control=se_int_control, se_int_screen=se_int_screen,&
-               error=error)
+               se_int_control=se_int_control, se_int_screen=se_int_screen)
        END IF
     END IF
 
@@ -1081,7 +1064,7 @@ CONTAINS
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
     IF (debug_this_module.AND.lgrad) THEN
-       CALL check_dcore_nucint_ana(sepi,sepj,rij,dcore,itype,se_int_control,se_taper=se_taper,error=error)
+       CALL check_dcore_nucint_ana(sepi,sepj,rij,dcore,itype,se_int_control,se_taper=se_taper)
     END IF
   END SUBROUTINE dcore_nucint_ana
 
@@ -1103,7 +1086,6 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                          integrals (shortrange, R3 residual, screening type)
 !> \param se_int_screen ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
@@ -1117,7 +1099,7 @@ CONTAINS
 !>      vector version written by Ernest R. Davidson, Indiana University
 ! *****************************************************************************
   SUBROUTINE dnucint_sp_ana ( sepi, sepj, rij, dssss, dcore, itype, se_int_control,&
-       se_int_screen, error)
+       se_int_screen)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT), OPTIONAL        :: dssss
@@ -1126,7 +1108,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_sp_ana', &
       routineP = moduleN//':'//routineN
@@ -1200,12 +1181,11 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
 !> \param se_int_screen ...
-!> \param error ...
 !> \author
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich: created
 ! *****************************************************************************
   SUBROUTINE dnucint_d_ana( sepi, sepj, rij, dcore, itype, se_int_control,&
-       se_int_screen, error)
+       se_int_screen)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), &
@@ -1213,7 +1193,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_d_ana', &
       routineP = moduleN//':'//routineN
@@ -1277,7 +1256,6 @@ CONTAINS
 !> \param dw ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -1289,7 +1267,7 @@ CONTAINS
 !>      routine adapted from mopac7 (repp)
 !>      vector version written by Ernest R. Davidson, Indiana University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
+  RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(2025), INTENT(OUT), &
@@ -1298,7 +1276,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: dw
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint_ana', &
       routineP = moduleN//':'//routineN
@@ -1332,11 +1309,11 @@ CONTAINS
        rij = SQRT(rij)
 
        ! Create the rotation matrix
-       CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)
+       CALL rotmat_create(ij_matrix)
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert)
 
        ! Compute integrals in diatomic frame as well their derivatives (if requested)
-       CALL dterep_ana(sepi,sepj,rij,rep,rep_d,se_taper,se_int_control,lgrad=lgrad,error=error)
+       CALL dterep_ana(sepi,sepj,rij,rep,rep_d,se_taper,se_int_control,lgrad=lgrad)
 
        IF (lgrad) THEN
           drij(1) = rijv(1)/rij
@@ -1354,7 +1331,7 @@ CONTAINS
        kk = sepj%natorb
        ! First step in rotation of integrals
        CALL rot_2el_2c_first(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, rep, logv, ij_matrix,&
-            v, lgrad, rep_d, v_d, logv_d, drij, error)
+            v, lgrad, rep_d, v_d, logv_d, drij)
 
        ! Integrals if requested
        IF (l_w) THEN
@@ -1445,13 +1422,13 @@ CONTAINS
                 END DO
              END DO
              ! Store two electron integrals in the triangular format
-             CALL store_2el_2c_diag(limij, limkl, ww(1:istep), w, error=error)
-             IF (invert) CALL invert_integral(sepi, sepj, int2el=w, error=error)
+             CALL store_2el_2c_diag(limij, limkl, ww(1:istep), w)
+             IF (invert) CALL invert_integral(sepi, sepj, int2el=w)
           END IF
 
           IF (debug_this_module) THEN
              ! Check value of integrals
-             CALL check_rotint_ana(sepi,sepj,rijv,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+             CALL check_rotint_ana(sepi,sepj,rijv,w,se_int_control=se_int_control,se_taper=se_taper)
           END IF
        END IF
 
@@ -1592,16 +1569,16 @@ CONTAINS
              END DO
              ! Store two electron integrals in the triangular format
              CALL store_2el_2c_diag(limij, limkl, ww_dx=ww_d(1,1:istep), ww_dy=ww_d(2,1:istep), ww_dz=ww_d(3,1:istep),&
-                  dw=dw, error=error)
-             IF (invert) CALL invert_derivative(sepi, sepj, dint2el=dw, error=error)
+                  dw=dw)
+             IF (invert) CALL invert_derivative(sepi, sepj, dint2el=dw)
           END IF
 
           IF (debug_this_module) THEN
              ! Check derivatives
-             CALL check_rotint_ana(sepi,sepj,rijv,dw=dw,se_int_control=se_int_control,se_taper=se_taper,error=error)
+             CALL check_rotint_ana(sepi,sepj,rijv,dw=dw,se_int_control=se_int_control,se_taper=se_taper)
           END IF
        END IF
-       CALL rotmat_release(ij_matrix, error)
+       CALL rotmat_release(ij_matrix)
     ENDIF
   END SUBROUTINE rotint_ana
 
@@ -1617,13 +1594,12 @@ CONTAINS
 !> \param se_int_control input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
 !> \param lgrad ...
-!> \param error ...
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dterep_ana (sepi, sepj, rij, rep, rep_d, se_taper, &
-       se_int_control, lgrad, error)
+       se_int_control, lgrad)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp), DIMENSION(491), &
@@ -1631,7 +1607,6 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana', &
       routineP = moduleN//':'//routineN
@@ -1644,39 +1619,39 @@ CONTAINS
 
     failure = .FALSE.
     ! Compute the tapering function and its derivatives
-    ft  = taper_eval(se_taper%taper,rij,error)
+    ft  = taper_eval(se_taper%taper,rij)
     dft = 0.0_dp
     ft1 = ft
     IF (lgrad) THEN
        ft1 = 1.0_dp
-       dft = dtaper_eval(se_taper%taper,rij,error)
+       dft = dtaper_eval(se_taper%taper,rij)
     END IF
     ! Evaluate additional taper function for dumped integrals
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
-       se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij, error)
+       se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij)
        IF (lgrad) &
-       se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij, error)
+       se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij)
     END IF
 
     ! Integral Values for sp shells only
     CALL  terep_sp_num(sepi, sepj, rij, rep, se_int_control=se_int_control, &
-         se_int_screen=se_int_screen, ft=ft1, error=error)
+         se_int_screen=se_int_screen, ft=ft1)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  terep_d_num (sepi, sepj, rij, rep, se_int_control=se_int_control,&
-            se_int_screen=se_int_screen, ft=ft1, error=error)
+            se_int_screen=se_int_screen, ft=ft1)
     END IF
 
     IF (lgrad) THEN
        ! Integral Derivatives
        CALL dterep_sp_ana(sepi, sepj, rij, rep_d, rep, se_int_control,&
-            se_int_screen, ft, dft, error=error)
+            se_int_screen, ft, dft)
 
        IF (sepi%dorb.OR.sepj%dorb) THEN
           ! Compute the derivatives from d-orbitals
           CALL dterep_d_ana (sepi, sepj, rij, rep_d, rep, se_int_control,&
-               se_int_screen, ft, dft, error=error)
+               se_int_screen, ft, dft)
        END IF
 
        ! Tapering Integral values
@@ -1703,7 +1678,7 @@ CONTAINS
     ! Possibly debug 2el 2cent integrals and derivatives
     IF (debug_this_module) THEN
        CALL check_dterep_ana(sepi, sepj, rij, rep, rep_d, se_int_control, se_taper=se_taper,&
-            lgrad=lgrad, error=error)
+            lgrad=lgrad)
     END IF
   END SUBROUTINE dterep_ana
 
@@ -1720,7 +1695,6 @@ CONTAINS
 !> \param se_int_screen ...
 !> \param ft ...
 !> \param dft ...
-!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
@@ -1734,7 +1708,7 @@ CONTAINS
 !>      vector version written by Ernest R. Davidson, Indiana University
 ! *****************************************************************************
   SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, rep, se_int_control, &
-       se_int_screen, ft, dft, error)
+       se_int_screen, ft, dft)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: drep
@@ -1742,7 +1716,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     REAL(dp), INTENT(IN)                     :: ft, dft
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_sp_ana', &
       routineP = moduleN//':'//routineN
@@ -1776,7 +1749,7 @@ CONTAINS
                       drep(numb) = -drep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = d_ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                       se_int_control, se_int_screen, do_method_undef, error)
+                                       se_int_control, se_int_screen, do_method_undef)
                       drep(numb) = dft*rep(numb)+ft*tmp
                    END IF
                 END IF
@@ -1798,13 +1771,12 @@ CONTAINS
 !> \param se_int_screen ...
 !> \param ft ...
 !> \param dft ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integral derivatives for d-orbitals
 ! *****************************************************************************
   SUBROUTINE dterep_d_ana (sepi, sepj, rij, drep, rep, se_int_control, &
-       se_int_screen, ft, dft, error )
+       se_int_screen, ft, dft)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(INOUT)  :: drep
@@ -1812,7 +1784,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     REAL(dp), INTENT(IN)                     :: ft, dft
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_d_ana', &
       routineP = moduleN//':'//routineN
@@ -1847,7 +1818,7 @@ CONTAINS
                       drep(numb) = -drep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = d_ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                      se_int_control, se_int_screen, do_method_undef, error)
+                                      se_int_control, se_int_screen, do_method_undef)
                       drep(numb) = dft*rep(numb)+ft*tmp
                    END IF
                 END IF

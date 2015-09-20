@@ -168,9 +168,8 @@ CONTAINS
 !> \param rng_stream ...
 !> \param e ...
 !> \param c ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE advance_rng_state(rng_stream,e,c,error)
+  SUBROUTINE advance_rng_state(rng_stream,e,c)
 
     ! Advance the state by n steps, i.e. jump n steps forward, if n > 0, or
     ! backward if n < 0.
@@ -182,7 +181,6 @@ CONTAINS
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN)                      :: e, c
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'advance_rng_state', &
       routineP = moduleN//':'//routineN
@@ -195,7 +193,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
 
     u1 = 0.0_dp
@@ -243,15 +241,13 @@ CONTAINS
 !> \brief ...
 !> \param output_unit ...
 !> \param ionode ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE check_rng(output_unit,ionode,error)
+  SUBROUTINE check_rng(output_unit,ionode)
 
     ! Check the parallel (pseudo)random number generator (RNG).
 
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: ionode
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rng', &
       routineP = moduleN//':'//routineN
@@ -271,91 +267,91 @@ CONTAINS
 
     ! Create RNG test streams
 
-    CALL create_rng_stream(g1,"g1",error=error)
-    CALL create_rng_stream(g2,"g2",g1,error=error)
-    CALL create_rng_stream(g3,"g3",g2,error=error)
+    CALL create_rng_stream(g1,"g1")
+    CALL create_rng_stream(g2,"g2",g1)
+    CALL create_rng_stream(g3,"g3",g2)
 
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
         "RESULTS OF THE PSEUDO(RANDOM) NUMBER GENERATOR TEST RUNS",&
         "Initial states of the (pseudo)random number streams (test 1):"
-      CALL write_rng_stream(g1,output_unit,error=error)
-      CALL write_rng_stream(g2,output_unit,error=error)
-      CALL write_rng_stream(g3,output_unit,error=error)
+      CALL write_rng_stream(g1,output_unit)
+      CALL write_rng_stream(g2,output_unit)
+      CALL write_rng_stream(g3,output_unit)
     END IF
 
-    sum = next_random_number(g2,error=error) + next_random_number(g3,error=error)
+    sum = next_random_number(g2) + next_random_number(g3)
 
-    CALL advance_rng_state(g1,5,3,error=error)
-    sum = sum + next_random_number(g1,error=error)
+    CALL advance_rng_state(g1,5,3)
+    sum = sum + next_random_number(g1)
 
-    CALL reset_rng_stream(g1,error=error)
+    CALL reset_rng_stream(g1)
     DO i=1,35
-       CALL advance_rng_state(g1,0,1,error=error)
+       CALL advance_rng_state(g1,0,1)
     END DO
-    sum = sum + next_random_number(g1,error=error)
+    sum = sum + next_random_number(g1)
 
-    CALL reset_rng_stream(g1,error=error)
+    CALL reset_rng_stream(g1)
 
     sumi = 0
     DO i=1,35
-      sumi = sumi + next_random_number(g1,1,10,error=error)
+      sumi = sumi + next_random_number(g1,1,10)
     END DO
     sum = sum + sumi/100.0_dp
 
     sum3 = 0.0_dp
     DO i=1,100
-      sum3 = sum3 + next_random_number(g3,error=error)
+      sum3 = sum3 + next_random_number(g3)
     END DO
     sum = sum + sum3/10.0_dp
 
-    CALL reset_rng_stream(g3,error=error)
+    CALL reset_rng_stream(g3)
     DO i=1,5
-      sum = sum + next_random_number(g3,error=error)
+      sum = sum + next_random_number(g3)
     END DO
 
-    CALL reset_rng_stream(g3,error=error)
+    CALL reset_rng_stream(g3)
     DO i=1,4
-      CALL reset_to_next_rng_substream(g3,error=error)
+      CALL reset_to_next_rng_substream(g3)
     END DO
     DO i=1,5
-      sum = sum + next_random_number(g3,error=error)
+      sum = sum + next_random_number(g3)
     END DO
 
     CALL reset_rng_substream(g3)
     DO i=1,5
-      sum = sum + next_random_number(g3,error=error)
+      sum = sum + next_random_number(g3)
     END DO
 
-    CALL reset_to_next_rng_substream(g2,error=error)
+    CALL reset_to_next_rng_substream(g2)
     sum3 = 0.0_dp
     DO i=1,100000
-      sum3 = sum3 + next_random_number(g2,error=error)
+      sum3 = sum3 + next_random_number(g2)
     END DO
     sum = sum + sum3/10000.0_dp
 
-    CALL set_rng_stream(g3,antithetic=.TRUE.,error=error)
+    CALL set_rng_stream(g3,antithetic=.TRUE.)
     sum3 = 0.0_dp
     DO i=1,100000
-      sum3 = sum3 + next_random_number(g3,error=error)
+      sum3 = sum3 + next_random_number(g3)
     END DO
     sum = sum + sum3/10000.0_dp
 
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
         "Final states of the (pseudo)random number streams (test 1):"
-      CALL write_rng_stream(g1,output_unit,error=error)
-      CALL write_rng_stream(g2,output_unit,error=error)
-      CALL write_rng_stream(g3,output_unit,error=error)
+      CALL write_rng_stream(g1,output_unit)
+      CALL write_rng_stream(g2,output_unit)
+      CALL write_rng_stream(g3,output_unit)
       WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
         "This test routine should print for test 1 the number 25.342059"
       WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
         "The actual result of test 1 is                      ",sum
     END IF
 
-    CALL delete_rng_stream(g1,error=error)
-    CALL delete_rng_stream(g2,error=error)
-    CALL delete_rng_stream(g3,error=error)
+    CALL delete_rng_stream(g1)
+    CALL delete_rng_stream(g2)
+    CALL delete_rng_stream(g3)
 
     ! -------------------------------------------------------------------------
 
@@ -368,82 +364,80 @@ CONTAINS
 
     germe(:,:) = 1
 
-    CALL create_rng_stream(poisson,"Poisson",seed=germe,error=error)
-    CALL create_rng_stream(laplace,"Laplace",poisson,error=error)
-    CALL create_rng_stream(galois,"Galois",laplace,error=error)
-    CALL create_rng_stream(cantor,"Cantor",galois,error=error)
+    CALL create_rng_stream(poisson,"Poisson",seed=germe)
+    CALL create_rng_stream(laplace,"Laplace",poisson)
+    CALL create_rng_stream(galois,"Galois",laplace)
+    CALL create_rng_stream(cantor,"Cantor",galois)
 
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
         "Initial states of the (pseudo)random number streams (test 2):"
-      CALL write_rng_stream(poisson,output_unit,error=error)
-      CALL write_rng_stream(laplace,output_unit,error=error)
-      CALL write_rng_stream(galois,output_unit,error=error)
-      CALL write_rng_stream(cantor,output_unit,error=error)
+      CALL write_rng_stream(poisson,output_unit)
+      CALL write_rng_stream(laplace,output_unit)
+      CALL write_rng_stream(galois,output_unit)
+      CALL write_rng_stream(cantor,output_unit)
     END IF
 
-    sum = sum + next_random_number(poisson,error=error) +&
-                next_random_number(laplace,error=error) +&
-                next_random_number(galois,error=error) +&
-                next_random_number(cantor,error=error)
+    sum = sum + next_random_number(poisson) +&
+                next_random_number(laplace) +&
+                next_random_number(galois) +&
+                next_random_number(cantor)
 
-    CALL advance_rng_state(galois,-127,0,error=error)
-    sum = sum + next_random_number(galois,error=error)
+    CALL advance_rng_state(galois,-127,0)
+    sum = sum + next_random_number(galois)
 
-    CALL reset_to_next_rng_substream(galois,error=error)
-    CALL set_rng_stream(galois,extended_precision=.TRUE.,error=error)
+    CALL reset_to_next_rng_substream(galois)
+    CALL set_rng_stream(galois,extended_precision=.TRUE.)
     sum3 = 0.0_dp
     DO i=1,100000
-      sum3 = sum3 + next_random_number(galois,error=error)
+      sum3 = sum3 + next_random_number(galois)
     END DO
     sum = sum + sum3/10000.0_dp
 
-    CALL set_rng_stream(galois,antithetic=.TRUE.,error=error)
+    CALL set_rng_stream(galois,antithetic=.TRUE.)
     sum3 = 0.0_dp
     DO i=1,100000
-      sum3 = sum3 + next_random_number(galois,error=error)
+      sum3 = sum3 + next_random_number(galois)
     END DO
     sum = sum + sum3/10000.0_dp
-    CALL set_rng_stream(galois,antithetic=.FALSE.,error=error)
+    CALL set_rng_stream(galois,antithetic=.FALSE.)
 
-    CALL set_rng_stream(galois,extended_precision=.FALSE.,error=error)
-    sum = sum + next_random_number(poisson,error=error) +&
-                next_random_number(laplace,error=error) +&
-                next_random_number(galois,error=error) +&
-                next_random_number(cantor,error=error)
+    CALL set_rng_stream(galois,extended_precision=.FALSE.)
+    sum = sum + next_random_number(poisson) +&
+                next_random_number(laplace) +&
+                next_random_number(galois) +&
+                next_random_number(cantor)
 
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
         "Final states of the (pseudo)random number streams (test 2):"
-      CALL write_rng_stream(poisson,output_unit,error=error)
-      CALL write_rng_stream(laplace,output_unit,error=error)
-      CALL write_rng_stream(galois,output_unit,error=error)
-      CALL write_rng_stream(cantor,output_unit,error=error)
+      CALL write_rng_stream(poisson,output_unit)
+      CALL write_rng_stream(laplace,output_unit)
+      CALL write_rng_stream(galois,output_unit)
+      CALL write_rng_stream(cantor,output_unit)
       WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
         "This test routine should print for test 2 the number 39.697547"
       WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
         "The actual result of test 2 is                      ",sum
     END IF
 
-    CALL delete_rng_stream(cantor,error=error)
-    CALL delete_rng_stream(galois,error=error)
-    CALL delete_rng_stream(laplace,error=error)
-    CALL delete_rng_stream(poisson,error=error)
+    CALL delete_rng_stream(cantor)
+    CALL delete_rng_stream(galois)
+    CALL delete_rng_stream(laplace)
+    CALL delete_rng_stream(poisson)
 
   END SUBROUTINE check_rng
 
 ! *****************************************************************************
 !> \brief ...
 !> \param seed ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE check_seed(seed,error)
+  SUBROUTINE check_seed(seed)
 
     ! Check that the seeds are legitimate values.
 
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN)                             :: seed
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: fmtstr = "(A,I1,A,ES23.14,A,ES23.14)", &
       routineN = 'check_seed', routineP = moduleN//':'//routineN
@@ -465,14 +459,14 @@ CONTAINS
           "seed(",i,",1) = ",seed(i,1)," < ",0.0_dp
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,error,failure)
+                       routineP,message,failure)
       END IF
       IF (seed(i,1) >= m1) THEN
         WRITE (UNIT=message,FMT=fmtstr)&
           "seed(",i,",1) = ",seed(i,1)," >= ",m1
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,error,failure)
+                       routineP,message,failure)
       END IF
 
       ! Check condition: 0 <= seed(:,2) < m2
@@ -482,14 +476,14 @@ CONTAINS
           "seed(",i,",2) = ",seed(i,2)," < ",0.0_dp
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,error,failure)
+                       routineP,message,failure)
       END IF
       IF (seed(i,2) >= m2) THEN
         WRITE (UNIT=message,FMT=fmtstr)&
           "seed(",i,",2) = ",seed(i,2)," >= ",m2
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,error,failure)
+                       routineP,message,failure)
       END IF
 
     END DO
@@ -498,12 +492,12 @@ CONTAINS
 
     IF (ALL(seed(:,1) < 1.0_dp)) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"First seed = 0",error,failure)
+                     routineP,"First seed = 0",failure)
     END IF
 
     IF (ALL(seed(:,2) < 1.0_dp)) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Second seed = 0",error,failure)
+                     routineP,"Second seed = 0",failure)
     END IF
 
   END SUBROUTINE check_seed
@@ -517,11 +511,10 @@ CONTAINS
 !> \param seed ...
 !> \param antithetic ...
 !> \param extended_precision ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_rng_stream(rng_stream,name,last_rng_stream,&
                                distribution_type,seed,antithetic,&
-                               extended_precision,error)
+                               extended_precision)
 
     ! Create a new RNG stream.
     ! last_rng_stream is used as a reference stream, if it is specified.
@@ -538,7 +531,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: seed
     LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -550,21 +542,21 @@ CONTAINS
 
     failure = .FALSE.
 
-    IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream,error=error)
+    IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
     ALLOCATE (rng_stream,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
 
     rng_stream%name = name
 
     IF (PRESENT(seed)) THEN
-      CALL check_seed(seed,error)
+      CALL check_seed(seed)
       rng_stream%ig = seed
     ELSE IF (PRESENT(last_rng_stream)) THEN
-      rng_stream%ig = next_rng_seed(last_rng_stream%ig,error=error)
+      rng_stream%ig = next_rng_seed(last_rng_stream%ig)
     ELSE
-      rng_stream%ig = next_rng_seed(error=error)
+      rng_stream%ig = next_rng_seed()
     END IF
 
     rng_stream%cg = rng_stream%ig
@@ -579,7 +571,7 @@ CONTAINS
       CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                        routineP,"Invalid distribution type specified",&
-                       error,failure)
+                       failure)
       END SELECT
     ELSE IF (PRESENT(last_rng_stream)) THEN
       rng_stream%distribution_type = last_rng_stream%distribution_type
@@ -614,14 +606,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rng_stream ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE delete_rng_stream(rng_stream,error)
+  SUBROUTINE delete_rng_stream(rng_stream)
 
     ! Delete a random number stream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -633,10 +623,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     DEALLOCATE (rng_stream,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE delete_rng_stream
 
@@ -644,16 +634,14 @@ CONTAINS
 !> \brief ...
 !> \param rng_stream ...
 !> \param rng_record ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dump_rng_stream(rng_stream,rng_record,error)
+  SUBROUTINE dump_rng_stream(rng_stream,rng_record)
 
     ! Dump a RNG stream as a record given as an internal file (string).
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=rng_record_length), &
       INTENT(OUT)                            :: rng_record
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -664,7 +652,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     rng_record = " "
     WRITE (UNIT=rng_record,FMT=rng_record_format)&
@@ -693,7 +681,6 @@ CONTAINS
 !> \param extended_precision ...
 !> \param buffer ...
 !> \param buffer_filled ...
-!> \param error ...
 !> \par History
 !>      2009-11-04 changed bg, cg and ig type from INTEGER, DIMENSION(3, 2)
 !>      to REAL(KIND=dp), DIMENSION(3, 2) [lwalewski]
@@ -702,7 +689,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             antithetic,extended_precision,&
-                            buffer,buffer_filled,error)
+                            buffer,buffer_filled)
 
     ! Get the components of a RNG stream.
 
@@ -714,7 +701,6 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: buffer
     LOGICAL, INTENT(OUT), OPTIONAL           :: buffer_filled
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -725,7 +711,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     IF (PRESENT(name)) name = rng_stream%name
     IF (PRESENT(distribution_type)) THEN
@@ -1023,17 +1009,15 @@ CONTAINS
 !> \param rng_stream ...
 !> \param low ...
 !> \param high ...
-!> \param error ...
 !> \retval u ...
 ! *****************************************************************************
-  FUNCTION next_integer_random_number(rng_stream,low,high,error) RESULT(u)
+  FUNCTION next_integer_random_number(rng_stream,low,high) RESULT(u)
 
     ! Get the next integer random number between low and high from the stream
     ! rng_stream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN)                      :: low, high
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number', &
@@ -1046,10 +1030,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
-    CPPrecondition((rng_stream%distribution_type == UNIFORM),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPPrecondition((rng_stream%distribution_type == UNIFORM),cp_failure_level,routineP,failure)
 
-    r = next_real_random_number(rng_stream,error=error)
+    r = next_real_random_number(rng_stream)
     u = low + INT(r*REAL(high - low + 1,dp))
 
   END FUNCTION next_integer_random_number
@@ -1058,17 +1042,15 @@ CONTAINS
 !> \brief ...
 !> \param rng_stream ...
 !> \param variance ...
-!> \param error ...
 !> \retval u ...
 ! *****************************************************************************
-  FUNCTION next_real_random_number(rng_stream,variance,error) RESULT(u)
+  FUNCTION next_real_random_number(rng_stream,variance) RESULT(u)
 
     ! Get the next real random number from the stream rng_stream.
     ! variance: variance of the Gaussian distribution (defaults to 1)
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: variance
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_real_random_number', &
@@ -1081,7 +1063,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     SELECT CASE (rng_stream%distribution_type)
     CASE (GAUSSIAN)
@@ -1123,10 +1105,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param seed ...
-!> \param error ...
 !> \retval next_seed ...
 ! *****************************************************************************
-  FUNCTION next_rng_seed(seed,error) RESULT(next_seed)
+  FUNCTION next_rng_seed(seed) RESULT(next_seed)
 
     ! Get the seed for the next RNG stream w.r.t. a given seed.
     ! If the optional argument seed is missing, then the default seed is
@@ -1134,13 +1115,12 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: seed
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp), DIMENSION(3, 2)           :: next_seed
 
 ! -------------------------------------------------------------------------
 
     IF (PRESENT(seed)) THEN
-      CALL check_seed(seed,error)
+      CALL check_seed(seed)
       CALL mat_vec_mod_m(a1p127,seed(:,1),next_seed(:,1),m1)
       CALL mat_vec_mod_m(a2p127,seed(:,2),next_seed(:,2),m2)
     ELSE
@@ -1153,15 +1133,13 @@ CONTAINS
 !> \brief ...
 !> \param array ...
 !> \param rng_stream ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE random_numbers_1(array,rng_stream,error)
+  SUBROUTINE random_numbers_1(array,rng_stream)
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
 
     REAL(KIND=dp), DIMENSION(:)              :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_1', &
       routineP = moduleN//':'//routineN
@@ -1173,10 +1151,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     DO i=1,SIZE(array)
-      array(i) = next_random_number(rng_stream,error=error)
+      array(i) = next_random_number(rng_stream)
     END DO
 
   END SUBROUTINE random_numbers_1
@@ -1185,15 +1163,13 @@ CONTAINS
 !> \brief ...
 !> \param array ...
 !> \param rng_stream ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE random_numbers_2(array,rng_stream,error)
+  SUBROUTINE random_numbers_2(array,rng_stream)
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
 
     REAL(KIND=dp), DIMENSION(:, :)           :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_2', &
       routineP = moduleN//':'//routineN
@@ -1205,11 +1181,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     DO j=1,SIZE(array,2)
       DO i=1,SIZE(array,1)
-        array(i,j) = next_random_number(rng_stream,error=error)
+        array(i,j) = next_random_number(rng_stream)
       END DO
     END DO
 
@@ -1219,15 +1195,13 @@ CONTAINS
 !> \brief ...
 !> \param array ...
 !> \param rng_stream ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE random_numbers_3(array,rng_stream,error)
+  SUBROUTINE random_numbers_3(array,rng_stream)
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
 
     REAL(KIND=dp), DIMENSION(:, :, :)        :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_3', &
       routineP = moduleN//':'//routineN
@@ -1239,12 +1213,12 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     DO k=1,SIZE(array,3)
       DO j=1,SIZE(array,2)
         DO i=1,SIZE(array,1)
-          array(i,j,k) = next_random_number(rng_stream,error=error)
+          array(i,j,k) = next_random_number(rng_stream)
         END DO
       END DO
     END DO
@@ -1255,16 +1229,14 @@ CONTAINS
 !> \brief ...
 !> \param rng_stream ...
 !> \param rng_record ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_rng_stream(rng_stream,rng_record,error)
+  SUBROUTINE read_rng_stream(rng_stream,rng_record)
 
     ! Read a RNG stream from a record given as an internal file (string).
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=rng_record_length), &
       INTENT(IN)                             :: rng_record
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1276,10 +1248,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream,error=error)
+    IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
     ALLOCATE (rng_stream,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     READ (UNIT=rng_record,FMT=rng_record_format)&
       rng_stream%name,&
@@ -1297,14 +1269,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rng_stream ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE reset_rng_stream(rng_stream,error)
+  SUBROUTINE reset_rng_stream(rng_stream)
 
     ! Reset a random number stream to its initial state.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1315,7 +1285,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     rng_stream%cg = rng_stream%ig
     rng_stream%bg = rng_stream%ig
@@ -1341,14 +1311,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rng_stream ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE reset_to_next_rng_substream(rng_stream,error)
+  SUBROUTINE reset_to_next_rng_substream(rng_stream)
 
     ! Reset a random number stream to the beginning of its next substream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_to_next_rng_substream', &
       routineP = moduleN//':'//routineN
@@ -1360,7 +1328,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
 
     u = 0.0_dp
@@ -1464,14 +1432,13 @@ CONTAINS
 !> \param extended_precision ...
 !> \param buffer ...
 !> \param buffer_filled ...
-!> \param error ...
 !> \par History
 !>      2009-11-09 setting the buffer and buffer_filled components
 !>      added [lwalewski]
 ! *****************************************************************************
   SUBROUTINE set_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             seed,antithetic,extended_precision,&
-                            buffer,buffer_filled,error)
+                            buffer,buffer_filled)
 
     ! Set the components of a RNG stream.
     ! NOTE: The manipulation of an active RNG stream is discouraged.
@@ -1484,7 +1451,6 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: buffer
     LOGICAL, INTENT(IN), OPTIONAL            :: buffer_filled
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1495,7 +1461,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     IF (PRESENT(name)) rng_stream%name = name
     IF (PRESENT(distribution_type)) THEN
@@ -1507,7 +1473,7 @@ CONTAINS
     IF (PRESENT(seed)) THEN
       ! Sets the initial seed of the stream to seed
       ! NOTE: The use of this method is discouraged
-      CALL check_seed(seed,error)
+      CALL check_seed(seed)
       rng_stream%ig = seed
       rng_stream%cg = seed
       rng_stream%bg = seed
@@ -1569,9 +1535,8 @@ CONTAINS
 !> \param rng_stream ...
 !> \param output_unit ...
 !> \param write_all ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_rng_stream(rng_stream,output_unit,write_all,error)
+  SUBROUTINE write_rng_stream(rng_stream,output_unit,write_all)
 
     ! write_all: if .TRUE., then print all stream informations.
     !            (the default is .FALSE.)
@@ -1579,7 +1544,6 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN), OPTIONAL            :: write_all
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1590,7 +1554,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
 
     IF (PRESENT(write_all)) THEN
       my_write_all = write_all

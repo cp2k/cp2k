@@ -79,18 +79,15 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv controls the number of derivatives
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>        01.2009 created [mguidon]
 !> \author mguidon
 ! *****************************************************************************
-  SUBROUTINE xpbe_hole_t_c_lr_lda_info ( reference, shortform, needs, max_deriv, error)
+  SUBROUTINE xpbe_hole_t_c_lr_lda_info ( reference, shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "{LDA version}"
@@ -113,18 +110,15 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv controls the number of derivatives
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>        01.2009 created [mguidon]
 !> \author mguidon
 ! *****************************************************************************
-  SUBROUTINE xpbe_hole_t_c_lr_lsd_info ( reference, shortform, needs, max_deriv, error)
+  SUBROUTINE xpbe_hole_t_c_lr_lsd_info ( reference, shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "{LSD version}"
@@ -149,20 +143,17 @@ MODULE xc_xpbe_hole_t_c_lr
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param params input parameters (scaling,cutoff)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 !> \note
 ! *****************************************************************************
-  SUBROUTINE xpbe_hole_t_c_lr_lda_eval ( rho_set, deriv_set, order, params, error )
+  SUBROUTINE xpbe_hole_t_c_lr_lda_eval ( rho_set, deriv_set, order, params)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -181,25 +172,25 @@ MODULE xc_xpbe_hole_t_c_lr
 
     NULLIFY(bo)
 
-    CALL section_vals_val_get(params,"SCALE_X",r_val=sx,error=error)
-    CALL section_vals_val_get(params,"CUTOFF_RADIUS",r_val=R,error=error)
+    CALL section_vals_val_get(params,"SCALE_X",r_val=sx)
+    CALL section_vals_val_get(params,"CUTOFF_RADIUS",r_val=R)
 
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
 
 
     CALL xc_rho_set_get(rho_set,rho=rho,&
-         norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
+         norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
       dummy=> rho
     END IF
@@ -210,44 +201,44 @@ MODULE xc_xpbe_hole_t_c_lr
 
     IF (order>=0) THEN
       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (order>=1.OR.order==-1) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rho)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     END IF
     IF (order>1.OR.order<-1) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 2 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     IF ( R == 0.0_dp ) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="Cutoff_Radius 0.0 not implemented", &
-                     error=error, error_level=cp_failure_level)
+                     error_level=cp_failure_level)
     END IF
 
     !$omp parallel default(none) &
     !$omp          shared(npoints, order, rho, norm_drho, e_0, e_rho) &
     !$omp          shared(e_ndrho, epsilon_rho) &
-    !$omp          shared(sx, r, error)
+    !$omp          shared(sx, r)
 
     CALL xpbe_hole_t_c_lr_lda_calc(npoints,order,rho=rho, norm_drho=norm_drho,&
          e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
          epsilon_rho=epsilon_rho,&
-         sx=sx,R=R,error=error)
+         sx=sx,R=R)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -268,8 +259,6 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param epsilon_rho cutoffs
 !> \param sx functional parameters
 !> \param R functional parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -277,15 +266,13 @@ MODULE xc_xpbe_hole_t_c_lr
 !>
 ! *****************************************************************************
   SUBROUTINE xpbe_hole_t_c_lr_lda_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
-                                       epsilon_rho, sx, R,&
-                                       error)
+                                       epsilon_rho, sx, R)
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: rho, norm_drho, e_0, e_rho, &
                                                 e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -340,20 +327,17 @@ MODULE xc_xpbe_hole_t_c_lr
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param params input parameters (scaling,cutoff)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 !> \note
 ! *****************************************************************************
-  SUBROUTINE xpbe_hole_t_c_lr_lsd_eval ( rho_set, deriv_set, order, params, error )
+  SUBROUTINE xpbe_hole_t_c_lr_lsd_eval ( rho_set, deriv_set, order, params)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -374,25 +358,25 @@ MODULE xc_xpbe_hole_t_c_lr
 
     NULLIFY(bo)
 
-    CALL section_vals_val_get(params,"SCALE_X",r_val=sx,error=error)
-    CALL section_vals_val_get(params,"CUTOFF_RADIUS",r_val=R,error=error)
+    CALL section_vals_val_get(params,"SCALE_X",r_val=sx)
+    CALL section_vals_val_get(params,"CUTOFF_RADIUS",r_val=R)
 
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
 
 
     CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
-         norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
+         norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
       dummy=> rhoa
     END IF
@@ -405,52 +389,52 @@ MODULE xc_xpbe_hole_t_c_lr
 
     IF (order>=0) THEN
       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (order>=1.OR.order==-1) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rhoa)
       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rhob)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrhob)
     END IF
     IF (order>1.OR.order<-1) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 2 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     IF ( R == 0.0_dp ) THEN
       CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="Cutoff_Radius 0.0 not implemented", &
-                     error=error, error_level=cp_failure_level)
+                     error_level=cp_failure_level)
     END IF
 
     !$omp parallel default(none) &
     !$omp          shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa) &
-    !$omp          shared(epsilon_rho, sx, r, error) &
+    !$omp          shared(epsilon_rho, sx, r) &
     !$omp          shared(rhob, norm_drhob, e_rhob, e_ndrhoa, e_ndrhob)
 
     CALL xpbe_hole_t_c_lr_lsd_calc(npoints,order,rho=rhoa, norm_drho=norm_drhoa,&
          e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
-         epsilon_rho=epsilon_rho,sx=sx,R=R,error=error)
+         epsilon_rho=epsilon_rho,sx=sx,R=R)
     CALL xpbe_hole_t_c_lr_lsd_calc(npoints,order,rho=rhob, norm_drho=norm_drhob,&
          e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
-         epsilon_rho=epsilon_rho,sx=sx,R=R,error=error)
+         epsilon_rho=epsilon_rho,sx=sx,R=R)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -471,8 +455,6 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param epsilon_rho cutoffs
 !> \param sx functional parameters
 !> \param R functional parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -480,15 +462,13 @@ MODULE xc_xpbe_hole_t_c_lr
 !>       the lda version applying spin scaling relations
 ! *****************************************************************************
   SUBROUTINE xpbe_hole_t_c_lr_lsd_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
-                                       epsilon_rho,  sx, R,&
-                                       error)
+                                       epsilon_rho,  sx, R)
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: rho, norm_drho, e_0, e_rho, &
                                                 e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_calc', &
       routineP = moduleN//':'//routineN

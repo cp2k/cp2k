@@ -285,14 +285,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param scale ...
-!> \param error ...
 !> \author Benjamin G Levine
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_r3dc1d_3d(pw1, pw2, scale, error)
+  SUBROUTINE pw_cuda_r3dc1d_3d(pw1, pw2, scale)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
     REAL(KIND=dp)                            :: scale
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d', &
       routineP = moduleN//':'//routineN
@@ -334,14 +332,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param scale ...
-!> \param error ...
 !> \author Benjamin G Levine
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_c1dr3d_3d(pw1, pw2, scale, error)
+  SUBROUTINE pw_cuda_c1dr3d_3d(pw1, pw2, scale)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
     REAL(KIND=dp)                            :: scale
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d', &
       routineP = moduleN//':'//routineN
@@ -385,14 +381,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param scale ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale, error)
+  SUBROUTINE pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
     REAL(KIND=dp)                            :: scale
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d_ps', &
       routineP = moduleN//':'//routineN
@@ -501,7 +495,7 @@ END SUBROUTINE pw_cuda_finalize
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "This processor distribution is not supported.")
 
-          CALL get_fft_scratch(fft_scratch, tf_type = 300, n = n, fft_sizes = fft_scratch_size, error = error)
+          CALL get_fft_scratch(fft_scratch, tf_type = 300, n = n, fft_sizes = fft_scratch_size)
 
           ! assign buffers
           qbuf => fft_scratch%p2buf
@@ -510,25 +504,25 @@ END SUBROUTINE pw_cuda_finalize
           sbuf => fft_scratch%p5buf
 
           ! FFT along z
-          CALL pw_cuda_cf(pw1, qbuf, error)
+          CALL pw_cuda_cf(pw1, qbuf)
 
           ! Exchange data ( transpose of matrix )
-          CALL cube_transpose_2(qbuf, rs_group, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch, error)
+          CALL cube_transpose_2(qbuf, rs_group, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
 
           ! FFT along y
           ! use the inbuild fft-lib
           ! CALL fft_1dm(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
           ! or cufft (works faster, but is only faster if plans are stored)
-          CALL pw_cuda_f(rbuf, pbuf, +1, n(2), mx2*mz2, error)
+          CALL pw_cuda_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
           ! Exchange data ( transpose of matrix ) and sort
           CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
-               bo(:,:,:,2), sbuf, fft_scratch, error)
+               bo(:,:,:,2), sbuf, fft_scratch)
 
           ! FFT along x
-          CALL pw_cuda_fg(sbuf, pw2, scale, error)
+          CALL pw_cuda_fg(sbuf, pw2, scale)
 
-          CALL release_fft_scratch(fft_scratch, error)
+          CALL release_fft_scratch(fft_scratch)
 
        ELSE
           !
@@ -537,23 +531,23 @@ END SUBROUTINE pw_cuda_finalize
           ! direction x
           !
 
-          CALL get_fft_scratch(fft_scratch, tf_type = 200, n = n, fft_sizes = fft_scratch_size, error = error)
+          CALL get_fft_scratch(fft_scratch, tf_type = 200, n = n, fft_sizes = fft_scratch_size)
 
           ! assign buffers
           tbuf => fft_scratch%tbuf
           sbuf => fft_scratch%r1buf
 
           ! FFT along y and z
-          CALL pw_cuda_cff(pw1, tbuf, error)
+          CALL pw_cuda_cff(pw1, tbuf)
 
           ! Exchange data ( transpose of matrix ) and sort
           CALL yz_to_x(tbuf, gs_group, g_pos, p2p, yzp, nyzray, &
-               bo(:,:,:,2), sbuf, fft_scratch, error)
+               bo(:,:,:,2), sbuf, fft_scratch)
 
           ! FFT along x
-          CALL pw_cuda_fg(sbuf, pw2, scale, error)
+          CALL pw_cuda_fg(sbuf, pw2, scale)
 
-          CALL release_fft_scratch(fft_scratch,error)
+          CALL release_fft_scratch(fft_scratch)
 
        ENDIF
 
@@ -579,14 +573,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param scale ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale, error)
+  SUBROUTINE pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
     REAL(KIND=dp)                            :: scale
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d_ps', &
       routineP = moduleN//':'//routineN
@@ -696,7 +688,7 @@ END SUBROUTINE pw_cuda_finalize
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "This processor distribution is not supported.")
 
-          CALL get_fft_scratch(fft_scratch, tf_type = 300, n = n, fft_sizes = fft_scratch_size, error = error)
+          CALL get_fft_scratch(fft_scratch, tf_type = 300, n = n, fft_sizes = fft_scratch_size)
 
           ! assign buffers
           pbuf => fft_scratch%p7buf
@@ -705,28 +697,28 @@ END SUBROUTINE pw_cuda_finalize
           sbuf => fft_scratch%p2buf
 
           ! FFT along x
-          CALL pw_cuda_sf(pw1, pbuf, scale, error)
+          CALL pw_cuda_sf(pw1, pbuf, scale)
 
           ! Exchange data ( transpose of matrix ) and sort
           IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(qbuf)
           CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
-               bo(:,:,:,2), qbuf, fft_scratch, error)
+               bo(:,:,:,2), qbuf, fft_scratch)
 
           ! FFT along y
           ! use the inbuild fft-lib
           ! CALL fft_1dm(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
           ! or cufft (works faster, but is only faster if plans are stored)
-          CALL pw_cuda_f(qbuf, rbuf, -1, n(2), mx2*mz2, error)
+          CALL pw_cuda_f(qbuf, rbuf, -1, n(2), mx2*mz2)
 
           ! Exchange data ( transpose of matrix )
           IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(sbuf)
 
-          CALL cube_transpose_1(rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch, error)
+          CALL cube_transpose_1(rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch)
 
           ! FFT along z
-          CALL pw_cuda_fc(sbuf, pw2, error)
+          CALL pw_cuda_fc(sbuf, pw2)
 
-          CALL release_fft_scratch(fft_scratch, error)
+          CALL release_fft_scratch(fft_scratch)
 
        ELSE
           !
@@ -735,24 +727,24 @@ END SUBROUTINE pw_cuda_finalize
           ! direction x
           !
 
-          CALL get_fft_scratch(fft_scratch, tf_type = 200, n = n, fft_sizes = fft_scratch_size, error = error)
+          CALL get_fft_scratch(fft_scratch, tf_type = 200, n = n, fft_sizes = fft_scratch_size)
 
           ! assign buffers
           sbuf => fft_scratch%r1buf
           tbuf => fft_scratch%tbuf
 
           ! FFT along x
-          CALL pw_cuda_sf(pw1, sbuf, scale, error)
+          CALL pw_cuda_sf(pw1, sbuf, scale)
 
           ! Exchange data ( transpose of matrix ) and sort
           IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(tbuf)
           CALL x_to_yz (sbuf, gs_group, g_pos, p2p, yzp, nyzray, &
-               bo(:,:,:,2), tbuf, fft_scratch, error)
+               bo(:,:,:,2), tbuf, fft_scratch)
 
           ! FFT along y and z
-          CALL pw_cuda_ffc(tbuf, pw2, error)
+          CALL pw_cuda_ffc(tbuf, pw2)
 
-          CALL release_fft_scratch(fft_scratch,error)
+          CALL release_fft_scratch(fft_scratch)
 
        ENDIF
 
@@ -777,14 +769,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \brief perform a parallel real_to_complex copy followed by a 2D-FFT on the gpu
 !> \param pw1 ...
 !> \param pwbuf ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_cff (pw1, pwbuf, error)
+  SUBROUTINE pw_cuda_cff (pw1, pwbuf)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     COMPLEX(KIND=dp), DIMENSION(:,:,:), &
       POINTER, INTENT(INOUT)                 :: pwbuf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cff', &
       routineP = moduleN//':'//routineN
@@ -818,14 +808,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \brief perform a parallel 2D-FFT followed by a complex_to_real copy on the gpu
 !> \param pwbuf ...
 !> \param pw2 ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_ffc (pwbuf, pw2, error)
+  SUBROUTINE pw_cuda_ffc (pwbuf, pw2)
     COMPLEX(KIND=dp), DIMENSION(:,:,:), &
       POINTER, INTENT(IN)                    :: pwbuf
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_ffc', &
       routineP = moduleN//':'//routineN
@@ -859,14 +847,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \brief perform a parallel real_to_complex copy followed by a 1D-FFT on the gpu
 !> \param pw1 ...
 !> \param pwbuf ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_cf (pw1, pwbuf, error)
+  SUBROUTINE pw_cuda_cf (pw1, pwbuf)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     COMPLEX(KIND=dp), DIMENSION(:,:), &
       POINTER, INTENT(INOUT)                 :: pwbuf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cf', &
       routineP = moduleN//':'//routineN
@@ -900,14 +886,12 @@ END SUBROUTINE pw_cuda_finalize
 !> \brief perform a parallel 1D-FFT followed by a complex_to_real copy on the gpu
 !> \param pwbuf ...
 !> \param pw2 ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_fc (pwbuf, pw2, error)
+  SUBROUTINE pw_cuda_fc (pwbuf, pw2)
     COMPLEX(KIND=dp), DIMENSION(:,:), &
       POINTER, INTENT(IN)                    :: pwbuf
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fc', &
       routineP = moduleN//':'//routineN
@@ -943,10 +927,9 @@ END SUBROUTINE pw_cuda_finalize
 !> \param dir ...
 !> \param n ...
 !> \param m ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_f(pwbuf1, pwbuf2, dir, n, m, error)
+  SUBROUTINE pw_cuda_f(pwbuf1, pwbuf2, dir, n, m)
     COMPLEX(KIND=dp), DIMENSION(:,:), &
       POINTER, INTENT(IN)                    :: pwbuf1
     COMPLEX(KIND=dp), DIMENSION(:,:), &
@@ -954,7 +937,6 @@ END SUBROUTINE pw_cuda_finalize
     INTEGER, INTENT(IN)                      :: dir
     INTEGER, INTENT(IN)                      :: n
     INTEGER, INTENT(IN)                      :: m
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_f', &
       routineP = moduleN//':'//routineN
@@ -981,15 +963,13 @@ END SUBROUTINE pw_cuda_finalize
 !> \param pwbuf ...
 !> \param pw2 ...
 !> \param scale ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_fg (pwbuf, pw2, scale, error)
+  SUBROUTINE pw_cuda_fg (pwbuf, pw2, scale)
     COMPLEX(KIND=dp), DIMENSION(:,:), &
       POINTER, INTENT(IN)                    :: pwbuf
     TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
     REAL(KIND=dp), INTENT(IN)                :: scale
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fg', &
       routineP = moduleN//':'//routineN
@@ -1029,15 +1009,13 @@ END SUBROUTINE pw_cuda_finalize
 !> \param pw1 ...
 !> \param pwbuf ...
 !> \param scale ...
-!> \param error ...
 !> \author Andreas Gloess
 ! *****************************************************************************
-  SUBROUTINE pw_cuda_sf (pw1, pwbuf, scale, error)
+  SUBROUTINE pw_cuda_sf (pw1, pwbuf, scale)
     TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
     COMPLEX(KIND=dp), DIMENSION(:,:), &
       POINTER, INTENT(INOUT)                 :: pwbuf
     REAL(KIND=dp), INTENT(IN)                :: scale
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_sf', &
       routineP = moduleN//':'//routineN

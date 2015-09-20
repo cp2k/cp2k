@@ -45,11 +45,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param atprop_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atprop_create(atprop_env,error)
+  SUBROUTINE atprop_create(atprop_env)
     TYPE(atprop_type), POINTER               :: atprop_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_create', &
       routineP = moduleN//':'//routineN
@@ -58,9 +56,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CALL atprop_release(atprop_env,error)
+  CALL atprop_release(atprop_env)
   ALLOCATE(atprop_env,stat=stat)
-  CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_warning_level,routineP,failure)
   NULLIFY(atprop_env%atener,atprop_env%atstress)
   NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
   NULLIFY(atprop_env%ateself,atprop_env%atexc,atprop_env%ate1c)
@@ -73,12 +71,10 @@ CONTAINS
 !> \brief ...
 !> \param atprop_env ...
 !> \param natom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atprop_init(atprop_env,natom,error)
+  SUBROUTINE atprop_init(atprop_env,natom)
     TYPE(atprop_type), POINTER               :: atprop_env
     INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_init', &
       routineP = moduleN//':'//routineN
@@ -87,25 +83,25 @@ CONTAINS
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(atprop_env),cp_warning_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(atprop_env),cp_warning_level,routineP,failure)
 
   IF(atprop_env%energy) THEN
-    CALL atprop_array_init(atprop_env%atener,natom,error)
-    CALL atprop_array_release(atprop_env%ateb,error)
-    CALL atprop_array_release(atprop_env%atevdw,error)
-    CALL atprop_array_release(atprop_env%atecc,error)
-    CALL atprop_array_release(atprop_env%atecoul,error)
-    CALL atprop_array_release(atprop_env%ateself,error)
-    CALL atprop_array_release(atprop_env%atexc,error)
-    CALL atprop_array_release(atprop_env%ate1c,error)
+    CALL atprop_array_init(atprop_env%atener,natom)
+    CALL atprop_array_release(atprop_env%ateb)
+    CALL atprop_array_release(atprop_env%atevdw)
+    CALL atprop_array_release(atprop_env%atecc)
+    CALL atprop_array_release(atprop_env%atecoul)
+    CALL atprop_array_release(atprop_env%ateself)
+    CALL atprop_array_release(atprop_env%atexc)
+    CALL atprop_array_release(atprop_env%ate1c)
   END IF
 
   IF(atprop_env%stress) THEN
     IF(ASSOCIATED(atprop_env%atstress)) THEN
-      CPPrecondition(SIZE(atprop_env%atstress,3)==natom,cp_warning_level,routineP,error,failure)
+      CPPrecondition(SIZE(atprop_env%atstress,3)==natom,cp_warning_level,routineP,failure)
     ELSE
       ALLOCATE(atprop_env%atstress(3,3,natom),stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     END IF
     atprop_env%atstress = 0._dp
   END IF
@@ -116,12 +112,10 @@ CONTAINS
 !> \brief ...
 !> \param atarray ...
 !> \param natom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atprop_array_init(atarray,natom,error)
+  SUBROUTINE atprop_array_init(atarray,natom)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
     INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_init', &
       routineP = moduleN//':'//routineN
@@ -132,10 +126,10 @@ CONTAINS
     failure=.FALSE.
 
     IF(ASSOCIATED(atarray)) THEN
-      CPPrecondition(SIZE(atarray)==natom,cp_warning_level,routineP,error,failure)
+      CPPrecondition(SIZE(atarray)==natom,cp_warning_level,routineP,failure)
     ELSE
       ALLOCATE(atarray(natom),stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     END IF
     atarray = 0._dp
 
@@ -144,11 +138,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param atarray ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atprop_array_release(atarray,error)
+  SUBROUTINE atprop_array_release(atarray)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release', &
       routineP = moduleN//':'//routineN
@@ -160,7 +152,7 @@ CONTAINS
 
     IF(ASSOCIATED(atarray)) THEN
       DEALLOCATE(atarray,stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_warning_level,routineP,failure)
       NULLIFY(atarray)
     END IF
 
@@ -170,11 +162,9 @@ CONTAINS
 !> \brief ...
 !> \param array_a ...
 !> \param array_b ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atprop_array_add(array_a,array_b,error)
+  SUBROUTINE atprop_array_add(array_a,array_b)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array_a, array_b
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_add', &
       routineP = moduleN//':'//routineN
@@ -184,7 +174,7 @@ CONTAINS
     failure=.FALSE.
 
     IF(ASSOCIATED(array_b)) THEN
-      CPPrecondition(ASSOCIATED(array_a),cp_warning_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(array_a),cp_warning_level,routineP,failure)
       array_a = array_a + array_b
     END IF
 
@@ -193,13 +183,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the atprop
 !> \param atprop_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE atprop_release(atprop_env,error)
+SUBROUTINE atprop_release(atprop_env)
     TYPE(atprop_type), POINTER               :: atprop_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_release', &
       routineP = moduleN//':'//routineN
@@ -210,22 +197,22 @@ SUBROUTINE atprop_release(atprop_env,error)
   failure=.FALSE.
   IF (ASSOCIATED(atprop_env)) THEN
      ! energy
-     CALL atprop_array_release(atprop_env%atener,error)
-     CALL atprop_array_release(atprop_env%ateb,error)
-     CALL atprop_array_release(atprop_env%ateself,error)
-     CALL atprop_array_release(atprop_env%atexc,error)
-     CALL atprop_array_release(atprop_env%atevdw,error)
-     CALL atprop_array_release(atprop_env%atecc,error)
-     CALL atprop_array_release(atprop_env%ate1c,error)
-     CALL atprop_array_release(atprop_env%atecoul,error)
+     CALL atprop_array_release(atprop_env%atener)
+     CALL atprop_array_release(atprop_env%ateb)
+     CALL atprop_array_release(atprop_env%ateself)
+     CALL atprop_array_release(atprop_env%atexc)
+     CALL atprop_array_release(atprop_env%atevdw)
+     CALL atprop_array_release(atprop_env%atecc)
+     CALL atprop_array_release(atprop_env%ate1c)
+     CALL atprop_array_release(atprop_env%atecoul)
      ! stress
      IF (ASSOCIATED(atprop_env%atstress)) THEN
         DEALLOCATE(atprop_env%atstress,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
      END IF
      ! atprop type
      DEALLOCATE(atprop_env,stat=stat)
-     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_warning_level,routineP,failure)
   END IF
   NULLIFY(atprop_env)
 END SUBROUTINE atprop_release

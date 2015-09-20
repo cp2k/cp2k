@@ -35,11 +35,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param error ...
 ! *****************************************************************************
-SUBROUTINE clebsch_gordon_test (error)
+SUBROUTINE clebsch_gordon_test ()
 
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_test', &
       routineP = moduleN//':'//routineN
@@ -56,7 +54,7 @@ SUBROUTINE clebsch_gordon_test (error)
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    logger=>cp_error_get_logger(error)
+    logger=>cp_get_default_logger()
     iw = cp_logger_get_default_io_unit(logger)
 
     IF ( iw>0 ) THEN
@@ -69,11 +67,11 @@ SUBROUTINE clebsch_gordon_test (error)
      ll = get_number_of_lebedev_grid(n=na)
      na = lebedev_grid(ll)%n
      ALLOCATE (wa(na), STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE (a1(na),a2(na),a3(na), STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE (b1(na),b2(na),b3(na), STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
      wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
@@ -161,11 +159,11 @@ SUBROUTINE clebsch_gordon_test (error)
      END DO
 
      DEALLOCATE ( wa, STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE (a1, a2, a3, STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE (b1, b2, b3, STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
      CALL deallocate_lebedev_grids()
      CALL clebsch_gordon_deallocate()

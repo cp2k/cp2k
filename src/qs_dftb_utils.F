@@ -36,12 +36,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dftb_parameter ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE allocate_dftb_atom_param(dftb_parameter,error)
+  SUBROUTINE allocate_dftb_atom_param(dftb_parameter)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
@@ -50,10 +48,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     IF (ASSOCIATED(dftb_parameter)) &
-            CALL deallocate_dftb_atom_param(dftb_parameter,error)
+            CALL deallocate_dftb_atom_param(dftb_parameter)
 
     ALLOCATE (dftb_parameter,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     dftb_parameter % defined = .FALSE.
     dftb_parameter % name = ""
@@ -76,12 +74,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dftb_parameter ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_dftb_atom_param(dftb_parameter,error)
+  SUBROUTINE deallocate_dftb_atom_param(dftb_parameter)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
@@ -89,9 +85,9 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
     DEALLOCATE (dftb_parameter,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE deallocate_dftb_atom_param
 
@@ -114,10 +110,9 @@ CONTAINS
 !> \param di ...
 !> \param rcdisp ...
 !> \param dudq ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
-    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,dudq,error)
+    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,dudq)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     CHARACTER(LEN=default_string_length), &
@@ -129,15 +124,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself, occupation, eta
     REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, &
                                                 rcdisp, dudq
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
 
     IF (PRESENT(name)) name = dftb_parameter%name
     IF (PRESENT(typ)) typ = dftb_parameter%typ
@@ -177,10 +170,9 @@ CONTAINS
 !> \param di ...
 !> \param rcdisp ...
 !> \param dudq ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
-    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,dudq,error)
+    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,dudq)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     CHARACTER(LEN=default_string_length), &
@@ -192,14 +184,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself, occupation, eta
     REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, &
                                                 rcdisp, dudq
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
 
     IF (PRESENT(name)) dftb_parameter%name = name
     IF (PRESENT(typ)) dftb_parameter%typ = typ
@@ -224,13 +215,11 @@ CONTAINS
 !> \brief ...
 !> \param dftb_parameter ...
 !> \param subsys_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_dftb_atom_param(dftb_parameter,subsys_section,error)
+  SUBROUTINE write_dftb_atom_param(dftb_parameter,subsys_section)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dftb_atom_param', &
       routineP = moduleN//':'//routineN
@@ -242,17 +231,17 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (ASSOCIATED(dftb_parameter).AND.&
         BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
-         "PRINT%KINDS/POTENTIAL",error=error),cp_p_file)) THEN
+         "PRINT%KINDS/POTENTIAL"),cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",&
-            extension=".Log",error=error)
+            extension=".Log")
 
        IF (output_unit >0) THEN
           CALL get_dftb_atom_param(dftb_parameter,name=name,typ=typ,defined=defined,&
-               z=z,zeff=zeff,natorb=natorb,lmax=lmax,error=error)
+               z=z,zeff=zeff,natorb=natorb,lmax=lmax)
 
           WRITE (UNIT=output_unit,FMT="(/,A,T67,A14)")&
                " DFTB  parameters: ",TRIM(name)
@@ -267,7 +256,7 @@ CONTAINS
          END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-            "PRINT%KINDS",error=error)
+            "PRINT%KINDS")
     END IF
 
   END SUBROUTINE write_dftb_atom_param

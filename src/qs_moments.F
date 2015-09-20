@@ -102,9 +102,8 @@ CONTAINS
 !> \param nmoments ...
 !> \param ref_point ...
 !> \param ref_points ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
+  SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -114,7 +113,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: ref_point
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: ref_points
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix', &
       routineP = moduleN//':'//routineN
@@ -161,13 +159,13 @@ CONTAINS
 
 
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
-    CPPostcondition(SIZE(moments)>=nm,cp_failure_level,routineP,error,failure)
+    CPPostcondition(SIZE(moments)>=nm,cp_failure_level,routineP,failure)
 
     NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,cell=cell,&
-                    sab_orb=sab_orb,error=error)
+                    sab_orb=sab_orb)
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
@@ -175,27 +173,27 @@ CONTAINS
 !   *** Allocate work storage ***
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=maxco, maxsgf=maxsgf, error=error)
+                             maxco=maxco, maxsgf=maxsgf)
 
     ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     mab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     work(:,:) = 0.0_dp
 
     ALLOCATE (mint(nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -333,14 +331,14 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (mab,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
     DEALLOCATE (mint,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -353,9 +351,8 @@ CONTAINS
 !> \param nmoments ...
 !> \param ref_point ...
 !> \param ref_points ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_local_magmom_matrix(qs_env,magmom,nmoments,ref_point,ref_points,error)
+  SUBROUTINE build_local_magmom_matrix(qs_env,magmom,nmoments,ref_point,ref_points)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -365,7 +362,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: ref_point
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: ref_points
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix', &
       routineP = moduleN//':'//routineN
@@ -413,24 +409,24 @@ CONTAINS
     NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
     NULLIFY (matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
 
     ! magnetic dipoles/angular moments only
     nm = 3
-    CALL cp_dbcsr_allocate_matrix_set ( magmom, nm ,error=error)
+    CALL cp_dbcsr_allocate_matrix_set ( magmom, nm)
 
     DO i=1,nm
        ALLOCATE(magmom(i)%matrix)
-       CALL cp_dbcsr_init (magmom(i)%matrix, error=error)
-       CALL cp_dbcsr_copy(magmom(i)%matrix, matrix_s(1)%matrix, "Moments", error)
-       CALL cp_dbcsr_set(magmom(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_init (magmom(i)%matrix)
+       CALL cp_dbcsr_copy(magmom(i)%matrix, matrix_s(1)%matrix, "Moments")
+       CALL cp_dbcsr_set(magmom(i)%matrix,0.0_dp)
     END DO
 
     NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,cell=cell,&
-                    sab_orb=sab_orb,error=error)
+                    sab_orb=sab_orb)
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
@@ -438,27 +434,27 @@ CONTAINS
 !   *** Allocate work storage ***
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=maxco, maxsgf=maxsgf, error=error)
+                             maxco=maxco, maxsgf=maxsgf)
 
     ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     mab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     work(:,:) = 0.0_dp
 
     ALLOCATE (mint(nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -596,14 +592,14 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (mab,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
     DEALLOCATE (mint,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -615,14 +611,12 @@ CONTAINS
 !> \param cosmat ...
 !> \param sinmat ...
 !> \param kvec ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix', &
       routineP = moduleN//':'//routineN
@@ -664,28 +658,28 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,cell=cell,&
-                    sab_orb=sab_orb,error=error)
+                    sab_orb=sab_orb)
 
-    CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
-    CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
+    CALL cp_dbcsr_set(sinmat,0.0_dp)
+    CALL cp_dbcsr_set(cosmat,0.0_dp)
 
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, error=error)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(sinab(ldab,ldab),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -742,7 +736,7 @@ CONTAINS
             row=irow,col=icol,BLOCK=sblock,found=found)
        IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
           .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
 
        IF(ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
@@ -781,13 +775,13 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE(cosab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(sinab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -801,16 +795,14 @@ CONTAINS
 !> \param reference ...
 !> \param ref_point ...
 !> \param unit_number ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_moment_berry_phase (qs_env,magnetic,nmoments,reference,ref_point,unit_number,error)
+  SUBROUTINE qs_moment_berry_phase (qs_env,magnetic,nmoments,reference,ref_point,unit_number)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: magnetic
     INTEGER, INTENT(IN)                      :: nmoments, reference
     REAL(dp), DIMENSION(:), POINTER          :: ref_point
     INTEGER, INTENT(IN)                      :: unit_number
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
       routineP = moduleN//':'//routineN
@@ -858,7 +850,7 @@ CONTAINS
     TYPE(rt_prop_type), POINTER              :: rtp
 
      failure = .FALSE.
-     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
 
     IF(ASSOCIATED(qs_env%ls_scf_env)) THEN
       IF(unit_number > 0) WRITE(unit_number,*) "Periodic moment calculation not implemented in linear scaling code"
@@ -876,15 +868,15 @@ CONTAINS
      ! rmom(:,2)=nuclear
      ! rmom(:,1)=total
      ALLOCATE (rmom(nm+1,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      ALLOCATE (rlab(nm+1),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      rmom = 0.0_dp
      rlab = ""
      IF(magnetic) THEN
         nm=3
         ALLOCATE (mmom(nm),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
         mmom = 0._dp
      END IF
 
@@ -901,42 +893,39 @@ CONTAINS
                      para_env=para_env,&
                      local_particles=local_particles,&
                      matrix_s=matrix_s,&
-                     mos=mos,&
-                     error=error)
+                     mos=mos)
 
-     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+     CALL qs_rho_get(rho, rho_ao=rho_ao)
 
      NULLIFY ( cosmat, sinmat )
      ALLOCATE(cosmat, sinmat)
-     CALL cp_dbcsr_init(cosmat, error=error)
-     CALL cp_dbcsr_init(sinmat, error=error)
-     CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
-     CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
-     CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
-     CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
+     CALL cp_dbcsr_init(cosmat)
+     CALL cp_dbcsr_init(sinmat)
+     CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM')
+     CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM')
+     CALL cp_dbcsr_set(cosmat,0.0_dp)
+     CALL cp_dbcsr_set(sinmat,0.0_dp)
 
      ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      nmotot = 0
      DO ispin = 1, dft_control%nspins
        NULLIFY(tmp_fm_struct,mo_coeff)
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
        nmotot = nmotot + nmo
-       CALL cp_fm_create (opvec(ispin)%matrix , mo_coeff%matrix_struct ,error=error)
+       CALL cp_fm_create (opvec(ispin)%matrix , mo_coeff%matrix_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
-            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
-            error=error)
+            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context)
        DO i = 1, SIZE ( op_fm_set, 1 )
           NULLIFY(op_fm_set(i,ispin)%matrix)
-          CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct ,error=error)
+          CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct)
        END DO
-       CALL cp_cfm_create ( eigrmat(ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
-       error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       CALL cp_cfm_create ( eigrmat(ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct )
+       CALL cp_fm_struct_release(tmp_fm_struct)
      END DO
 
      ! occupation
@@ -945,12 +934,12 @@ CONTAINS
        IF (.NOT.uniform) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END IF
      END DO
 
      ! reference point
-     CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
+     CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point)
      rcc = pbc(rcc,cell)
 
      ! label
@@ -965,7 +954,7 @@ CONTAINS
      DO ia = 1,SIZE(particle_set)
        atomic_kind => particle_set(ia)%atomic_kind
        CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
+       CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
        IF (.NOT. ghost) THEN
           rmom(1,2) = rmom(1,2) - charge
        ENDIF
@@ -986,7 +975,7 @@ CONTAINS
            DO ia = 1,SIZE(particle_set)
              atomic_kind => particle_set(ia)%atomic_kind
              CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-             CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
+             CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
              IF (.NOT. ghost) THEN
                 ria = particle_set(ia)%r
                 ria = pbc(ria,cell)
@@ -1006,12 +995,12 @@ CONTAINS
            ! Quadrupole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 1 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
            zij(:,:) = CMPLX ( 1._dp, 0._dp, dp )
            DO ia = 1,SIZE(particle_set)
              atomic_kind => particle_set(ia)%atomic_kind
              CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-             CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, error=error)
+             CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge)
              ria = particle_set(ia)%r
              ria = pbc(ria,cell)
              DO i = 1, 3
@@ -1049,16 +1038,16 @@ CONTAINS
            ! Octapole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 2 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          CASE (4)
            ! Hexadecapole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 3 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          CASE DEFAULT
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 4 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
        END SELECT
      END DO
 
@@ -1070,7 +1059,7 @@ CONTAINS
      ! charge
      trace = 0.0_dp
      DO ispin=1,dft_control%nspins
-       CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+       CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace)
        rmom(1,1) = rmom(1,1) + trace
      END DO
 
@@ -1085,23 +1074,23 @@ CONTAINS
            ! Dipole
            DO i = 1, 3
               kvec(:) = twopi*cell%h_inv(i,:)
-              CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+              CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec)
               IF(qs_env%run_rtp)THEN
-                 CALL get_qs_env(qs_env,rtp=rtp,error=error)
-                 CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                 CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
+                 CALL get_qs_env(qs_env,rtp=rtp)
+                 CALL get_rtp(rtp,mos_new=mos_new)
+                 CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new)
               ELSE
-                 CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                 CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec)
               END IF
               zdet = CMPLX ( 1._dp, 0._dp, dp )
               DO ispin = 1, dft_control%nspins
-                CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+                CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim)
                 DO idim=1,tmp_dim
                    eigrmat(ispin)%matrix%local_data(:,idim) = &
                         CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
                                -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
                 END DO
-                CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
+                CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta)
                 zdet = zdet * zdeta
                 IF (dft_control%nspins==1) THEN
                    zdet = zdet * zdeta
@@ -1114,27 +1103,27 @@ CONTAINS
            ! Quadrupole
            CALL cp_unimplemented_error(fromWhere=routineP, &
               message="Berry phase moments bigger than 1 not implemented", &
-              error=error, error_level=cp_failure_level)
+              error_level=cp_failure_level)
            DO i = 1, 3
              DO j = i, 3
                 kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
-                CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+                CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec)
                 IF(qs_env%run_rtp)THEN
-                   CALL get_qs_env(qs_env,rtp=rtp,error=error)
-                   CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
+                   CALL get_qs_env(qs_env,rtp=rtp)
+                   CALL get_rtp(rtp,mos_new=mos_new)
+                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new)
                 ELSE
-                   CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                   CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec)
                 END IF
                 zdet = CMPLX ( 1._dp, 0._dp, dp )
                 DO ispin = 1, dft_control%nspins
-                  CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+                  CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim)
                   DO idim=1,tmp_dim
                   eigrmat(ispin)%matrix%local_data(:,idim) = &
                         CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
                                -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
                   END DO
-                  CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
+                  CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta)
                   zdet = zdet * zdeta
                   IF (dft_control%nspins==1) THEN
                      zdet = zdet * zdeta
@@ -1148,16 +1137,16 @@ CONTAINS
            ! Octapole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 2 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          CASE (4)
            ! Hexadecapole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 3 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          CASE DEFAULT
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 4 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
        END SELECT
      END DO
      DO l = 1, nmom
@@ -1174,7 +1163,7 @@ CONTAINS
            ! Quadrupole
            CALL cp_unimplemented_error(fromWhere=routineP, &
               message="Berry phase moments bigger than 1 not implemented", &
-              error=error, error_level=cp_failure_level)
+              error_level=cp_failure_level)
            DO i=1,3
              DO j=1,3
                zz = zij(i,j)/zi(i)/zi(j)
@@ -1199,24 +1188,24 @@ CONTAINS
            ! Octapole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 2 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          CASE (4)
            ! Hexadecapole
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 3 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          CASE DEFAULT
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Berry phase moments bigger than 4 not implemented", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
        END SELECT
      END DO
 
      rmom(:,3) = rmom(:,1) + rmom(:,2)
      description="[DIPOLE]"
-     CALL cp_results_erase(results=results,description=description,error=error)
+     CALL cp_results_erase(results=results,description=description)
      CALL put_results(results=results,description=description,&
-                      values=rmom(2:4,3),error=error)
+                      values=rmom(2:4,3))
      IF(magnetic) THEN
         CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.,mmom=mmom)
      ELSE
@@ -1224,30 +1213,30 @@ CONTAINS
      END IF
 
      DEALLOCATE (rmom,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE (rlab,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      IF(magnetic) THEN
         DEALLOCATE ( mmom, STAT = istat )
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      END IF
 
-     CALL cp_dbcsr_deallocate_matrix ( cosmat, error )
-     CALL cp_dbcsr_deallocate_matrix ( sinmat, error )
+     CALL cp_dbcsr_deallocate_matrix ( cosmat)
+     CALL cp_dbcsr_deallocate_matrix ( sinmat)
 
      DO ispin = 1, dft_control%nspins
-       CALL cp_fm_release(opvec(ispin)%matrix,error=error)
-       CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
+       CALL cp_fm_release(opvec(ispin)%matrix)
+       CALL cp_cfm_release(eigrmat(ispin)%matrix)
        DO i = 1, SIZE ( op_fm_set, 1 )
-         CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
+         CALL cp_fm_release(op_fm_set(i,ispin)%matrix)
        END DO
      END DO
      DEALLOCATE ( op_fm_set, STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE ( opvec, STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE ( eigrmat, STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
      CALL timestop(handle)
 
@@ -1261,9 +1250,8 @@ CONTAINS
 !> \param mos ...
 !> \param op_fm_set ...
 !> \param opvec ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+  SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec)
 
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1272,19 +1260,18 @@ CONTAINS
       POINTER                                :: op_fm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: opvec
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: i, nao, nmo
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
-       CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
        CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
-            op_fm_set(1,i)%matrix,error=error)
-       CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+            op_fm_set(1,i)%matrix)
+       CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
        CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
-            op_fm_set(2,i)%matrix,error=error)
+            op_fm_set(2,i)%matrix)
     ENDDO
 
   END SUBROUTINE op_orbbas
@@ -1296,9 +1283,8 @@ CONTAINS
 !> \param mos ...
 !> \param op_fm_set ...
 !> \param mos_new ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
+  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new)
 
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1307,7 +1293,6 @@ CONTAINS
       POINTER                                :: op_fm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: i, icol, lcol, nao, newdim, &
                                                 nmo
@@ -1317,49 +1302,47 @@ CONTAINS
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
-       CALL cp_fm_get_info(mos_new(2*i)%matrix,ncol_local=lcol,ncol_global=nmo,error=error)
+       CALL cp_fm_get_info(mos_new(2*i)%matrix,ncol_local=lcol,ncol_global=nmo)
        double_col=.TRUE.
        double_row=.FALSE.
        CALL cp_fm_struct_double(newstruct,&
                                 mos_new(2*i)%matrix%matrix_struct,&
                                 mos_new(2*i)%matrix%matrix_struct%context,&
                                 double_col,&
-                                double_row,&
-                                error)
+                                double_row)
 
-       CALL cp_fm_create(work,matrix_struct=newstruct,error=error)
-       CALL cp_fm_create(work1,matrix_struct=newstruct,error=error)
-       CALL cp_fm_create(work2,matrix_struct=newstruct,error=error)
-       CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
+       CALL cp_fm_create(work,matrix_struct=newstruct)
+       CALL cp_fm_create(work1,matrix_struct=newstruct)
+       CALL cp_fm_create(work2,matrix_struct=newstruct)
+       CALL cp_fm_get_info(work,ncol_global=newdim)
 
-       CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
+       CALL cp_fm_set_all(work,0.0_dp,0.0_dp)
        DO icol=1,lcol
           work%local_data(:,icol)=mos_new(2*i-1)%matrix%local_data(:,icol)
           work%local_data(:,icol+lcol)=mos_new(2*i)%matrix%local_data(:,icol)
        END DO
 
-       CALL cp_dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim, error=error)
-       CALL cp_dbcsr_sm_fm_multiply(sinmat, work, work2, ncol=newdim, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim)
+       CALL cp_dbcsr_sm_fm_multiply(sinmat, work, work2, ncol=newdim)
 
        DO icol=1,lcol
           work%local_data(:,icol)=work1%local_data(:,icol)-work2%local_data(:,icol+lcol)
           work%local_data(:,icol+lcol)=work1%local_data(:,icol+lcol)+work2%local_data(:,icol)
        END DO
 
-       CALL cp_fm_release(work1,error)
-       CALL cp_fm_release(work2,error)
+       CALL cp_fm_release(work1)
+       CALL cp_fm_release(work2)
 
        CALL cp_fm_struct_double(newstruct1,&
                                 op_fm_set(1,i)%matrix%matrix_struct,&
                                 op_fm_set(1,i)%matrix%matrix_struct%context,&
                                 double_col,&
-                                double_row,&
-                                error)
+                                double_row)
 
-       CALL cp_fm_create(work1,matrix_struct=newstruct1,error=error)
+       CALL cp_fm_create(work1,matrix_struct=newstruct1)
 
        CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
-            work,0.0_dp,work1,error=error)
+            work,0.0_dp,work1)
 
        DO icol=1,lcol
           op_fm_set(1,i)%matrix%local_data(:,icol)=work1%local_data(:,icol)
@@ -1368,7 +1351,7 @@ CONTAINS
 
 
        CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
-            work,0.0_dp,work1,error=error)
+            work,0.0_dp,work1)
 
        DO icol=1,lcol
           op_fm_set(1,i)%matrix%local_data(:,icol)=&
@@ -1377,10 +1360,10 @@ CONTAINS
                op_fm_set(2,i)%matrix%local_data(:,icol)-work1%local_data(:,icol)
        END DO
 
-       CALL cp_fm_release(work,error)
-       CALL cp_fm_release(work1,error)
-       CALL cp_fm_struct_release(newstruct,error=error)
-       CALL cp_fm_struct_release(newstruct1,error=error)
+       CALL cp_fm_release(work)
+       CALL cp_fm_release(work1)
+       CALL cp_fm_struct_release(newstruct)
+       CALL cp_fm_struct_release(newstruct1)
 
     ENDDO
 
@@ -1394,16 +1377,14 @@ CONTAINS
 !> \param reference ...
 !> \param ref_point ...
 !> \param unit_number ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_moment_locop (qs_env,magnetic,nmoments,reference,ref_point,unit_number,error)
+  SUBROUTINE qs_moment_locop (qs_env,magnetic,nmoments,reference,ref_point,unit_number)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: magnetic
     INTEGER, INTENT(IN)                      :: nmoments, reference
     REAL(dp), DIMENSION(:), POINTER          :: ref_point
     INTEGER, INTENT(IN)                      :: unit_number
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_locop', &
       routineP = moduleN//':'//routineN
@@ -1435,30 +1416,30 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
 
 
     CALL timeset(routineN,handle)
 
     ! reference point
-    CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
+    CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point)
 
     ! only allow for moments up to maxl set by basis
     nmom = MIN (nmoments,current_maxl)
     ! electronic contribution
     NULLIFY ( moments,matrix_s )
-    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s)
     nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
-    CALL cp_dbcsr_allocate_matrix_set(moments,nm,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(moments,nm)
     DO i=1,nm
        ALLOCATE(moments(i)%matrix,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_dbcsr_init(moments(i)%matrix,error=error)
-       CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments",error=error)
-       CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CALL cp_dbcsr_init(moments(i)%matrix)
+       CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments")
+       CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp)
     END DO
 
-    CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
+    CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc)
 
     NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s,rho_ao)
     CALL get_qs_env(qs_env,&
@@ -1469,57 +1450,56 @@ CONTAINS
                     particle_set=particle_set,&
                     qs_kind_set=qs_kind_set,&
                     para_env=para_env,&
-                    matrix_s=matrix_s,&
-                    error=error)
+                    matrix_s=matrix_s)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     nm = SIZE(moments)
     ALLOCATE (rmom(nm+1,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE (rlab(nm+1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     rmom=0.0_dp
     rlab = ""
 
     trace = 0.0_dp
     DO ispin=1,dft_control%nspins
-      CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+      CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace)
       rmom(1,1) = rmom(1,1) + trace
     END DO
 
     DO i = 1, SIZE(moments)
        strace = 0._dp
        DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,moments(i)%matrix,trace)
          strace = strace + trace
        END DO
        rmom(i+1,1) = strace
     END DO
 
-    CALL cp_dbcsr_deallocate_matrix_set ( moments, error )
+    CALL cp_dbcsr_deallocate_matrix_set ( moments)
 
     ! magnetic moments
     IF (magnetic) THEN
        NULLIFY ( magmom )
-       CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc,error=error)
+       CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc)
        nm = SIZE(magmom)
        ALLOCATE (mmom(nm),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DO i = 1, SIZE(magmom)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
-            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
+            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,magmom(i)%matrix,trace)
             strace = strace + trace
           END DO
           mmom(i) = strace
        END DO
-       CALL cp_dbcsr_deallocate_matrix_set(magmom,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(magmom)
     END IF
 
     ! nuclear contribution
     CALL get_qs_env(qs_env=qs_env,&
-                   local_particles=local_particles,error=error)
+                   local_particles=local_particles)
     DO ikind = 1,SIZE(local_particles%n_el)
        DO ia = 1,local_particles%n_el(ikind)
          iatom = local_particles%list(ikind)%array(ia)
@@ -1528,7 +1508,7 @@ CONTAINS
          ria = ria - rcc
          atomic_kind => particle_set(iatom)%atomic_kind
          CALL get_atomic_kind(atomic_kind, kind_number=akind)
-         CALL get_qs_kind(qs_kind_set(akind), core_charge=charge, error=error)
+         CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
          rmom(1,2) = rmom(1,2) - charge
          DO l = 1, nm
            ix = indco(1,l+1)
@@ -1548,9 +1528,9 @@ CONTAINS
     rmom(:,3) = rmom(:,1) + rmom(:,2)
 
     description="[DIPOLE]"
-    CALL cp_results_erase(results=results,description=description,error=error)
+    CALL cp_results_erase(results=results,description=description)
     CALL put_results(results=results,description=description,&
-                     values=rmom(2:4,3),error=error)
+                     values=rmom(2:4,3))
     IF(magnetic) THEN
        CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.,mmom=mmom)
     ELSE
@@ -1558,12 +1538,12 @@ CONTAINS
     END IF
 
     DEALLOCATE (rmom,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (rlab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     IF (magnetic) THEN
        DEALLOCATE (mmom,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL timestop(handle)

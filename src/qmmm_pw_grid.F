@@ -45,16 +45,13 @@ CONTAINS
 !>      has [0,L] as boundaries.
 !> \param qmmm_env ...
 !> \param pw_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, error)
+  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
       routineP = moduleN//':'//routineN
@@ -75,14 +72,13 @@ CONTAINS
     IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN
        CALL pw_env_get(pw_env=pw_env,&
                        pw_pools=pw_pools,&
-                       auxbas_grid=auxbas_grid,&
-                       error=error)
+                       auxbas_grid=auxbas_grid)
        !
        IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
-          CALL pw_pools_dealloc(qmmm_env%aug_pools,error=error)
+          CALL pw_pools_dealloc(qmmm_env%aug_pools)
        END IF
        ALLOCATE(qmmm_env%aug_pools(SIZE(pw_pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        !
        DO Ilevel = 1, SIZE(pw_pools)
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
@@ -95,16 +91,16 @@ CONTAINS
           END IF
 
           CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, &
-               pw_mode=pw_mode, error=error)
+               pw_mode=pw_mode)
           CALL pw_pool_create(qmmm_env%aug_pools(Ilevel)%pool,&
-               pw_grid=el_struct,error=error)
+               pw_grid=el_struct)
 
           Maxdr = MAX(Maxdr,el_struct%dr)
           Mindr = MIN(Mindr,el_struct%dr)
           IF (ALL(Maxdr.EQ.el_struct%dr)) qmmm_env%gridlevel_info%coarser_grid = Ilevel
           IF (ALL(Mindr.EQ.el_struct%dr)) qmmm_env%gridlevel_info%auxbas_grid  = Ilevel
 
-          CALL pw_grid_release(el_struct,error=error)
+          CALL pw_grid_release(el_struct)
 
        END DO
     END IF
@@ -117,8 +113,6 @@ CONTAINS
 !> \param pw_grid_in the pw grid to duplicate
 !> \param pw_grid_out the output pw_grid_type
 !> \param pw_mode ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2004 created [tlaino]
 !>      04.2005 completly rewritten the duplicate routine, fixed parallel
@@ -127,10 +121,9 @@ CONTAINS
 !>      06.2007 moved to new module [jgh]
 !> \author Fawzi, Teo
 ! *****************************************************************************
-  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, pw_mode, error)
+  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, pw_mode)
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
     INTEGER, INTENT(IN), OPTIONAL            :: pw_mode
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
       routineP = moduleN//':'//routineN
@@ -141,11 +134,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,failure)
     pw_mode_loc = pw_grid_in%para%mode
     IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
-    CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group,error=error)
+    CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
     qmmm_grid_tag = qmmm_grid_tag + 1
     pw_grid_out %id_nr = qmmm_grid_tag
     pw_grid_out % ref_count  = 1
@@ -194,7 +187,7 @@ CONTAINS
             pw_grid_out % para % nyzray,&
             pw_grid_out % para % bo)
     ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
     pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
     pw_grid_out%para%pos_of_x => pos_of_x
@@ -207,7 +200,7 @@ CONTAINS
     pw_grid_out % para % rs_mpo = pw_grid_in % para % rs_mpo
 
     NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
-    CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
     pw_grid_out%grid_span=pw_grid_in%grid_span
     pw_grid_out%have_g0=.FALSE.
     pw_grid_out%first_gne0=HUGE(0)

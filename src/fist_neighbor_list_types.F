@@ -61,15 +61,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param fist_neighbor ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fist_neighbor_deallocate(fist_neighbor,error)
+  SUBROUTINE fist_neighbor_deallocate(fist_neighbor)
     TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_deallocate', &
       routineP = moduleN//':'//routineN
@@ -84,42 +81,42 @@ CONTAINS
           DO i = 1, SIZE(fist_neighbor%neighbor_kind_pairs)
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%list)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%list, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
           END DO
           DEALLOCATE(fist_neighbor%neighbor_kind_pairs, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE(fist_neighbor, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE fist_neighbor_deallocate
 
@@ -127,16 +124,13 @@ CONTAINS
 !> \brief ...
 !> \param fist_neighbor ...
 !> \param ncell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fist_neighbor_init(fist_neighbor, ncell, error)
+  SUBROUTINE fist_neighbor_init(fist_neighbor, ncell)
     TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
     INTEGER, INTENT(IN)                      :: ncell(3)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_init', &
       routineP = moduleN//':'//routineN
@@ -151,7 +145,7 @@ CONTAINS
     CALL timeset ( routineN, handle )
     IF (.NOT.ASSOCIATED(fist_neighbor)) THEN
        ALLOCATE(fist_neighbor,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        NULLIFY(fist_neighbor%neighbor_kind_pairs)
     ENDIF
 
@@ -159,62 +153,62 @@ CONTAINS
     IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
        IF (SIZE(fist_neighbor%neighbor_kind_pairs)<nlistmin) THEN
           ALLOCATE(new_pairs(nlistmin),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO i=1,SIZE(fist_neighbor%neighbor_kind_pairs)
              new_pairs(i)%list   =>fist_neighbor%neighbor_kind_pairs(i)%list
              list_size = SIZE(new_pairs(i)%list)
              ALLOCATE(new_pairs(i)%id_kind(list_size),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(new_pairs(i)%ei_scale(0),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(new_pairs(i)%vdw_scale(0),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(new_pairs(i)%is_onfo(0),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              END IF
           ENDDO
           DO i=SIZE(fist_neighbor%neighbor_kind_pairs)+1,nlistmin
              ALLOCATE(new_pairs(i)%list(2,0),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(new_pairs(i)%id_kind(0),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
              NULLIFY(new_pairs(i)%ei_scale,new_pairs(i)%vdw_scale,new_pairs(i)%is_onfo)
           ENDDO
           DEALLOCATE(fist_neighbor%neighbor_kind_pairs,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           fist_neighbor%neighbor_kind_pairs=>new_pairs
        ELSE
           DO i=1,SIZE(fist_neighbor%neighbor_kind_pairs)
@@ -224,18 +218,18 @@ CONTAINS
        ENDIF
     ELSE
        ALLOCATE(fist_neighbor%neighbor_kind_pairs(nlistmin),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i=1,nlistmin
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%list(2,0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           NULLIFY(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
@@ -266,15 +260,13 @@ CONTAINS
 !> \param ei_scale14 ...
 !> \param vdw_scale14 ...
 !> \param exclusions ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
        rab, check_spline, id_kind, skip, cell, &
-       ei_scale14, vdw_scale14, exclusions, error)
+       ei_scale14, vdw_scale14, exclusions)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -285,7 +277,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL                               :: exclusions
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
       routineP = moduleN//':'//routineN
@@ -384,17 +375,17 @@ CONTAINS
        new_npairs = INT(5+1.2*old_npairs)
        ! Pair Atoms Info
        ALLOCATE(new_list(2,new_npairs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        new_list(1:2,1:old_npairs)=neighbor_kind_pair%list(1:2,1:old_npairs)
        DEALLOCATE(neighbor_kind_pair%list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        neighbor_kind_pair%list=>new_list
        ! Kind Info
        ALLOCATE(new_id_kind(new_npairs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        new_id_kind(1:old_npairs)=neighbor_kind_pair%id_kind(1:old_npairs)
        DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        neighbor_kind_pair%id_kind=>new_id_kind
     ENDIF
 

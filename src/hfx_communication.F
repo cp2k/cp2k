@@ -64,8 +64,6 @@ MODULE hfx_communication
 !> \param get_max_vals_spin ...
 !> \param rho_beta ...
 !> \param antisymmetric ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -77,7 +75,7 @@ MODULE hfx_communication
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
                               block_offset,  kind_of, basis_parameter,&
-                              get_max_vals_spin, rho_beta, antisymmetric, error)
+                              get_max_vals_spin, rho_beta, antisymmetric)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:)                   :: full_density
@@ -90,7 +88,6 @@ MODULE hfx_communication
     LOGICAL, INTENT(IN)                      :: get_max_vals_spin
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: rho_beta
     LOGICAL, INTENT(IN)                      :: antisymmetric
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
       routineP = moduleN//':'//routineN
@@ -113,9 +110,9 @@ MODULE hfx_communication
 
     full_density = 0.0_dp
     ALLOCATE(sendbuffer(number_of_p_entries),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(recbuffer(number_of_p_entries),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     i=1
     CALL cp_dbcsr_iterator_start(iter, rho, shared=.FALSE.)
@@ -191,7 +188,7 @@ MODULE hfx_communication
       recbuffer=>swapbuffer
     ENDDO
     DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ! sync before/after a ring of isendrecv
     CALL mp_sync(para_env%group)
 
@@ -208,8 +205,6 @@ MODULE hfx_communication
 !> \param basis_parameter ...
 !> \param off_diag_fac ...
 !> \param diag_fac ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -218,7 +213,7 @@ MODULE hfx_communication
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
                                   block_offset, kind_of, basis_parameter, &
-                                  off_diag_fac, diag_fac, error)
+                                  off_diag_fac, diag_fac)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:)                   :: full_ks
@@ -229,7 +224,6 @@ MODULE hfx_communication
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac, diag_fac
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
       routineP = moduleN//':'//routineN
@@ -250,10 +244,10 @@ MODULE hfx_communication
     IF( PRESENT( diag_fac ) ) myd_fac = diag_fac
 
     ALLOCATE(sendbuffer(number_of_p_entries), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     sendbuffer =0.0_dp
     ALLOCATE(recbuffer(number_of_p_entries), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     recbuffer =0.0_dp
 
     ncpu = para_env%num_pe
@@ -314,7 +308,7 @@ MODULE hfx_communication
     CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE distribute_ks_matrix
 
@@ -327,8 +321,6 @@ MODULE hfx_communication
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param irep ...
 !> \param scaling_factor ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -336,7 +328,7 @@ MODULE hfx_communication
 !>      - Communication with left/right node only
 ! *****************************************************************************
   SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
-                                             scaling_factor, error)
+                                             scaling_factor)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -344,7 +336,6 @@ MODULE hfx_communication
       POINTER                                :: ks_matrix
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'scale_and_add_fock_to_ks_matrix', &
@@ -373,22 +364,21 @@ MODULE hfx_communication
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     nspins = dft_control%nspins
     nimages = dft_control%nimages
-    CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
 
     natom = SIZE(particle_set,1)
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
 
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -401,10 +391,10 @@ MODULE hfx_communication
     DO img=1,nimages
        CALL distribute_ks_matrix(para_env, full_ks(:,img), ks_matrix(1,img)%matrix, actual_x_data%number_of_p_entries, &
                                  actual_x_data%block_offset, kind_of, basis_parameter, &
-                                 off_diag_fac=0.5_dp,error=error)
+                                 off_diag_fac=0.5_dp)
     END DO
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF(nspins == 2) THEN
       full_ks => actual_x_data%full_ks_beta
@@ -414,14 +404,14 @@ MODULE hfx_communication
       DO img=1,nimages
          CALL distribute_ks_matrix(para_env, full_ks(:,img), ks_matrix(2,img)%matrix, actual_x_data%number_of_p_entries, &
                               actual_x_data%block_offset, kind_of, basis_parameter, &
-                              off_diag_fac=0.5_dp,error=error)
+                              off_diag_fac=0.5_dp)
       END DO
       DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     DEALLOCATE(kind_of, last_sgf_global, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE scale_and_add_fock_to_ks_matrix
 
@@ -463,7 +453,6 @@ MODULE hfx_communication
 !> \param block_offset ...
 !> \param map_atoms_to_cpus ...
 !> \param nkind ...
-!> \param error ...
 !> \par History
 !>      11.2007 refactored [Joost VandeVondele]
 !>      07.2009 add new maps
@@ -475,7 +464,7 @@ MODULE hfx_communication
   SUBROUTINE get_atomic_block_maps(matrix,basis_parameter,kind_of,&
                                    is_assoc_atomic_block,number_of_p_entries,&
                                    para_env,atomic_block_offset, set_offset, &
-                                   block_offset, map_atoms_to_cpus, nkind, error)
+                                   block_offset, map_atoms_to_cpus, nkind)
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(hfx_basis_type), DIMENSION(:)       :: basis_parameter
@@ -488,7 +477,6 @@ MODULE hfx_communication
     INTEGER, DIMENSION(:), POINTER           :: block_offset
     TYPE(hfx_2D_map), DIMENSION(:), POINTER  :: map_atoms_to_cpus
     INTEGER                                  :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atomic_block_maps', &
       routineP = moduleN//':'//routineN
@@ -535,11 +523,11 @@ MODULE hfx_communication
     ! pack all data in buffers and use allgatherv
     !
     ALLOCATE(buffer_in(3*number_of_p_blocks),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(buffer_out(3*number_of_p_blocks*para_env%num_pe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(rcount(para_env%num_pe),rdispl(para_env%num_pe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     buffer_in=0
     ibuf=0
@@ -584,9 +572,9 @@ MODULE hfx_communication
 
     natom = SIZE(is_assoc_atomic_block,1)
     ALLOCATE(map_atoms_to_cpus(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(counter(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     counter = 0
 
     DO iatom=1,natom
@@ -597,9 +585,9 @@ MODULE hfx_communication
     END DO
     DO icpu = 1,para_env%num_pe
       ALLOCATE(map_atoms_to_cpus(icpu)%iatom_list(counter(icpu)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(map_atoms_to_cpus(icpu)%jatom_list(counter(icpu)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     counter = 0
     DO iatom=1,natom
@@ -614,7 +602,7 @@ MODULE hfx_communication
     END DO
 
     DEALLOCATE(counter, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ncpu = para_env%num_pe
     offset = 1

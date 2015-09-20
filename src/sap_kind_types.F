@@ -55,13 +55,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param sap_int ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_sap_int(sap_int, error)
+  SUBROUTINE release_sap_int(sap_int)
 
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: sap_int
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_sap_int', &
       routineP = moduleN//':'//routineN
@@ -72,7 +70,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(sap_int),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(sap_int),cp_failure_level,routineP,failure)
 
     DO i=1,SIZE(sap_int)
       IF ( ASSOCIATED(sap_int(i)%alist) ) THEN
@@ -82,36 +80,36 @@ CONTAINS
               clist => sap_int(i)%alist(j)%clist(k)
               IF ( ASSOCIATED(clist%acint) ) THEN
                 DEALLOCATE (clist%acint,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
               END IF
               IF ( ASSOCIATED(clist%sgf_list) ) THEN
                 DEALLOCATE (clist%sgf_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
               END IF
               IF ( ASSOCIATED(clist%achint) ) THEN
                 DEALLOCATE (clist%achint,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
               END IF
             END DO
             DEALLOCATE (sap_int(i)%alist(j)%clist,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
         END DO
         DEALLOCATE (sap_int(i)%alist,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
       IF ( ASSOCIATED(sap_int(i)%asort) ) THEN
         DEALLOCATE (sap_int(i)%asort,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
       IF ( ASSOCIATED(sap_int(i)%aindex) ) THEN
         DEALLOCATE (sap_int(i)%aindex,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
     END DO
 
     DEALLOCATE (sap_int,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE release_sap_int
 
@@ -120,14 +118,12 @@ CONTAINS
 !> \param sap_int ...
 !> \param alist ...
 !> \param atom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_alist(sap_int, alist, atom, error)
+  SUBROUTINE get_alist(sap_int, alist, atom)
 
     TYPE(sap_int_type)                       :: sap_int
     TYPE(alist_type), POINTER                :: alist
     INTEGER, INTENT(IN)                      :: atom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_alist', &
       routineP = moduleN//':'//routineN
@@ -145,7 +141,7 @@ CONTAINS
     ELSE IF (i==0) THEN
       NULLIFY(alist)
     ELSE
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE get_alist
@@ -237,12 +233,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param sap_int ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE sap_sort(sap_int,error)
+  SUBROUTINE sap_sort(sap_int)
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: sap_int
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sap_sort', &
       routineP = moduleN//':'//routineN
@@ -258,7 +252,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(sap_int(iac)%alist)) CYCLE
        na = SIZE(sap_int(iac)%alist)
        ALLOCATE(sap_int(iac)%asort(na),sap_int(iac)%aindex(na),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        sap_int(iac)%asort(1:na)=sap_int(iac)%alist(1:na)%aatom
        CALL sort(sap_int(iac)%asort,na,sap_int(iac)%aindex)
     END DO

@@ -87,14 +87,13 @@ CONTAINS
 !> \param use_virial ...
 !> \param charges ...
 !> \param atprop ...
-!> \param error ...
 !> \par History
 !>      JGH (03-May-2001) : SPME with charge definition
 !> \author JGH (21-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
        fg_coulomb, vg_coulomb, pv_g, shell_particle_set, core_particle_set,&
-       fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop, error )
+       fgshell_coulomb, fgcore_coulomb, use_virial, charges, atprop)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -116,7 +115,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
     TYPE(atprop_type), POINTER               :: atprop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
       routineP = moduleN//':'//routineN
@@ -151,38 +149,38 @@ CONTAINS
 
     !-------------- INITIALISATION ---------------------
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline,&
-         group = group, error=error)
+         group = group)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc,&
          poisson_env=poisson_env)
-    CALL pw_poisson_rebuild(poisson_env,error=error)
+    CALL pw_poisson_rebuild(poisson_env)
     green => poisson_env%green_fft
     grid_spme => pw_pool % pw_grid
 
     npart = SIZE ( particle_set )
 
-    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols,error=error)
+    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols)
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL rs_grid_create (rden, rs_desc, error=error)
-    CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL rs_grid_create (rden, rs_desc)
+    CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center(3, npart), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_center ( particle_set, box, center, npts, n )
     IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
-       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,failure)
+       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
        nshell=SIZE(shell_particle_set)
        ncore =SIZE(core_particle_set)
-       CPPostcondition(nshell==ncore,cp_failure_level,routineP,error,failure)
+       CPPostcondition(nshell==ncore,cp_failure_level,routineP,failure)
        ALLOCATE ( shell_center ( 3, nshell ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL get_center ( shell_particle_set, box, shell_center, npts, n )
        ALLOCATE ( core_center ( 3, nshell ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL get_center ( core_particle_set, box, core_center, npts, n )
     END IF
 
@@ -232,13 +230,13 @@ CONTAINS
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
-                             in_space = REALSPACE ,error=error)
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
+                             in_space = REALSPACE)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw)
     ! transform density to G space and add charge function
     CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                              use_data = COMPLEXDATA1D, &
-                             in_space = RECIPROCALSPACE ,error=error)
-    CALL pw_transfer ( rhob_r, rhob_g, error=error)
+                             in_space = RECIPROCALSPACE)
+    CALL pw_transfer ( rhob_r, rhob_g)
     ! update charge function
     rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
@@ -248,24 +246,22 @@ CONTAINS
        NULLIFY(dphi_g(i)%pw)
        CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,&
                                 use_data = COMPLEXDATA1D,&
-                                in_space = RECIPROCALSPACE,&
-                                error=error)
+                                in_space = RECIPROCALSPACE)
     END DO
     CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                              use_data = COMPLEXDATA1D,&
-                             in_space = RECIPROCALSPACE,&
-                             error=error)
+                             in_space = RECIPROCALSPACE)
     CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
-                            h_stress ,error=error)
+                            h_stress)
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
     ! Atomic Energy and Stress
     IF (atprop%energy .OR. atprop%stress) THEN
-       CALL rs_grid_create (rpot, rs_desc, error=error)
-       CALL rs_grid_set_box ( grid_spme, rs=rpot, error=error )
+       CALL rs_grid_create (rpot, rs_desc)
+       CALL rs_grid_set_box ( grid_spme, rs=rpot)
        phi_g%cc = phi_g%cc * green%p3m_charge%cr
-       CALL pw_transfer ( phi_g, rhob_r, error=error)
-       CALL rs_pw_transfer (rpot, rhob_r, pw2rs, error=error)
+       CALL pw_transfer ( phi_g, rhob_r)
+       CALL rs_pw_transfer (rpot, rhob_r, pw2rs)
        ipart = 0
        DO
           CALL set_list ( particle_set, npart, center, p1, rden, ipart )
@@ -325,11 +321,11 @@ CONTAINS
              DO j = 1, i
                 nd = 0
                 nd ( j ) = 1
-                CALL pw_copy ( phi_g, rhob_g, error=error)
-                CALL pw_derive ( rhob_g, nd , error=error)
+                CALL pw_copy ( phi_g, rhob_g)
+                CALL pw_derive ( rhob_g, nd)
                 rhob_g%cc = rhob_g%cc * green%p3m_charge%cr
-                CALL pw_transfer ( rhob_g, rhob_r, error=error)
-                CALL rs_pw_transfer ( rpot, rhob_r, pw2rs, error=error)
+                CALL pw_transfer ( rhob_g, rhob_r)
+                CALL rs_pw_transfer ( rpot, rhob_r, pw2rs)
 
                 ipart = 0
                 DO
@@ -347,17 +343,17 @@ CONTAINS
              END DO
           END DO
        END IF
-       CALL rs_grid_release ( rpot, error=error)
+       CALL rs_grid_release ( rpot)
     END IF
 
-    CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, phi_g)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_g)
 
     !------------- STRESS TENSOR CALCULATION ------------
     IF (use_virial) THEN
        DO i = 1, 3
           DO j = i, 3
-             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw, error=error)
+             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw)
              f_stress ( j, i ) = f_stress ( i, j )
           END DO
        END DO
@@ -369,17 +365,17 @@ CONTAINS
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
     ALLOCATE ( drpot(1:3), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1, 3
-       CALL rs_grid_create( drpot(i)%rs_grid, rs_desc, error=error )
-       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
+       CALL rs_grid_create( drpot(i)%rs_grid, rs_desc)
+       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
        dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
-       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r, error=error)
-       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs,error=error)
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r)
+       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw)
+       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs)
     END DO
 
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_r)
     !----------------- FORCE CALCULATION ----------------
     ! initialize the forces
     fg_coulomb = 0.0_dp
@@ -447,26 +443,26 @@ CONTAINS
     !--------------END OF FORCE CALCULATION -------------
 
     !------------------CLEANING UP ----------------------
-    CALL rs_grid_release (rden, error=error)
+    CALL rs_grid_release (rden)
     IF (ASSOCIATED(drpot)) THEN
       DO i = 1, 3
-         CALL rs_grid_release ( drpot(i)%rs_grid, error=error)
+         CALL rs_grid_release ( drpot(i)%rs_grid)
       END DO
       DEALLOCATE ( drpot, STAT = stat )
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(ALLOCATED(shell_center)) THEN
        DEALLOCATE ( shell_center, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ALLOCATED(core_center)) THEN
        DEALLOCATE ( core_center, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle)
 
@@ -482,13 +478,12 @@ CONTAINS
 !> \param charges_a ...
 !> \param particle_set_b ...
 !> \param potential ...
-!> \param error ...
 !> \par History
 !>      JGH (23-Oct-2014) : adapted from SPME evaluate
 !> \author JGH (23-Oct-2014)
 ! *****************************************************************************
   SUBROUTINE spme_potential ( ewald_env, ewald_pw, box, particle_set_a, charges_a, &
-                              particle_set_b, potential, error )
+                              particle_set_b, potential)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -500,7 +495,6 @@ CONTAINS
       INTENT(IN)                             :: particle_set_b
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_potential', &
       routineP = moduleN//':'//routineN
@@ -529,26 +523,26 @@ CONTAINS
     CALL cite_reference(Essmann1995)
 
     !-------------- INITIALISATION ---------------------
-    CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, error=error)
+    CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc, poisson_env=poisson_env)
-    CALL pw_poisson_rebuild(poisson_env,error=error)
+    CALL pw_poisson_rebuild(poisson_env)
     green => poisson_env%green_fft
     grid_spme => pw_pool % pw_grid
 
     npart_a = SIZE ( particle_set_a )
     npart_b = SIZE ( particle_set_b )
 
-    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols,error=error)
+    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols)
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL rs_grid_create (rden, rs_desc, error=error)
-    CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL rs_grid_create (rden, rs_desc)
+    CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center(3, npart_a), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_center ( particle_set_a, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -565,17 +559,17 @@ CONTAINS
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
-                             in_space = REALSPACE ,error=error)
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
+                             in_space = REALSPACE)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw)
     ! transform density to G space and add charge function
     CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                              use_data = COMPLEXDATA1D, &
-                             in_space = RECIPROCALSPACE ,error=error)
-    CALL pw_transfer ( rhob_r, rhob_g, error=error)
+                             in_space = RECIPROCALSPACE)
+    CALL pw_transfer ( rhob_r, rhob_g)
     ! update charge function
     rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
@@ -583,19 +577,18 @@ CONTAINS
     ! allocate intermediate arrays
     CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                              use_data = COMPLEXDATA1D,&
-                             in_space = RECIPROCALSPACE,&
-                             error=error)
-    CALL pw_poisson_solve ( poisson_env, density=rhob_g, vhartree=phi_g, error=error)
+                             in_space = RECIPROCALSPACE)
+    CALL pw_poisson_solve ( poisson_env, density=rhob_g, vhartree=phi_g)
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
     !-------------- POTENTAIL AT ATOMIC POSITIONS -------
     ALLOCATE ( center(3, npart_b), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_center ( particle_set_b, box, center, npts, n )
     rpot => rden
     phi_g%cc = phi_g%cc * green%p3m_charge%cr
-    CALL pw_transfer ( phi_g, rhob_r, error=error)
-    CALL rs_pw_transfer (rpot, rhob_r, pw2rs, error=error)
+    CALL pw_transfer ( phi_g, rhob_r)
+    CALL rs_pw_transfer (rpot, rhob_r, pw2rs)
     ipart = 0
     DO
        CALL set_list ( particle_set_b, npart_b, center, p1, rden, ipart )
@@ -609,15 +602,15 @@ CONTAINS
     END DO
 
     !------------------CLEANING UP ----------------------
-    CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
-    CALL rs_grid_release (rden, error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, phi_g)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_g)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_r)
+    CALL rs_grid_release (rden)
 
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
 
   END SUBROUTINE spme_potential
@@ -633,13 +626,12 @@ CONTAINS
 !> \param particle_set_b ...
 !> \param charges_b ...
 !> \param forces_b ...
-!> \param error ...
 !> \par History
 !>      JGH (27-Oct-2014) : adapted from SPME evaluate
 !> \author JGH (23-Oct-2014)
 ! *****************************************************************************
   SUBROUTINE spme_forces ( ewald_env, ewald_pw, box, particle_set_a, charges_a, &
-                           particle_set_b, charges_b, forces_b, error )
+                           particle_set_b, charges_b, forces_b)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -652,7 +644,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_b
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: forces_b
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_forces', &
       routineP = moduleN//':'//routineN
@@ -685,26 +676,26 @@ CONTAINS
     CALL cite_reference(Essmann1995)
 
     !-------------- INITIALISATION ---------------------
-    CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, error=error)
+    CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc, poisson_env=poisson_env)
-    CALL pw_poisson_rebuild(poisson_env,error=error)
+    CALL pw_poisson_rebuild(poisson_env)
     green => poisson_env%green_fft
     grid_spme => pw_pool % pw_grid
 
     npart_a = SIZE ( particle_set_a )
     npart_b = SIZE ( particle_set_b )
 
-    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols,error=error)
+    CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols)
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL rs_grid_create (rden, rs_desc, error=error)
-    CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL rs_grid_create (rden, rs_desc)
+    CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center(3, npart_a), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_center ( particle_set_a, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -721,17 +712,17 @@ CONTAINS
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
-                             in_space = REALSPACE ,error=error)
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
+                             in_space = REALSPACE)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw)
     ! transform density to G space and add charge function
     CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                              use_data = COMPLEXDATA1D, &
-                             in_space = RECIPROCALSPACE ,error=error)
-    CALL pw_transfer ( rhob_r, rhob_g, error=error)
+                             in_space = RECIPROCALSPACE)
+    CALL pw_transfer ( rhob_r, rhob_g)
     ! update charge function
     rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
@@ -741,31 +732,29 @@ CONTAINS
        NULLIFY(dphi_g(i)%pw)
        CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,&
                                 use_data = COMPLEXDATA1D,&
-                                in_space = RECIPROCALSPACE,&
-                                error=error)
+                                in_space = RECIPROCALSPACE)
     END DO
     CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                              use_data = COMPLEXDATA1D,&
-                             in_space = RECIPROCALSPACE,&
-                             error=error)
+                             in_space = RECIPROCALSPACE)
     CALL pw_poisson_solve ( poisson_env, density=rhob_g, vhartree=phi_g, &
-                            dvhartree=dphi_g, error=error)
+                            dvhartree=dphi_g)
     !---------- END OF ELECTROSTATIC CALCULATION --------
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
     ALLOCATE ( drpot(1:3), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1, 3
-       CALL rs_grid_create( drpot(i)%rs_grid, rs_desc, error=error )
-       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
+       CALL rs_grid_create( drpot(i)%rs_grid, rs_desc)
+       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
        dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
-       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r, error=error)
-       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs,error=error)
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r)
+       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw)
+       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs)
     END DO
     !----------------- FORCE CALCULATION ----------------
     ALLOCATE ( center(3, npart_b), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_center ( particle_set_b, box, center, npts, n )
     ipart = 0
     DO
@@ -783,20 +772,20 @@ CONTAINS
     !------------------CLEANING UP ----------------------
     IF (ASSOCIATED(drpot)) THEN
       DO i = 1, 3
-         CALL rs_grid_release ( drpot(i)%rs_grid, error=error)
+         CALL rs_grid_release ( drpot(i)%rs_grid)
       END DO
       DEALLOCATE ( drpot, STAT = stat )
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
-    CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
-    CALL rs_grid_release (rden, error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, phi_g)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_g)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_r)
+    CALL rs_grid_release (rden)
 
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
 
   END SUBROUTINE spme_forces

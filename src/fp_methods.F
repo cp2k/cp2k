@@ -47,15 +47,13 @@ CONTAINS
 !> \param fp_env ...
 !> \param subsys ...
 !> \param cell ...
-!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE fp_eval(fp_env, subsys, cell, error)
+  SUBROUTINE fp_eval(fp_env, subsys, cell)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_eval', &
       routineP = moduleN//':'//routineN
@@ -75,10 +73,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(fp_env%use_fp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys,particles=particles_list,error=error)
+    CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,failure)
+    CPPrecondition(fp_env%use_fp,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
+    CALL cp_subsys_get(subsys,particles=particles_list)
     particles=>particles_list%els
 
     ! compute the force due to the reflecting walls
@@ -147,7 +145,7 @@ CONTAINS
 
     ! the combinatorial weight
     i=fp_env%i2+fp_env%o1
-    CPPrecondition(i<=maxfac,cp_failure_level,routineP,error,failure)
+    CPPrecondition(i<=maxfac,cp_failure_level,routineP,failure)
     fp_env%comb_weight=(fac(fp_env%i2)*fac(fp_env%o1))/fac(i)
 
     ! we can add the bias potential now.
@@ -195,11 +193,11 @@ CONTAINS
     ENDIF
 
     ! put weights and other info on file
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,fp_env%print_section,"", &
-                                     extension=".weights",error=error)
+                                     extension=".weights")
     IF (output_unit>0) THEN
-       tmpstr=cp_iter_string(logger%iter_info, fp_env%print_section,error=error)
+       tmpstr=cp_iter_string(logger%iter_info, fp_env%print_section)
        WRITE(output_unit,'(T2,A15,6(1X,F16.10),4(1X,I4),4(1X,F16.10))') &
          tmpstr, &
          fp_env%weight, fp_env%comb_weight, fp_env%bias_weight, &
@@ -209,7 +207,7 @@ CONTAINS
     ENDIF
 
     CALL cp_print_key_finished_output(output_unit,logger,fp_env%print_section,&
-                                      "",error=error)
+                                      "")
 
     CALL timestop(handle)
 

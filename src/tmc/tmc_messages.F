@@ -82,14 +82,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief checks if the core is the group master
 !> \param para_env defines the mpi communicator
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval master return value, logical
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  FUNCTION check_if_group_master(para_env, error) RESULT(master)
+  FUNCTION check_if_group_master(para_env) RESULT(master)
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: master
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_if_group_master', &
@@ -98,7 +95,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error, failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
 
     master = .FALSE.
     IF(para_env%mepos.EQ.MASTER_COMM_ID) &
@@ -121,13 +118,11 @@ CONTAINS
 !> \param result_count ...
 !> \param wait_for_message ...
 !> \param success ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE tmc_message(msg_type, send_recv, dest, para_env, tmc_params, &
                          elem, elem_array, list_elem, result_count, &
-                         wait_for_message, success, error)
+                         wait_for_message, success)
     INTEGER                                  :: msg_type
     LOGICAL                                  :: send_recv
     INTEGER                                  :: dest
@@ -139,7 +134,6 @@ CONTAINS
     TYPE(elem_list_type), OPTIONAL, POINTER  :: list_elem
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: result_count
     LOGICAL, OPTIONAL                        :: wait_for_message, success
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_message', &
       routineP = moduleN//':'//routineN
@@ -148,8 +142,8 @@ CONTAINS
     LOGICAL                                  :: act_send_recv, failure, flag
     TYPE(message_send), POINTER              :: m_send
 
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ALLOCATE(m_send)
 
@@ -187,29 +181,29 @@ CONTAINS
            TMC_CANCELING_RECEIPT, TMC_STATUS_STOP_RECEIPT, &
            TMC_STATUS_WAIT_FOR_NEW_TASK, TMC_STATUS_CALCULATING, &
            TMC_STAT_ANALYSIS_RESULT)
-        CALL create_status_message(m_send, error)
+        CALL create_status_message(m_send)
       CASE(TMC_STATUS_WORKER_INIT)
-        CALL create_worker_init_message(tmc_params, m_send, error)
+        CALL create_worker_init_message(tmc_params, m_send)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
-        CALL create_start_conf_message(msg_type, elem, result_count, tmc_params, m_send, error)
+        CALL create_start_conf_message(msg_type, elem, result_count, tmc_params, m_send)
       CASE(TMC_STAT_ENERGY_REQUEST, TMC_STAT_APPROX_ENERGY_REQUEST)
-        CALL create_energy_request_message(elem, m_send, tmc_params, error)
+        CALL create_energy_request_message(elem, m_send, tmc_params)
       CASE(TMC_STAT_APPROX_ENERGY_RESULT)
-        CALL create_approx_energy_result_message(elem, m_send, tmc_params, error)
+        CALL create_approx_energy_result_message(elem, m_send, tmc_params)
       CASE(TMC_STAT_ENERGY_RESULT)
-        CALL create_energy_result_message(elem, m_send, tmc_params, error)
+        CALL create_energy_result_message(elem, m_send, tmc_params)
       CASE(TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_BROADCAST, &
            TMC_STAT_MD_REQUEST, TMC_STAT_MD_BROADCAST)
-        CALL create_NMC_request_massage(msg_type, elem, m_send, tmc_params, error)
+        CALL create_NMC_request_massage(msg_type, elem, m_send, tmc_params)
       CASE(TMC_STAT_MD_RESULT, TMC_STAT_NMC_RESULT)
-        CALL create_NMC_result_massage(msg_type, elem, m_send, tmc_params, error)
+        CALL create_NMC_result_massage(msg_type, elem, m_send, tmc_params)
       CASE(TMC_STAT_ANALYSIS_REQUEST)
-        CPPrecondition(PRESENT(list_elem),cp_failure_level,routineP,error,failure)
-        CALL create_analysis_request_message(list_elem, m_send, tmc_params, error)
+        CPPrecondition(PRESENT(list_elem),cp_failure_level,routineP,failure)
+        CALL create_analysis_request_message(list_elem, m_send, tmc_params)
       CASE DEFAULT
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                        "try to send unknown message type "//cp_to_string(msg_type),&
-                       error, failure=flag)
+                       failure=flag)
       END SELECT
       !set message info
       message_tag = msg_type
@@ -230,7 +224,7 @@ CONTAINS
         CALL mp_send(m_send%task_real, dest, message_tag, para_env%group)
       END IF
       IF(m_send%info(4).GT.0) THEN
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
         !TODO send characters CALL mp_send(m_send%task_char, dest, message_tag, para_env%group)
       END IF
       IF(DEBUG.GE.1) &
@@ -260,7 +254,7 @@ CONTAINS
         END IF
         IF(m_send%info(4).GT.0) THEN
           IF(.NOT.act_send_recv) ALLOCATE(m_send%task_char(m_send%info(3)))
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           !TODO bcast char CALL mp_bcast(m_send%task_char, MASTER_COMM_ID, para_env%group)
         END IF
       END IF
@@ -329,7 +323,7 @@ CONTAINS
       !-- receive message character part
       IF(m_send%info(4).GT.0) THEN
         ALLOCATE(m_send%task_char(m_send%info(4)))
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
         !TODO recv characters CALL mp_recv(m_send%task_char, dest, message_tag, para_env%group)
       END IF
     END IF
@@ -358,39 +352,39 @@ CONTAINS
            TMC_STATUS_CALCULATING, TMC_STAT_ANALYSIS_RESULT)
         ! nothing to do here
       CASE(TMC_STATUS_WORKER_INIT)
-        CALL read_worker_init_message(tmc_params, m_send, error)
+        CALL read_worker_init_message(tmc_params, m_send)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
         IF(PRESENT(elem_array)) THEN
           CALL read_start_conf_message(msg_type, elem_array(dest)%elem, &
-                 result_count, m_send, tmc_params, error)
+                 result_count, m_send, tmc_params)
         ELSE
           CALL read_start_conf_message(msg_type, elem, result_count, m_send, &
-                 tmc_params, error)
+                 tmc_params)
         END IF
       CASE(TMC_STAT_APPROX_ENERGY_RESULT)
-        CALL read_approx_energy_result(elem_array(dest)%elem, m_send, tmc_params, error)
+        CALL read_approx_energy_result(elem_array(dest)%elem, m_send, tmc_params)
       CASE(TMC_STAT_ENERGY_REQUEST, TMC_STAT_APPROX_ENERGY_REQUEST)
-        CALL read_energy_request_message(elem, m_send, tmc_params, error)
+        CALL read_energy_request_message(elem, m_send, tmc_params)
       CASE(TMC_STAT_ENERGY_RESULT)
         IF(PRESENT(elem_array)) &
-          CALL read_energy_result_message(elem_array(dest)%elem, m_send, tmc_params, error)
+          CALL read_energy_result_message(elem_array(dest)%elem, m_send, tmc_params)
       CASE(TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_BROADCAST, &
            TMC_STAT_MD_REQUEST, TMC_STAT_MD_BROADCAST)
-        CALL read_NMC_request_massage(msg_type, elem, m_send, tmc_params, error)
+        CALL read_NMC_request_massage(msg_type, elem, m_send, tmc_params)
       CASE(TMC_STAT_NMC_RESULT, TMC_STAT_MD_RESULT)
         IF(PRESENT(elem_array)) &
-          CALL read_NMC_result_massage(msg_type, elem_array(dest)%elem, m_send, tmc_params, error)
+          CALL read_NMC_result_massage(msg_type, elem_array(dest)%elem, m_send, tmc_params)
       CASE(TMC_STATUS_FAILED, TMC_STATUS_STOP_RECEIPT)
         ! if task is failed, handle situation in outer routine
       CASE(TMC_STAT_SCF_STEP_ENER_RECEIVE)
-        CALL read_scf_step_ener(elem_array(dest)%elem, m_send, error)
+        CALL read_scf_step_ener(elem_array(dest)%elem, m_send)
       CASE(TMC_STAT_ANALYSIS_REQUEST)
-        CALL read_analysis_request_message(elem, m_send, tmc_params, error)
+        CALL read_analysis_request_message(elem, m_send, tmc_params)
       CASE DEFAULT
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                        "try to receive unknown message type "//cp_to_string(msg_type)//&
                        "from source "//cp_to_string(dest),&
-                       error, failure=flag)
+                       failure=flag)
       END SELECT
       IF(m_send%info(2).GT.0) DEALLOCATE(m_send%task_int)
       IF(m_send%info(3).GT.0) DEALLOCATE(m_send%task_real)
@@ -405,14 +399,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief set the messege just with an status tag
 !> \param m_send the message structure
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
 
-  SUBROUTINE create_status_message(m_send, error)
+  SUBROUTINE create_status_message(m_send)
     TYPE(message_send), POINTER              :: m_send
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_status_message', &
       routineP = moduleN//':'//routineN
@@ -420,12 +411,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
 
     ! nothing to do, send just the message tag
 
-    CPPostconditionNoFail(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error)
-    CPPostconditionNoFail(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error)
+    CPPostconditionNoFail(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP)
+    CPPostconditionNoFail(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP)
 
   END SUBROUTINE create_status_message
 
@@ -443,10 +434,9 @@ CONTAINS
 !!>        see module cp_error_handling
 !!> \author Mandes 02.2013
 !! *****************************************************************************
-!  SUBROUTINE create_atom_mass_message(m_send, atoms,error)
+!  SUBROUTINE create_atom_mass_message(m_send, atoms)
 !    TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
 !    TYPE(message_send), POINTER              :: m_send
-!    TYPE(cp_error_type), INTENT(inout)       :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_atom_mass_message', &
 !      routineP = moduleN//':'//routineN
@@ -457,10 +447,10 @@ CONTAINS
 !
 !    failure = .FALSE.
 !
-!    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,error,failure)
+!    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+!    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+!    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+!    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,failure)
 !
 !    counter =1
 !    msg_size_real = 1+SIZE(tmc_params%cell%hmat)+ 1+SIZE(atoms) +1 
@@ -472,7 +462,7 @@ CONTAINS
 !    END DO
 !    counter = counter + 1+INT(m_send%task_real(counter))
 !    m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
-!    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+!    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
 !  END SUBROUTINE create_atom_mass_message
 !
 !! *****************************************************************************
@@ -486,11 +476,10 @@ CONTAINS
 !!>        see module cp_error_handling
 !!> \author Mandes 02.2013
 !! *****************************************************************************
-!  SUBROUTINE read_atom_mass_message(m_send, atoms,error)
+!  SUBROUTINE read_atom_mass_message(m_send, atoms)
 !    TYPE(tmc_atom_type), DIMENSION(:), &
 !      POINTER                                :: atoms
 !    TYPE(message_send), POINTER              :: m_send
-!    TYPE(cp_error_type), INTENT(inout)       :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atom_mass_message', &
 !      routineP = moduleN//':'//routineN
@@ -500,33 +489,30 @@ CONTAINS
 !
 !    failure = .FALSE.
 !
-!    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-!    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,error,failure)
+!    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+!    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+!    CPPrecondition(ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+!    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,failure)
 !
 !    counter =1
 !    nr_atoms = m_send%task_real(counter)
-!    IF(.NOT.ASSOCIATED(atoms)) CALL allocate_tmc_atom_type(atoms, nr_atoms, error)
+!    IF(.NOT.ASSOCIATED(atoms)) CALL allocate_tmc_atom_type(atoms, nr_atoms)
 !    DO i=1, SIZE(atoms)
 !      atoms(i)%mass = m_send%task_real(counter+i)
 !    END DO
 !    counter = counter + 1+INT(m_send%task_real(counter))
-!    CPPostconditionNoFail(INT(m_send%task_real(counter)).EQ.message_end_flag,cp_failure_level,routineP,error)
+!    CPPostconditionNoFail(INT(m_send%task_real(counter)).EQ.message_end_flag,cp_failure_level,routineP)
 !  END SUBROUTINE read_atom_mass_message
 
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
 !> \param tmc_params to send the cell properties
 !> \param m_send the message structure
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 07.2013
 ! *****************************************************************************
-  SUBROUTINE create_worker_init_message(tmc_params, m_send, error)
+  SUBROUTINE create_worker_init_message(tmc_params, m_send)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(message_send), POINTER              :: m_send
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_worker_init_message', &
       routineP = moduleN//':'//routineN
@@ -537,12 +523,12 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%cell),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%cell),cp_failure_level,routineP,failure)
     
     counter = 1
     msg_size_int = 1+SIZE(tmc_params%cell%perd) +1+1 +1 +1
@@ -556,7 +542,7 @@ CONTAINS
     IF(tmc_params%cell%orthorhombic) m_send%task_int(counter+2) = 1
     counter = counter +3
     m_send%task_int(counter) = message_end_flag
-    CPPostconditionNoFail(counter.EQ.SIZE(m_send%task_int),cp_failure_level,routineP,error)
+    CPPostconditionNoFail(counter.EQ.SIZE(m_send%task_int),cp_failure_level,routineP)
 
     !float array with cell vectors
     msg_size_real = 1+SIZE(tmc_params%cell%hmat) +1
@@ -568,22 +554,19 @@ CONTAINS
                                      (/SIZE(tmc_params%cell%hmat)/))
     counter = counter + 1+INT(m_send%task_real(counter))
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_worker_init_message
 
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
 !> \param tmc_params to send the cell properties
 !> \param m_send the message structure
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 07.2013
 ! *****************************************************************************
-  SUBROUTINE read_worker_init_message(tmc_params, m_send, error)
+  SUBROUTINE read_worker_init_message(tmc_params, m_send)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(message_send), POINTER              :: m_send
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_worker_init_message', &
       routineP = moduleN//':'//routineN
@@ -592,35 +575,35 @@ CONTAINS
     LOGICAL                                  :: failure, flag
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(3).GE.4,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(3).GE.4,cp_failure_level,routineP,failure)
 
     IF(.NOT.ASSOCIATED(tmc_params%cell)) ALLOCATE(tmc_params%cell)
     counter = 1
     !int array 
     flag = INT(m_send%task_int(1)) .EQ.SIZE(tmc_params%cell%perd)
-    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
+    CPPrecondition(flag,cp_failure_level,routineP,failure)
     counter = 1+ m_send%task_int(1)+1
     tmc_params%cell%perd = m_send%task_int(2:counter-1)
     tmc_params%cell%symmetry_id = m_send%task_int(counter+1)
     tmc_params%cell%orthorhombic = .FALSE.
     IF(m_send%task_int(counter+2).EQ.1) tmc_params%cell%orthorhombic = .TRUE.
     counter = counter +3
-    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,error, failure)
-    CPPostcondition(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,error, failure)
+    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,failure)
+    CPPostcondition(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,failure)
 
     !float array with cell vectors
     counter = 1
     flag = INT(m_send%task_real(counter)).EQ.SIZE(tmc_params%cell%hmat)
-    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
+    CPPrecondition(flag,cp_failure_level,routineP,failure)
     tmc_params%cell%hmat = &
       RESHAPE(m_send%task_real(counter+1:counter+&
         SIZE(tmc_params%cell%hmat)),(/3,3/) )
     counter = counter + 1+INT(m_send%task_real(counter))
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
 
   END SUBROUTINE read_worker_init_message
 
@@ -632,18 +615,15 @@ CONTAINS
 !> \param result_count ...
 !> \param tmc_params to send the cell properties
 !> \param m_send the message structure
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_start_conf_message(msg_type, elem, result_count, &
-                                       tmc_params, m_send, error)
+                                       tmc_params, m_send)
     INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: result_count
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(message_send), POINTER              :: m_send
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_start_conf_message', &
       routineP = moduleN//':'//routineN
@@ -653,19 +633,19 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,failure)
 
     counter = 1
     msg_size_int = 1+SIZE(tmc_params%cell%perd) +1+1 +1 +1+SIZE(elem%mol) +1
     IF(msg_type.EQ.TMC_STAT_INIT_ANALYSIS) THEN
-      CPPrecondition(PRESENT(result_count),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(result_count),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(result_count),cp_failure_level,routineP,failure)
+      CPPrecondition(ASSOCIATED(result_count),cp_failure_level,routineP,failure)
       msg_size_int = msg_size_int + 1+ SIZE(result_count(1:))
     END IF
     ALLOCATE(m_send%task_int(msg_size_int))
@@ -687,7 +667,7 @@ CONTAINS
       counter = counter +1+m_send%task_int(counter)
     END IF
     m_send%task_int(counter) = message_end_flag
-    CPPostconditionNoFail(counter.EQ.SIZE(m_send%task_int),cp_failure_level,routineP,error)
+    CPPostconditionNoFail(counter.EQ.SIZE(m_send%task_int),cp_failure_level,routineP)
 
     counter = 0
     !float array with pos, cell vectors, atom_mass
@@ -708,8 +688,8 @@ CONTAINS
     END DO
     counter = counter + 1+INT(m_send%task_real(counter))
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
 
   END SUBROUTINE create_start_conf_message
 
@@ -721,18 +701,15 @@ CONTAINS
 !> \param result_count ...
 !> \param m_send the message structure
 !> \param tmc_params the param struct with necessary values for allocation
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE read_start_conf_message(msg_type, elem, result_count, m_send, &
-                                     tmc_params, error)
+                                     tmc_params)
     INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: result_count
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_start_conf_message', &
       routineP = moduleN//':'//routineN
@@ -741,19 +718,19 @@ CONTAINS
     LOGICAL                                  :: failure, flag
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(3).GE.4,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(3).GE.4,cp_failure_level,routineP,failure)
 
     IF(.NOT.ASSOCIATED(tmc_params%cell)) ALLOCATE(tmc_params%cell)
     CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem, &
-                                    nr_dim=NINT(m_send%task_real(1)), error=error)
+                                    nr_dim=NINT(m_send%task_real(1)))
     counter = 1
     !int array 
     flag = INT(m_send%task_int(1)) .EQ.SIZE(tmc_params%cell%perd)
-    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
+    CPPrecondition(flag,cp_failure_level,routineP,failure)
     counter = 1+ m_send%task_int(1)+1
     tmc_params%cell%perd = m_send%task_int(2:counter-1)
     tmc_params%cell%symmetry_id = m_send%task_int(counter+1)
@@ -763,36 +740,35 @@ CONTAINS
     elem%mol(:) = m_send%task_int(counter+1:counter+m_send%task_int(counter))
     counter = counter +1+m_send%task_int(counter)
     IF(msg_type.EQ.TMC_STAT_INIT_ANALYSIS) THEN
-      CPPrecondition(PRESENT(result_count),cp_failure_level,routineP,error,failure)
-      CPPrecondition(.NOT.ASSOCIATED(result_count),cp_failure_level,routineP,error,failure)
+      CPPrecondition(PRESENT(result_count),cp_failure_level,routineP,failure)
+      CPPrecondition(.NOT.ASSOCIATED(result_count),cp_failure_level,routineP,failure)
       ALLOCATE(result_count(m_send%task_int(counter)))
       result_count(:) = m_send%task_int(counter+1:counter+m_send%task_int(counter))
       counter = counter +1+m_send%task_int(counter)
     END IF
-    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,error, failure)
-    CPPostcondition(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,error, failure)
+    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,failure)
+    CPPostcondition(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,failure)
 
     counter = 0
     !float array with pos, cell vectors, atom_mass
     counter = 2 + INT(m_send%task_real(1))
     elem%pos = m_send%task_real(2:counter-1)
     flag = INT(m_send%task_real(counter)).EQ.SIZE(tmc_params%cell%hmat)
-    CPPrecondition(flag,cp_failure_level,routineP,error,failure)
+    CPPrecondition(flag,cp_failure_level,routineP,failure)
     tmc_params%cell%hmat = &
       RESHAPE(m_send%task_real(counter+1:counter+&
         SIZE(tmc_params%cell%hmat)),(/3,3/) )
     counter = counter + 1+INT(m_send%task_real(counter))
 
     CALL allocate_tmc_atom_type(atoms=tmc_params%atoms, &
-                                nr_atoms=INT(m_send%task_real(counter)), &
-                                error=error)
+                                nr_atoms=INT(m_send%task_real(counter)))
     DO i=1, SIZE(tmc_params%atoms)
       tmc_params%atoms(i)%mass = m_send%task_real(counter+i)
     END DO
     counter = counter + 1+INT(m_send%task_real(counter))
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
 
   END SUBROUTINE read_start_conf_message
 
@@ -804,16 +780,13 @@ CONTAINS
 !> \param elem tree element with new coordinates 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_energy_request_message(elem, m_send, &
-                                           tmc_params, error)
+                                           tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'create_energy_request_message', &
@@ -824,11 +797,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     counter = 0
     !first integer array 
@@ -842,8 +815,8 @@ CONTAINS
     m_send%task_int(counter+1:counter+m_send%task_int(counter)) = elem%nr
     counter = counter + 1+m_send%task_int(counter)
     m_send%task_int(counter) = message_end_flag
-    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP)
+    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP)
 
     !then float array with pos
     msg_size_real = 1+SIZE(elem%pos) +1
@@ -859,8 +832,8 @@ CONTAINS
     END IF
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_energy_request_message
 
 ! *****************************************************************************
@@ -868,15 +841,12 @@ CONTAINS
 !> \param elem tree element with new coordinates 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE read_energy_request_message(elem, m_send, tmc_params, error)
+  SUBROUTINE read_energy_request_message(elem, m_send, tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_energy_request_message', &
       routineP = moduleN//':'//routineN
@@ -885,24 +855,24 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(3).GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(3).GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,failure)
 
     ! initialize the new sub tree element
     IF(.NOT.ASSOCIATED(elem))THEN
        CALL allocate_new_sub_tree_node(next_el=elem, nr_dim=NINT(m_send%task_real(1)),&
-                                       tmc_params=tmc_params, error=error)
+                                       tmc_params=tmc_params)
     END IF
     ! read the integer values
-    CPPrecondition(m_send%info(2).GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(m_send%info(2).GT.0,cp_failure_level,routineP,failure)
     counter = 1
     elem%sub_tree_nr = m_send%task_int(counter+1)
     counter = counter + 1+m_send%task_int(counter)
     elem%nr = m_send%task_int(counter+1)
     counter = counter + 1+m_send%task_int(counter)
-    CPPostconditionNoFail(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP)
 
     !float array with pos
     counter = 0
@@ -914,8 +884,8 @@ CONTAINS
        counter = counter +1+INT(m_send%task_real(counter))
     END IF
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE read_energy_request_message
 
 ! *****************************************************************************
@@ -923,15 +893,12 @@ CONTAINS
 !> \param elem tree element  with calculated energy
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_energy_result_message(elem, m_send, tmc_params, error)
+  SUBROUTINE create_energy_result_message(elem, m_send, tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_energy_result_message', &
       routineP = moduleN//':'//routineN
@@ -941,11 +908,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     counter = 0
     !first integer array
@@ -986,8 +953,8 @@ CONTAINS
 
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_energy_result_message
 
 ! *****************************************************************************
@@ -995,15 +962,12 @@ CONTAINS
 !> \param elem tree element for storing new energy
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE read_energy_result_message(elem, m_send, tmc_params, error)
+  SUBROUTINE read_energy_result_message(elem, m_send, tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_energy_result_message', &
       routineP = moduleN//':'//routineN
@@ -1012,10 +976,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(3).GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(3).GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
     
     ! read the integer values
     ! for checking the tree element mapping, check the tree numbers
@@ -1029,7 +993,7 @@ CONTAINS
           STOP "read_energy_result: got energy result from unexpected tree element."
        END IF
     ELSE
-      CPPrecondition(m_send%info(2).EQ.0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(m_send%info(2).EQ.0,cp_failure_level,routineP,failure)
     END IF
 
     !then float array with energy of exact potential
@@ -1044,8 +1008,8 @@ CONTAINS
       counter = counter + 1+NINT(m_send%task_real(counter))
     END IF
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE read_energy_result_message
 
 ! *****************************************************************************
@@ -1053,16 +1017,13 @@ CONTAINS
 !> \param elem tree element with calculated approx energy 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_approx_energy_result_message(elem, m_send, &
-                                                 tmc_params, error)
+                                                 tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'create_approx_energy_result_message', &
@@ -1072,11 +1033,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     counter = 0
 
@@ -1096,8 +1057,8 @@ CONTAINS
     END IF
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_approx_energy_result_message
 
 ! *****************************************************************************
@@ -1105,15 +1066,12 @@ CONTAINS
 !> \param elem tree element for storing new energy
 !> \param m_send the message structure
 !> \param tmc_params the param struct with necessary parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE read_approx_energy_result(elem, m_send, tmc_params, error)
+  SUBROUTINE read_approx_energy_result(elem, m_send, tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_approx_energy_result', &
       routineP = moduleN//':'//routineN
@@ -1122,10 +1080,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(2).EQ.0.AND.m_send%info(3).GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(2).EQ.0.AND.m_send%info(3).GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     !then float array with energy of exact potential
     elem%e_pot_approx = m_send%task_real(2)
@@ -1135,8 +1093,8 @@ CONTAINS
        counter = counter +1+INT(m_send%task_real(counter))
     END IF
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE read_approx_energy_result
 
   !============================================================================
@@ -1148,17 +1106,14 @@ CONTAINS
 !> \param elem tree element  with calculated energy
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_NMC_request_massage(msg_type, elem, m_send, &
-                                        tmc_params, error)
+                                        tmc_params)
     INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_NMC_request_massage', &
       routineP = moduleN//':'//routineN
@@ -1168,11 +1123,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     counter = 0
     !first integer array with element status,mol_info, move type, sub tree, element nr, temp index
@@ -1232,10 +1187,10 @@ CONTAINS
     END IF
     m_send%task_real(counter) = message_end_flag !message end
 
-    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_NMC_request_massage
 
 ! *****************************************************************************
@@ -1244,17 +1199,14 @@ CONTAINS
 !> \param elem tree element with new coordinates 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE read_NMC_request_massage(msg_type, elem, m_send, &
-                                      tmc_params, error)
+                                      tmc_params)
     INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_NMC_request_massage', &
       routineP = moduleN//':'//routineN
@@ -1264,10 +1216,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(2).GT.5.AND.m_send%info(3).GT.8,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(2).GT.5.AND.m_send%info(3).GT.8,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     counter = 0
     !first integer array with number of dimentions and random seed size
@@ -1275,7 +1227,7 @@ CONTAINS
  
     IF(.NOT.ASSOCIATED(elem))THEN
       CALL allocate_new_sub_tree_node(next_el=elem, nr_dim=NINT(m_send%task_real(1)), &
-                                      tmc_params=tmc_params, error=error)
+                                      tmc_params=tmc_params)
     END IF
     ! element status
     counter = 2 + m_send%task_int(1)
@@ -1291,7 +1243,7 @@ CONTAINS
     counter = counter +2
     elem%temp_created = m_send%task_int(counter+1)
     counter = counter +2
-    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,error, failure)
+    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,failure)
  
     counter = 0
     !then float array with pos, (vel), subbox_center and temp
@@ -1316,9 +1268,9 @@ CONTAINS
        elem%box_scale(:) = 1.0_dp
     END IF
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(m_send%task_int(m_send%info(2)).EQ.message_end_flag,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(m_send%task_int(m_send%info(2)).EQ.message_end_flag,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE read_NMC_request_massage
 
   !============================================================================
@@ -1330,17 +1282,13 @@ CONTAINS
 !> \param elem tree element  with calculated energy
 !> \param m_send the message structure
 !> \param tmc_params environment with move types and sizes
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_NMC_result_massage(msg_type, elem, m_send, tmc_params,&
-                                       error)
+  SUBROUTINE create_NMC_result_massage(msg_type, elem, m_send, tmc_params)
     INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_NMC_result_massage', &
       routineP = moduleN//':'//routineN
@@ -1350,11 +1298,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     !first integer array with status, nmc_acc_counts, subbox_acc_count and (subbox rejectance)
     msg_size_int = 1+SIZE(elem%mol) &
@@ -1454,10 +1402,10 @@ CONTAINS
     END IF
     m_send%task_real(counter) = message_end_flag ! message end
 
-    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_NMC_result_massage
 
 ! *****************************************************************************
@@ -1466,17 +1414,13 @@ CONTAINS
 !> \param elem tree element  with calculated energy
 !> \param m_send the message structure
 !> \param tmc_params environment with move types and sizes
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE read_NMC_result_massage(msg_type, elem, m_send, tmc_params, &
-                                     error)
+  SUBROUTINE read_NMC_result_massage(msg_type, elem, m_send, tmc_params)
     INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_NMC_result_massage', &
       routineP = moduleN//':'//routineN
@@ -1490,10 +1434,10 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(mv_counter, subbox_counter, acc_counter, subbox_acc_counter)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(2).GT.0.AND.m_send%info(3).GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(2).GT.0.AND.m_send%info(3).GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     !first integer array with element status, random number seed, and move type
     counter = 1
@@ -1534,7 +1478,7 @@ CONTAINS
             SIZE(tmc_params%nmc_move_types%subbox_acc_count(1,:))/))
        counter = counter +1 +m_send%task_int(counter)   
     END IF
-    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,error, failure)
+    CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,failure)
     
     counter = 0
     !then float array with pos, (vel, e_kin_befor_md, ekin), (forces), rng_seed, potential, e_pot_approx 
@@ -1564,18 +1508,18 @@ CONTAINS
     END IF
 
     CALL add_mv_prob(move_types=tmc_params%nmc_move_types, prob_opt=tmc_params%esimate_acc_prob, &
-                     mv_counter=mv_counter,acc_counter=acc_counter, error=error)
+                     mv_counter=mv_counter,acc_counter=acc_counter)
     IF(.NOT.ANY(tmc_params%sub_box_size.LE.0.1_dp)) THEN
       CALL add_mv_prob(move_types=tmc_params%nmc_move_types, prob_opt=tmc_params%esimate_acc_prob, &
-                       subbox_counter=subbox_counter, subbox_acc_counter=subbox_acc_counter, error=error)
+                       subbox_counter=subbox_counter, subbox_acc_counter=subbox_acc_counter)
     END IF
 
     DEALLOCATE(mv_counter, acc_counter)
     IF(.NOT.ANY(tmc_params%sub_box_size.LE.0.1_dp)) &
       DEALLOCATE(subbox_counter, subbox_acc_counter)
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(m_send%task_int(m_send%info(2)).EQ.message_end_flag,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(m_send%task_int(m_send%info(2)).EQ.message_end_flag,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE read_NMC_result_massage
 
   !============================================================================
@@ -1588,16 +1532,13 @@ CONTAINS
 !> \param list_elem ...
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_analysis_request_message(list_elem, m_send, &
-                                           tmc_params, error)
+                                           tmc_params)
     TYPE(elem_list_type), POINTER            :: list_elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'create_analysis_request_message', &
@@ -1608,11 +1549,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(list_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_int),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ALLOCATED(m_send%task_real),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(list_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     counter = 0
     !first integer array 
@@ -1626,8 +1567,8 @@ CONTAINS
     m_send%task_int(counter+1:counter+m_send%task_int(counter)) = list_elem%nr
     counter = counter + 1+m_send%task_int(counter)
     m_send%task_int(counter) = message_end_flag
-    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_int).EQ.msg_size_int,cp_failure_level,routineP)
+    CPPostconditionNoFail(m_send%task_int(msg_size_int).EQ.message_end_flag,cp_failure_level,routineP)
 
     !then float array with pos
     msg_size_real = 1+SIZE(list_elem%elem%pos) +1
@@ -1643,8 +1584,8 @@ CONTAINS
     END IF
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP,error)
-    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(SIZE(m_send%task_real).EQ.msg_size_real,cp_failure_level,routineP)
+    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE create_analysis_request_message
 
 ! *****************************************************************************
@@ -1652,15 +1593,12 @@ CONTAINS
 !> \param elem tree element with new coordinates 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE read_analysis_request_message(elem, m_send, tmc_params, error)
+  SUBROUTINE read_analysis_request_message(elem, m_send, tmc_params)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'read_analysis_request_message', &
@@ -1670,24 +1608,24 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m_send%info(3).GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
+    CPPrecondition(m_send%info(3).GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,failure)
 
     ! initialize the new sub tree element
     IF(.NOT.ASSOCIATED(elem))THEN
        CALL allocate_new_sub_tree_node(next_el=elem, nr_dim=NINT(m_send%task_real(1)),&
-                                       tmc_params=tmc_params, error=error)
+                                       tmc_params=tmc_params)
     END IF
     ! read the integer values
-    CPPrecondition(m_send%info(2).GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(m_send%info(2).GT.0,cp_failure_level,routineP,failure)
     counter = 1
     elem%sub_tree_nr = m_send%task_int(counter+1)
     counter = counter + 1+m_send%task_int(counter)
     elem%nr = m_send%task_int(counter+1)
     counter = counter + 1+m_send%task_int(counter)
-    CPPostconditionNoFail(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostconditionNoFail(m_send%task_int(counter).EQ.message_end_flag,cp_failure_level,routineP)
 
     !float array with pos
     counter = 0
@@ -1699,8 +1637,8 @@ CONTAINS
        counter = counter +1+INT(m_send%task_real(counter))
     END IF
 
-    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
-    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP,error)
+    CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,failure)
+    CPPostconditionNoFail(INT(m_send%task_real(m_send%info(3))).EQ.message_end_flag,cp_failure_level,routineP)
   END SUBROUTINE read_analysis_request_message
 
   !============================================================================
@@ -1710,14 +1648,11 @@ CONTAINS
 !> \brief routine cancel the other group participants
 !> \param elem tree element  with approximated energy
 !> \param m_send the message structure
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE read_scf_step_ener(elem, m_send, error)
+  SUBROUTINE read_scf_step_ener(elem, m_send)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_scf_step_ener', &
       routineP = moduleN//':'//routineN
@@ -1725,8 +1660,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(m_send),cp_failure_level,routineP,failure)
 
     elem%scf_energies(MOD(elem%scf_energies_count,4)+1) = m_send%task_real(1)
     elem%scf_energies_count = elem%scf_energies_count +1
@@ -1743,16 +1678,13 @@ CONTAINS
 !> \param atoms ...
 !> \param source ...
 !> \param para_env the communicator environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE communicate_atom_types(atoms, source, para_env, error)
+  SUBROUTINE communicate_atom_types(atoms, source, para_env)
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
     INTEGER                                  :: source
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_atom_types', &
       routineP = moduleN//':'//routineN
@@ -1762,9 +1694,9 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(source.GE.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(source.LT.para_env%num_pe,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPPrecondition(source.GE.0,cp_failure_level,routineP,failure)
+    CPPrecondition(source.LT.para_env%num_pe,cp_failure_level,routineP,failure)
 
     ALLOCATE(msg(SIZE(atoms)))
     IF(para_env%mepos.EQ.source) THEN
@@ -1789,18 +1721,15 @@ CONTAINS
 !> \param para_env ...
 !> \param worker_info ...
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \param 
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  SUBROUTINE stop_whole_group(para_env, worker_info, tmc_params, error)
+  SUBROUTINE stop_whole_group(para_env, worker_info, tmc_params)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(elem_array_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: worker_info
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_whole_group', &
       routineP = moduleN//':'//routineN
@@ -1812,8 +1741,8 @@ CONTAINS
 !    INTEGER, DIMENSION(MPI_STATUS_SIZE)      :: status_single
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ALLOCATE(rank_stoped(0:para_env%num_pe-1))
     rank_stoped(:) = .FALSE.
@@ -1821,7 +1750,7 @@ CONTAINS
 
     ! global master
     IF(PRESENT(worker_info)) THEN
-      CPPrecondition(ASSOCIATED(worker_info),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(worker_info),cp_failure_level,routineP,failure)
       ! canceling running jobs and stop workers
       worker_group_loop: DO dest_rank=1, para_env%num_pe-1
         ! busy workers have to be canceled
@@ -1829,23 +1758,20 @@ CONTAINS
           stat = TMC_CANCELING_MESSAGE
           act_rank = dest_rank
           CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=act_rank, &
-                           para_env=para_env, tmc_params=tmc_params, &
-                           error=error)
+                           para_env=para_env, tmc_params=tmc_params)
         ELSE
         ! send stop message
           stat = TMC_STATUS_FAILED
           act_rank = dest_rank
           CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=act_rank, &
-                           para_env=para_env, tmc_params=tmc_params, &
-                           error=error)
+                           para_env=para_env, tmc_params=tmc_params)
         END IF
       END DO worker_group_loop
     ELSE
       ! group master send stop message to all participants
       stat = TMC_STATUS_FAILED
       CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=bcast_group, &
-                       para_env=para_env, tmc_params=tmc_params, &
-                       error=error)
+                       para_env=para_env, tmc_params=tmc_params)
     END IF
 
     ! receive stop message receipt
@@ -1858,11 +1784,10 @@ CONTAINS
           ! mast have to be able to receive results, if canceling was too late
           CALL tmc_message(msg_type=stat, send_recv=recv_msg, dest=dest_rank,& 
                            para_env=para_env, tmc_params=tmc_params, &
-                           elem_array=worker_info(:), success=flag, error=error)
+                           elem_array=worker_info(:), success=flag)
         ELSE
           CALL tmc_message(msg_type=stat, send_recv=recv_msg, dest=dest_rank, &
-                           para_env=para_env, tmc_params=tmc_params, &
-                           error=error)
+                           para_env=para_env, tmc_params=tmc_params)
         END IF
         SELECT CASE (stat)
         CASE(TMC_STATUS_WAIT_FOR_NEW_TASK)
@@ -1873,8 +1798,7 @@ CONTAINS
             stat = TMC_STATUS_FAILED
             ! send stop message
             CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest_rank,&
-                             para_env=para_env, tmc_params=tmc_params, &
-                             error=error)
+                             para_env=para_env, tmc_params=tmc_params)
           ELSE
             STOP "group master should not receive cancel receipt"
           END IF
@@ -1887,14 +1811,14 @@ CONTAINS
           CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                          "master received status "//cp_to_string(stat)//&
                          " while stopping workers",&
-                         error, failure=flag)
+                         failure=flag)
         END SELECT
         IF(ALL(rank_stoped)) EXIT wait_for_receipts
       END DO wait_for_receipts
     ELSE
       CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                      "only (group) master should stop other participants",&
-                     error, failure=flag)
+                     failure=flag)
     END IF
   END SUBROUTINE stop_whole_group
 

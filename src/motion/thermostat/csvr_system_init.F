@@ -44,15 +44,13 @@ CONTAINS
 !> \param simpar ...
 !> \param csvr ...
 !> \param csvr_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE initialize_csvr_baro ( simpar, csvr, csvr_section, error )
+  SUBROUTINE initialize_csvr_baro ( simpar, csvr, csvr_section)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro', &
       routineP = moduleN//':'//routineN
@@ -60,8 +58,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL csvr_to_barostat_mapping ( simpar,  csvr, error)
-    CALL restart_csvr( csvr, csvr_section, error)
+    CALL csvr_to_barostat_mapping ( simpar,  csvr)
+    CALL restart_csvr( csvr, csvr_section)
 
   END SUBROUTINE initialize_csvr_baro
 
@@ -76,12 +74,11 @@ CONTAINS
 !> \param csvr ...
 !> \param csvr_section ...
 !> \param gci ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, csvr, csvr_section,&
-       gci, error)
+       gci)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -92,7 +89,6 @@ CONTAINS
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part', &
       routineP = moduleN//':'//routineN
@@ -101,8 +97,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
-         molecule, molecule_kind_set, csvr, para_env, gci, error )
-    CALL restart_csvr( csvr, csvr_section, error)
+         molecule, molecule_kind_set, csvr, para_env, gci)
+    CALL restart_csvr( csvr, csvr_section)
 
   END SUBROUTINE initialize_csvr_part
 
@@ -117,12 +113,11 @@ CONTAINS
 !> \param csvr ...
 !> \param csvr_section ...
 !> \param gci ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, csvr, csvr_section,&
-       gci, error)
+       gci)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -133,7 +128,6 @@ CONTAINS
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell', &
       routineP = moduleN//':'//routineN
@@ -142,8 +136,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules,&
-       molecule, molecule_kind_set, csvr, para_env, gci, error)
-    CALL restart_csvr( csvr, csvr_section, error)
+       molecule, molecule_kind_set, csvr, para_env, gci)
+    CALL restart_csvr( csvr, csvr_section)
 
   END SUBROUTINE  initialize_csvr_shell
 
@@ -151,13 +145,11 @@ CONTAINS
 !> \brief ...
 !> \param csvr ...
 !> \param csvr_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE restart_csvr(csvr, csvr_section, error)
+  SUBROUTINE restart_csvr(csvr, csvr_section)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_csvr', &
       routineP = moduleN//':'//routineN
@@ -171,16 +163,16 @@ CONTAINS
 
     ! Possibly restart the initial thermostat energy
     work_section => section_vals_get_subs_vals(section_vals=csvr_section,&
-         subsection_name="THERMOSTAT_ENERGY", error=error)
-    CALL section_vals_get(work_section,explicit=explicit,error=error)
+         subsection_name="THERMOSTAT_ENERGY")
+    CALL section_vals_get(work_section,explicit=explicit)
     IF (explicit) THEN
        CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-            n_rep_val=n_rep,error=error)
+            n_rep_val=n_rep)
        IF (n_rep==csvr%glob_num_csvr) THEN
           DO i = 1, csvr%loc_num_csvr
              my_index = csvr%map_info%index(i)
              CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-                  i_rep_val=my_index,r_val=csvr%nvt(i)%thermostat_energy,error=error)
+                  i_rep_val=my_index,r_val=csvr%nvt(i)%thermostat_energy)
           END DO
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,&
@@ -191,19 +183,19 @@ CONTAINS
 
     ! Possibly restart the random number generators for the different thermostats
     work_section => section_vals_get_subs_vals(section_vals=csvr_section,&
-         subsection_name="RNG_INIT", error=error)
+         subsection_name="RNG_INIT")
 
-    CALL section_vals_get(work_section,explicit=explicit,error=error)
+    CALL section_vals_get(work_section,explicit=explicit)
     IF (explicit) THEN
        CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-            n_rep_val=n_rep,error=error)
+            n_rep_val=n_rep)
        IF (n_rep==csvr%glob_num_csvr) THEN
           DO i = 1, csvr%loc_num_csvr
              my_index = csvr%map_info%index(i)
              CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
-                  i_rep_val=my_index,c_val=rng_record,error=error)
+                  i_rep_val=my_index,c_val=rng_record)
              CALL read_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream,&
-                  rng_record=rng_record,error=error)
+                  rng_record=rng_record)
           END DO
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,&

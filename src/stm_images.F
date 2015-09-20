@@ -78,7 +78,6 @@ CONTAINS
 !> \param particles ...
 !> \param unoccupied_orbs ...
 !> \param unoccupied_evals ...
-!> \param error ...
 !> \param
 !> \par History
 !>      02.2009 Created [MI]
@@ -92,7 +91,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE th_stm_image(qs_env, stm_section, particles, unoccupied_orbs, &
-             unoccupied_evals, error)
+             unoccupied_evals)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: stm_section
@@ -101,7 +100,6 @@ CONTAINS
       POINTER                                :: unoccupied_orbs
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'th_stm_image', &
       routineP = moduleN//':'//routineN
@@ -137,7 +135,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
      NULLIFY (ks_env, mos, rho, rho_ao, pw_env, stm_th_torb, fm_struct_tmp)
@@ -147,45 +145,44 @@ CONTAINS
                      ks_env=ks_env,&
                      mos=mos,&
                      rho=rho,&
-                     pw_env=pw_env,&
-                     error=error)
+                     pw_env=pw_env)
 
-     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+     CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-     CALL section_vals_val_get(stm_section,"APPEND", l_val=append_cube,error=error)
-     CALL section_vals_val_get(stm_section,"BIAS", r_vals=stm_biases,error=error)
-     CALL section_vals_val_get(stm_section,"REF_ENERGY",r_val=ref_energy,explicit=use_ref_energy,error=error)
-     CALL section_vals_val_get(stm_section,"TH_TORB", n_rep_val=n_rep, error=error)
+     CALL section_vals_val_get(stm_section,"APPEND", l_val=append_cube)
+     CALL section_vals_val_get(stm_section,"BIAS", r_vals=stm_biases)
+     CALL section_vals_val_get(stm_section,"REF_ENERGY",r_val=ref_energy,explicit=use_ref_energy)
+     CALL section_vals_val_get(stm_section,"TH_TORB", n_rep_val=n_rep)
      IF(n_rep==0) THEN
         ALLOCATE (stm_th_torb(1), STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
         stm_th_torb(1) = 0
      ELSE
         ALLOCATE (stm_th_torb(n_rep), STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
        DO irep = 1,n_rep
           CALL section_vals_val_get(stm_section,"TH_TORB",&
-               i_rep_val=irep,i_val=stm_th_torb(irep), error=error)
+               i_rep_val=irep,i_val=stm_th_torb(irep))
        END DO
      END IF
 
      ALLOCATE(stm_density_ao)
-     CALL cp_dbcsr_init(stm_density_ao, error=error)
+     CALL cp_dbcsr_init(stm_density_ao)
      CALL cp_dbcsr_copy(stm_density_ao,rho_ao(1)%matrix,&
-          name="stm_density_ao",error=error)
+          name="stm_density_ao")
 
      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                     pw_pools=pw_pools,error=error)
+                     pw_pools=pw_pools)
      CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                             use_data = REALDATA3D,&
-                            in_space = REALSPACE, error=error)
+                            in_space = REALSPACE)
      CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                             use_data = COMPLEXDATA1D,&
-                            in_space = RECIPROCALSPACE, error=error)
+                            in_space = RECIPROCALSPACE)
 
      nspin = SIZE(mos,1)
      ALLOCATE(nadd_unocc(nspin),STAT=istat)
-     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(istat==0,cp_failure_level,routineP,failure)
      nadd_unocc=0
      IF(ASSOCIATED(unoccupied_orbs)) THEN
        DO ispin =1,nspin
@@ -194,9 +191,9 @@ CONTAINS
      END IF
 
      ALLOCATE(mo_arrays(nspin), STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
      ALLOCATE(evals(nspin),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
      ALLOCATE(occupation(nspin),STAT=istat)
      DO ispin=1,nspin
           IF(nadd_unocc(ispin)==0) THEN
@@ -216,9 +213,9 @@ CONTAINS
              occupation(ispin)%array(1:nmo)=mo_occ(1:nmo)
              occupation(ispin)%array(1+nmo:ndim)=0.0_dp
              CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=ndim, &
-                          template_fmstruct=mo_coeff%matrix_struct, error=error)
-             CALL cp_fm_create(mo_arrays(ispin)%matrix,fm_struct_tmp, name="mo_arrays",error=error)
-             CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+                          template_fmstruct=mo_coeff%matrix_struct)
+             CALL cp_fm_create(mo_arrays(ispin)%matrix,fm_struct_tmp, name="mo_arrays")
+             CALL cp_fm_struct_release(fm_struct_tmp)
              CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin)%matrix, nmo, 1, 1)
              CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, mo_arrays(ispin)%matrix, &
                     nadd_unocc(ispin), 1, nmo+1)
@@ -228,31 +225,31 @@ CONTAINS
      
      CALL stm_cubes(ks_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                     occupation, efermi, stm_biases, stm_th_torb,  particles, &
-                    output_unit, append_cube,  error=error)
+                    output_unit, append_cube)
      DO ispin = 1,nspin
        IF(nadd_unocc(ispin)>0) THEN
             DEALLOCATE(evals(ispin)%array,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
             DEALLOCATE(occupation(ispin)%array,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-            CALL cp_fm_release( mo_arrays(ispin)%matrix, error=error)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CALL cp_fm_release( mo_arrays(ispin)%matrix)
        END IF
      END DO
      DEALLOCATE(mo_arrays,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(evals,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(occupation,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
-     CALL cp_dbcsr_deallocate_matrix(stm_density_ao,error=error)
-     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
-     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
+     CALL cp_dbcsr_deallocate_matrix(stm_density_ao)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)
 
      DEALLOCATE (stm_th_torb, STAT=istat)
-     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(istat==0,cp_failure_level,routineP,failure)
      DEALLOCATE (nadd_unocc, STAT=istat)
-     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -274,7 +271,6 @@ CONTAINS
 !> \param particles ...
 !> \param output_unit ...
 !> \param append_cube ...
-!> \param error ...
 !> \param
 !> \par History
 !>      7.2008 Created [Joost VandeVondele]
@@ -285,7 +281,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE stm_cubes(ks_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                        occupation, efermi, stm_biases,  stm_th_torb, particles, &
-                       output_unit, append_cube,  error)
+                       output_unit, append_cube)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: stm_section
@@ -301,7 +297,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: append_cube
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), DIMENSION(0:9), PARAMETER :: torb_string = (/"  s"," px"&
       ," py", " pz", "dxy", "dyz", "dzx", "dx2", "dy2", "dz2"/)
@@ -324,7 +319,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     NULLIFY(fm_struct_tmp)
 
     nspin = SIZE(mo_arrays)
@@ -370,10 +365,10 @@ CONTAINS
        IF(istates==0) CYCLE
 
        CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
-                       template_fmstruct=mo_arrays(1)%matrix%matrix_struct, error=error)
-       CALL cp_fm_create(matrix_v,fm_struct_tmp, name="matrix_v",error=error)
-       CALL cp_fm_create(matrix_vf,fm_struct_tmp, name="matrix_vf",error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+                       template_fmstruct=mo_arrays(1)%matrix%matrix_struct)
+       CALL cp_fm_create(matrix_v,fm_struct_tmp, name="matrix_v")
+       CALL cp_fm_create(matrix_vf,fm_struct_tmp, name="matrix_vf")
+       CALL cp_fm_struct_release(fm_struct_tmp)
 
        ALLOCATE(occ_tot(istates),STAT=istat)
 
@@ -397,15 +392,15 @@ CONTAINS
        CALL cp_fm_column_scale(matrix_vf,occ_tot(1:istates))
        alpha=1.0_dp
 
-       CALL cp_dbcsr_set(stm_density_ao,0.0_dp,error=error)
+       CALL cp_dbcsr_set(stm_density_ao,0.0_dp)
        CALL cp_dbcsr_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v, matrix_g=matrix_vf,ncol=istates,&
-                               alpha=alpha,error=error)
+                               alpha=alpha)
 
        DO i = 1,SIZE(stm_th_torb)
          iorb=stm_th_torb(i)
          CALL calculate_rho_elec(matrix_p=stm_density_ao,&
                  rho=wf_r,rho_gspace=wf_g, total_rho=total_rho,&
-                 ks_env=ks_env,  der_type=iorb, error=error)
+                 ks_env=ks_env,  der_type=iorb)
 
          oname = torb_string(iorb)
 !         fname = "STM_"//TRIM(torb_string(iorb))
@@ -417,16 +412,16 @@ CONTAINS
 
          unit_nr=cp_print_key_unit_nr(logger,stm_section,extension=".cube",&
               middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
-              log_filename=.FALSE.,error=error)
+              log_filename=.FALSE.)
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
          CALL cp_pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
-             stride=section_get_ivals(stm_section,"STRIDE",error=error),zero_tails=.TRUE., error=error)
+             stride=section_get_ivals(stm_section,"STRIDE"),zero_tails=.TRUE.)
 
-         CALL cp_print_key_finished_output(unit_nr,logger,stm_section,error=error)
+         CALL cp_print_key_finished_output(unit_nr,logger,stm_section)
        END DO
 
-       CALL cp_fm_release(matrix_v, error=error)
-       CALL cp_fm_release(matrix_vf, error=error)
+       CALL cp_fm_release(matrix_v)
+       CALL cp_fm_release(matrix_vf)
        DEALLOCATE(occ_tot,STAT=istat)
 
     ENDDO

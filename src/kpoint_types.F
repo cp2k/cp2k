@@ -148,12 +148,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create a kpoint environment
 !> \param kpoint  All the kpoint information
-!> \param error   CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE kpoint_create(kpoint, error)
+  SUBROUTINE kpoint_create(kpoint)
     TYPE(kpoint_type), POINTER               :: kpoint
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_create', &
       routineP = moduleN//':'//routineN
@@ -163,10 +161,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(.NOT.ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(.NOT.ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
     ALLOCATE(kpoint,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     kpoint%kp_scheme = ""
     kpoint%nkp_grid = 0
@@ -203,12 +201,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Release a kpoint environment, deallocate all data
 !> \param kpoint  The kpoint environment
-!> \param error   CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE kpoint_release(kpoint, error)
+  SUBROUTINE kpoint_release(kpoint)
     TYPE(kpoint_type), POINTER               :: kpoint
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_release', &
       routineP = moduleN//':'//routineN
@@ -222,41 +218,41 @@ CONTAINS
 
        IF(ASSOCIATED(kpoint%xkp)) THEN
          DEALLOCATE(kpoint%xkp,STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          NULLIFY(kpoint%xkp)
        END IF
        IF(ASSOCIATED(kpoint%wkp)) THEN
          DEALLOCATE(kpoint%wkp,STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
          NULLIFY(kpoint%wkp)
        END IF
        IF(ASSOCIATED(kpoint%kp_dist)) THEN
          DEALLOCATE(kpoint%kp_dist,STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        ENDIF
 
-       CALL mpools_release(kpoint%mpools, error=error)
-       CALL cp_blacs_env_release(kpoint%blacs_env,error=error)
-       CALL cp_blacs_env_release(kpoint%blacs_env_all,error=error)
+       CALL mpools_release(kpoint%mpools)
+       CALL cp_blacs_env_release(kpoint%blacs_env)
+       CALL cp_blacs_env_release(kpoint%blacs_env_all)
 
-       CALL cp_cart_release(kpoint%cart,error=error)
-       CALL cp_para_env_release(kpoint%para_env,error=error)
-       CALL cp_para_env_release(kpoint%para_env_full,error=error)
-       CALL cp_para_env_release(kpoint%para_env_kp,error=error)
-       CALL cp_para_env_release(kpoint%para_env_inter_kp,error=error)
+       CALL cp_cart_release(kpoint%cart)
+       CALL cp_para_env_release(kpoint%para_env)
+       CALL cp_para_env_release(kpoint%para_env_full)
+       CALL cp_para_env_release(kpoint%para_env_kp)
+       CALL cp_para_env_release(kpoint%para_env_inter_kp)
 
        IF(ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE(kpoint%cell_to_index)
 
        IF(ASSOCIATED(kpoint%kp_env)) THEN
           DO ik=1,SIZE(kpoint%kp_env)
-             CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env,error)
+             CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env)
           END DO
           DEALLOCATE(kpoint%kp_env,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        END IF
 
        DEALLOCATE(kpoint,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        NULLIFY(kpoint)
 
     END IF
@@ -295,14 +291,12 @@ CONTAINS
 !> \param kp_dist       kpoints distribution on groups
 !> \param cell_to_index given a cell triple, returns the real space index
 !> \param sab_nl        neighbourlist that defines real space matrices
-!> \param error         CP2K error handling
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&
       full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp,&
       para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
-      kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl,&
-      error)
+      kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl)
     TYPE(kpoint_type), POINTER               :: kpoint
     CHARACTER(LEN=*), OPTIONAL               :: kp_scheme
     INTEGER, DIMENSION(3), OPTIONAL          :: nkp_grid
@@ -340,7 +334,6 @@ CONTAINS
       POINTER                                :: cell_to_index
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_nl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoint_info', &
       routineP = moduleN//':'//routineN
@@ -349,7 +342,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
     IF(PRESENT(kp_scheme)) kp_scheme = kpoint%kp_scheme
     IF(PRESENT(nkp_grid)) nkp_grid = kpoint%nkp_grid
@@ -419,14 +412,12 @@ CONTAINS
 !> \param kp_dist       kpoints distribution on groups
 !> \param cell_to_index given a cell triple, returns the real space index
 !> \param sab_nl        neighbourlist that defines real space matrices
-!> \param error         CP2K error handling
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&
       full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp,&
       para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
-      kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl,&
-      error)
+      kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl)
     TYPE(kpoint_type), POINTER               :: kpoint
     CHARACTER(LEN=*), OPTIONAL               :: kp_scheme
     INTEGER, DIMENSION(3), OPTIONAL          :: nkp_grid
@@ -464,7 +455,6 @@ CONTAINS
       POINTER                                :: cell_to_index
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_nl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_kpoint_info', &
       routineP = moduleN//':'//routineN
@@ -473,7 +463,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
  
     IF(PRESENT(kp_scheme)) kpoint%kp_scheme = kp_scheme
     IF(PRESENT(nkp_grid)) kpoint%nkp_grid = nkp_grid
@@ -517,13 +507,11 @@ CONTAINS
 !> \brief Read the kpoint input section
 !> \param kpoint  The kpoint environment
 !> \param kpoint_section The input section
-!> \param error   CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE read_kpoint_section(kpoint,kpoint_section,error)
+  SUBROUTINE read_kpoint_section(kpoint,kpoint_section)
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(section_vals_type), POINTER         :: kpoint_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_kpoint_section', &
       routineP = moduleN//':'//routineN
@@ -535,14 +523,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: reallist
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
-    CALL section_vals_get(kpoint_section,explicit=available, error=error)
+    CALL section_vals_get(kpoint_section,explicit=available)
 
     IF (available) THEN
-       CALL section_vals_val_get(kpoint_section,"SCHEME",c_vals=tmpstringlist,error=error)
+       CALL section_vals_val_get(kpoint_section,"SCHEME",c_vals=tmpstringlist)
        nval = SIZE(tmpstringlist)
-       CPPrecondition(nval >= 1, cp_failure_level, routineP, error, failure)
+       CPPrecondition(nval >= 1, cp_failure_level, routineP,failure)
        kpoint%kp_scheme = tmpstringlist(1)
        CALL uppercase(kpoint%kp_scheme)
 
@@ -553,12 +541,12 @@ CONTAINS
           CASE ("GAMMA")
              ! do nothing
           CASE ("MONKHORST-PACK")
-             CPPrecondition(nval >= 4, cp_failure_level, routineP, error, failure)
+             CPPrecondition(nval >= 4, cp_failure_level, routineP,failure)
              DO i=2,4
                 READ(tmpstringlist(i),*) kpoint%nkp_grid(i-1)
              END DO
           CASE ("MACDONALD")
-             CPPrecondition(nval >= 7, cp_failure_level, routineP, error, failure)
+             CPPrecondition(nval >= 7, cp_failure_level, routineP,failure)
              DO i=2,4
                 READ(tmpstringlist(i),*) kpoint%nkp_grid(i-1)
              END DO
@@ -566,36 +554,36 @@ CONTAINS
                 READ(tmpstringlist(i),*) kpoint%kp_shift(i-4)
              END DO
           CASE ("GENERAL")
-             CALL section_vals_val_get(kpoint_section,"KPOINT", n_rep_val=n_rep, error=error)
+             CALL section_vals_val_get(kpoint_section,"KPOINT", n_rep_val=n_rep)
              kpoint%nkp = n_rep
              ALLOCATE(kpoint%xkp(3,n_rep),kpoint%wkp(n_rep),STAT=ierr)
-             CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
              DO i=1,n_rep
                 CALL section_vals_val_get(kpoint_section,"KPOINT", i_rep_val=i,&
-                                  r_vals=reallist, error=error)
+                                  r_vals=reallist)
                 nval = SIZE(reallist)
-                CPPostcondition(nval>=4, cp_failure_level, routineP, error, failure)
+                CPPostcondition(nval>=4, cp_failure_level, routineP,failure)
                 kpoint%xkp(1:3,i) = reallist(1:3)
                 kpoint%wkp(i) = reallist(4)
              END DO
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
        END SELECT
 
-       CALL section_vals_val_get(kpoint_section,"SYMMETRY",l_val=kpoint%symmetry,error=error)
-       CALL section_vals_val_get(kpoint_section,"WAVEFUNCTIONS",i_val=wfntype,error=error)
-       CALL section_vals_val_get(kpoint_section,"VERBOSE",l_val=kpoint%verbose,error=error)
-       CALL section_vals_val_get(kpoint_section,"FULL_GRID",l_val=kpoint%full_grid,error=error)
-       CALL section_vals_val_get(kpoint_section,"EPS_GEO",r_val=kpoint%eps_geo,error=error)
+       CALL section_vals_val_get(kpoint_section,"SYMMETRY",l_val=kpoint%symmetry)
+       CALL section_vals_val_get(kpoint_section,"WAVEFUNCTIONS",i_val=wfntype)
+       CALL section_vals_val_get(kpoint_section,"VERBOSE",l_val=kpoint%verbose)
+       CALL section_vals_val_get(kpoint_section,"FULL_GRID",l_val=kpoint%full_grid)
+       CALL section_vals_val_get(kpoint_section,"EPS_GEO",r_val=kpoint%eps_geo)
        CALL section_vals_val_get(kpoint_section,"PARALLEL_GROUP_SIZE",&
-                                 i_val=kpoint%parallel_group_size,error=error)
+                                 i_val=kpoint%parallel_group_size)
        SELECT CASE (wfntype)
           CASE (use_real_wfn)
              kpoint%use_real_wfn = .TRUE.
           CASE (use_complex_wfn)
              kpoint%use_real_wfn = .FALSE.
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
        END SELECT
 
     ELSE
@@ -608,13 +596,11 @@ CONTAINS
 !> \brief Write information on the kpoints to output
 !> \param kpoint  The kpoint environment
 !> \param dft_section  DFT section information
-!> \param error   CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE write_kpoint_info(kpoint,dft_section,error)
+  SUBROUTINE write_kpoint_info(kpoint,dft_section)
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_kpoint_info', &
       routineP = moduleN//':'//routineN
@@ -624,13 +610,13 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    punit = cp_print_key_unit_nr(logger,dft_section,"PRINT%KPOINTS",extension=".Log",error=error)
+    punit = cp_print_key_unit_nr(logger,dft_section,"PRINT%KPOINTS",extension=".Log")
     IF (punit>0) THEN
 
        IF(kpoint%kp_scheme /= "NONE") THEN
@@ -653,7 +639,7 @@ CONTAINS
           CASE ("GENERAL")
              WRITE (punit,'(A,T71,A10)') ' BRILLOUIN| K-point scheme ','   General'
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
        END SELECT
        IF(kpoint%kp_scheme /= "NONE") THEN
           IF (kpoint%symmetry) THEN
@@ -682,19 +668,17 @@ CONTAINS
        END IF
 
     END IF
-    CALL cp_print_key_finished_output(punit,logger,dft_section,"PRINT%KPOINTS",error=error)
+    CALL cp_print_key_finished_output(punit,logger,dft_section,"PRINT%KPOINTS")
 
   END SUBROUTINE write_kpoint_info
 
 ! *****************************************************************************
 !> \brief Create a single kpoint environment
 !> \param kp_env  Single kpoint environment
-!> \param error   CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE kpoint_env_create(kp_env, error)
+  SUBROUTINE kpoint_env_create(kp_env)
     TYPE(kpoint_env_type), POINTER           :: kp_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_create', &
       routineP = moduleN//':'//routineN
@@ -704,10 +688,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(.NOT.ASSOCIATED(kp_env),cp_failure_level,routineP,error,failure)
+    CPAssert(.NOT.ASSOCIATED(kp_env),cp_failure_level,routineP,failure)
 
     ALLOCATE(kp_env,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
 
     kp_env%nkpoint = 0
     kp_env%wkp     = 0.0_dp
@@ -723,12 +707,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Release a single kpoint environment
 !> \param kp_env  Single kpoint environment
-!> \param error   CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE kpoint_env_release(kp_env, error)
+  SUBROUTINE kpoint_env_release(kp_env)
     TYPE(kpoint_env_type), POINTER           :: kp_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_release', &
       routineP = moduleN//':'//routineN
@@ -743,35 +725,35 @@ CONTAINS
        IF(ASSOCIATED(kp_env%mos)) THEN
           DO is=1,SIZE(kp_env%mos,2)
              DO ic=1,SIZE(kp_env%mos,1)
-                CALL deallocate_mo_set(kp_env%mos(ic,is)%mo_set,error)
+                CALL deallocate_mo_set(kp_env%mos(ic,is)%mo_set)
              END DO
           END DO
           DEALLOCATE(kp_env%mos,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        END IF
 
        IF(ASSOCIATED(kp_env%pmat)) THEN
           DO is=1,SIZE(kp_env%pmat,2)
              DO ic=1,SIZE(kp_env%pmat,1)
-                CALL cp_fm_release(kp_env%pmat(ic,is)%matrix,error)
+                CALL cp_fm_release(kp_env%pmat(ic,is)%matrix)
              END DO
           END DO
           DEALLOCATE(kp_env%pmat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        END IF
 
        IF(ASSOCIATED(kp_env%wmat)) THEN
           DO is=1,SIZE(kp_env%wmat,2)
              DO ic=1,SIZE(kp_env%wmat,1)
-                CALL cp_fm_release(kp_env%wmat(ic,is)%matrix,error)
+                CALL cp_fm_release(kp_env%wmat(ic,is)%matrix)
              END DO
           END DO
           DEALLOCATE(kp_env%wmat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        END IF
 
        DEALLOCATE(kp_env,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
        NULLIFY(kp_env)
 
     END IF
@@ -786,10 +768,9 @@ CONTAINS
 !> \param xkp        Coordinates of kpoint
 !> \param is_local   Is this kpoint local (single cpu group)
 !> \param mos        MOs of this kpoint
-!> \param error      CP2K error handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE get_kpoint_env(kpoint_env, nkpoint, wkp, xkp, is_local, mos, error)
+  SUBROUTINE get_kpoint_env(kpoint_env, nkpoint, wkp, xkp, is_local, mos)
     TYPE(kpoint_env_type), POINTER           :: kpoint_env
     INTEGER, OPTIONAL                        :: nkpoint
     REAL(KIND=dp), OPTIONAL                  :: wkp
@@ -797,7 +778,6 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: is_local
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: mos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoint_env', &
       routineP = moduleN//':'//routineN
@@ -806,7 +786,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint_env),cp_failure_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(kpoint_env),cp_failure_level,routineP,failure)
 
     IF(PRESENT(nkpoint)) nkpoint = kpoint_env%nkpoint
     IF(PRESENT(wkp)) wkp = kpoint_env%wkp

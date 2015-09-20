@@ -89,10 +89,8 @@ CONTAINS
 !> \param geo_section ...
 !> \param gopt_env ...
 !> \param x0 ...
-!> \param error ...
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,geo_section,gopt_env,x0,&
-                         error)
+  RECURSIVE SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,geo_section,gopt_env,x0)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -100,7 +98,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_bfgs', &
       routineP = moduleN//':'//routineN
@@ -133,14 +130,14 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger, g,blacs_env)
-    logger       => cp_error_get_logger(error)
+    logger       => cp_get_default_logger()
     para_env     => force_env%para_env
     root_section => force_env%root_section
     t_old=m_walltime()
 
     CALL timeset(routineN,handle)
-    CALL section_vals_val_get(geo_section,"BFGS%TRUST_RADIUS",r_val=rad,error=error)
-    print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART", error=error)
+    CALL section_vals_val_get(geo_section,"BFGS%TRUST_RADIUS",r_val=rad)
+    print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART")
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
     cell_opt    = .FALSE.
@@ -153,14 +150,14 @@ CONTAINS
     CASE (default_ts_method_id)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="BFGS method not yet working with DIMER", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END SELECT
 
-    CALL section_vals_val_get(geo_section,"BFGS%USE_RAT_FUN_OPT",l_val=use_rfo,error=error)
-    CALL section_vals_val_get(geo_section,"BFGS%USE_MODEL_HESSIAN",l_val=use_mod_hes,error=error)
-    CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest,error=error)
+    CALL section_vals_val_get(geo_section,"BFGS%USE_RAT_FUN_OPT",l_val=use_rfo)
+    CALL section_vals_val_get(geo_section,"BFGS%USE_MODEL_HESSIAN",l_val=use_mod_hes)
+    CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
-                                       extension=".geoLog",error=error)
+                                       extension=".geoLog")
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
@@ -174,18 +171,18 @@ CONTAINS
 
     ! Initialize hessian (hes = unitary matrix or model hessian )
     CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
-                             globenv%blacs_repeatable,error=error)
+                             globenv%blacs_repeatable)
     CALL cp_fm_struct_create(fm_struct_hes,para_env=para_env,context=blacs_env, &
-         nrow_global=ndf,ncol_global=ndf,error=error)
-    CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat",error=error)
-    CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp",error=error)
-    CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat",error=error)
+         nrow_global=ndf,ncol_global=ndf)
+    CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat")
+    CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp")
+    CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat")
     ALLOCATE (eigval(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     eigval(:) = 0.0_dp
 
-    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys)
+    CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
     IF (shell_present) THEN
       CALL cp_assert((.NOT.use_mod_hes),cp_warning_level,cp_assertion_failed,routineP,&
@@ -196,86 +193,85 @@ CONTAINS
     END IF
 
     IF (use_mod_hes) THEN
-       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp,error=error)
-       CALL construct_initial_hess(gopt_env%force_env,hess_mat,error)
-       CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info, error=error)
+       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=0.00_dp)
+       CALL construct_initial_hess(gopt_env%force_env,hess_mat)
+       CALL cp_fm_to_fm(hess_mat,hess_tmp)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info)
        ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
        IF(info/=0) THEN
-          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
+          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
           IF(output_unit>0) WRITE(output_unit,*) &
              "BFGS: Matrix diagonalization failed, using unity as model Hessian."
        ELSE
           DO its=1,SIZE(eigval)
             IF(eigval(its).lt.0.1_dp)eigval(its)=0.1_dp
           END DO
-          CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
+          CALL cp_fm_to_fm(eigvec_mat,hess_tmp)
           CALL cp_fm_column_scale(eigvec_mat,eigval)
-          CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat,error=error)
+          CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,hess_mat)
        ENDIF
     ELSE
-       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
+       CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
     END IF
 
     ALLOCATE (xold(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     xold(:) = x0(:)
 
     ALLOCATE (g(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     g(:) = 0.0_dp
 
     ALLOCATE (gold(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     gold(:) = 0.0_dp
 
     ALLOCATE (dx(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     dx(:) = 0.0_dp
 
     ALLOCATE (dg(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     dg(:) = 0.0_dp
 
     ALLOCATE (work(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     work(:) = 0.0_dp
 
     ALLOCATE (dr(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     dr(:) = 0.0_dp
 
     ! refernce cell needed for smooth cell optimizations
-    CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
+    CALL force_env_get(gopt_env%force_env,cell=cell)
 
     ! Geometry optimization starts now
-    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
+    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr)
     CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-                    .FALSE., gopt_env%force_env%para_env, error)
+                    .FALSE., gopt_env%force_env%para_env)
 
     ! Print info at time 0
     emin = etot
     t_now=m_walltime()
     t_diff=t_now-t_old
     t_old=t_now
-    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, used_time=t_diff, error=error)
+    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, used_time=t_diff)
     DO its = iter_nr+1, maxiter
-       CALL cp_iterate(logger%iter_info,last=(its==maxiter),error=error)
-       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its,error=error)
+       CALL cp_iterate(logger%iter_info,last=(its==maxiter))
+       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its)
        CALL gopt_f_ii(its, output_unit)
 
        ! Hessian update/restarting
        IF (((its-iter_nr) == 1).AND.hesrest) THEN
           IF(ionode)THEN
-             CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename,&
-                  error=error)
+             CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename)
              CALL open_file(file_name=hes_filename,file_status="OLD",&
                   file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
           END IF
-          CALL cp_fm_read_unformatted(hess_mat,hesunit_read,error)
+          CALL cp_fm_read_unformatted(hess_mat,hesunit_read)
           IF (ionode) CALL close_file(unit_number=hesunit_read)
        ELSE
           IF( (its-iter_nr) > 1 ) THEN
@@ -284,11 +280,11 @@ CONTAINS
                dg(indf) =  g(indf) - gold(indf)
             END DO
 
-            CALL bfgs(ndf,dx,dg,hess_mat,work,para_env,error)
+            CALL bfgs(ndf,dx,dg,hess_mat,work,para_env)
 
             !Possibly dump the Hessian file
-            IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
-               CALL write_bfgs_hessian(geo_section,hess_mat,logger,error)
+            IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))THEN
+               CALL write_bfgs_hessian(geo_section,hess_mat,logger)
             ENDIF
           ENDIF
        END IF
@@ -298,40 +294,40 @@ CONTAINS
        gold(:) = g
 
        ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
-       CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
+       CALL cp_fm_to_fm(hess_mat,hess_tmp)
 
-       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info,error=error)
+       CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,info=info)
 
        ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
        IF(info/=0) THEN
           IF(output_unit>0) WRITE(output_unit,*) &
              "BFGS: Matrix diagonalization failed, resetting Hessian to unity."
-          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
-          CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
-          CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval,error=error)
+          CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
+          CALL cp_fm_to_fm(hess_mat,hess_tmp)
+          CALL choose_eigv_solver(hess_tmp,eigvec_mat,eigval)
        END IF
 
        IF(use_rfo)THEN
           CALL set_hes_eig(ndf,eigval,work)
           dx(:) = eigval
-          CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
+          CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env)
        END IF
-       CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo,error)
+       CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo)
        CALL trust_radius(ndf,step,rad,rat,dr,output_unit)
 
        ! Update the atomic positions
        x0 = x0 + dr
 
-       CALL energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env,error)
+       CALL energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env)
        eold = etot
 
        ! Energy & Gradients at new step
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
-                       .FALSE., gopt_env%force_env%para_env, error)
+                       .FALSE., gopt_env%force_env%para_env)
        ediff = etot - eold
 
        ! check for an external exit command
-       CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
+       CALL external_control(should_stop,"GEO",globenv=globenv)
        IF(should_stop) EXIT
 
        ! Some IO and Convergence check
@@ -340,7 +336,7 @@ CONTAINS
        t_old=t_now
        CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit,&
             eold, emin, wildcard, gopt_param, ndf, dr, g, conv, pred, rat,&
-            step, rad, used_time=t_diff, error=error)
+            step, rad, used_time=t_diff)
 
        IF (conv.OR.(its==maxiter)) EXIT
        IF (etot < emin) emin = etot
@@ -352,36 +348,36 @@ CONTAINS
     END IF
 
     ! Write final  information, if converged
-    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
-    CALL write_bfgs_hessian(geo_section,hess_mat,logger,error)
+    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0)
+    CALL write_bfgs_hessian(geo_section,hess_mat,logger)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
-         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit, error)
+         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
-    CALL cp_fm_struct_release(fm_struct_hes,error=error)
-    CALL cp_fm_release(hess_mat,error=error)
-    CALL cp_fm_release(eigvec_mat,error=error)
-    CALL cp_fm_release(hess_tmp,error=error)
+    CALL cp_fm_struct_release(fm_struct_hes)
+    CALL cp_fm_release(hess_mat)
+    CALL cp_fm_release(eigvec_mat)
+    CALL cp_fm_release(hess_tmp)
 
-    CALL cp_blacs_env_release(blacs_env,error=error)
+    CALL cp_blacs_env_release(blacs_env)
     DEALLOCATE (xold,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (g,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (gold,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (dx,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (dg,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (eigval,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (dr,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)
+         "PRINT%PROGRAM_RUN_INFO")
     CALL timestop(handle)
 
   END SUBROUTINE geoopt_bfgs
@@ -395,9 +391,8 @@ CONTAINS
 !> \param eigvec_mat ...
 !> \param g ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
+  SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: dg(ndf), eigval(ndf), &
@@ -406,7 +401,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: g(ndf)
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt', &
       routineP = moduleN//':'//routineN
@@ -433,7 +427,7 @@ CONTAINS
     dg=0._dp
 
     CALL cp_fm_get_info(eigvec_mat,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
 
     DO i=1,nrow_local
        j=row_indices(i)
@@ -571,16 +565,14 @@ CONTAINS
 !> \param hess_mat ...
 !> \param work ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE bfgs(ndf,dx,dg,hess_mat,work,para_env,error)
+  SUBROUTINE bfgs(ndf,dx,dg,hess_mat,work,para_env)
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf)
     TYPE(cp_fm_type), POINTER                :: hess_mat
     REAL(KIND=dp), INTENT(INOUT)             :: work(ndf)
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bfgs', &
       routineP = moduleN//':'//routineN
@@ -595,7 +587,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_hes,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+         local_data=local_hes,nrow_local=nrow_local,ncol_local=ncol_local)
 
     work=zero
     DO i=1,nrow_local
@@ -690,9 +682,8 @@ CONTAINS
 !> \param g ...
 !> \param para_env ...
 !> \param use_rfo ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo,error)
+  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf)
@@ -701,7 +692,6 @@ CONTAINS
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     LOGICAL                                  :: use_rfo
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
@@ -712,7 +702,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: tmp
 
-    CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
+    CALL cp_fm_to_fm(eigvec_mat,hess_tmp)
     IF(use_rfo)THEN
        DO indf=1,ndf
          eigval(indf) = one/eigval(indf)
@@ -724,18 +714,18 @@ CONTAINS
     END IF
 
     CALL cp_fm_column_scale(hess_tmp,eigval)
-    CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct,error=error)
-    CALL cp_fm_create(tmp, matrix_struct ,name="tmp",error=error)
+    CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct)
+    CALL cp_fm_create(tmp, matrix_struct ,name="tmp")
 
-    CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,tmp,error=error)
+    CALL cp_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,tmp)
 
-    CALL cp_fm_transpose(tmp,hess_tmp,error)
-    CALL cp_fm_release(tmp,error)
+    CALL cp_fm_transpose(tmp,hess_tmp)
+    CALL cp_fm_release(tmp)
 
 !    ** New step **
 
     CALL cp_fm_get_info(hess_tmp,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
 
     dr=0.0_dp
     DO i=1,nrow_local
@@ -800,9 +790,8 @@ CONTAINS
 !> \param conv ...
 !> \param pred ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env,error)
+  SUBROUTINE energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: work(ndf)
@@ -811,7 +800,6 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: conv
     REAL(KIND=dp), INTENT(INOUT)             :: pred
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_predict', &
       routineP = moduleN//':'//routineN
@@ -828,7 +816,7 @@ CONTAINS
     ener1 = DDOT(ndf,g,1,dr,1)
 
     CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
-         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
 
     work=zero
     DO i=1,nrow_local
@@ -934,14 +922,12 @@ CONTAINS
 !> \param geo_section ...
 !> \param hess_mat ...
 !> \param logger ...
-!> \param error ...
 ! *****************************************************************************
-   SUBROUTINE write_bfgs_hessian(geo_section,hess_mat,logger,error)
+   SUBROUTINE write_bfgs_hessian(geo_section,hess_mat,logger)
 
     TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(cp_fm_type), POINTER                :: hess_mat
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bfgs_hessian', &
       routineP = moduleN//':'//routineN
@@ -952,11 +938,11 @@ CONTAINS
 
     hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
            extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
-           file_position="REWIND",error=error)
+           file_position="REWIND")
 
-    CALL cp_fm_write_unformatted(hess_mat,hesunit,error)
+    CALL cp_fm_write_unformatted(hess_mat,hesunit)
 
-    CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART", error=error)
+    CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART")
 
     CALL timestop(handle)
 
@@ -967,13 +953,11 @@ CONTAINS
 !> \brief ...
 !> \param force_env ...
 !> \param hess_mat ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE construct_initial_hess(force_env,hess_mat,error)
+  SUBROUTINE construct_initial_hess(force_env,hess_mat)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_fm_type), POINTER                :: hess_mat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'construct_initial_hess', &
       routineP = moduleN//':'//routineN
@@ -994,10 +978,9 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-     CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,error=error)
+     CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell)
      CALL cp_subsys_get(subsys,&
-                 particles=particles,&
-                 error=error)
+                 particles=particles)
 
      alpha(1,:)=(/1._dp,0.3949_dp,0.3949_dp/)
      alpha(2,:)=(/0.3494_dp,0.2800_dp,0.2800_dp/)
@@ -1008,20 +991,20 @@ CONTAINS
      r0(3,:)=(/2.53_dp,3.40_dp,3.40_dp/)
 
      CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
-            local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+            local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
      natom=particles%n_els
      ALLOCATE(at_row(natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE(rho_ij(natom,natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE(d_ij(natom,natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE(r_ij(natom,natom,3),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      ALLOCATE(fixed(3,natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      fixed=1.0_dp
-     CALL fix_atom_control( force_env, error, fixed)
+     CALL fix_atom_control( force_env,fixed)
      DO i=1,3
         CALL mp_min(fixed(i,:),hess_mat%matrix_struct%para_env%group)
      END DO
@@ -1085,15 +1068,15 @@ CONTAINS
         END DO
      END DO
      DEALLOCATE(fixed,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(rho_ij,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(d_ij,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(r_ij,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(at_row,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE  construct_initial_hess
 

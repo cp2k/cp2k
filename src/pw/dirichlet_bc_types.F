@@ -277,19 +277,16 @@ CONTAINS
 !> \brief   releases the defined Dirichlet boundary region 
 !> \param gates the DBC region to be released  
 !> \param pw_pool pool of the plane wave grid
-!> \param error cp2k error
-!>
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dirichlet_boundary_region_release(gates, pw_pool, error)
+  SUBROUTINE dirichlet_boundary_region_release(gates, pw_pool)
 
     TYPE(dirichlet_bc_p_type), &
       DIMENSION(:), INTENT(INOUT), POINTER   :: gates
     TYPE(pw_pool_type), INTENT(IN), &
       OPTIONAL, POINTER                      :: pw_pool
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dirichlet_boundary_region_release', &
@@ -307,20 +304,20 @@ CONTAINS
           DO i = 1, n_gates
              dbc_geom = gates(i)%dirichlet_bc%dbc_geom
              IF (dbc_geom .EQ. AA_CUBOIDAL) THEN
-                CALL cs_box_release(gates(i)%dirichlet_bc%box, error=error)
+                CALL cs_box_release(gates(i)%dirichlet_bc%box)
              ELSE
-                CALL cs_rectangle_release(gates(i)%dirichlet_bc%rectangle, error=error)
+                CALL cs_rectangle_release(gates(i)%dirichlet_bc%rectangle)
              END IF
 
              n_tiles = gates(i)%dirichlet_bc%n_tiles
              DO k = 1, n_tiles
                 tile_geom = gates(i)%dirichlet_bc%tiles(k)%tile%tile_geom
-                CALL pw_pool_give_back_pw(pw_pool, gates(i)%dirichlet_bc%tiles(k)%tile%tile_pw, error=error)
+                CALL pw_pool_give_back_pw(pw_pool, gates(i)%dirichlet_bc%tiles(k)%tile%tile_pw)
 
                 IF (tile_geom .EQ. rectangular_tile) THEN
-                   CALL cs_rectangle_release(gates(i)%dirichlet_bc%tiles(k)%tile%rectangle, error)
+                   CALL cs_rectangle_release(gates(i)%dirichlet_bc%tiles(k)%tile%rectangle)
                 ELSE IF (tile_geom .EQ. cuboidal_tile) THEN
-                   CALL cs_box_release(gates(i)%dirichlet_bc%tiles(k)%tile%box, error)
+                   CALL cs_box_release(gates(i)%dirichlet_bc%tiles(k)%tile%box)
                 END IF
 
                 DEALLOCATE(gates(i)%dirichlet_bc%tiles(k)%tile)
@@ -333,20 +330,20 @@ CONTAINS
           DO i = 1, n_gates
              dbc_geom = gates(i)%dirichlet_bc%dbc_geom
              IF (dbc_geom .EQ. AA_CUBOIDAL) THEN
-                CALL cs_box_release(gates(i)%dirichlet_bc%box, error=error)
+                CALL cs_box_release(gates(i)%dirichlet_bc%box)
              ELSE
-                CALL cs_rectangle_release(gates(i)%dirichlet_bc%rectangle, error=error)
+                CALL cs_rectangle_release(gates(i)%dirichlet_bc%rectangle)
              END IF
 
              n_tiles = gates(i)%dirichlet_bc%n_tiles
              DO k = 1, n_tiles
                 tile_geom = gates(i)%dirichlet_bc%tiles(k)%tile%tile_geom
-                CALL pw_release(gates(i)%dirichlet_bc%tiles(k)%tile%tile_pw, error=error)
+                CALL pw_release(gates(i)%dirichlet_bc%tiles(k)%tile%tile_pw)
 
                 IF (tile_geom .EQ. rectangular_tile) THEN
-                   CALL cs_rectangle_release(gates(i)%dirichlet_bc%tiles(k)%tile%rectangle, error)
+                   CALL cs_rectangle_release(gates(i)%dirichlet_bc%tiles(k)%tile%rectangle)
                 ELSE IF (tile_geom .EQ. cuboidal_tile) THEN
-                   CALL cs_box_release(gates(i)%dirichlet_bc%tiles(k)%tile%box, error)
+                   CALL cs_box_release(gates(i)%dirichlet_bc%tiles(k)%tile%box)
                 END IF
 
                 DEALLOCATE(gates(i)%dirichlet_bc%tiles(k)%tile)
@@ -366,17 +363,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   deallocates dirichlet_bc_parameters type
 !> \param dbc_params dbc parameters
-!> \param error cp2k error 
-!>
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dirichlet_bc_parameters_dealloc(dbc_params, error)
+  SUBROUTINE dirichlet_bc_parameters_dealloc(dbc_params)
 
     TYPE(dirichlet_bc_parameters), &
       INTENT(INOUT)                          :: dbc_params
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dirichlet_bc_parameters_dealloc', &
@@ -424,16 +418,14 @@ CONTAINS
 !> \param segment the segment to be created
 !> \param A coordinates of the end point A
 !> \param B coordinates of the end point B
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_segment_create(segment, A, B, error)
+  SUBROUTINE cs_segment_create(segment, A, B)
 
     TYPE(cs_segment), INTENT(INOUT), POINTER :: segment
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_segment_create', &
       routineP = moduleN//':'//routineN
@@ -456,17 +448,15 @@ CONTAINS
 !> \param A coordinates of the vertex A
 !> \param B coordinates of the vertex B
 !> \param tag unique tag to be assigned to the edge
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_edge_create(edge, A, B, tag, error)
+  SUBROUTINE cs_edge_create(edge, A, B, tag)
 
     TYPE(cs_edge), INTENT(INOUT), POINTER    :: edge
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B
     INTEGER, INTENT(IN)                      :: tag
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_edge_create', &
       routineP = moduleN//':'//routineN
@@ -476,7 +466,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(edge%segment)
-    CALL cs_segment_create(edge%segment, A, B, error)
+    CALL cs_segment_create(edge%segment, A, B)
     edge%tag = tag
 
     CALL timestop(handle)
@@ -489,16 +479,14 @@ CONTAINS
 !> \param A coordinates of the vertex A
 !> \param B coordinates of the vertex B
 !> \param C coordinates of the vertex C
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_plane_ABC_create(plane, A, B, C, error)
+  SUBROUTINE cs_plane_ABC_create(plane, A, B, C)
 
     TYPE(cs_plane), INTENT(INOUT), POINTER   :: plane
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_plane_ABC_create', &
       routineP = moduleN//':'//routineN
@@ -524,8 +512,8 @@ CONTAINS
     plane%C = C
 
     ALLOCATE(plane%AB, plane%AC)
-    CALL cs_segment_create(plane%AB, A, B, error)
-    CALL cs_segment_create(plane%AC, A, C, error)
+    CALL cs_segment_create(plane%AB, A, B)
+    CALL cs_segment_create(plane%AC, A, C)
 
     AB_norm = SQRT(SUM(AB**2))
     AC_norm = SQRT(SUM(AC**2))
@@ -534,11 +522,11 @@ CONTAINS
     IF ( (AB_norm .LE. small_value) .OR. (AC_norm.LE. small_value) .OR. (BC_norm .LE. small_value) ) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "Not enough points to define a cartesian space plane. "//&
-          "Please increase the cutoff.",error)
+          "Please increase the cutoff.")
     ELSE IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "Unable to define a cartesian space plane. Reason: A, B, C are collinear. "//&
-          "Please increase the cutoff.",error)
+          "Please increase the cutoff.")
     ELSE
        plane%normal = ABxAC
        plane%unit_normal = plane%normal / SQRT(SUM(plane%normal**2))
@@ -556,16 +544,14 @@ CONTAINS
 !> \param plane the plane to be created
 !> \param A coordinates of a point on the plane
 !> \param n the unit normal vector to the plane
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_plane_An_create(plane, A, n, error)
+  SUBROUTINE cs_plane_An_create(plane, A, n)
 
     TYPE(cs_plane), INTENT(INOUT), POINTER   :: plane
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, n
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_plane_An_create', &
       routineP = moduleN//':'//routineN
@@ -604,8 +590,8 @@ CONTAINS
     plane%C = C
 
     ALLOCATE(plane%AB, plane%AC)
-    CALL cs_segment_create(plane%AB, A, B, error)
-    CALL cs_segment_create(plane%AC, A, C, error)
+    CALL cs_segment_create(plane%AB, A, B)
+    CALL cs_segment_create(plane%AC, A, C)
 ! NB: the Housholder procedure is quite stable no need to check if the points are collinear
 ! or any two of them coincide
     plane%normal = n
@@ -623,17 +609,15 @@ CONTAINS
 !> \param A coordinates of the vertex A
 !> \param B coordinates of the vertex B
 !> \param C coordinates of the vertex C
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_triangle_create(triangle, A, B, C, error)
+  SUBROUTINE cs_triangle_create(triangle, A, B, C)
 
     TYPE(cs_triangle), INTENT(INOUT), &
       POINTER                                :: triangle
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_triangle_create', &
       routineP = moduleN//':'//routineN
@@ -648,18 +632,18 @@ CONTAINS
     triangle%B = B
     triangle%C = C
     ALLOCATE(triangle%plane)
-    CALL cs_plane_create(triangle%plane, A, B, C, error)
+    CALL cs_plane_create(triangle%plane, A, B, C)
 
     triangle%vertices(:,1) = A
     triangle%vertices(:,2) = B
     triangle%vertices(:,3) = C
-    CALL sort_vertices(triangle%vertices, A, triangle%plane%unit_normal, error)
+    CALL sort_vertices(triangle%vertices, A, triangle%plane%unit_normal)
     tri_vertices = triangle%vertices
 
     ALLOCATE(edge)
     DO i = 0, 2
        tag = (i+1)*10 + MOD(i+1, 3)+1
-       CALL cs_edge_create(edge, tri_vertices(:,i), tri_vertices(:,MOD(i+1, 3)), tag, error)
+       CALL cs_edge_create(edge, tri_vertices(:,i), tri_vertices(:,MOD(i+1, 3)), tag)
        triangle%edges(i+1) = edge
     END DO
     DEALLOCATE(edge)
@@ -675,17 +659,15 @@ CONTAINS
 !> \param B coordinates of the vertex B
 !> \param C coordinates of the vertex C
 !> \param D coordinates of the vertex D
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_rectangle_ABCD_create(rectangle, A, B, C, D, error)
+  SUBROUTINE cs_rectangle_ABCD_create(rectangle, A, B, C, D)
 
     TYPE(cs_rectangle), INTENT(INOUT), &
       POINTER                                :: rectangle
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C, D
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_rectangle_ABCD_create', &
       routineP = moduleN//':'//routineN
@@ -701,19 +683,19 @@ CONTAINS
     rectangle%C = C
     rectangle%D = D
     ALLOCATE(rectangle%plane)
-    CALL cs_plane_create(rectangle%plane, A, B, C, error)
+    CALL cs_plane_create(rectangle%plane, A, B, C)
 
     rectangle%vertices(:,1) = A
     rectangle%vertices(:,2) = B
     rectangle%vertices(:,3) = C
     rectangle%vertices(:,4) = D
-    CALL sort_vertices(rectangle%vertices, A, rectangle%plane%unit_normal, error)
+    CALL sort_vertices(rectangle%vertices, A, rectangle%plane%unit_normal)
     rect_vertices = rectangle%vertices
 
     ALLOCATE(edge)
     DO i = 0, 3
        tag = (i+1)*10 + MOD(i+1, 4)+1
-       CALL cs_edge_create(edge, rect_vertices(:,i), rect_vertices(:,MOD(i+1, 4)), tag, error)
+       CALL cs_edge_create(edge, rect_vertices(:,i), rect_vertices(:,MOD(i+1, 4)), tag)
        rectangle%edges(i+1) = edge
     END DO
     DEALLOCATE(edge)
@@ -730,17 +712,15 @@ CONTAINS
 !> \param A coordinates of the vertex A
 !> \param B coordinates of the vertex B
 !> \param C coordinates of the vertex C
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_rectangle_ABC_create(rectangle, A, B, C, error)
+  SUBROUTINE cs_rectangle_ABC_create(rectangle, A, B, C)
 
     TYPE(cs_rectangle), INTENT(INOUT), &
       POINTER                                :: rectangle
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_rectangle_ABC_create', &
       routineP = moduleN//':'//routineN
@@ -759,19 +739,19 @@ CONTAINS
     rectangle%C = C
     rectangle%D = D
     ALLOCATE(rectangle%plane)
-    CALL cs_plane_create(rectangle%plane, A, B, C, error)
+    CALL cs_plane_create(rectangle%plane, A, B, C)
 
     rectangle%vertices(:,1) = A
     rectangle%vertices(:,2) = B
     rectangle%vertices(:,3) = C
     rectangle%vertices(:,4) = D
-    CALL sort_vertices(rectangle%vertices, A, rectangle%plane%unit_normal, error)
+    CALL sort_vertices(rectangle%vertices, A, rectangle%plane%unit_normal)
     rect_vertices = rectangle%vertices
 
     ALLOCATE(edge)
     DO i = 0, 3
        tag = (i+1)*10 + MOD(i+1, 4)+1
-       CALL cs_edge_create(edge, rect_vertices(:,i), rect_vertices(:,MOD(i+1, 4)), tag, error)
+       CALL cs_edge_create(edge, rect_vertices(:,i), rect_vertices(:,MOD(i+1, 4)), tag)
        rectangle%edges(i+1) = edge
     END DO
     DEALLOCATE(edge)
@@ -784,17 +764,15 @@ CONTAINS
 !> \brief   generates a polygon given the coordinates of its vertices
 !> \param polygon the polygon to be created
 !> \param vertices coordinates of the vertices of the polygon
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_polygon_create(polygon, vertices, error)
+  SUBROUTINE cs_polygon_create(polygon, vertices)
 
     TYPE(cs_polygon), INTENT(INOUT), POINTER :: polygon
     REAL(dp), DIMENSION(:, :), INTENT(IN), &
       POINTER                                :: vertices
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_polygon_create', &
       routineP = moduleN//':'//routineN
@@ -819,7 +797,7 @@ CONTAINS
     B = vertices(:,2)
     C = vertices(:,3)
     IF (num_vertices .EQ. 3) THEN 
-       CALL cs_plane_create(polygon%plane, A, B, C, error)
+       CALL cs_plane_create(polygon%plane, A, B, C)
     ELSE
        ! this is a 3-sum problem but the number of vertices is limited so 
        ! a naive implementation should be alright
@@ -843,7 +821,7 @@ CONTAINS
        END DO
        ! if no 3 vertices are noncollinear, the solution will be using a higher 
        ! cutoff. This will be captured here:
-       CALL cs_plane_create(polygon%plane, A, B, C, error)
+       CALL cs_plane_create(polygon%plane, A, B, C)
     END IF
 
 ! assume vertices are already sorted
@@ -852,7 +830,7 @@ CONTAINS
     ALLOCATE(edge)
     DO i = 0, num_vertices-1
        tag = (i+1)*10 + MOD(i+1, num_vertices)+1
-       CALL cs_edge_create(edge, py_vertices(:,i), py_vertices(:,MOD(i+1, num_vertices)), tag, error)
+       CALL cs_edge_create(edge, py_vertices(:,i), py_vertices(:,MOD(i+1, num_vertices)), tag)
        polygon%edges(i+1) = edge
     END DO
     DEALLOCATE(edge)
@@ -868,17 +846,15 @@ CONTAINS
 !> \param B coordinates of the vertex B
 !> \param C coordinates of the vertex C
 !> \param tag unique tag to be assigned to the face
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_face_create(face, A, B, C, tag, error)
+  SUBROUTINE cs_face_create(face, A, B, C, tag)
 
     TYPE(cs_face), INTENT(INOUT), POINTER    :: face
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C
     INTEGER, INTENT(IN)                      :: tag
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_face_create', &
       routineP = moduleN//':'//routineN
@@ -888,7 +864,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(face%rectangle)
-    CALL cs_rectangle_create(face%rectangle, A, B, C, error)
+    CALL cs_rectangle_create(face%rectangle, A, B, C)
     face%tag = tag
 
     CALL timestop(handle)
@@ -900,16 +876,14 @@ CONTAINS
 !>         coordinates of its vertices
 !> \param box the box to be generated
 !> \param vertices vertices of the box
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_box_create(box, vertices, error)
+  SUBROUTINE cs_box_create(box, vertices)
 
     TYPE(cs_box), INTENT(INOUT), POINTER     :: box
     REAL(dp), DIMENSION(3, 8), INTENT(IN)    :: vertices
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_box_create', &
       routineP = moduleN//':'//routineN
@@ -931,25 +905,25 @@ CONTAINS
 !                         |/       |/
 !                         2--------3
 ! faces are taged in a way that vertices are counter-clockwise with respect to the outer unit normal to the face
-    CALL cs_face_create(face, vertices(:,2), vertices(:,1), vertices(:,4), 1432, error);   box%faces(1) = face
-    CALL cs_face_create(face, vertices(:,1), vertices(:,6), vertices(:,5), 1654, error);   box%faces(2) = face
-    CALL cs_face_create(face, vertices(:,2), vertices(:,7), vertices(:,6), 2761, error);   box%faces(3) = face
-    CALL cs_face_create(face, vertices(:,6), vertices(:,7), vertices(:,8), 6785, error);   box%faces(4) = face
-    CALL cs_face_create(face, vertices(:,7), vertices(:,2), vertices(:,3), 7238, error);   box%faces(5) = face
-    CALL cs_face_create(face, vertices(:,8), vertices(:,3), vertices(:,4), 8345, error);   box%faces(6) = face
+    CALL cs_face_create(face, vertices(:,2), vertices(:,1), vertices(:,4), 1432);   box%faces(1) = face
+    CALL cs_face_create(face, vertices(:,1), vertices(:,6), vertices(:,5), 1654);   box%faces(2) = face
+    CALL cs_face_create(face, vertices(:,2), vertices(:,7), vertices(:,6), 2761);   box%faces(3) = face
+    CALL cs_face_create(face, vertices(:,6), vertices(:,7), vertices(:,8), 6785);   box%faces(4) = face
+    CALL cs_face_create(face, vertices(:,7), vertices(:,2), vertices(:,3), 7238);   box%faces(5) = face
+    CALL cs_face_create(face, vertices(:,8), vertices(:,3), vertices(:,4), 8345);   box%faces(6) = face
 
-    CALL cs_edge_create(edge, vertices(:,1), vertices(:,2), 12, error);   box%edges(1)  = edge
-    CALL cs_edge_create(edge, vertices(:,2), vertices(:,3), 23, error);   box%edges(2)  = edge
-    CALL cs_edge_create(edge, vertices(:,3), vertices(:,4), 34, error);   box%edges(3)  = edge
-    CALL cs_edge_create(edge, vertices(:,4), vertices(:,1), 41, error);   box%edges(4)  = edge
-    CALL cs_edge_create(edge, vertices(:,5), vertices(:,6), 56, error);   box%edges(5)  = edge
-    CALL cs_edge_create(edge, vertices(:,6), vertices(:,7), 67, error);   box%edges(6)  = edge
-    CALL cs_edge_create(edge, vertices(:,7), vertices(:,8), 78, error);   box%edges(7)  = edge
-    CALL cs_edge_create(edge, vertices(:,8), vertices(:,5), 85, error);   box%edges(8)  = edge
-    CALL cs_edge_create(edge, vertices(:,7), vertices(:,2), 72, error);   box%edges(9)  = edge
-    CALL cs_edge_create(edge, vertices(:,8), vertices(:,3), 83, error);   box%edges(10) = edge
-    CALL cs_edge_create(edge, vertices(:,5), vertices(:,4), 54, error);   box%edges(11) = edge
-    CALL cs_edge_create(edge, vertices(:,6), vertices(:,1), 61, error);   box%edges(12) = edge
+    CALL cs_edge_create(edge, vertices(:,1), vertices(:,2), 12);   box%edges(1)  = edge
+    CALL cs_edge_create(edge, vertices(:,2), vertices(:,3), 23);   box%edges(2)  = edge
+    CALL cs_edge_create(edge, vertices(:,3), vertices(:,4), 34);   box%edges(3)  = edge
+    CALL cs_edge_create(edge, vertices(:,4), vertices(:,1), 41);   box%edges(4)  = edge
+    CALL cs_edge_create(edge, vertices(:,5), vertices(:,6), 56);   box%edges(5)  = edge
+    CALL cs_edge_create(edge, vertices(:,6), vertices(:,7), 67);   box%edges(6)  = edge
+    CALL cs_edge_create(edge, vertices(:,7), vertices(:,8), 78);   box%edges(7)  = edge
+    CALL cs_edge_create(edge, vertices(:,8), vertices(:,5), 85);   box%edges(8)  = edge
+    CALL cs_edge_create(edge, vertices(:,7), vertices(:,2), 72);   box%edges(9)  = edge
+    CALL cs_edge_create(edge, vertices(:,8), vertices(:,3), 83);   box%edges(10) = edge
+    CALL cs_edge_create(edge, vertices(:,5), vertices(:,4), 54);   box%edges(11) = edge
+    CALL cs_edge_create(edge, vertices(:,6), vertices(:,1), 61);   box%edges(12) = edge
 
     DEALLOCATE(edge, face)
 
@@ -962,17 +936,15 @@ CONTAINS
 !> \param intersection the intersection object to be created
 !> \param intxn_type intersection type
 !> \param n_intersections the number of vertices of the intersection object
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_intersection_obj_create(intersection, intxn_type, n_intersections, error)
+  SUBROUTINE cs_intersection_obj_create(intersection, intxn_type, n_intersections)
 
     TYPE(cs_intersection_obj), POINTER       :: intersection
     INTEGER, INTENT(IN)                      :: intxn_type
     INTEGER, INTENT(IN), OPTIONAL            :: n_intersections
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_intersection_obj_create', &
       routineP = moduleN//':'//routineN
@@ -1017,12 +989,11 @@ CONTAINS
 !> \param grid_segment_index the indices of the coordinates of the vertex labeled 'A'
 !> \param dr the grid spacing
 !> \param alignment the alignment of the segment
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, alignment, error)
+  SUBROUTINE cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, alignment)
 
     TYPE(cs_grid_segment), INTENT(INOUT), &
       POINTER                                :: grid_seg
@@ -1030,7 +1001,6 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: grid_segment_index
     REAL(dp), DIMENSION(3), INTENT(IN)       :: dr
     INTEGER, INTENT(IN)                      :: alignment
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_grid_segment_create', &
       routineP = moduleN//':'//routineN
@@ -1064,7 +1034,7 @@ CONTAINS
     END SELECT
 
     ALLOCATE(grid_seg%segment)
-    CALL cs_segment_create(grid_seg%segment, A, B, error)
+    CALL cs_segment_create(grid_seg%segment, A, B)
 
     grid_seg%is_on = .FALSE.
 
@@ -1080,12 +1050,11 @@ CONTAINS
 !> \param grid_tile_index the indices of the coordinates of the vertex labeled 'A'
 !> \param dr the grid spacing
 !> \param alignment alignment of the tile
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, alignment, error)
+  SUBROUTINE cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, alignment)
 
     TYPE(cs_grid_tile), INTENT(INOUT), &
       POINTER                                :: grid_tile
@@ -1093,7 +1062,6 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: grid_tile_index
     REAL(dp), DIMENSION(3), INTENT(IN)       :: dr
     INTEGER, INTENT(IN)                      :: alignment
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_grid_tile_create', &
       routineP = moduleN//':'//routineN
@@ -1133,7 +1101,7 @@ CONTAINS
     END SELECT
 
     ALLOCATE(grid_tile%rectangle)
-    CALL cs_rectangle_create(grid_tile%rectangle, A, B, C, D, error)
+    CALL cs_rectangle_create(grid_tile%rectangle, A, B, C, D)
 
     grid_tile%is_on = .FALSE.
 
@@ -1148,18 +1116,16 @@ CONTAINS
 !> \param origin the coordinates of the vertex labeled '1'
 !> \param voxel_index the indices of the coordinates of the vertex labeled '1'
 !> \param dr the grid spacing
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_voxel_create(voxel, origin, voxel_index, dr, error)
+  SUBROUTINE cs_voxel_create(voxel, origin, voxel_index, dr)
 
     TYPE(cs_voxel), INTENT(INOUT), POINTER   :: voxel
     REAL(dp), DIMENSION(3), INTENT(IN)       :: origin
     INTEGER, DIMENSION(3), INTENT(IN)        :: voxel_index
     REAL(dp), DIMENSION(3), INTENT(IN)       :: dr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_voxel_create', &
       routineP = moduleN//':'//routineN
@@ -1189,7 +1155,7 @@ CONTAINS
     vertices(:,8) = (/ox+dx, oy+dy, oz+dz/)
 
     ALLOCATE(voxel%box)
-    CALL cs_box_create(voxel%box, vertices, error)
+    CALL cs_box_create(voxel%box, vertices)
 
     voxel%is_on = .FALSE.
 
@@ -1200,15 +1166,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_segment data object
 !> \param segment the segment to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_segment_release(segment, error)
+  SUBROUTINE cs_segment_release(segment)
 
     TYPE(cs_segment), POINTER                :: segment
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_segment_release', &
       routineP = moduleN//':'//routineN
@@ -1220,21 +1184,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_edge data object
 !> \param edge the edge to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_edge_release(edge, error)
+  SUBROUTINE cs_edge_release(edge)
 
     TYPE(cs_edge), POINTER                   :: edge
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_edge_release', &
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(edge)) THEN
-       CALL cs_segment_release(edge%segment, error)
+       CALL cs_segment_release(edge%segment)
        DEALLOCATE(edge)
     END IF
 
@@ -1243,15 +1205,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_plane data object
 !> \param plane the plane to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_plane_release(plane, error)
+  SUBROUTINE cs_plane_release(plane)
 
     TYPE(cs_plane), POINTER                  :: plane
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_plane_release', &
       routineP = moduleN//':'//routineN
@@ -1266,15 +1226,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_triangle data object
 !> \param triangle the triangle to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_triangle_release(triangle, error)
+  SUBROUTINE cs_triangle_release(triangle)
 
     TYPE(cs_triangle), POINTER               :: triangle
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_triangle_release', &
       routineP = moduleN//':'//routineN
@@ -1285,7 +1243,7 @@ CONTAINS
        DO i = 1, 3
           DEALLOCATE(triangle%edges(i)%segment)
        END DO
-       CALL cs_plane_release(triangle%plane, error)
+       CALL cs_plane_release(triangle%plane)
        DEALLOCATE(triangle)
     END IF
 
@@ -1294,15 +1252,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_rectangle data object
 !> \param rectangle the rectangle to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_rectangle_release(rectangle, error)
+  SUBROUTINE cs_rectangle_release(rectangle)
 
     TYPE(cs_rectangle), POINTER              :: rectangle
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_rectangle_release', &
       routineP = moduleN//':'//routineN
@@ -1313,7 +1269,7 @@ CONTAINS
        DO i = 1, 4
           DEALLOCATE(rectangle%edges(i)%segment)
        END DO
-       CALL cs_plane_release(rectangle%plane, error)
+       CALL cs_plane_release(rectangle%plane)
        DEALLOCATE(rectangle)
     END IF
 
@@ -1322,15 +1278,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_polygon data type
 !> \param polygon the polygon to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_polygon_release(polygon, error)
+  SUBROUTINE cs_polygon_release(polygon)
 
     TYPE(cs_polygon), POINTER                :: polygon
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_polygon_release', &
       routineP = moduleN//':'//routineN
@@ -1343,7 +1297,7 @@ CONTAINS
           DEALLOCATE(polygon%edges(i)%segment)
        END DO
        DEALLOCATE(polygon%edges)
-       CALL cs_plane_release(polygon%plane, error)
+       CALL cs_plane_release(polygon%plane)
        DEALLOCATE(polygon)
     END IF
 
@@ -1352,21 +1306,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_face data object
 !> \param face the face to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_face_release(face, error)
+  SUBROUTINE cs_face_release(face)
 
     TYPE(cs_face), POINTER                   :: face
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_face_release', &
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(face)) THEN
-       CALL cs_rectangle_release(face%rectangle, error)
+       CALL cs_rectangle_release(face%rectangle)
        DEALLOCATE(face)
     END IF
 
@@ -1375,15 +1327,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_box data object
 !> \param box the box to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_box_release(box, error)
+  SUBROUTINE cs_box_release(box)
 
     TYPE(cs_box), POINTER                    :: box
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_box_release', &
       routineP = moduleN//':'//routineN
@@ -1395,7 +1345,7 @@ CONTAINS
           DEALLOCATE(box%edges(i)%segment)
        END DO
        DO i = 1, 6
-          CALL cs_rectangle_release(box%faces(i)%rectangle, error)
+          CALL cs_rectangle_release(box%faces(i)%rectangle)
        END DO
        DEALLOCATE(box)
     END IF
@@ -1405,15 +1355,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_intersection data object
 !> \param intersection the intersection object to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_intersection_obj_release(intersection, error)
+  SUBROUTINE cs_intersection_obj_release(intersection)
 
     TYPE(cs_intersection_obj), POINTER       :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_intersection_obj_release', &
       routineP = moduleN//':'//routineN
@@ -1425,13 +1373,13 @@ CONTAINS
           CASE(PT_INTXN)
              ! do nothing
           CASE(SEG_INTXN)
-             CALL cs_segment_release(intersection%segment, error)
+             CALL cs_segment_release(intersection%segment)
           CASE(TRI_INTXN)
-             CALL cs_triangle_release(intersection%triangle, error)
+             CALL cs_triangle_release(intersection%triangle)
           CASE(RECT_INTXN)
-             CALL cs_rectangle_release(intersection%rectangle, error)
+             CALL cs_rectangle_release(intersection%rectangle)
           CASE(PY_INTXN)
-             CALL cs_polygon_release(intersection%polygon, error)
+             CALL cs_polygon_release(intersection%polygon)
        END SELECT
        DEALLOCATE(intersection)
     END IF
@@ -1441,21 +1389,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_grid_segment data object
 !> \param grid_seg the grid_segment to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_grid_segment_release(grid_seg, error)
+  SUBROUTINE cs_grid_segment_release(grid_seg)
 
     TYPE(cs_grid_segment), POINTER           :: grid_seg
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_grid_segment_release', &
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(grid_seg)) THEN
-       CALL cs_segment_release(grid_seg%segment, error)
+       CALL cs_segment_release(grid_seg%segment)
        DEALLOCATE(grid_seg)
     END IF
 
@@ -1464,21 +1410,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_grid_tile data object
 !> \param grid_tile the grid_tile to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_grid_tile_release(grid_tile, error)
+  SUBROUTINE cs_grid_tile_release(grid_tile)
 
     TYPE(cs_grid_tile), POINTER              :: grid_tile
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_grid_tile_release', &
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(grid_tile)) THEN
-       CALL cs_rectangle_release(grid_tile%rectangle, error)
+       CALL cs_rectangle_release(grid_tile%rectangle)
        DEALLOCATE(grid_tile)
     END IF
 
@@ -1487,21 +1431,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases a cs_voxel data object
 !> \param voxel the voxel to be released
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cs_voxel_release(voxel, error)
+  SUBROUTINE cs_voxel_release(voxel)
 
     TYPE(cs_voxel), POINTER                  :: voxel
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_voxel_release', &
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(voxel)) THEN
-       CALL cs_box_release(voxel%box, error)
+       CALL cs_box_release(voxel%box)
        DEALLOCATE(voxel)
     END IF
 
@@ -1520,16 +1462,14 @@ CONTAINS
 !> \param vertices the vertices to be sorted
 !> \param O reference vertex
 !> \param unit_normal the unit normal to the polygon's plane
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE sort_vertices(vertices, O, unit_normal, error)
+  SUBROUTINE sort_vertices(vertices, O, unit_normal)
 
     REAL(dp), DIMENSION(:,:), INTENT(INOUT)    :: vertices
     REAL(dp), DIMENSION(3), INTENT(IN)         :: O, unit_normal
-    TYPE(cp_error_type), INTENT(INOUT)         :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_vertices', &
       routineP = moduleN//':'//routineN
@@ -1618,16 +1558,14 @@ CONTAINS
 !> \brief   casts a triangle to a polygon
 !> \param triangle the triangle to be casted
 !> \param polygon the output polygon
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cast_triangle_to_polygon(triangle, polygon, error)
+  SUBROUTINE cast_triangle_to_polygon(triangle, polygon)
 
     TYPE(cs_triangle), INTENT(IN), POINTER   :: triangle
     TYPE(cs_polygon), INTENT(INOUT), POINTER :: polygon
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cast_triangle_to_polygon', &
       routineP = moduleN//':'//routineN
@@ -1638,7 +1576,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     py_vertices => triangle%vertices
-    CALL cs_polygon_create(polygon, py_vertices, error=error)
+    CALL cs_polygon_create(polygon, py_vertices)
 
     CALL timestop(handle)
 
@@ -1648,16 +1586,14 @@ CONTAINS
 !> \brief   casts a rectangle to a polygon
 !> \param rectangle the rectangle to be casted
 !> \param polygon the output polygon
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE cast_rectangle_to_polygon(rectangle, polygon, error)
+  SUBROUTINE cast_rectangle_to_polygon(rectangle, polygon)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_polygon), INTENT(INOUT), POINTER :: polygon
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cast_rectangle_to_polygon', &
       routineP = moduleN//':'//routineN
@@ -1668,7 +1604,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     py_vertices => rectangle%vertices
-    CALL cs_polygon_create(polygon, py_vertices, error=error)
+    CALL cs_polygon_create(polygon, py_vertices)
 
     CALL timestop(handle)
 

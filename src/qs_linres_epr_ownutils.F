@@ -93,17 +93,14 @@ CONTAINS
 !> \brief Prints the g tensor
 !> \param epr_env ...
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_print(epr_env,qs_env,error)
+  SUBROUTINE epr_g_print(epr_env,qs_env)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_print', &
       routineP = moduleN//':'//routineN
@@ -117,11 +114,11 @@ CONTAINS
 
     NULLIFY(logger, lr_section)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+         extension=".linresLog")
 
     gsum = 0.0_dp
 
@@ -137,14 +134,14 @@ CONTAINS
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
+         "PRINT%PROGRAM_RUN_INFO")
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,lr_section,&
-              "EPR%PRINT%G_TENSOR",error=error),cp_p_file)) THEN
+              "EPR%PRINT%G_TENSOR"),cp_p_file)) THEN
 
        unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%G_TENSOR",&
                                        extension=".data",middle_name="GTENSOR",&
-                                       log_filename=.FALSE.,error=error)
+                                       log_filename=.FALSE.)
 
        IF(unit_nr > 0) THEN
 
@@ -198,7 +195,7 @@ CONTAINS
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",g_sym(3,1),&
                " ZY=",g_sym(3,2)," ZZ=",g_sym(3,3)+epr_env%g_free_factor
 
-          CALL diamat_all(g_sym,eigenv_g,error=error)
+          CALL diamat_all(g_sym,eigenv_g)
           eigenv_g(:) = eigenv_g(:)*1.0e6_dp
 
           WRITE(unit_nr,"(T2,A)") "delta_g principal values in ppm"
@@ -212,7 +209,7 @@ CONTAINS
        END IF
 
        CALL cp_print_key_finished_output(unit_nr,logger,lr_section,&
-            &                            "EPR%PRINT%G_TENSOR",error=error)
+            &                            "EPR%PRINT%G_TENSOR")
 
     ENDIF
 
@@ -222,17 +219,14 @@ CONTAINS
 !> \brief Calculate zke part of the g tensor
 !> \param epr_env ...
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_zke(epr_env,qs_env,error)
+  SUBROUTINE epr_g_zke(epr_env,qs_env)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_zke', &
       routineP = moduleN//':'//routineN
@@ -249,20 +243,20 @@ CONTAINS
 
     NULLIFY(dft_control, logger, lr_section, rho, kinetic, para_env, rho_ao)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+         extension=".linresLog")
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-                    kinetic=kinetic,rho=rho,para_env=para_env,error=error)
+                    kinetic=kinetic,rho=rho,para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     DO ispin=1,dft_control%nspins
        CALL calculate_ptrace(kinetic(1)%matrix,rho_ao(ispin)%matrix,&
-                             ecore=epr_g_zke_temp(ispin),error=error)
+                             ecore=epr_g_zke_temp(ispin))
     END DO
 
     epr_env%g_zke = epr_env%g_zke_factor * ( epr_g_zke_temp(1) - epr_g_zke_temp(2) )
@@ -276,7 +270,7 @@ CONTAINS
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
+         "PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE epr_g_zke
 
@@ -286,19 +280,16 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_so(epr_env,current_env,qs_env,iB,error)
+  SUBROUTINE epr_g_so(epr_env,current_env,qs_env,iB)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_so', &
       routineP = moduleN//':'//routineN
@@ -350,11 +341,11 @@ CONTAINS
       jrho1_set, logger, lr_section, nablavks_atom, nablavks_atom_set,&
       nablavks_set, para_env, particle_set, jrho2_r, jrho3_r, nrho1_r, nrho2_r, nrho3_r)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+         extension=".linresLog")
 
     failure = .FALSE.
 
@@ -362,8 +353,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     para_env=para_env,pw_env=pw_env,&
-                    particle_set=particle_set,&
-                    error=error)
+                    particle_set=particle_set)
 
     CALL get_epr_env(epr_env=epr_env,&
                      nablavks_set=nablavks_set,&
@@ -371,8 +361,7 @@ CONTAINS
                      g_total=g_total,g_so=g_so)
 
     CALL get_current_env(current_env=current_env,&
-                         jrho1_set=jrho1_set,jrho1_atom_set=jrho1_atom_set,&
-                         error=error)
+                         jrho1_set=jrho1_set,jrho1_atom_set=jrho1_atom_set)
 
     gapw = dft_control%qs_control%gapw
     nkind = SIZE(qs_kind_set,1)
@@ -383,13 +372,13 @@ CONTAINS
        ! j_pw x nabla_vks_pw
        temp_so_soft = 0.0_dp
        DO ispin=1,nspins
-          CALL qs_rho_get(jrho1_set(idir2)%rho, rho_r=jrho2_r, error=error)
-          CALL qs_rho_get(jrho1_set(idir3)%rho, rho_r=jrho3_r, error=error)
-          CALL qs_rho_get(nablavks_set(idir2,ispin)%rho, rho_r=nrho2_r, error=error)
-          CALL qs_rho_get(nablavks_set(idir3,ispin)%rho, rho_r=nrho3_r, error=error)
+          CALL qs_rho_get(jrho1_set(idir2)%rho, rho_r=jrho2_r)
+          CALL qs_rho_get(jrho1_set(idir3)%rho, rho_r=jrho3_r)
+          CALL qs_rho_get(nablavks_set(idir2,ispin)%rho, rho_r=nrho2_r)
+          CALL qs_rho_get(nablavks_set(idir3,ispin)%rho, rho_r=nrho3_r)
           temp_so_soft = temp_so_soft + (-1.0_dp)**(1 + ispin) * ( &
-                         pw_integral_ab(jrho2_r(ispin)%pw, nrho3_r(1)%pw, error=error) - &
-                         pw_integral_ab(jrho3_r(ispin)%pw, nrho2_r(1)%pw, error=error)   )
+                         pw_integral_ab(jrho2_r(ispin)%pw, nrho3_r(1)%pw) - &
+                         pw_integral_ab(jrho3_r(ispin)%pw, nrho2_r(1)%pw)   )
        END DO
        temp_so_soft = -1.0_dp * epr_env%g_so_factor * temp_so_soft
        IF (output_unit>0) THEN
@@ -401,39 +390,37 @@ CONTAINS
 
     IF (gapw) THEN
 
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
        ALLOCATE(vks_pw_spline(3,nspins),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        interp_section =>  section_vals_get_subs_vals(lr_section,&
-                           "EPR%INTERPOLATOR",error=error)
+                           "EPR%INTERPOLATOR")
        CALL section_vals_val_get(interp_section,"aint_precond", &
-                           i_val=aint_precond, error=error)
-       CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind,error=error)
-       CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter,error=error)
-       CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r,error=error)
-       CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x,error=error)
+                           i_val=aint_precond)
+       CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind)
+       CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter)
+       CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r)
+       CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x)
 
        DO ispin = 1,nspins
           DO idir1 = 1,3
              CALL pw_pool_create_pw(auxbas_pw_pool,&
                                     vks_pw_spline(idir1,ispin)%pw,&
-                                    use_data=REALDATA3D,in_space=REALSPACE,&
-                                    error=error)
+                                    use_data=REALDATA3D,in_space=REALSPACE)
              ! calculate spline coefficients
              CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-                     pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
-             CALL qs_rho_get(nablavks_set(idir1,ispin)%rho, rho_r=nrho1_r, error=error)
+                     pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.)
+             CALL qs_rho_get(nablavks_set(idir1,ispin)%rho, rho_r=nrho1_r)
              CALL pw_spline_do_precond(precond, nrho1_r(1)%pw,&
-                     vks_pw_spline(idir1,ispin)%pw,error=error)
-             CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+                     vks_pw_spline(idir1,ispin)%pw)
+             CALL pw_spline_precond_set_kind(precond,precond_kind)
              success=find_coeffs(values=nrho1_r(1)%pw,&
                      coeffs=vks_pw_spline(idir1,ispin)%pw,linOp=spl3_pbc,&
                      preconditioner=precond,pool=auxbas_pw_pool,&
-                     eps_r=eps_r,eps_x=eps_x,max_iter=max_iter,&
-                     error=error)
-             CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-             CALL pw_spline_precond_release(precond,error=error)
+                     eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
+             CPPostconditionNoFail(success,cp_warning_level,routineP)
+             CALL pw_spline_precond_release(precond)
           END DO ! idir1
        END DO ! ispin
 
@@ -446,7 +433,7 @@ CONTAINS
                            hard_radius=hard_radius,&
                            grid_atom=grid_atom,&
                            harmonics=harmonics,&
-                           paw_atom=paw_atom, error=error)
+                           paw_atom=paw_atom)
 
           IF (.NOT.paw_atom) CYCLE
 
@@ -472,9 +459,9 @@ CONTAINS
                          ra = particle_set(iatom)%r
                          ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
                          vks_ra_idir2 = Eval_Interp_Spl3_pbc(ra,&
-                                        vks_pw_spline(idir2,ispin)%pw,error)
+                                        vks_pw_spline(idir2,ispin)%pw)
                          vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra,&
-                                        vks_pw_spline(idir3,ispin)%pw,error)
+                                        vks_pw_spline(idir3,ispin)%pw)
 
                          IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty:
                          !                                    !here take care of the partition
@@ -553,20 +540,19 @@ CONTAINS
 
        DO ispin = 1,nspins
           DO idir1 = 1,3
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,vks_pw_spline(idir1,ispin)%pw,&
-                                       error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,vks_pw_spline(idir1,ispin)%pw)
           END DO
        END DO
 
        DEALLOCATE(vks_pw_spline,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     END IF ! gapw
 
     g_total(iB,:) = g_total(iB,:) + g_so(iB,:)
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
+         "PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE epr_g_so
 
@@ -576,19 +562,16 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_soo(epr_env,current_env,qs_env,iB,error)
+  SUBROUTINE epr_g_soo(epr_env,current_env,qs_env,iB)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_soo', &
       routineP = moduleN//':'//routineN
@@ -639,30 +622,29 @@ CONTAINS
          logger, lr_section, para_env, particle_set, rho, rho_atom, &
          rho_atom_set, rho_r, brho1_r)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+         extension=".linresLog")
 
     g_section => section_vals_get_subs_vals(lr_section,&
-                 "EPR%PRINT%G_TENSOR",error=error)
+                 "EPR%PRINT%G_TENSOR")
 
-    CALL section_vals_val_get(g_section,"soo_rho_hard",l_val=soo_rho_hard,error=error)
+    CALL section_vals_val_get(g_section,"soo_rho_hard",l_val=soo_rho_hard)
 
     failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,para_env=para_env,particle_set=particle_set,&
-                    pw_env=pw_env,rho=rho,rho_atom_set=rho_atom_set,error=error)
+                    pw_env=pw_env,rho=rho,rho_atom_set=rho_atom_set)
 
     CALL get_epr_env(epr_env=epr_env,bind_set=bind_set,&
                      g_soo=g_soo,g_total=g_total)
 
     CALL get_current_env(current_env=current_env,&
-                         chi_tensor=chi_tensor,&
-                         error=error)
-    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+                         chi_tensor=chi_tensor)
+    CALL qs_rho_get(rho, rho_r=rho_r)
 
     gapw = dft_control%qs_control%gapw
     nkind = SIZE(qs_kind_set,1)
@@ -671,9 +653,9 @@ CONTAINS
     DO idir1=1,3
        temp_soo_soft = 0.0_dp
        DO ispin=1,nspins
-          CALL qs_rho_get(bind_set(idir1,iB)%rho, rho_r=brho1_r, error=error)
+          CALL qs_rho_get(bind_set(idir1,iB)%rho, rho_r=brho1_r)
           temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1 +ispin) * &
-                  pw_integral_ab(brho1_r(1)%pw, rho_r(ispin)%pw ,error=error)
+                  pw_integral_ab(brho1_r(1)%pw, rho_r(ispin)%pw)
        END DO
        temp_soo_soft = 1.0_dp * epr_env%g_soo_factor * temp_soo_soft
        IF (output_unit>0) THEN
@@ -695,38 +677,36 @@ CONTAINS
 
     IF (gapw .AND. soo_rho_hard) THEN
 
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
        ALLOCATE(bind_pw_spline(3,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        interp_section =>  section_vals_get_subs_vals(lr_section,&
-                           "EPR%INTERPOLATOR",error=error)
+                           "EPR%INTERPOLATOR")
        CALL section_vals_val_get(interp_section,"aint_precond", &
-                           i_val=aint_precond, error=error)
-       CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind,error=error)
-       CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter,error=error)
-       CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r,error=error)
-       CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x,error=error)
+                           i_val=aint_precond)
+       CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind)
+       CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter)
+       CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r)
+       CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x)
 
        DO idir1 = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,&
                                  bind_pw_spline(idir1,iB)%pw,&
-                                 use_data=REALDATA3D,in_space=REALSPACE,&
-                                 error=error)
+                                 use_data=REALDATA3D,in_space=REALSPACE)
           ! calculate spline coefficients
           CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-                   pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
-          CALL qs_rho_get(bind_set(idir1,iB)%rho, rho_r=brho1_r, error=error)
+                   pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.)
+          CALL qs_rho_get(bind_set(idir1,iB)%rho, rho_r=brho1_r)
           CALL pw_spline_do_precond(precond, brho1_r(1)%pw,&
-                                    bind_pw_spline(idir1,iB)%pw,error=error)
-          CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+                                    bind_pw_spline(idir1,iB)%pw)
+          CALL pw_spline_precond_set_kind(precond,precond_kind)
           success=find_coeffs(values=brho1_r(1)%pw,&
                   coeffs=bind_pw_spline(idir1,iB)%pw,linOp=spl3_pbc,&
                   preconditioner=precond,pool=auxbas_pw_pool,&
-                  eps_r=eps_r,eps_x=eps_x,max_iter=max_iter,&
-                  error=error)
-          CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-          CALL pw_spline_precond_release(precond,error=error)
+                  eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
+          CPPostconditionNoFail(success,cp_warning_level,routineP)
+          CALL pw_spline_precond_release(precond)
        END DO ! idir1
 
        temp_soo_gapw = 0.0_dp
@@ -738,7 +718,7 @@ CONTAINS
                            hard_radius=hard_radius,&
                            grid_atom=grid_atom,&
                            harmonics=harmonics,&
-                           paw_atom=paw_atom, error=error)
+                           paw_atom=paw_atom)
 
           IF (.NOT.paw_atom) CYCLE
 
@@ -764,7 +744,7 @@ CONTAINS
                          ra = particle_set(iatom)%r
                          ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
                          bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra,&
-                                         bind_pw_spline(idir1,iB)%pw,error)
+                                         bind_pw_spline(idir1,iB)%pw)
 
                          IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty:
                          !                                    !here take care of the partition
@@ -803,19 +783,18 @@ CONTAINS
        g_soo(iB,:) = g_soo(iB,:) + temp_soo_gapw(iB,:)
 
        DO idir1 = 1,3
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,bind_pw_spline(idir1,iB)%pw,&
-                                    error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,bind_pw_spline(idir1,iB)%pw)
        END DO
 
        DEALLOCATE(bind_pw_spline,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     END IF ! gapw
 
     g_total(iB,:) = g_total(iB,:) + g_soo(iB,:)
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
+         "PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE epr_g_soo
 
@@ -825,15 +804,13 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error)
+  SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,iB)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_ind_magnetic_field', &
       routineP = moduleN//':'//routineN
@@ -866,43 +843,41 @@ CONTAINS
          rho_gspace, pw_pools, particle_set, jrho1_g, epr_rho_r)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
-                    particle_set=particle_set,error=error)
+                    particle_set=particle_set)
 
     gapw = dft_control%qs_control%gapw
     natom = SIZE(particle_set,1)
     nspins = dft_control%nspins
 
-    CALL get_epr_env(epr_env=epr_env,&
-                     error=error)
+    CALL get_epr_env(epr_env=epr_env)
 
-    CALL get_current_env(current_env=current_env,error=error)
+    CALL get_current_env(current_env=current_env)
 
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
-                    auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-                    error=error)
+                    auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools)
     !
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
     ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
                                   use_data=COMPLEXDATA1D,&
-                                  in_space=RECIPROCALSPACE,error=error)
-          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw,error=error)
+                                  in_space=RECIPROCALSPACE)
+          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
     CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
-                           use_data=REALDATA3D,in_space=REALSPACE,error=error)
-    CALL pw_zero(shift_pw_rspace%pw,error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE)
+    CALL pw_zero(shift_pw_rspace%pw)
     CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
                            use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE,error=error)
+                           in_space=RECIPROCALSPACE)
 
-    CALL pw_zero(pw_gspace_work%pw,error=error)
+    CALL pw_zero(pw_gspace_work%pw)
     !
     CALL set_vecp(iB,iiB,iiiB)
     !
@@ -910,10 +885,10 @@ CONTAINS
        !
        DO idir3=1,3
           ! set to zero for the calculation of the shift
-          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw,error=error)
+          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
        ENDDO
        DO idir = 1,3
-          CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g, error=error)
+          CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
           rho_gspace => jrho1_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z
@@ -921,13 +896,13 @@ CONTAINS
              IF(idir /= idir2) THEN
                 ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
                 CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
-                                       pw_gspace_work,idir2,0.0_dp,error=error)
+                                       pw_gspace_work,idir2,0.0_dp)
                 !
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)
                 scale_fac=fac_vecp(idir3,idir2,idir)
-                CALL pw_scale(pw_gspace_work%pw,scale_fac,error=error)
-                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,error=error)
+                CALL pw_scale(pw_gspace_work%pw,scale_fac)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
              ENDIF
           ENDDO
           !
@@ -937,22 +912,21 @@ CONTAINS
     ! Store the total soft induced magnetic field (corrected for sic)
     IF (dft_control%nspins == 2) THEN
        DO idir = 1,3
-          CALL qs_rho_get(epr_env%bind_set(idir,iB)%rho, rho_r=epr_rho_r, error=error)
-          CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_rho_r(1)%pw,&
-               error=error)
+          CALL qs_rho_get(epr_env%bind_set(idir,iB)%rho, rho_r=epr_rho_r)
+          CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_rho_r(1)%pw)
        ENDDO
     END IF
     !
     ! Dellocate grids for the calculation of jrho and the shift
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw)
     DO ispin = 1,dft_control%nspins
        DO idir = 1,3
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
     DEALLOCATE(shift_pw_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw)
     !
     ! Finalize
     CALL timestop(handle)

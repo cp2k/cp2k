@@ -52,12 +52,11 @@ CONTAINS
 !> \param dt ...
 !> \param ishake ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_3x3_int( molecule, particle_set, pos, vel, dt, ishake,&
-       max_sigma, error)
+       max_sigma)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -65,7 +64,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
     TYPE(fixd_constraint_type), &
@@ -82,7 +80,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Shake
     CALL shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, dt, ishake, max_sigma, error)
+       particle_set, pos, vel, dt, ishake, max_sigma)
 
   END SUBROUTINE shake_3x3_int
 
@@ -97,12 +95,11 @@ CONTAINS
 !> \param dt ...
 !> \param ishake ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_roll_3x3_int( molecule, particle_set, pos, vel, r_shake,  &
-       v_shake, dt, ishake, max_sigma, error )
+       v_shake, dt, ishake, max_sigma)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -112,7 +109,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
     TYPE(fixd_constraint_type), &
@@ -129,8 +125,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Shake
     CALL shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
-       error )
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma)
 
   END SUBROUTINE shake_roll_3x3_int
 
@@ -142,11 +137,10 @@ CONTAINS
 !> \param r_rattle ...
 !> \param dt ...
 !> \param veps ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_roll_3x3_int( molecule, particle_set, vel, r_rattle, dt, veps, error)
+  SUBROUTINE rattle_roll_3x3_int( molecule, particle_set, vel, r_rattle, dt, veps)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -156,7 +150,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: veps
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
@@ -173,7 +166,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Rattle
     CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
-       particle_set, vel, r_rattle, dt, veps, error)
+       particle_set, vel, r_rattle, dt, veps)
 
   END SUBROUTINE rattle_roll_3x3_int
 
@@ -183,17 +176,15 @@ CONTAINS
 !> \param particle_set ...
 !> \param vel ...
 !> \param dt ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_3x3_int( molecule, particle_set, vel, dt, error)
+  SUBROUTINE rattle_3x3_int( molecule, particle_set, vel, dt)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
@@ -210,7 +201,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Rattle
     CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
-       particle_set, vel, dt, error)
+       particle_set, vel, dt)
 
   END SUBROUTINE rattle_3x3_int
 
@@ -223,12 +214,11 @@ CONTAINS
 !> \param dt ...
 !> \param ishake ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_3x3_ext( gci, particle_set, pos, vel, dt, ishake,&
-       max_sigma, error)
+       max_sigma)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -236,7 +226,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
     TYPE(fixd_constraint_type), &
@@ -252,7 +241,7 @@ CONTAINS
     lg3x3     => gci%lg3x3
     ! Real Shake
     CALL shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, dt, ishake, max_sigma, error)
+       particle_set, pos, vel, dt, ishake, max_sigma)
 
   END SUBROUTINE shake_3x3_ext
 
@@ -267,12 +256,11 @@ CONTAINS
 !> \param dt ...
 !> \param ishake ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_roll_3x3_ext(gci, particle_set, pos, vel, r_shake,  &
-       v_shake, dt, ishake, max_sigma, error )
+       v_shake, dt, ishake, max_sigma)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -282,7 +270,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
     TYPE(fixd_constraint_type), &
@@ -298,8 +285,7 @@ CONTAINS
     lg3x3     => gci%lg3x3
     ! Real Shake
     CALL shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
-       error )
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma)
 
   END SUBROUTINE shake_roll_3x3_ext
 
@@ -311,11 +297,10 @@ CONTAINS
 !> \param r_rattle ...
 !> \param dt ...
 !> \param veps ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_roll_3x3_ext( gci, particle_set, vel, r_rattle, dt, veps, error)
+  SUBROUTINE rattle_roll_3x3_ext( gci, particle_set, vel, r_rattle, dt, veps)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -325,7 +310,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: veps
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
@@ -340,7 +324,7 @@ CONTAINS
     lg3x3     => gci%lg3x3
     ! Real Rattle
     CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
-       particle_set, vel, r_rattle, dt, veps, error)
+       particle_set, vel, r_rattle, dt, veps)
 
   END SUBROUTINE rattle_roll_3x3_ext
 
@@ -350,17 +334,15 @@ CONTAINS
 !> \param particle_set ...
 !> \param vel ...
 !> \param dt ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_3x3_ext( gci, particle_set, vel, dt, error)
+  SUBROUTINE rattle_3x3_ext( gci, particle_set, vel, dt)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
@@ -375,7 +357,7 @@ CONTAINS
     lg3x3     => gci%lg3x3
     ! Real Rattle
     CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
-       particle_set, vel, dt, error)
+       particle_set, vel, dt)
 
   END SUBROUTINE rattle_3x3_ext
 
@@ -392,12 +374,11 @@ CONTAINS
 !> \param dt ...
 !> \param ishake ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, dt, ishake, max_sigma, error)
+       particle_set, pos, vel, dt, ishake, max_sigma)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -410,7 +391,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c
@@ -555,12 +535,11 @@ CONTAINS
 !> \param dt ...
 !> \param ishake ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma, error )
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -575,7 +554,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c
@@ -735,12 +713,11 @@ CONTAINS
 !> \param r_rattle ...
 !> \param dt ...
 !> \param veps ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
-       particle_set, vel, r_rattle, dt, veps, error)
+       particle_set, vel, r_rattle, dt, veps)
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -754,7 +731,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: veps
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c
@@ -846,12 +822,11 @@ CONTAINS
 !> \param particle_set ...
 !> \param vel ...
 !> \param dt ...
-!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
-       particle_set, vel, dt, error)
+       particle_set, vel, dt)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -862,7 +837,6 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c

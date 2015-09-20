@@ -76,13 +76,11 @@ MODULE qs_efield_local
 !> \param qs_env ...
 !> \param just_energy ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efield_local_operator(qs_env,just_energy,calculate_forces,error)
+  SUBROUTINE qs_efield_local_operator(qs_env,just_energy,calculate_forces)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_local_operator', &
       routineP = moduleN//':'//routineN
@@ -96,12 +94,12 @@ MODULE qs_efield_local
 
     NULLIFY(dft_control)
     CALL get_qs_env(qs_env,s_mstruct_changed=s_mstruct_changed,&
-                    dft_control=dft_control,error=error)
+                    dft_control=dft_control)
 
     IF(dft_control%apply_efield)THEN
        rpoint = 0.0_dp
-       IF(s_mstruct_changed) CALL qs_efield_integrals(qs_env,rpoint,error)
-       CALL qs_efield_mo_derivatives(qs_env,rpoint,just_energy,calculate_forces,error)
+       IF(s_mstruct_changed) CALL qs_efield_integrals(qs_env,rpoint)
+       CALL qs_efield_mo_derivatives(qs_env,rpoint,just_energy,calculate_forces)
     END IF
 
     CALL timestop(handle)
@@ -112,13 +110,11 @@ MODULE qs_efield_local
 !> \brief ...
 !> \param qs_env ...
 !> \param rpoint ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efield_integrals (qs_env,rpoint,error)
+  SUBROUTINE qs_efield_integrals (qs_env,rpoint)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rpoint
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_integrals', &
       routineP = moduleN//':'//routineN
@@ -132,24 +128,24 @@ MODULE qs_efield_local
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)
     NULLIFY (matrix_s)
-    CALL get_qs_env(qs_env=qs_env,efield=efield,matrix_s=matrix_s,error=error)
-    CALL init_efield_matrices(efield,error)
+    CALL get_qs_env(qs_env=qs_env,efield=efield,matrix_s=matrix_s)
+    CALL init_efield_matrices(efield)
     ALLOCATE(dipmat(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i=1,3
        ALLOCATE(dipmat(i)%matrix,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_dbcsr_init(dipmat(i)%matrix,error=error)
-       CALL cp_dbcsr_copy(dipmat(i)%matrix,matrix_s(1)%matrix,'DIP MAT',error=error)
-       CALL cp_dbcsr_set(dipmat(i)%matrix,0.0_dp,error=error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CALL cp_dbcsr_init(dipmat(i)%matrix)
+       CALL cp_dbcsr_copy(dipmat(i)%matrix,matrix_s(1)%matrix,'DIP MAT')
+       CALL cp_dbcsr_set(dipmat(i)%matrix,0.0_dp)
     END DO
-    CALL build_local_moment_matrix(qs_env,dipmat,1,rpoint,error=error)
+    CALL build_local_moment_matrix(qs_env,dipmat,1,rpoint)
     CALL set_efield_matrices(efield=efield,dipmat=dipmat)
-    CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
+    CALL set_qs_env(qs_env=qs_env,efield=efield)
     CALL timestop(handle)
 
   END SUBROUTINE qs_efield_integrals
@@ -160,13 +156,11 @@ MODULE qs_efield_local
 !> \param rpoint ...
 !> \param just_energy ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efield_mo_derivatives(qs_env,rpoint,just_energy,calculate_forces,error)
+  SUBROUTINE qs_efield_mo_derivatives(qs_env,rpoint,just_energy,calculate_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rpoint
     LOGICAL                                  :: just_energy, calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_mo_derivatives', &
       routineP = moduleN//':'//routineN
@@ -219,10 +213,10 @@ MODULE qs_efield_local
 
     NULLIFY(dft_control,cell,particle_set)
     CALL get_qs_env(qs_env,dft_control=dft_control,cell=cell,&
-         particle_set=particle_set,error=error)
+         particle_set=particle_set)
     NULLIFY(qs_kind_set,efield,para_env,sab_orb)
     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,&
-         efield=efield,energy=energy,para_env=para_env,sab_orb=sab_orb,error=error)
+         efield=efield,energy=energy,para_env=para_env,sab_orb=sab_orb)
 
     fieldpol=dft_control%efield_fields(1)%efield%polarisation*&
              dft_control%efield_fields(1)%efield%strength
@@ -230,15 +224,15 @@ MODULE qs_efield_local
     ! nuclear contribution
     natom = SIZE(particle_set)
     IF (calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force,error=error)
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     ci = 0.0_dp
     DO ia = 1,natom
        CALL get_atomic_kind(particle_set(ia)%atomic_kind,kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge,error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge)
        ria = particle_set(ia)%r - rpoint
        ria = pbc(ria,cell)
        ci(:) = ci(:) + charge * ria(:)
@@ -256,11 +250,11 @@ MODULE qs_efield_local
     ! Energy
     dipmat => efield%dipmat
     NULLIFY(rho,matrix_p)
-    CALL get_qs_env(qs_env=qs_env,rho=rho,error=error)
-    CALL qs_rho_get(rho,rho_ao=matrix_p,error=error)
+    CALL get_qs_env(qs_env=qs_env,rho=rho)
+    CALL qs_rho_get(rho,rho_ao=matrix_p)
     DO ispin = 1,SIZE(matrix_p)
        DO idir=1,3
-          CALL cp_dbcsr_trace(matrix_p(ispin)%matrix,dipmat(idir)%matrix,tmp,error=error)
+          CALL cp_dbcsr_trace(matrix_p(ispin)%matrix,dipmat(idir)%matrix,tmp)
           ener_field = ener_field + fieldpol(idir)*tmp
        END DO
     END DO
@@ -270,11 +264,11 @@ MODULE qs_efield_local
 
        ! Update KS matrix
        NULLIFY(matrix_ks)
-       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks)
        DO ispin = 1,SIZE(matrix_ks)
           DO idir=1,3
              CALL cp_dbcsr_add(matrix_ks(ispin)%matrix,dipmat(idir)%matrix, &
-                            alpha_scalar=1.0_dp,beta_scalar=fieldpol(idir),error=error)
+                            alpha_scalar=1.0_dp,beta_scalar=fieldpol(idir))
           END DO
        END DO
 
@@ -284,10 +278,10 @@ MODULE qs_efield_local
           natom = SIZE(particle_set)
 
           ALLOCATE (basis_set_list(nkind),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
-             CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+             CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
              IF (ASSOCIATED(basis_set_a)) THEN
                 basis_set_list(ikind)%gto_basis_set => basis_set_a
              ELSE
@@ -354,7 +348,7 @@ MODULE qs_efield_local
              IF(SIZE(matrix_p) > 1) THEN
                 NULLIFY(p_block_b)
                 CALL cp_dbcsr_get_block_p(matrix_p(2)%matrix,irow,icol,p_block_b,found)
-                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                CPPostcondition(found,cp_failure_level,routineP,failure)
              END IF
              forcea = 0.0_dp
              forceb = 0.0_dp
@@ -369,7 +363,7 @@ MODULE qs_efield_local
                    ! Calculate the primitive integrals (da|O|b) and (a|O|db)
                    ldab = MAX(ncoa,ncob)
                    ALLOCATE (work(ldab,ldab),pmat(ncoa,ncob),STAT=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
                    ! Decontract P matrix block
                    pmat = 0.0_dp
                    DO i=1,SIZE(matrix_p)
@@ -397,10 +391,10 @@ MODULE qs_efield_local
 
                    CALL dipole_force(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                      lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                                     1,rac,rbc,pmat,forcea,forceb,error)
+                                     1,rac,rbc,pmat,forcea,forceb)
 
                    DEALLOCATE (work,pmat,STAT=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
                 END DO
              END DO
 
@@ -414,7 +408,7 @@ MODULE qs_efield_local
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)
           DEALLOCATE (basis_set_list,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END IF
 
     END IF
@@ -424,7 +418,7 @@ MODULE qs_efield_local
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
        DEALLOCATE (atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL timestop(handle)

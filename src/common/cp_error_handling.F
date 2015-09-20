@@ -43,8 +43,6 @@ MODULE cp_error_handling
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
-  !API types
-  PUBLIC :: cp_error_type, cp_error_get_logger
   !API parameters var
   PUBLIC :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
@@ -83,63 +81,8 @@ MODULE cp_error_handling
   !! error number: not implemented
   INTEGER, PARAMETER :: cp_unimplemented_error_nr = -1000
 
-! *****************************************************************************
-!> \brief this type represent a structure that can be passed to
-!>      the functions to change their error behaviour.
-!>      It should always be initialized with cp_error_init before use
-!> \param initialized true if initialized (just for bug catching)
-!> \param logger a pointer to the logger where error logs should go
-!>          (if null they go to cp_default_logger)
-!> \param stop_level the level at which the execution stops
-!> \param print_level starting at which level something gets printed
-!> \param level level of the error (0 = cp_note_level=no error,
-!>           cp_warning_level, cp_failure_level or cp_fatal_level=3).
-!>           Definition of these constants is in cp_log_handling.
-!> \param error_nr the number of the error (0 = no error)
-!> \param info some additional info to store (error message, string ...)
-!> \note
-!>      if one of level or error_nr is different from 0 then both must be
-!>      different from 0.
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 2.2002
-! *****************************************************************************
-  TYPE cp_error_type
-   ! empty :-)
-   PRIVATE
-   INTEGER :: dummy = 42 ! ifort workaround
-  END TYPE cp_error_type
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief gets the logger of the given error.
-!>      The error argument is optional, so you can get the logger
-!>      of an optional dummy argument.
-!>      If the error is not present or its logger is not associated
-!>      returns the default logger.
-!> \param error the error you take the info from (optional)
-!> \retval res ...
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 1.2002
-! *****************************************************************************
-  FUNCTION cp_error_get_logger(error) RESULT(res)
-    TYPE(cp_error_type), INTENT(in), &
-      OPTIONAL                               :: error
-    TYPE(cp_logger_type), POINTER            :: res
-
-    NULLIFY(res)
-    res => cp_get_default_logger()
-    IF (.NOT.ASSOCIATED(res)) THEN
-       CALL cp_error_common_stop('cp_error_handling:cp_error_get_logger',&
-            ' cp_default_logger is not associated')
-    END IF
-  END FUNCTION cp_error_get_logger
-
-! =================== error handling ===================
 
 ! *****************************************************************************
 !> \brief a subroutine that call just stop, useful because all the failures
@@ -170,21 +113,18 @@ CONTAINS
 !> \param fromWhere a string that contains the module name and routine name
 !>            where this test happened
 !> \param message the error message
-!> \param error the error type that controls error reporting (optional)
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !>      @version 1.2002
 ! *****************************************************************************
-  SUBROUTINE cp_error_message(level, fromWhere, message, error)
+  SUBROUTINE cp_error_message(level, fromWhere, message)
     INTEGER, INTENT(in)                      :: level
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
-    TYPE(cp_error_type), INTENT(in), &
-      OPTIONAL                               :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     CALL cp_log(logger, level, fromWhere, message,local=.TRUE.)
   END SUBROUTINE cp_error_message
 
@@ -199,7 +139,6 @@ CONTAINS
 !> \param fromWhere a string that contains the module name and routine name
 !>            where this test happened
 !> \param message the error message
-!> \param error the error type that controls error reporting (optional)
 !> \param failure is set to true if the condition is false otherwise
 !>            it is not changed (optional)
 !> \param only_ionode ...
@@ -209,13 +148,11 @@ CONTAINS
 !>      @version 1.2002
 ! *****************************************************************************
   SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
-       message, error,failure,only_ionode)
+       message,failure,only_ionode)
     !! the condition that is checked, if false, an error did happen
     LOGICAL, INTENT(in)                      :: condition
     INTEGER, INTENT(in)                      :: level, error_nr
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
     LOGICAL, INTENT(in), OPTIONAL            :: only_ionode
 
@@ -227,7 +164,7 @@ CONTAINS
 
     IF (.NOT. condition) THEN
        IF (PRESENT(failure)) failure=.TRUE.
-       logger => cp_error_get_logger(error)
+       logger => cp_get_default_logger()
 
        myonly_ionode = .FALSE.
        IF(PRESENT(only_ionode)) myonly_ionode = only_ionode
@@ -253,19 +190,15 @@ CONTAINS
 !> \brief comodity call to signat that something is not implemented
 !> \param fromWhere routine where the error happened
 !> \param message the message to write out (UNIMPLEMENTED is added to it)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param error_level the error level of this error, defaults to
 !>        cp_failure_level
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
+  SUBROUTINE cp_unimplemented_error(fromWhere, message,error_level)
     CHARACTER(len=*), INTENT(in)             :: fromWhere
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: message
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
     INTEGER, INTENT(in), OPTIONAL            :: error_level
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unimplemented_error', &
@@ -278,10 +211,10 @@ CONTAINS
     IF(PRESENT(error_level)) err_l=error_level
     IF (PRESENT(message)) THEN
        CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
-            fromWhere, "UNIMPLEMENTED, "//message, error=error)
+            fromWhere, "UNIMPLEMENTED, "//message)
     ELSE
        CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
-            fromWhere, "UNIMPLEMENTED", error=error)
+            fromWhere, "UNIMPLEMENTED")
     END IF
   END SUBROUTINE cp_unimplemented_error
 
@@ -291,25 +224,21 @@ CONTAINS
 !> \param level ...
 !> \param fromWhere ...
 !> \param lineNr ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param failure ...
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE cp_a_l(level, fromWhere, lineNr, error, failure)
+  SUBROUTINE cp_a_l(level, fromWhere, lineNr,failure)
     INTEGER, INTENT(in)                      :: level
     CHARACTER(len=*), INTENT(in)             :: fromWhere
     INTEGER, INTENT(in)                      :: lineNr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
 
     CALL cp_assert(.FALSE.,level=level,error_nr=cp_assertion_failed,&
          fromWhere=fromWhere,&
          message="condition FAILED at line "//TRIM(ADJUSTL(cp_to_string(lineNr))),&
-         error=error, failure=failure)
+         failure=failure)
   END SUBROUTINE cp_a_l
 
 END MODULE cp_error_handling

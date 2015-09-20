@@ -64,20 +64,17 @@ CONTAINS
 !> \param para_env ...
 !> \param force_env_section ...
 !> \param subsys_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
   SUBROUTINE eip_init(eip_env, root_section, para_env, force_env_section,&
-       subsys_section, error)
+       subsys_section)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init', &
       routineP = moduleN//':'//routineN
@@ -94,36 +91,36 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
 
     ! nullifying  pointers
     NULLIFY(cell_section, colvar_section, eip_section, cell, cell_ref, &
          subsys)
 
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
-       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
     END IF
-    cell_section => section_vals_get_subs_vals(subsys_section,"CELL", error=error)
-    colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR", error=error)
-    eip_section => section_vals_get_subs_vals(force_env_section,"EIP", error=error)
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL")
+    colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR")
+    eip_section => section_vals_get_subs_vals(force_env_section,"EIP")
 
     CALL eip_env_set(eip_env=eip_env, eip_input=eip_section, &
-                     force_env_input=force_env_section, error=error)
+                     force_env_input=force_env_section)
 
     CALL read_cell(cell=cell, cell_ref=cell_ref, use_ref_cell=use_ref_cell,cell_section=cell_section, &
-                   para_env=para_env, error=error)
+                   para_env=para_env)
     CALL get_cell(cell=cell, abc=abc)
-    CALL write_cell(cell=cell, subsys_section=subsys_section,error=error)
+    CALL write_cell(cell=cell, subsys_section=subsys_section)
 
-    CALL cp_subsys_create(subsys, para_env, root_section, error=error)
+    CALL cp_subsys_create(subsys, para_env, root_section)
 
     CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, cell=cell, &
                          cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
-                         subsys_section=subsys_section,error=error)
+                         subsys_section=subsys_section)
 
-    CALL cell_release(cell, error=error)
-    CALL cell_release(cell_ref, error=error)
-    CALL cp_subsys_release(subsys, error=error)
+    CALL cell_release(cell)
+    CALL cell_release(cell_ref)
+    CALL cp_subsys_release(subsys)
 
     CALL timestop(handle)
 
@@ -137,19 +134,16 @@ CONTAINS
 !> \param cell_ref Pointer to the reference cell, used e.g. in NPT simulations
 !> \param use_ref_cell Logical which indicates if cell_ref is in use
 !> \param subsys_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, use_ref_cell, subsys_section, error)
+  SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, use_ref_cell, subsys_section)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_subsys', &
       routineP = moduleN//':'//routineN
@@ -182,18 +176,15 @@ CONTAINS
     molecule_set => subsys%molecules_new%els
 
 !   *** Print the molecule kind set ***
-    CALL write_molecule_kind_set(molecule_kind_set, subsys_section, &
-                                 error=error)
+    CALL write_molecule_kind_set(molecule_kind_set, subsys_section)
 
 !   *** Print the atomic coordinates
     CALL write_fist_particle_coordinates(particle_set,subsys_section, &
-                                         charges=Null(), error=error)
+                                         charges=Null())
     CALL write_particle_distances(particle_set, cell=cell, &
-                                  subsys_section=subsys_section, &
-                                  error=error)
+                                  subsys_section=subsys_section)
     CALL write_structure_data(particle_set, cell=cell, &
-                              input_section=subsys_section, &
-                              error=error)
+                              input_section=subsys_section)
 
 !   *** Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set, &
@@ -202,26 +193,25 @@ CONTAINS
                                  molecule_kind_set=molecule_kind_set, &
                                  molecule_set=molecule_set, &
                                  local_molecules=local_molecules, &
-                                 force_env_section=eip_env%force_env_input, &
-                                 error=error)
+                                 force_env_section=eip_env%force_env_input)
 
     natom = SIZE(particle_set)
 
     ALLOCATE(eip_env%eip_forces(3,natom), stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat == 0, cp_failure_level, routineP,failure)
 
     eip_env%eip_forces(:,:) = 0.0_dp
 
-    CALL cp_subsys_set(subsys, cell=cell, error=error)
+    CALL cp_subsys_set(subsys, cell=cell)
     CALL eip_env_set(eip_env=eip_env, subsys=subsys, &
                      cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                      local_molecules=local_molecules, &
-                     local_particles=local_particles, error=error)
+                     local_particles=local_particles)
 
-    CALL distribution_1d_release(local_particles, error=error)
-    CALL distribution_1d_release(local_molecules, error=error)
+    CALL distribution_1d_release(local_particles)
+    CALL distribution_1d_release(local_molecules)
 
-    CALL eip_init_model(eip_env=eip_env, error=error)
+    CALL eip_init_model(eip_env=eip_env)
 
     CALL timestop(handle)
 
@@ -230,15 +220,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize the empirical interatomic potnetial (force field) model
 !> \param eip_env The eip environment to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_init_model(eip_env, error)
+  SUBROUTINE eip_init_model(eip_env)
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_model', &
       routineP = moduleN//':'//routineN
@@ -257,7 +244,7 @@ CONTAINS
     NULLIFY(atomic_kind_set, atomic_kind_ptr, eip_section)
 
     eip_section => section_vals_get_subs_vals(eip_env%force_env_input, &
-                                              "EIP", error=error)
+                                              "EIP")
 
     atomic_kind_set => eip_env%subsys%atomic_kinds%els
 
@@ -270,13 +257,12 @@ CONTAINS
         CASE("SI", "Si")
           CALL section_vals_val_get(section_vals=eip_section, &
                                     keyword_name="EIP-Model", &
-                                    i_val=eip_env%eip_model, &
-                                    error=error)
+                                    i_val=eip_env%eip_model)
         CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="EIP models for other elements" //&
                "than Si isn't implemented yet.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
       END SELECT
     END DO
 

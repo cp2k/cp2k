@@ -110,10 +110,9 @@ CONTAINS
 !> \param rng_stream the stream we pull random numbers from
 !>
 !>    Suitable for parallel.
-!> \param error the error type
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE mc_run_ensemble ( mc_env, para_env, globenv, input_declaration, nboxes, rng_stream, error)
+  SUBROUTINE mc_run_ensemble ( mc_env, para_env, globenv, input_declaration, nboxes, rng_stream)
 
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
@@ -122,7 +121,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: input_declaration
     INTEGER, INTENT(IN)                      :: nboxes
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_run_ensemble', &
       routineP = moduleN//':'//routineN
@@ -192,7 +190,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
     ! nullify some pointers
@@ -200,23 +198,23 @@ CONTAINS
 
     ! allocate a whole bunch of stuff based on how many boxes we have
     ALLOCATE (force_env(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (bias_env(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (cell(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (particles_old(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (oldsys(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (averages(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (mc_par(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (pmvol_box(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (pmhmc_box(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ibox=1,nboxes
        CALL get_mc_env ( mc_env(ibox)%mc_env, &
@@ -227,8 +225,8 @@ CONTAINS
     ! Gather units of measure for output (if available)
     root_section => force_env(1)%force_env%root_section
     CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%UNIT",&
-         c_val=unit_str,error=error)
-    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+         c_val=unit_str)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
     ! get some data out of mc_par
     CALL get_mc_par(mc_par(1)%mc_par,&
@@ -254,9 +252,9 @@ CONTAINS
 
     ! allocate some stuff based on the number of molecule types we have
     ALLOCATE (moves(1:nmol_types,1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (move_updates(1:nmol_types,1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     IF(nboxes .GT. 1) THEN
        DO ibox=2,nboxes
@@ -283,7 +281,7 @@ CONTAINS
 
     ! allocate the particle positions array for broadcasting
     ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     ! figure out what the default write unit is
     iw = cp_logger_get_default_io_unit(logger)
@@ -313,10 +311,9 @@ CONTAINS
        ! find the energy of the initial configuration
        IF(SUM(nchains(:,ibox)) .NE. 0) THEN
           CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-               calc_force=.FALSE.,error=error)
+               calc_force=.FALSE.)
           CALL force_env_get(force_env(ibox)%force_env,&
-               potential_energy=old_energy(ibox),&
-               error=error)
+               potential_energy=old_energy(ibox))
        ELSE
           old_energy(ibox)=0.0E0_dp
        ENDIF
@@ -339,11 +336,10 @@ CONTAINS
 
        ! get the subsystems and the cell information
        CALL force_env_get(force_env(ibox)%force_env,&
-            subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
-            error=error)
+            subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell)
        CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
        CALL cp_subsys_get(oldsys(ibox)%subsys, &
-            particles=particles_old(ibox)%list, error=error)
+            particles=particles_old(ibox)%list)
        ! record the old coordinates, in case a move is rejected
        DO iparticle=1,nunits_tot(ibox)
           r_old(1:3,iparticle,ibox)=&
@@ -354,7 +350,7 @@ CONTAINS
        IF(lbias) THEN
           ! determine the atom names of every particle
           ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
           atom_number=1
           DO imolecule=1,SUM(nchains(:,ibox))
@@ -370,19 +366,19 @@ CONTAINS
           CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                r_old(:,:,ibox),atom_names_box(:),nunits_tot(ibox),&
                para_env,abc(:,ibox),nchains_box,input_declaration,mc_bias_file,&
-               ionode,error)
+               ionode)
           IF(SUM(nchains(:,ibox)) .NE. 0) THEN
              CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
-                  calc_force=.FALSE.,error=error)
+                  calc_force=.FALSE.)
              CALL force_env_get(bias_env(ibox)%force_env,&
-                  potential_energy=last_bias_energy(ibox),error=error)
+                  potential_energy=last_bias_energy(ibox))
 
           ELSE
              last_bias_energy(ibox)=0.0E0_dp
           ENDIF
           bias_energy(ibox)=last_bias_energy(ibox)
           DEALLOCATE(atom_names_box,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
        lnew_bias_env=.FALSE.
 
@@ -424,7 +420,7 @@ CONTAINS
           ELSE
              CALL write_particle_coordinates(particles_old(ibox)%list%els,&
                   com_crd,dump_xmol,'POS','INITIAL BOX ' // TRIM(ADJUSTL(cbox)),&
-                  unit_conv=unit_conv,error=error)
+                  unit_conv=unit_conv)
           ENDIF
           CALL open_file(file_name=data_file(ibox),&
                unit_number=data_unit(ibox),file_position='APPEND',&
@@ -478,7 +474,7 @@ CONTAINS
           WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
        ENDIF
 
-       IF (ionode) rand=next_random_number(rng_stream,error=error)
+       IF (ionode) rand=next_random_number(rng_stream)
        ! broadcast the random number, to make sure we're on the same move
        CALL mp_bcast(rand,source,group)
 
@@ -496,14 +492,14 @@ CONTAINS
                   moves(1,1)%moves,move_updates(1,1)%moves,&
                   old_energy(1),1,&
                   energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
-                  rng_stream,error=error)
+                  rng_stream)
           CASE("GEMC_NVT")
              CALL mc_ge_volume_move ( mc_par,force_env, moves,&
                   move_updates,nnstep,old_energy,energy_check,&
-                  r_old,rng_stream,error)
+                  r_old,rng_stream)
           CASE("GEMC_NPT")
              ! we need to select a box based on the probability given in the input file
-             IF (ionode) rand=next_random_number(rng_stream,error=error)
+             IF (ionode) rand=next_random_number(rng_stream)
              CALL mp_bcast(rand,source,group)
 
              DO ibox=1,nboxes
@@ -520,26 +516,25 @@ CONTAINS
                   old_energy(box_number),box_number,&
                   energy_check(box_number),r_old(:,:,box_number),iw,&
                   discrete_array(:,:),&
-                  rng_stream,error=error)
+                  rng_stream)
           END SELECT
 
 ! update all the pointers here, because otherwise we may pass wrong information when we're making a bias environment
           DO ibox=1,nboxes
              CALL force_env_get(force_env(ibox)%force_env,&
-                  subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
-                  error=error)
+                  subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell)
              CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
              CALL cp_subsys_get(oldsys(ibox)%subsys,&
-                  particles=particles_old(ibox)%list, error=error)
+                  particles=particles_old(ibox)%list)
           ENDDO
 
           ! we need a new biasing environment now, if we're into that sort of thing
           IF(lbias) THEN
              DO ibox=1,nboxes
-                CALL force_env_release(bias_env(ibox)%force_env,error=error)
+                CALL force_env_release(bias_env(ibox)%force_env)
                 ! determine the atom names of every particle
                 ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
                 start_mol=1
                 DO jbox=1,ibox-1
                    start_mol=start_mol+SUM(nchains(:,jbox))
@@ -556,8 +551,7 @@ CONTAINS
 
 ! need to find out what the cell lengths are
                 CALL force_env_get(force_env(ibox)%force_env,&
-                     subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
-                     error=error)
+                     subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell)
                 CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
 
                 CALL get_mc_par(mc_par(ibox)%mc_par,&
@@ -567,21 +561,20 @@ CONTAINS
                 CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      r_old(:,:,ibox),atom_names_box(:),nunits_tot(ibox),&
                      para_env,abc(:,ibox),nchains_box,input_declaration,&
-                     mc_bias_file,ionode,error)
+                     mc_bias_file,ionode)
 
                 IF(SUM(nchains(:,ibox)) .NE. 0) THEN
                    CALL force_env_calc_energy_force(&
                         bias_env(ibox)%force_env,&
-                        calc_force=.FALSE.,error=error)
+                        calc_force=.FALSE.)
                    CALL force_env_get(bias_env(ibox)%force_env,&
-                        potential_energy=last_bias_energy(ibox),&
-                        error=error)
+                        potential_energy=last_bias_energy(ibox))
                 ELSE
                    last_bias_energy(ibox)=0.0E0_dp
                 ENDIF
                 bias_energy(ibox)=last_bias_energy(ibox)
                 DEALLOCATE(atom_names_box,STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              ENDDO
           ENDIF
 
@@ -595,7 +588,7 @@ CONTAINS
 
           CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                energy_check(:),r_old(:,:,:),old_energy(:),input_declaration,&
-               para_env,bias_energy(:),last_bias_energy(:),rng_stream,error)
+               para_env,bias_energy(:),last_bias_energy(:),rng_stream)
 
           ! the number of molecules may have changed, which deallocated the whole
           ! mc_molecule_info structure
@@ -613,7 +606,7 @@ CONTAINS
           ENDIF
 
 ! pick a box at random
-          IF (ionode) rand=next_random_number(rng_stream,error=error)
+          IF (ionode) rand=next_random_number(rng_stream)
           CALL mp_bcast(rand,source,group)
 
           DO ibox=1,nboxes
@@ -629,7 +622,7 @@ CONTAINS
                move_updates(1,box_number)%moves,&
                old_energy(box_number),box_number,&
                energy_check(box_number),r_old(:,:,box_number),&
-               rng_stream,error=error)
+               rng_stream)
 
        ELSEIF ( rand .LT. pmavbmc) THEN
           ! try an AVBMC move
@@ -639,7 +632,7 @@ CONTAINS
           ENDIF
 
           ! first, pick a box to do it for
-          IF(ionode) rand=next_random_number(rng_stream,error=error)
+          IF(ionode) rand=next_random_number(rng_stream)
           CALL mp_bcast(rand,source,group)
 
           IF(nboxes .EQ. 2) THEN
@@ -653,7 +646,7 @@ CONTAINS
           ENDIF
 
           ! now pick a molecule type to do it for
-          IF(ionode) rand=next_random_number(rng_stream,error=error)
+          IF(ionode) rand=next_random_number(rng_stream)
           CALL mp_bcast(rand,source,group)
           molecule_type_swap=0
           DO imol_type=1,nmol_types
@@ -678,14 +671,13 @@ CONTAINS
              IF (ionode) THEN
                 CALL find_mc_test_molecule(mc_molecule_info,&
                      start_atom_swap,idum,jdum,rng_stream,&
-                     box=box_number,molecule_type_old=molecule_type_swap,&
-                     error=error)
+                     box=box_number,molecule_type_old=molecule_type_swap)
 
                 ! pick a molecule to act as the target in the box...we don't care what type
                 DO
                    CALL find_mc_test_molecule(mc_molecule_info,&
                         start_atom_target,idum,molecule_type_target,&
-                        rng_stream,box=box_number,error=error)
+                        rng_stream,box=box_number)
                    IF(start_atom_swap .NE. start_atom_target) THEN
                       start_atom_target=start_atom_target+&
                            avbmc_atom(molecule_type_target)-1
@@ -695,7 +687,7 @@ CONTAINS
 
                 ! choose if we're swapping into the bonded region of mol_target, or
                 ! into the nonbonded region
-                rand=next_random_number(rng_stream,error=error)
+                rand=next_random_number(rng_stream)
 
              ENDIF
              CALL mp_bcast(start_atom_swap,source,group)
@@ -718,7 +710,7 @@ CONTAINS
                   start_atom_swap,start_atom_target,molecule_type_swap,&
                   box_number,bias_energy(box_number),&
                   last_bias_energy(box_number),&
-                  move_type_avbmc,rng_stream,error=error)
+                  move_type_avbmc,rng_stream)
 
           ENDIF
 
@@ -731,12 +723,12 @@ CONTAINS
 
           DO imove=1,nmoves
 
-             IF(ionode) rand=next_random_number(rng_stream,error=error)
+             IF(ionode) rand=next_random_number(rng_stream)
              CALL mp_bcast(rand,source,group)
              IF(rand .LT. pmtraion) THEN
                 ! change molecular conformation
                 ! first, pick a box to do it for
-                IF(ionode) rand=next_random_number(rng_stream,error=error)
+                IF(ionode) rand=next_random_number(rng_stream)
                 CALL mp_bcast(rand,source,group)
                 IF(nboxes .EQ. 2) THEN
                    IF(rand .LT. 0.75E0_dp) THEN
@@ -749,7 +741,7 @@ CONTAINS
                 ENDIF
 
                 ! figure out which molecule type we're looking for
-                IF(ionode) rand=next_random_number(rng_stream,error=error)
+                IF(ionode) rand=next_random_number(rng_stream)
                 CALL mp_bcast(rand,source,group)
                 molecule_type=0
                 DO imol_type=1,nmol_types
@@ -774,11 +766,10 @@ CONTAINS
                       CALL find_mc_test_molecule(mc_molecule_info,&
                            start_atom,idum,&
                            jdum,rng_stream,&
-                           box=box_number,molecule_type_old=molecule_type,&
-                           error=error)
+                           box=box_number,molecule_type_old=molecule_type)
 
                       ! choose if we're changing a bond length or an angle
-                      rand=next_random_number(rng_stream,error=error)
+                      rand=next_random_number(rng_stream)
                    ENDIF
                    CALL mp_bcast(rand,source,group)
                    CALL mp_bcast(start_atom,source,group)
@@ -802,13 +793,13 @@ CONTAINS
                         move_updates(molecule_type,box_number)%moves,&
                         start_atom,molecule_type,box_number,&
                         bias_energy(box_number),&
-                        move_type,lreject,rng_stream,error=error)
+                        move_type,lreject,rng_stream)
                    IF(lreject) EXIT
                 ENDIF
              ELSEIF(rand .LT. pmtrans) THEN
                 ! translate a whole molecule in the system
                 ! pick a molecule type
-                IF(ionode) rand=next_random_number(rng_stream,error=error)
+                IF(ionode) rand=next_random_number(rng_stream)
                 CALL mp_bcast(rand,source,group)
                 molecule_type=0
                 DO imol_type=1,nmol_types
@@ -825,7 +816,7 @@ CONTAINS
                 IF(ionode) &
                      CALL find_mc_test_molecule(mc_molecule_info,&
                      start_atom,box_number,idum,rng_stream,&
-                     molecule_type_old=molecule_type,error=error)
+                     molecule_type_old=molecule_type)
                 CALL mp_bcast(start_atom,source,group)
                 CALL mp_bcast(box_number,source,group)
                 box_flag(box_number)=1
@@ -835,12 +826,12 @@ CONTAINS
                      moves(molecule_type,box_number)%moves,&
                      move_updates(molecule_type,box_number)%moves,&
                      start_atom,box_number,bias_energy(box_number),&
-                     molecule_type,lreject,rng_stream,error=error)
+                     molecule_type,lreject,rng_stream)
                 IF(lreject) EXIT
              ELSE
                 !     rotate a whole molecule in the system
                 ! pick a molecule type
-                IF(ionode) rand=next_random_number(rng_stream,error=error)
+                IF(ionode) rand=next_random_number(rng_stream)
                 CALL mp_bcast(rand,source,group)
                 molecule_type=0
                 DO imol_type=1,nmol_types
@@ -856,7 +847,7 @@ CONTAINS
                 IF(ionode) &
                      CALL find_mc_test_molecule(mc_molecule_info,&
                      start_atom,box_number,idum,rng_stream,&
-                     molecule_type_old=molecule_type,error=error)
+                     molecule_type_old=molecule_type)
                 CALL mp_bcast(start_atom,source,group)
                 CALL mp_bcast(box_number,source,group)
                 box_flag(box_number)=1
@@ -867,7 +858,7 @@ CONTAINS
                      move_updates(molecule_type,box_number)%moves,&
                      box_number,start_atom,&
                      molecule_type,bias_energy(box_number),&
-                     lreject,rng_stream,error=error)
+                     lreject,rng_stream)
                 IF(lreject) EXIT
              ENDIF
 
@@ -878,7 +869,7 @@ CONTAINS
                moves,lreject,move_updates,energy_check(:),r_old(:,:,:),&
                nnstep,old_energy(:),bias_energy(:),last_bias_energy(:),&
                nboxes,box_flag(:),oldsys,particles_old,&
-               rng_stream,unit_conv,error=error)
+               rng_stream,unit_conv)
 
        ENDIF
 
@@ -886,11 +877,10 @@ CONTAINS
        ! have changed
        DO ibox=1,nboxes
           CALL force_env_get(force_env(ibox)%force_env,&
-               subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
-               error=error)
+               subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell)
           CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
           CALL cp_subsys_get(oldsys(ibox)%subsys,&
-               particles=particles_old(ibox)%list, error=error)
+               particles=particles_old(ibox)%list)
        ENDDO
 
        IF(ionode) THEN
@@ -929,7 +919,7 @@ CONTAINS
                         com_crd,dump_xmol,'POS',&
                         'BOX ' // TRIM(ADJUSTL(cbox))// &
                         ',  STEP ' // TRIM(ADJUSTL(cstep)),&
-                        unit_conv=unit_conv,error=error)
+                        unit_conv=unit_conv)
                 ENDIF
              ENDDO
           ENDIF  ! end the things we only do every iprint moves
@@ -971,7 +961,7 @@ CONTAINS
        box_flag(:)=0
 
        ! check to see if EXIT file exists...if so, end the calculation
-       CALL external_control(should_stop,"MC",globenv=globenv,error=error)
+       CALL external_control(should_stop,"MC",globenv=globenv)
        IF (should_stop) EXIT
 
        ! update the move displacements, if necessary
@@ -1012,7 +1002,7 @@ CONTAINS
                 ! we can get screwed up with the mc_molecule_info stuff (like in swap move)...
                 ! this is kind of ugly, with allocated and deallocating every time
                    ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)),STAT=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
                    DO iunit=1,nunits_tot(ibox)
                       r_temp(1:3,iunit)=&
@@ -1033,9 +1023,9 @@ CONTAINS
                 ! if we're biasing, we need to do the same
                    IF(lbias) THEN
                       CALL force_env_get(bias_env(ibox)%force_env,&
-                           subsys=biassys,error=error)
+                           subsys=biassys)
                       CALL cp_subsys_get(biassys,&
-                           particles=particles_bias, error=error)
+                           particles=particles_bias)
 
                       DO iunit=1,nunits_tot(ibox)
                          particles_bias%els(iunit)%r(1:3)=&
@@ -1044,7 +1034,7 @@ CONTAINS
                    ENDIF
 
                    DEALLOCATE (r_temp,STAT=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,failure)
                 ENDIF
              ENDIF
           ENDDO
@@ -1055,10 +1045,9 @@ CONTAINS
           DO ibox=1,nboxes
              IF(SUM(nchains(:,ibox)) .NE. 0) THEN
                 CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-                     calc_force=.FALSE.,error=error)
+                     calc_force=.FALSE.)
                 CALL force_env_get(force_env(ibox)%force_env,&
-                     potential_energy=test_energy,&
-                     error=error)
+                     potential_energy=test_energy)
              ELSE
                 test_energy=0.0E0_dp
              ENDIF
@@ -1091,15 +1080,14 @@ CONTAINS
     DO ibox=1,nboxes
        IF(SUM(nchains(:,ibox)) .NE. 0) THEN
           CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-               calc_force=.FALSE.,error=error)
+               calc_force=.FALSE.)
           CALL force_env_get(force_env(ibox)%force_env,&
-               potential_energy=final_energy(ibox),&
-               error=error)
+               potential_energy=final_energy(ibox))
        ELSE
           final_energy(ibox)=0.0E0_dp
        ENDIF
        IF (lbias) THEN
-          CALL force_env_release(bias_env(ibox)%force_env,error=error)
+          CALL force_env_release(bias_env(ibox)%force_env)
        ENDIF
     ENDDO
 
@@ -1118,8 +1106,7 @@ CONTAINS
              CALL write_particle_coordinates(&
                   particles_old(ibox)%list%els,&
                   com_crd,dump_xmol,'POS',&
-                  'FINAL BOX ' // TRIM(ADJUSTL(cbox)),unit_conv=unit_conv,&
-                  error=error)
+                  'FINAL BOX ' // TRIM(ADJUSTL(cbox)),unit_conv=unit_conv)
           ENDIF
 
           ! write a bunch of data to the screen
@@ -1165,29 +1152,29 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(pmhmc_box,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pmvol_box,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(r_old,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(force_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bias_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (cell,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (particles_old,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (oldsys,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (averages,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (moves,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (move_updates,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (mc_par,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     ! end the timing
     CALL timestop(handle)
@@ -1208,15 +1195,13 @@ CONTAINS
 !> \param rng_stream the stream we pull random numbers from
 !>
 !>    Suitable for parallel.
-!> \param error the error type
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE mc_compute_virial ( mc_env, rng_stream, error)
+  SUBROUTINE mc_compute_virial ( mc_env, rng_stream)
 
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_compute_virial', &
       routineP = moduleN//':'//routineN
@@ -1248,16 +1233,16 @@ CONTAINS
       DIMENSION(:), POINTER                  :: particles
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     ! these are current magic numbers for how we compute the virial...
     ! we break it up into three parts to integrate the function so provide
     ! better statistics
 
     nintegral_divisions=3
     ALLOCATE (virial_cutoffs(1:nintegral_divisions),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (virial_stepsize(1:nintegral_divisions),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     virial_cutoffs(1)=8.0 ! first distance, in bohr
     virial_cutoffs(2)=13.0 ! second distance, in bohr
     virial_cutoffs(3)=22.0 ! maximum distance, in bohr
@@ -1274,15 +1259,15 @@ CONTAINS
 
     ! allocate a whole bunch of stuff based on how many boxes we have
     ALLOCATE (force_env(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (cell(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (particles(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (subsys(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (mc_par(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL get_mc_env ( mc_env(1)%mc_env, &
          mc_par = mc_par(1)%mc_par,&
@@ -1311,7 +1296,7 @@ CONTAINS
 
     nvirial_temps=SIZE(virial_temps)
     ALLOCATE (BETA(1:nvirial_temps),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     DO itemp=1,nvirial_temps
        BETA(itemp) = 1 / virial_temps(itemp) / boltzmann * joule
@@ -1319,11 +1304,10 @@ CONTAINS
 
     ! get the subsystems and the cell information
     CALL force_env_get(force_env(1)%force_env,&
-         subsys=subsys(1)%subsys,cell=cell(1)%cell,&
-         error=error)
+         subsys=subsys(1)%subsys,cell=cell(1)%cell)
     CALL get_cell(cell(1)%cell,abc=abc(:))
     CALL cp_subsys_get(subsys(1)%subsys, &
-         particles=particles(1)%list, error=error)
+         particles=particles(1)%list)
 
     ! check and make sure the box is big enough
     IF(abc(1) .NE. abc(2) .OR. abc(2) .NE. abc(3)) THEN
@@ -1340,7 +1324,7 @@ CONTAINS
 
     ! store the coordinates of the molecules in an array so we can work with it
     ALLOCATE (r_old(1:3,1:nunits_tot(1)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     DO iparticle=1,nunits_tot(1)
        r_old(1:3,iparticle)=&
@@ -1367,7 +1351,7 @@ CONTAINS
     ! we'll compute the average potential, and then integrate that, as opposed to
     ! integrating every orientation and then averaging
     ALLOCATE (mayer(1:nvirial_temps,1:nbins),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     mayer(:,:)=0.0_dp
 
@@ -1388,7 +1372,7 @@ CONTAINS
        IF(ionode) THEN
           CALL rotate_molecule(r_old(:,start_atom:end_atom),&
                mass(1:nunits(mol_type(2)),mol_type(2)),&
-               nunits(mol_type(2)),rng_stream,error=error)
+               nunits(mol_type(2)),rng_stream)
        ENDIF
        CALL mp_bcast(r_old(:,:),source,group)
 
@@ -1424,9 +1408,9 @@ CONTAINS
              ENDDO
           ELSE
              CALL force_env_calc_energy_force(force_env(1)%force_env,&
-                  calc_force=.FALSE.,error=error)
+                  calc_force=.FALSE.)
              CALL force_env_get(force_env(1)%force_env,&
-                  potential_energy=trial_energy,error=error)
+                  potential_energy=trial_energy)
 
              DO itemp=1,nvirial_temps
 
@@ -1503,25 +1487,25 @@ CONTAINS
 
     ! deallocate some stuff
     DEALLOCATE(mc_par,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(subsys,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(force_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(particles,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(cell,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(virial_cutoffs,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(virial_stepsize,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(r_old,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mayer,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(BETA,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE mc_compute_virial
 

@@ -53,7 +53,6 @@ MODULE glbopt_worker
    PRIVATE
    INTEGER                                  :: id
    INTEGER                                  :: iw
-   TYPE(cp_error_type)                      :: error
    INTEGER                                  :: f_env_id
    TYPE(f_env_type), POINTER                :: f_env
    TYPE(force_env_type), POINTER            :: force_env
@@ -82,18 +81,16 @@ MODULE glbopt_worker
 !> \param input_path ...
 !> \param worker_id ...
 !> \param iw ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE glbopt_worker_init(worker, input_declaration, para_env, root_section,&
-                 input_path, worker_id, iw, error)
+                 input_path, worker_id, iw)
     TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     INTEGER, INTENT(in)                      :: worker_id, iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -103,7 +100,6 @@ MODULE glbopt_worker
         failure = .FALSE.
 
 
-        worker%error = error
         worker%root_section => root_section
         worker%id = worker_id
         worker%iw = iw
@@ -118,27 +114,27 @@ MODULE glbopt_worker
 
 
       ! ======= More setup stuff =======
-      CALL f_env_add_defaults(worker%f_env_id, worker%f_env, worker%error, failure)
+      CALL f_env_add_defaults(worker%f_env_id, worker%f_env,failure)
       IF(failure) STOP "glbopt_drive_worker: f_env_add_defaults failed"
       worker%force_env => worker%f_env%force_env
-      CALL force_env_get(worker%force_env, globenv=worker%globenv, subsys=worker%subsys, error=worker%error)
+      CALL force_env_get(worker%force_env, globenv=worker%globenv, subsys=worker%subsys)
 
       ! We want different random-number-streams for each worker
       DO i = 1, worker_id
-         CALL reset_to_next_rng_substream(worker%globenv%gaussian_rng_stream, worker%error)
+         CALL reset_to_next_rng_substream(worker%globenv%gaussian_rng_stream)
       END DO
 
-      CALL cp_subsys_get(worker%subsys, natom=worker%n_atoms, error=worker%error)
+      CALL cp_subsys_get(worker%subsys, natom=worker%n_atoms)
 
       ! fetch original value from input
-      CALL section_vals_val_get(root_section, "MOTION%GEO_OPT%MAX_ITER", i_val=worker%gopt_max_iter, error=worker%error)
-      glbopt_section => section_vals_get_subs_vals(root_section, "SWARM%GLOBAL_OPT", error=error)
+      CALL section_vals_val_get(root_section, "MOTION%GEO_OPT%MAX_ITER", i_val=worker%gopt_max_iter)
+      glbopt_section => section_vals_get_subs_vals(root_section, "SWARM%GLOBAL_OPT")
 
-      CALL section_vals_val_get(glbopt_section,"BUMP_STEPS_UPWARDS", i_val=worker%bump_steps_upwards, error=error)
-      CALL section_vals_val_get(glbopt_section,"BUMP_STEPS_DOWNWARDS", i_val=worker%bump_steps_downwards, error=error)
-      CALL section_vals_val_get(glbopt_section,"MD_BUMPS_MAX", i_val=worker%md_bumps_max, error=error)
-      CALL section_vals_val_get(glbopt_section,"FRAGMENTATION_THRESHOLD", r_val=dist_in_angstrom, error=error)
-      !CALL section_vals_val_get(glbopt_section,"MD_ADAPTIVE_TIMESTEP", r_val=worker%adaptive_timestep, error=error)
+      CALL section_vals_val_get(glbopt_section,"BUMP_STEPS_UPWARDS", i_val=worker%bump_steps_upwards)
+      CALL section_vals_val_get(glbopt_section,"BUMP_STEPS_DOWNWARDS", i_val=worker%bump_steps_downwards)
+      CALL section_vals_val_get(glbopt_section,"MD_BUMPS_MAX", i_val=worker%md_bumps_max)
+      CALL section_vals_val_get(glbopt_section,"FRAGMENTATION_THRESHOLD", r_val=dist_in_angstrom)
+      !CALL section_vals_val_get(glbopt_section,"MD_ADAPTIVE_TIMESTEP", r_val=worker%adaptive_timestep)
       worker%fragmentation_threshold = dist_in_angstrom/angstrom
   END SUBROUTINE glbopt_worker_init
 
@@ -193,7 +189,7 @@ MODULE glbopt_worker
     CALL swarm_message_get(cmd, "iframe", iframe)
     IF(iframe > 1) THEN
         CALL swarm_message_get(cmd, "positions", positions)
-        CALL unpack_subsys_particles(worker%subsys, r=positions, error=worker%error)
+        CALL unpack_subsys_particles(worker%subsys, r=positions)
     ENDIF
 
     ! setup mdctrl callback
@@ -213,15 +209,15 @@ MODULE glbopt_worker
     !   timestep = 4.0 * ( boltz - 1.0 ) / boltz / femtoseconds
     !   !timestep = 0.01_dp / femtoseconds
     !   !timestep = SQRT(MIN(0.5, 2.0/(1+exp(-300.0/(temperature*kelvin))))) / femtoseconds
-    !   CALL section_vals_val_set(worker%root_section, "MOTION%MD%TIMESTEP", r_val=timestep, error=worker%error)
+    !   CALL section_vals_val_set(worker%root_section, "MOTION%MD%TIMESTEP", r_val=timestep)
     !   IF(worker%iw>0)&
     !      WRITE (worker%iw,'(A,35X,F20.3)')  ' GLBOPT| MD timestep [fs]',timestep*femtoseconds
     !ENDIF
 
     prev_iframe = iframe
     IF(iframe==0) iframe = 1 ! qs_mol_dyn behaves differently for STEP_START_VAL=0
-    CALL section_vals_val_set(worker%root_section, "MOTION%MD%STEP_START_VAL", i_val=iframe-1, error=worker%error)
-    CALL section_vals_val_set(worker%root_section, "MOTION%MD%TEMPERATURE", r_val=temperature, error=worker%error)
+    CALL section_vals_val_set(worker%root_section, "MOTION%MD%STEP_START_VAL", i_val=iframe-1)
+    CALL section_vals_val_set(worker%root_section, "MOTION%MD%TEMPERATURE", r_val=temperature)
 
     IF (worker%iw>0) THEN
       WRITE (worker%iw,'(A,33X,F20.3)')  ' GLBOPT| MD temperature [K]',temperature*kelvin
@@ -229,7 +225,7 @@ MODULE glbopt_worker
     END IF
 
     ! run MD
-    CALL qs_mol_dyn(worker%force_env, worker%globenv, mdctrl=mdctrl_p, error=worker%error)
+    CALL qs_mol_dyn(worker%force_env, worker%globenv, mdctrl=mdctrl_p)
 
     iframe = mdctrl_data%itimes + 1
     md_steps = iframe - prev_iframe
@@ -237,32 +233,32 @@ MODULE glbopt_worker
 
     ! fix fragmentation
     IF(.NOT. ASSOCIATED(positions))  ALLOCATE(positions(3*worker%n_atoms))
-    CALL pack_subsys_particles(worker%subsys, r=positions, error=worker%error)
+    CALL pack_subsys_particles(worker%subsys, r=positions)
     n_fragments=0
     DO 
       n_fragments=n_fragments+1
       IF(fix_fragmentation(positions, worker%fragmentation_threshold)) EXIT
     END DO
-    CALL unpack_subsys_particles(worker%subsys, r=positions, error=worker%error)
+    CALL unpack_subsys_particles(worker%subsys, r=positions)
 
     IF (n_fragments>0 .AND. worker%iw>0)&
         WRITE (worker%iw,'(A,13X,I10)') " GLBOPT| Ran fix_fragmentation times:", n_fragments
 
     ! setup geometry optimization
     IF (worker%iw>0) WRITE (worker%iw,'(A,13X,I10)') " GLBOPT| Starting local optimisation at trajectory frame ", iframe
-    CALL section_vals_val_set(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe-1, error=worker%error)
+    CALL section_vals_val_set(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe-1)
     CALL section_vals_val_set(worker%root_section, "MOTION%GEO_OPT%MAX_ITER",&
-                               i_val=iframe+worker%gopt_max_iter, error=worker%error)
+                               i_val=iframe+worker%gopt_max_iter)
 
     ! run geometry optimization
-    CALL cp_geo_opt(worker%force_env, worker%globenv, rm_restart_info=.FALSE., error=worker%error)
+    CALL cp_geo_opt(worker%force_env, worker%globenv, rm_restart_info=.FALSE.)
 
     prev_iframe = iframe
-    CALL section_vals_val_get(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe, error=worker%error)
+    CALL section_vals_val_get(worker%root_section, "MOTION%GEO_OPT%STEP_START_VAL", i_val=iframe)
     iframe = iframe + 2 ! Compensates for different START_VAL interpretation.
     gopt_steps = iframe - prev_iframe -1
     IF (worker%iw>0) WRITE (worker%iw,'(A,I4,A)') " GLBOPT| gopt ended after ", gopt_steps, " steps."
-    CALL force_env_get(worker%force_env, potential_energy=Epot, error=worker%error)
+    CALL force_env_get(worker%force_env, potential_energy=Epot)
     IF (worker%iw>0) WRITE (worker%iw,'(A,25X,E20.10)')' GLBOPT| Potential Energy [Hartree]',Epot
 
     ! assemble report
@@ -270,7 +266,7 @@ MODULE glbopt_worker
     CALL swarm_message_add(report, "iframe", iframe)
     CALL swarm_message_add(report, "md_steps", md_steps)
     CALL swarm_message_add(report, "gopt_steps", gopt_steps)
-    CALL pack_subsys_particles(worker%subsys, r=positions, error=worker%error)
+    CALL pack_subsys_particles(worker%subsys, r=positions)
     CALL swarm_message_add(report, "positions", positions)
 
     DEALLOCATE(positions)
@@ -388,7 +384,7 @@ END FUNCTION norm
 
     INTEGER                                  :: ierr
 
-     CALL f_env_rm_defaults(worker%f_env, worker%error)
+     CALL f_env_rm_defaults(worker%f_env)
      CALL destroy_force_env(worker%f_env_id, ierr)
      IF(ierr /= 0) STOP "glbopt_worker_finalize: destroy_force_env failed"
    END SUBROUTINE glbopt_worker_finalize

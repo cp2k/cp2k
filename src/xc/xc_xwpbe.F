@@ -100,18 +100,15 @@ MODULE xc_xwpbe
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE xwpbe_lda_info ( reference, shortform, needs, max_deriv, error)
+  SUBROUTINE xwpbe_lda_info ( reference, shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Jochen Heyd and Gustavo E. Scuseria, J. Chem. Phys., 120, 7274 {LDA version}"
@@ -135,8 +132,6 @@ MODULE xc_xwpbe
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xwpbe_params input parameters (scaling,omega)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -145,13 +140,12 @@ MODULE xc_xwpbe
 !>      Using the maple sheet in cp2k/doc it is straightforward to produce routines
 !>      for higher derivatives.
 ! *****************************************************************************
-  SUBROUTINE xwpbe_lda_eval ( rho_set, deriv_set, order, xwpbe_params, error )
+  SUBROUTINE xwpbe_lda_eval ( rho_set, deriv_set, order, xwpbe_params)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: xwpbe_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -174,26 +168,26 @@ MODULE xc_xwpbe
     NULLIFY(bo)
     CALL cite_reference(Heyd2004)
 
-    CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx,error=error)
-    CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0,error=error)
-    CALL section_vals_val_get(xwpbe_params,"OMEGA",r_val=omega,error=error)
+    CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx)
+    CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0)
+    CALL section_vals_val_get(xwpbe_params,"OMEGA",r_val=omega)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
 
 
     CALL xc_rho_set_get(rho_set,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         drho_cutoff=epsilon_norm_drho,error=error)
+         drho_cutoff=epsilon_norm_drho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
       dummy=> rho
     END IF
@@ -207,49 +201,49 @@ MODULE xc_xwpbe
 
     IF (order>=0) THEN
       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (order>=1.OR.order==-1) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rho)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     END IF
     IF (order>=2.OR.order==-2) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rho_rho)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho)
       deriv => xc_dset_get_derivative(deriv_set,&
-            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
     END IF
     IF (order>2.OR.order<-2) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 2 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     !$omp parallel default(none) &
     !$omp shared(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho) &
     !$omp shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, epsilon_rho) &
-    !$omp shared(sx, sx0, omega, error)
+    !$omp shared(sx, sx0, omega)
 
     CALL xwpbe_lda_calc(npoints,order,rho=rho, norm_drho=norm_drho,&
          e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
          e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
-         epsilon_rho=epsilon_rho,sx=sx,sx0=sx0,omega=omega,error=error)
+         epsilon_rho=epsilon_rho,sx=sx,sx0=sx0,omega=omega)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -275,8 +269,6 @@ MODULE xc_xwpbe
 !> \param sx , sx0: scaling factor for omega!=0 and omega=0
 !> \param sx0 ...
 !> \param omega screening parameter
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -287,8 +279,7 @@ MODULE xc_xwpbe
 ! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
                             e_rho_rho, e_ndrho_rho, e_ndrho_ndrho,&
-                            epsilon_rho, sx, sx0, omega,&
-                            error)
+                            epsilon_rho, sx, sx0, omega)
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -296,7 +287,6 @@ MODULE xc_xwpbe
                                                 e_ndrho, e_rho_rho, &
                                                 e_ndrho_rho, e_ndrho_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, sx0, omega
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -5314,18 +5304,15 @@ MODULE xc_xwpbe
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE xwpbe_lsd_info ( reference, shortform, needs, max_deriv, error)
+  SUBROUTINE xwpbe_lsd_info ( reference, shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Jochen Heyd and Gustavo E. Scuseria, J. Chem. Phys., 120, 7274 {LSD version}"
@@ -5349,8 +5336,6 @@ MODULE xc_xwpbe
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param xwpbe_params input parameters (scaling,omega)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -5359,13 +5344,12 @@ MODULE xc_xwpbe
 !>      Using the maple sheet in cp2k/doc it is straightforward to produce routines
 !>      for higher derivatives.
 ! *****************************************************************************
-  SUBROUTINE xwpbe_lsd_eval ( rho_set, deriv_set, order, xwpbe_params, error )
+  SUBROUTINE xwpbe_lsd_eval ( rho_set, deriv_set, order, xwpbe_params)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: xwpbe_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -5388,25 +5372,25 @@ MODULE xc_xwpbe
 
     CALL cite_reference(Heyd2004)
 
-    CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx,error=error)
-    CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0,error=error)
-    CALL section_vals_val_get(xwpbe_params,"OMEGA",r_val=omega,error=error)
+    CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx)
+    CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0)
+    CALL section_vals_val_get(xwpbe_params,"OMEGA",r_val=omega)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
 
     CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,norm_drhoa=norm_drhoa,&
          norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         drho_cutoff=epsilon_norm_drho,error=error)
+         drho_cutoff=epsilon_norm_drho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
       dummy=> rhoa
     END IF
@@ -5425,53 +5409,53 @@ MODULE xc_xwpbe
 
     IF (order>=0) THEN
       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (order>=1.OR.order==-1) THEN
       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rhoa)
       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_rhob)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa)
       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-            allocate_deriv=.TRUE.,error=error)
-      CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+            allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrhob)
     END IF
    IF (order>=2.OR.order==-2) THEN
      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
-           allocate_deriv=.TRUE.,error=error)
-     CALL xc_derivative_get(deriv,deriv_data=e_rhoa_rhoa,error=error)
+           allocate_deriv=.TRUE.)
+     CALL xc_derivative_get(deriv,deriv_data=e_rhoa_rhoa)
      deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
-           allocate_deriv=.TRUE.,error=error)
-     CALL xc_derivative_get(deriv,deriv_data=e_rhob_rhob,error=error)
+           allocate_deriv=.TRUE.)
+     CALL xc_derivative_get(deriv,deriv_data=e_rhob_rhob)
      deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhoa)",&
-           allocate_deriv=.TRUE.,error=error)
-     CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_rhoa,error=error)
+           allocate_deriv=.TRUE.)
+     CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_rhoa)
      deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhob)",&
-           allocate_deriv=.TRUE.,error=error)
-     CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_rhob,error=error)
+           allocate_deriv=.TRUE.)
+     CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_rhob)
      deriv => xc_dset_get_derivative(deriv_set,&
-           "(norm_drhoa)(norm_drha)", allocate_deriv=.TRUE.,error=error)
-     CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_ndrhoa,error=error)
+           "(norm_drhoa)(norm_drha)", allocate_deriv=.TRUE.)
+     CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_ndrhoa)
      deriv => xc_dset_get_derivative(deriv_set,&
-           "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,error=error)
-     CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_ndrhob,error=error)
+           "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.)
+     CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_ndrhob)
    END IF
     IF (order>2.OR.order<-2) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 2 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     !$omp parallel default(none) &
     !$omp shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa, e_ndrhoa) &
     !$omp shared(e_rhoa_rhoa, e_ndrhoa_rhoa, e_ndrhoa_ndrhoa, epsilon_rho) &
-    !$omp shared(sx, sx0, omega, error) &
+    !$omp shared(sx, sx0, omega) &
     !$omp shared(rhob, norm_drhob, e_rhob, e_ndrhob, e_rhob_rhob) &
     !$omp shared(e_ndrhob_rhob, e_ndrhob_ndrhob)
 
@@ -5481,18 +5465,18 @@ MODULE xc_xwpbe
          e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,e_rho_rho=e_rhoa_rhoa, &
          e_ndrho_rho=e_ndrhoa_rhoa, e_ndrho_ndrho=e_ndrhoa_ndrhoa, &
          epsilon_rho=epsilon_rho, &
-         sx=sx,sx0=sx0,omega=omega,error=error)
+         sx=sx,sx0=sx0,omega=omega)
     CALL xwpbe_lsd_calc(npoints,order, rho=rhob, norm_drho=norm_drhob, &
          e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,e_rho_rho=e_rhob_rhob, &
          e_ndrho_rho=e_ndrhob_rhob, e_ndrho_ndrho=e_ndrhob_ndrhob, &
          epsilon_rho=epsilon_rho,&
-         sx=sx,sx0=sx0,omega=omega,error=error)
+         sx=sx,sx0=sx0,omega=omega)
 
     !$omp end parallel
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -5518,8 +5502,6 @@ MODULE xc_xwpbe
 !> \param sx , sx0: scaling factor for omega!=0 and omega=0
 !> \param sx0 ...
 !> \param omega screening parameter
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -5535,8 +5517,7 @@ MODULE xc_xwpbe
 ! *****************************************************************************
   SUBROUTINE xwpbe_lsd_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho, &
                             e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, &
-                            epsilon_rho,sx, sx0, omega, &
-                            error)
+                            epsilon_rho,sx, sx0, omega)
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -5544,7 +5525,6 @@ MODULE xc_xwpbe
                                                 e_ndrho, e_rho_rho, &
                                                 e_ndrho_rho, e_ndrho_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, sx0, omega
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_calc', &
       routineP = moduleN//':'//routineN

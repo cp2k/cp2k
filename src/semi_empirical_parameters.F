@@ -83,12 +83,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models: POINT_CHARGE
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pcharge_default_parameter(sep, z, error)
+  SUBROUTINE pcharge_default_parameter(sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pcharge_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -98,7 +96,7 @@ CONTAINS
     sep%eheat   = 0.0_dp
     sep%z       = z
     sep%defined = .TRUE.
-    CALL valence_electrons (sep, extended_basis_set=.FALSE., error=error)
+    CALL valence_electrons (sep, extended_basis_set=.FALSE.)
 
   END SUBROUTINE pcharge_default_parameter
 
@@ -107,12 +105,10 @@ CONTAINS
 !> \param sep ...
 !> \param z ...
 !> \param itype ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mndo_default_parameter ( sep, z, itype, error)
+  SUBROUTINE mndo_default_parameter ( sep, z, itype)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER, INTENT(IN)                      :: z, itype
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mndo_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -693,11 +689,11 @@ CONTAINS
     CASE (84:nelem)
     END SELECT
     ! In case overwrite with MNDO-d parameters
-    IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z, error)
+    IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z)
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=(itype==do_method_mndod),error=error)
-    CALL calpar(z,sep,error)
-    CALL convert_param_to_cp2k(sep,error)
+    CALL valence_electrons(sep, extended_basis_set=(itype==do_method_mndod))
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
 
   END SUBROUTINE mndo_default_parameter
 
@@ -706,12 +702,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models developed at PNNL
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pnnl_default_parameter ( sep, z, error)
+  SUBROUTINE pnnl_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER, INTENT(IN)                      :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pnnl_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -777,9 +771,9 @@ CONTAINS
        sep%acoul            =  16.22361790703965_dp       /eV
     END SELECT
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
-    CALL calpar(z,sep,error)
-    CALL convert_param_to_cp2k(sep,error)
+    CALL valence_electrons(sep, extended_basis_set=.FALSE.)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
 
   END SUBROUTINE pnnl_default_parameter
 
@@ -787,12 +781,10 @@ CONTAINS
 !> \brief Additional default parameter sets for semi empirical models: MNDO-d
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mndod_default_parameter ( sep, z, error)
+  SUBROUTINE mndod_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mndod_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -1038,12 +1030,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models: AM1
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE am1_default_parameter ( sep, z, error )
+  SUBROUTINE am1_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'am1_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -1513,9 +1503,9 @@ CONTAINS
     CASE (83:nelem)
     END SELECT
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
-    CALL calpar(z,sep,error)
-    CALL convert_param_to_cp2k(sep,error)
+    CALL valence_electrons(sep, extended_basis_set=.FALSE.)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
 
   END SUBROUTINE am1_default_parameter
 
@@ -1523,12 +1513,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models: RM1
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rm1_default_parameter ( sep, z, error)
+  SUBROUTINE rm1_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rm1_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -1727,9 +1715,9 @@ CONTAINS
       CASE (80:nelem)
     END SELECT
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
-    CALL calpar(z,sep,error)
-    CALL convert_param_to_cp2k(sep,error)
+    CALL valence_electrons(sep, extended_basis_set=.FALSE.)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
 
   END SUBROUTINE rm1_default_parameter
 
@@ -1737,12 +1725,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models: PM3
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pm3_default_parameter ( sep, z, error)
+  SUBROUTINE pm3_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pm3_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -2524,9 +2510,9 @@ CONTAINS
     CASE (92:nelem)
     END SELECT
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
-    CALL calpar(z,sep,error)
-    CALL convert_param_to_cp2k(sep,error)
+    CALL valence_electrons(sep, extended_basis_set=.FALSE.)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
 
   END SUBROUTINE pm3_default_parameter
 
@@ -2534,12 +2520,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models: PM6
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pm6_default_parameter ( sep, z, error)
+  SUBROUTINE pm6_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pm6_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -3873,10 +3857,10 @@ CONTAINS
     CASE(84:nelem)
     END SELECT
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=.TRUE., error=error)
-    CALL calpar(z,sep,error)
-    CALL convert_param_to_cp2k(sep, error)
-    CALL init_pm6_pair_params(error)
+    CALL valence_electrons(sep, extended_basis_set=.TRUE.)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
+    CALL init_pm6_pair_params()
 
     sep%aab(0:nelem) = aab_pm6(z,0:nelem)
     sep%xab(0:nelem) = xab_pm6(z,0:nelem)
@@ -3894,12 +3878,10 @@ CONTAINS
 !> \brief Default parameter sets for semi empirical models: PDDG
 !> \param sep ...
 !> \param z ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pdg_default_parameter ( sep, z, error)
+  SUBROUTINE pdg_default_parameter ( sep, z)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pdg_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -4257,18 +4239,16 @@ CONTAINS
     CASE (54:nelem)
     END SELECT
     ! Finalize parameters for the element
-    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
-    CALL calpar(z,sep, error)
-    CALL convert_param_to_cp2k(sep, error)
+    CALL valence_electrons(sep, extended_basis_set=.FALSE.)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
 
   END SUBROUTINE pdg_default_parameter
 
 ! *****************************************************************************
 !> \brief Default pair parameter for: PM6
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_pm6_pair_params(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE init_pm6_pair_params()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6_pair_params', &
       routineP = moduleN//':'//routineN

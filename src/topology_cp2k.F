@@ -50,17 +50,15 @@ CONTAINS
 !> \param topology ...
 !> \param para_env ...
 !> \param subsys_section ...
-!> \param error ...
 !> \date    17.01.2011 (Creation, MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE read_coordinate_cp2k(topology,para_env,subsys_section,error)
+  SUBROUTINE read_coordinate_cp2k(topology,para_env,subsys_section)
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_coordinate_cp2k', &
       routineP = moduleN//':'//routineN
@@ -84,22 +82,22 @@ CONTAINS
     NULLIFY (logger)
     NULLIFY (parser)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-                              extension=".subsysLog",error=error)
+                              extension=".subsysLog")
 
     ! Check if there is a &COORD section
-    coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-    CALL section_vals_get(coord_section,explicit=explicit,error=error)
+    coord_section => section_vals_get_subs_vals(subsys_section,"COORD")
+    CALL section_vals_get(coord_section,explicit=explicit)
     IF (explicit) THEN
-       CALL section_vals_val_get(coord_section,"UNIT",c_val=string,error=error)
-       CALL section_vals_val_get(coord_section,"SCALED",l_val=scaled_coordinates,error=error)
+       CALL section_vals_val_get(coord_section,"UNIT",c_val=string)
+       CALL section_vals_val_get(coord_section,"SCALED",l_val=scaled_coordinates)
     ELSE
        ! The default is Cartesian coordinates in Angstrom
        scaled_coordinates = .FALSE.
        string = "angstrom"
     END IF
-    unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(string),error=error)
+    unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(string))
 
     atom_info => topology%atom_info
     cell => topology%cell_muc
@@ -109,8 +107,8 @@ CONTAINS
         "BEGIN of COORD section data read from file "//TRIM(topology%coord_file_name)
     END IF
 
-    pfactor = section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
-    number_of_atoms = section_get_ival(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",error)
+    pfactor = section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR")
+    number_of_atoms = section_get_ival(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS")
     IF (number_of_atoms < 1) THEN
        newsize = 1000
     ELSE
@@ -132,11 +130,11 @@ CONTAINS
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
 
-    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
 
     natom = 0
     DO
-       CALL parser_get_object(parser,object=string,newline=.TRUE.,at_end=eof,error=error)
+       CALL parser_get_object(parser,object=string,newline=.TRUE.,at_end=eof)
        IF (eof) EXIT
        natom = natom + 1
        IF (natom > SIZE(atom_info%id_atmname)) THEN
@@ -154,18 +152,18 @@ CONTAINS
        END IF
        atom_info%id_atmname(natom) = str2id(s2s(string))
        DO i=1,3
-         CALL parser_get_object(parser,object=r(i),error=error)
+         CALL parser_get_object(parser,object=r(i))
        END DO
        IF (scaled_coordinates) THEN
           CALL scaled_to_real(atom_info%r(1:3,natom),r,cell)
        ELSE
           atom_info%r(1:3,natom) = r(1:3)*unit_conv
        END IF
-       IF (parser_test_next_token(parser,error=error) /= "EOL") THEN
-          CALL parser_get_object(parser,object=string,error=error)
+       IF (parser_test_next_token(parser) /= "EOL") THEN
+          CALL parser_get_object(parser,object=string)
           atom_info%id_molname(natom) = str2id(s2s(string))
-          IF (parser_test_next_token(parser,error=error) /= "EOL") THEN
-             CALL parser_get_object(parser,object=string,error=error)
+          IF (parser_test_next_token(parser) /= "EOL") THEN
+             CALL parser_get_object(parser,object=string)
              atom_info%id_resname(natom) = str2id(s2s(string))
           ELSE
              atom_info%id_resname(natom) = atom_info%id_molname(natom)
@@ -190,7 +188,7 @@ CONTAINS
        IF (natom == number_of_atoms) EXIT
     END DO
 
-    CALL parser_release(parser,error=error)
+    CALL parser_release(parser)
 
     topology%natoms = natom
     CALL reallocate(atom_info%id_molname,1,natom)
@@ -204,7 +202,7 @@ CONTAINS
     CALL reallocate(atom_info%beta,1,natom)
     CALL reallocate(atom_info%id_element,1,natom)
 
-    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=natom,error=error)
+    CALL section_vals_val_set(subsys_section,"TOPOLOGY%NUMBER_OF_ATOMS",i_val=natom)
 
     IF (iw > 0) THEN
        WRITE (UNIT=iw,FMT="(T2,A)")&
@@ -212,8 +210,7 @@ CONTAINS
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-                                      "PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-                                      error=error)
+                                      "PRINT%TOPOLOGY_INFO/XYZ_INFO")
 
     CALL timestop(handle)
 

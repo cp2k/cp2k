@@ -60,19 +60,16 @@ CONTAINS
 !> \param prob return value, the probability of reaching the tree node
 !> \param n_acc drection of branch the next tree node should extend
 !> \param search_energy_node ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \parma search_energy_node flag if configuration for calculating exact 
 !>        energy sould be searched
 !> \author Mandes 12.2012
 ! *****************************************************************************
   RECURSIVE SUBROUTINE most_prob_end(global_tree_elem, prob, n_acc, &
-                                     search_energy_node, error)
+                                     search_energy_node)
     TYPE(global_tree_type), POINTER          :: global_tree_elem
     REAL(KIND=dp), INTENT(OUT)               :: prob
     LOGICAL, INTENT(INOUT)                   :: n_acc
     LOGICAL, OPTIONAL                        :: search_energy_node
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'most_prob_end', &
       routineP = moduleN//':'//routineN
@@ -94,9 +91,9 @@ CONTAINS
     check_rejected = .FALSE.
     keep_on = .TRUE.
 
-    CPPrecondition(ASSOCIATED(global_tree_elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(global_tree_elem),cp_failure_level,routineP,failure)
     st_elem => global_tree_elem%conf(global_tree_elem%mv_conf)%elem
-    CPPrecondition(ASSOCIATED(st_elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(st_elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -150,7 +147,7 @@ CONTAINS
         CALL cp_assert(.FALSE.,&
                     cp_failure_level,cp_assertion_failed,routineP,&
                     "unknown sub tree element status "//&
-                    cp_to_string(st_elem%stat),error)
+                    cp_to_string(st_elem%stat))
       END SELECT
     END SELECT
 
@@ -165,11 +162,10 @@ CONTAINS
           IF(PRESENT(search_energy_node)) THEN
             CALL most_prob_end(global_tree_elem=ptr_acc, prob=prob_n_acc, &
                                n_acc=tmp_acc, &
-                               search_energy_node=search_energy_node, &
-                               error=error)
+                               search_energy_node=search_energy_node)
           ELSE
             CALL most_prob_end(global_tree_elem=ptr_acc, prob=prob_n_acc, &
-                               n_acc=tmp_acc, error=error)
+                               n_acc=tmp_acc)
           END IF
           !-- do probability multiplication 
           !    (in logscale because of realy small probabilities)
@@ -192,11 +188,10 @@ CONTAINS
           IF(PRESENT(search_energy_node)) THEN
             CALL most_prob_end(global_tree_elem=ptr_nacc, prob=prob_n_nacc, &
                                n_acc=tmp_nacc, &
-                               search_energy_node=search_energy_node, &
-                               error=error)
+                               search_energy_node=search_energy_node)
           ELSE
             CALL most_prob_end(global_tree_elem=ptr_nacc, prob=prob_n_nacc, &
-                               n_acc=tmp_nacc, error=error)
+                               n_acc=tmp_nacc)
           END IF
           !-- do probability multiplication 
           !     (in logscale because of realy small probabilities)
@@ -233,15 +228,11 @@ CONTAINS
 !> \param new_gt_elem return value the energy should be calculated for
 !> \param stat routine status return value
 !> \param react_count reactivation counter
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE search_next_energy_calc(gt_head, new_gt_elem, stat, react_count, &
-                                     error)
+  SUBROUTINE search_next_energy_calc(gt_head, new_gt_elem, stat, react_count)
     TYPE(global_tree_type), POINTER          :: gt_head, new_gt_elem
     INTEGER                                  :: stat, react_count
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'search_next_energy_calc', &
       routineP = moduleN//':'//routineN
@@ -253,7 +244,7 @@ CONTAINS
     prob = 0.0_dp
     flag = .FALSE.
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_head),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gt_head),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -261,7 +252,7 @@ CONTAINS
     new_gt_elem => gt_head
 
     CALL most_prob_end(global_tree_elem=new_gt_elem, prob=prob, n_acc=flag, &
-                       search_energy_node=.TRUE., error=error)
+                       search_energy_node=.TRUE.)
 
     stat = status_created
     ! set status for master 
@@ -272,7 +263,7 @@ CONTAINS
       ! reactivate canceled elements
       IF(new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat.EQ.&
          status_canceled_ener)THEN
-        CALL add_to_references(gt_elem=new_gt_elem, error=error)
+        CALL add_to_references(gt_elem=new_gt_elem)
         react_count = react_count+1
         new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat = status_created
       END IF
@@ -288,16 +279,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief searching the parent element (last accepted configuration before)
 !> \param current actual tree element 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval parent parent tree element (last accepted one)
 !> \author Mandes 12.2012
 !> \note routine searches last (assumed) accepted element in subtree
 ! *****************************************************************************
-  RECURSIVE FUNCTION search_parent_element(current, error) RESULT(parent)
-    TYPE(tree_type), POINTER                 :: current
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(tree_type), POINTER                 :: parent
+  RECURSIVE FUNCTION search_parent_element(current) RESULT(parent)
+    TYPE(tree_type), POINTER                 :: current, parent
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'search_parent_element', &
       routineP = moduleN//':'//routineN
@@ -306,7 +293,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(current),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(current),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -315,7 +302,7 @@ CONTAINS
        ! the result value if the child (we came from) is in acc direction
        parent => current%parent
        IF(ASSOCIATED(parent%nacc, current)) THEN
-          parent => search_parent_element(parent, error)
+          parent => search_parent_element(parent)
        END IF
     ELSE
        ! if parent not exist, we are at the head of the tree
@@ -323,21 +310,18 @@ CONTAINS
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(parent),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(parent),cp_failure_level,routineP,failure)
   END FUNCTION search_parent_element
 
 ! *****************************************************************************
 !> \brief search the next global element in the Markov Chain to check
 !> \param ptr start point for search, should be on the known Markov Chain
 !> \param found flag if routine was successful
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE search_next_gt_element_to_check(ptr, found, error)
+  RECURSIVE SUBROUTINE search_next_gt_element_to_check(ptr, found)
     TYPE(global_tree_type), POINTER          :: ptr
     LOGICAL                                  :: found
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'search_next_gt_element_to_check', &
@@ -349,7 +333,7 @@ CONTAINS
     found = .FALSE.
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -360,12 +344,12 @@ CONTAINS
     CASE(status_accepted_result)
       IF(ASSOCIATED(ptr%acc))THEN
          ptr => ptr%acc
-         CALL search_next_gt_element_to_check(ptr, found, error)
+         CALL search_next_gt_element_to_check(ptr, found)
       END IF
     CASE(status_rejected_result)
       IF(ASSOCIATED(ptr%nacc))THEN
          ptr => ptr%nacc
-         CALL search_next_gt_element_to_check(ptr, found, error)
+         CALL search_next_gt_element_to_check(ptr, found)
       END IF
     CASE(status_calculate_energy, status_created, &
         status_calculate_MD,status_calculated,status_calculate_NMC_steps, &
@@ -378,12 +362,12 @@ CONTAINS
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unexpected status "//cp_to_string(ptr%stat)//&
                   "of global tree elem "//cp_to_string(ptr%nr), &
-                  error,failure)
+                  failure)
     END SELECT
     ! end the timing
     CALL timestop(handle)
 
-    CPPostcondition(ASSOCIATED(ptr),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
   END SUBROUTINE search_next_gt_element_to_check
 
 ! *****************************************************************************
@@ -392,14 +376,11 @@ CONTAINS
 !> \param gt_act_elem actual global tree element
 !> \param elem1 two subtree elements which should be compared
 !> \param elem2 two subtree elements which should be compared
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE get_subtree_elements_to_check(gt_act_elem, elem1, elem2, error)
+  SUBROUTINE get_subtree_elements_to_check(gt_act_elem, elem1, elem2)
     TYPE(global_tree_type), POINTER          :: gt_act_elem
     TYPE(tree_type), INTENT(OUT), POINTER    :: elem1, elem2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'get_subtree_elements_to_check', &
@@ -409,7 +390,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -421,25 +402,25 @@ CONTAINS
        IF(gt_act_elem%conf_n_acc(gt_act_elem%conf(gt_act_elem%mv_conf)%elem%sub_tree_nr))THEN
           elem1 => gt_act_elem%conf(gt_act_elem%mv_conf)%elem
        ELSE
-          elem1 => search_parent_element(gt_act_elem%conf(gt_act_elem%mv_conf)%elem, error)
+          elem1 => search_parent_element(gt_act_elem%conf(gt_act_elem%mv_conf)%elem)
        END IF
        ! second element
        IF(gt_act_elem%conf_n_acc(gt_act_elem%conf(gt_act_elem%mv_conf+1)%elem%sub_tree_nr))THEN
           elem2 => gt_act_elem%conf(gt_act_elem%mv_conf+1)%elem
        ELSE
-          elem2 => search_parent_element(gt_act_elem%conf(gt_act_elem%mv_conf+1)%elem, error)
+          elem2 => search_parent_element(gt_act_elem%conf(gt_act_elem%mv_conf+1)%elem)
        END IF
     ELSE
        elem1 => gt_act_elem%conf(gt_act_elem%mv_conf)%elem
-       elem2 => search_parent_element(elem1, error)
+       elem2 => search_parent_element(elem1)
     END IF
 
     ! end the timing
     CALL timestop(handle)
 
-    CPPostcondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(elem1),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(elem2),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,failure)
+    CPPostcondition(ASSOCIATED(elem1),cp_failure_level,routineP,failure)
+    CPPostcondition(ASSOCIATED(elem2),cp_failure_level,routineP,failure)
   END SUBROUTINE get_subtree_elements_to_check
 
 ! *****************************************************************************
@@ -448,13 +429,10 @@ CONTAINS
 !>        also found the last accepted element before
 !> \param last_acc returns last accepted element in cleaned tree part
 !> \param tree_ptr end point of search
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE search_end_of_clean_g_tree(last_acc, tree_ptr, error)
+  RECURSIVE SUBROUTINE search_end_of_clean_g_tree(last_acc, tree_ptr)
     TYPE(global_tree_type), POINTER          :: last_acc, tree_ptr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'search_end_of_clean_g_tree', &
       routineP = moduleN//':'//routineN
@@ -463,8 +441,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(last_acc),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -474,12 +452,12 @@ CONTAINS
       IF(ASSOCIATED(tree_ptr%acc).AND..NOT.ASSOCIATED(tree_ptr%nacc))THEN
         last_acc => tree_ptr
         tree_ptr => tree_ptr%acc
-        CALL search_end_of_clean_g_tree(last_acc, tree_ptr, error)
+        CALL search_end_of_clean_g_tree(last_acc, tree_ptr)
       END IF
     CASE(status_rejected_result)
       IF(ASSOCIATED(tree_ptr%nacc).AND..NOT.ASSOCIATED(tree_ptr%acc))THEN
         tree_ptr => tree_ptr%nacc
-        CALL search_end_of_clean_g_tree(last_acc, tree_ptr, error)
+        CALL search_end_of_clean_g_tree(last_acc, tree_ptr)
       END IF
     CASE(status_calculated, status_calculate_energy, status_created, status_accepted, status_rejected, &
          status_calculate_MD, status_calculate_NMC_steps, status_calc_approx_ener, &
@@ -490,12 +468,12 @@ CONTAINS
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                 routineP,"the global tree element "//cp_to_string(tree_ptr%nr)//&
                 " stat "//cp_to_string(tree_ptr%stat)//" is UNknown",&
-                error,failure)
+                failure)
     END SELECT
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(last_acc),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
+    CPPostcondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
   END SUBROUTINE search_end_of_clean_g_tree
 
 ! *****************************************************************************
@@ -506,14 +484,11 @@ CONTAINS
 !>        node in the tree branch
 !> \param tree_ptr  ...
 !> \param last_acc ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE search_end_of_clean_tree(tree_ptr, last_acc, error)
+  RECURSIVE SUBROUTINE search_end_of_clean_tree(tree_ptr, last_acc)
     TYPE(tree_type), POINTER                 :: tree_ptr
     TYPE(tree_type), INTENT(IN), POINTER     :: last_acc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'search_end_of_clean_tree', &
       routineP = moduleN//':'//routineN
@@ -522,8 +497,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(last_acc),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -531,16 +506,16 @@ CONTAINS
     IF(.NOT.ASSOCIATED(last_acc, tree_ptr)) THEN
        IF(ASSOCIATED(tree_ptr%acc).AND..NOT.ASSOCIATED(tree_ptr%nacc))THEN
          tree_ptr => tree_ptr%acc
-         CALL search_end_of_clean_tree(tree_ptr, last_acc, error)
+         CALL search_end_of_clean_tree(tree_ptr, last_acc)
        ELSE IF(ASSOCIATED(tree_ptr%nacc).AND..NOT.ASSOCIATED(tree_ptr%acc))THEN
          tree_ptr => tree_ptr%nacc
-         CALL search_end_of_clean_tree(tree_ptr, last_acc, error)
+         CALL search_end_of_clean_tree(tree_ptr, last_acc)
        END IF
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(last_acc),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
+    CPPostcondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
   END SUBROUTINE search_end_of_clean_tree
 
 ! *****************************************************************************
@@ -551,17 +526,13 @@ CONTAINS
 !> \param prob the acceptance probability of the tree element to define 
 !>        the direction to start with
 !> \param tmc_env TMC environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE search_canceling_elements(pt_elem_in, prob, tmc_env,&
-                                                 error)
+  RECURSIVE SUBROUTINE search_canceling_elements(pt_elem_in, prob, tmc_env)
     TYPE(global_tree_type), INTENT(IN), &
       POINTER                                :: pt_elem_in
     REAL(KIND=dp), OPTIONAL                  :: prob
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'search_canceling_elements', &
       routineP = moduleN//':'//routineN
@@ -572,8 +543,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(pt_elem, act_pt_ptr)
-    CPPrecondition(ASSOCIATED(pt_elem_in),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pt_elem_in),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
     
     ! start the timing
     CALL timeset(routineN,handle)
@@ -603,47 +574,41 @@ CONTAINS
          CASE(status_calculate_NMC_steps, status_calculate_MD, &
               status_calculate_energy)
            CALL search_and_remove_reference_in_list(gt_ptr=pt_elem, &
-                   elem=pt_elem%conf(pt_elem%mv_conf)%elem, tmc_env=tmc_env, &
-                   error=error)
+                   elem=pt_elem%conf(pt_elem%mv_conf)%elem, tmc_env=tmc_env)
 
          CASE DEFAULT
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"unknown status of subtree element"//&
                    cp_to_string(pt_elem%conf(pt_elem%mv_conf)%elem%stat),&
-                   error,failure)
+                   failure)
          END SELECT
       END IF
       !-- go until the ends ot he tree, to search for elements to cancel
       !-- check if child nodes exist
       IF(ASSOCIATED(pt_elem%acc))THEN
          act_pt_ptr => pt_elem%acc
-         CALL search_canceling_elements(pt_elem_in=act_pt_ptr,tmc_env=tmc_env,&
-                                        error=error)
+         CALL search_canceling_elements(pt_elem_in=act_pt_ptr,tmc_env=tmc_env)
       END IF
       IF(ASSOCIATED(pt_elem%nacc))THEN
          act_pt_ptr => pt_elem%nacc
-         CALL search_canceling_elements(pt_elem_in=act_pt_ptr,tmc_env=tmc_env,&
-                                        error=error)
+         CALL search_canceling_elements(pt_elem_in=act_pt_ptr,tmc_env=tmc_env)
       END IF
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(pt_elem_in),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(pt_elem_in),cp_failure_level,routineP,failure)
   END SUBROUTINE search_canceling_elements
 
 ! *****************************************************************************
 !> \brief searches for created configurations in all subtrees
 !> \param global_tree_ptr pointer to one global tree element
 !> \param counters array returning the counters for each subtree
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  SUBROUTINE count_prepared_nodes_in_trees(global_tree_ptr, counters, error)
+  SUBROUTINE count_prepared_nodes_in_trees(global_tree_ptr, counters)
     TYPE(global_tree_type), INTENT(IN), &
       POINTER                                :: global_tree_ptr
     INTEGER, DIMENSION(:), POINTER           :: counters
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'count_prepared_nodes_in_trees', &
@@ -656,9 +621,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(begin_ptr)
 
-    CPPrecondition(ASSOCIATED(global_tree_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(counters),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(global_tree_ptr),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(counters),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -667,7 +632,7 @@ CONTAINS
     DO i=1, SIZE(global_tree_ptr%conf(:))
        begin_ptr => global_tree_ptr%conf(i)%elem
        CALL count_prepared_nodes_in_subtree(tree_ptr=begin_ptr, &
-                                            counter=counters(i), error=error)
+                                            counter=counters(i))
     END DO
 
     ! end the timing
@@ -679,14 +644,11 @@ CONTAINS
 !> \param tree_ptr pointer to one subtree element 
 !> \param counter returning the amount of prepared 
 !>        (ready for energy calculation) elements ind certain sub tree
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE count_prepared_nodes_in_subtree(tree_ptr, counter,error)
+  RECURSIVE SUBROUTINE count_prepared_nodes_in_subtree(tree_ptr, counter)
     TYPE(tree_type), POINTER                 :: tree_ptr
     INTEGER                                  :: counter
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'count_prepared_nodes_in_subtree', &
@@ -698,29 +660,29 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_ptr)
 
-    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
 
     SELECT CASE(tree_ptr%stat)
     CASE(status_accepted, status_accepted_result)
       IF(ASSOCIATED(tree_ptr%acc)) THEN
         tmp_ptr => tree_ptr%acc
-        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter, error)
+        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter)
       END IF
     CASE(status_rejected, status_rejected_result)
       IF(ASSOCIATED(tree_ptr%nacc)) THEN
         tmp_ptr => tree_ptr%nacc
-        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter, error)
+        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter)
       END IF
     CASE(status_created, status_calculate_MD, status_calculate_NMC_steps, &
          status_calc_approx_ener, status_calculated, status_calculate_energy)
       IF(tree_ptr%stat.EQ.status_created) counter = counter + 1
       IF(ASSOCIATED(tree_ptr%acc)) THEN
         tmp_ptr => tree_ptr%acc
-        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter, error)
+        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter)
       END IF
       IF(ASSOCIATED(tree_ptr%nacc)) THEN
         tmp_ptr => tree_ptr%nacc
-        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter, error)
+        CALL count_prepared_nodes_in_subtree(tmp_ptr, counter)
       END IF
     CASE(status_cancel_nmc, status_cancel_ener, status_canceled_nmc, &
          status_canceled_ener)
@@ -729,8 +691,7 @@ CONTAINS
       CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                    "stat "//cp_to_string(tree_ptr%stat)//&
                    "of elem "//cp_to_string(tree_ptr%nr)//&
-                   "unknown.",&
-                   error)
+                   "unknown.")
     END SELECT
   END SUBROUTINE count_prepared_nodes_in_subtree
 
@@ -741,17 +702,14 @@ CONTAINS
 !> \param counters array returning the counters for each subtree
 !> \param head_elements_nr node number of the existing 
 !>        global and sub tree heads
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
   SUBROUTINE count_nodes_in_trees(global_tree_ptr, end_of_clean_trees, &
-                                  counters, head_elements_nr, error)
+                                  counters, head_elements_nr)
     TYPE(global_tree_type), POINTER          :: global_tree_ptr
     TYPE(elem_array_type), DIMENSION(:), &
       POINTER                                :: end_of_clean_trees
     INTEGER, DIMENSION(:), POINTER           :: counters, head_elements_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_trees', &
       routineP = moduleN//':'//routineN
@@ -764,10 +722,10 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(begin_gt_ptr, begin_ptr)
 
-    CPPrecondition(ASSOCIATED(global_tree_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(end_of_clean_trees),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(counters),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(global_tree_ptr),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(end_of_clean_trees),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(counters),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -779,7 +737,7 @@ CONTAINS
       begin_gt_ptr => begin_gt_ptr%parent
     END DO
     head_elements_nr(0) = begin_gt_ptr%nr
-    CALL count_nodes_in_global_tree(begin_gt_ptr, counters(0), error)
+    CALL count_nodes_in_global_tree(begin_gt_ptr, counters(0))
     DO i=1, SIZE(end_of_clean_trees(:))
       begin_ptr => end_of_clean_trees(i)%elem
       DO
@@ -787,7 +745,7 @@ CONTAINS
         begin_ptr => begin_ptr%parent
       END DO
       head_elements_nr(i) = begin_ptr%nr
-      CALL count_nodes_in_tree(begin_ptr, counters(i), error)
+      CALL count_nodes_in_tree(begin_ptr, counters(i))
     END DO
 
     ! end the timing
@@ -798,15 +756,12 @@ CONTAINS
 !> \brief counts existing nodes in global tree
 !> \param ptr global tree head 
 !> \param counter return value with the amount of existing global tree elements
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE count_nodes_in_global_tree(ptr, counter, error)
+  RECURSIVE SUBROUTINE count_nodes_in_global_tree(ptr, counter)
     TYPE(global_tree_type), INTENT(IN), &
       POINTER                                :: ptr
     INTEGER, INTENT(INOUT)                   :: counter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_global_tree', &
       routineP = moduleN//':'//routineN
@@ -814,28 +769,25 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
 
     counter = counter +1
 
     IF(ASSOCIATED(ptr%acc)) &
-      CALL count_nodes_in_global_tree(ptr%acc, counter, error)
+      CALL count_nodes_in_global_tree(ptr%acc, counter)
     IF(ASSOCIATED(ptr%nacc)) &
-      CALL count_nodes_in_global_tree(ptr%nacc, counter, error)
+      CALL count_nodes_in_global_tree(ptr%nacc, counter)
   END SUBROUTINE count_nodes_in_global_tree
 
 ! *****************************************************************************
 !> \brief counts existing nodes in certain sub tree
 !> \param ptr subtree tree head 
 !> \param counter return value with the amount of existing sub tree elements
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE count_nodes_in_tree(ptr, counter, error)
+  RECURSIVE SUBROUTINE count_nodes_in_tree(ptr, counter)
     TYPE(tree_type), POINTER                 :: ptr
     INTEGER                                  :: counter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_tree', &
       routineP = moduleN//':'//routineN
@@ -843,13 +795,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
 
     counter = counter +1
 
     IF(ASSOCIATED(ptr%acc)) &
-      CALL count_nodes_in_tree(ptr%acc, counter, error)
+      CALL count_nodes_in_tree(ptr%acc, counter)
     IF(ASSOCIATED(ptr%nacc)) &
-      CALL count_nodes_in_tree(ptr%nacc, counter, error)
+      CALL count_nodes_in_tree(ptr%nacc, counter)
   END SUBROUTINE count_nodes_in_tree
 END MODULE tmc_tree_search

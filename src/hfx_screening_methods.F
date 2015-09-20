@@ -283,7 +283,6 @@ MODULE hfx_screening_methods
 !> \param n_threads ...
 !> \param i_thread Thread ID of current task
 !> \param p_work ...
-!> \param error ...
 !> \par History
 !>     02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -307,7 +306,7 @@ MODULE hfx_screening_methods
   SUBROUTINE calc_screening_functions(qs_env, basis_parameter, lib, potential_parameter, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
                                       max_set, max_pgf, n_threads, i_thread,&
-                                      p_work, error)
+                                      p_work)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -322,7 +321,6 @@ MODULE hfx_screening_methods
     INTEGER, INTENT(IN)                      :: max_set, max_pgf, n_threads, &
                                                 i_thread
     REAL(dp), DIMENSION(:), POINTER          :: p_work
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions', &
       routineP = moduleN//':'//routineN
@@ -356,14 +354,13 @@ MODULE hfx_screening_methods
 !$OMP END MASTER
 
     CALL get_qs_env(qs_env=qs_env,&
-                    qs_kind_set=qs_kind_set,&
-                    error=error)
+                    qs_kind_set=qs_kind_set)
 
     nkind = SIZE(qs_kind_set,1)
 
 !$OMP MASTER
     ALLOCATE(coeffs_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -386,7 +383,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -403,7 +400,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -470,7 +467,7 @@ MODULE hfx_screening_methods
 
 !$OMP MASTER
     ALLOCATE(coeffs_set(max_set,max_set,nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -488,7 +485,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 !      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
 !                             lmax=la_max,&
@@ -513,7 +510,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -568,7 +565,7 @@ MODULE hfx_screening_methods
     ! ** now kinds
 !$OMP MASTER
     ALLOCATE(coeffs_kind(nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -581,7 +578,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -597,7 +594,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -665,7 +662,6 @@ MODULE hfx_screening_methods
 !> \param eps_schwarz ...
 !> \param n_threads ...
 !> \param i_thread Thread ID of current task
-!> \param error ...
 !> \par History
 !>     02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -680,7 +676,7 @@ MODULE hfx_screening_methods
 
   SUBROUTINE calc_pair_dist_radii(qs_env, basis_parameter, &
                                   radii_pgf, max_set, max_pgf, eps_schwarz, &
-                                  n_threads, i_thread, error)
+                                  n_threads, i_thread)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(hfx_basis_type), DIMENSION(:), &
@@ -690,7 +686,6 @@ MODULE hfx_screening_methods
     INTEGER, INTENT(IN)                      :: max_set, max_pgf
     REAL(dp)                                 :: eps_schwarz
     INTEGER, INTENT(IN)                      :: n_threads, i_thread
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
       routineP = moduleN//':'//routineN
@@ -721,15 +716,14 @@ MODULE hfx_screening_methods
     CALL timeset(routineN,handle)
 !$OMP END MASTER
     CALL get_qs_env(qs_env=qs_env,&
-                    qs_kind_set=qs_kind_set,&
-                    error=error)
+                    qs_kind_set=qs_kind_set)
 
     nkind = SIZE(qs_kind_set,1)
     ra = 0.0_dp
     rb = 0.0_dp
 !$OMP MASTER
     ALLOCATE(radii_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind = 1,nkind
       DO jkind = 1,nkind
         DO iset=1,max_set
@@ -751,7 +745,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -768,7 +762,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax

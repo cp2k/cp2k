@@ -135,32 +135,28 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Initialize all arrays used for the evaluation of the integrals
 !>
-!> \param error ...
 !> \date   04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE init_se_intd_array(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE init_se_intd_array()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_se_intd_array', &
       routineP = moduleN//':'//routineN
 
-    CALL setup_index_array(error)
-    CALL setup_indrot_array(error)
-    CALL setup_clm_array(error)
-    CALL setup_ijkl_array(error)
+    CALL setup_index_array()
+    CALL setup_indrot_array()
+    CALL setup_clm_array()
+    CALL setup_ijkl_array()
 
   END SUBROUTINE init_se_intd_array
 
 ! *****************************************************************************
 !> \brief Fills in array for the diagonal storage of the ij and kl multipoles term
 !>
-!> \param error ...
 !> \date   03.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE setup_index_array(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE setup_index_array()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_index_array', &
       routineP = moduleN//':'//routineN
@@ -204,12 +200,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Fills in array for the rotation of the integrals
 !>
-!> \param error ...
 !> \date   04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE setup_indrot_array(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE setup_indrot_array()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_indrot_array', &
       routineP = moduleN//':'//routineN
@@ -275,12 +269,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Fills in Clm coefficients (see Table [2] of TCA)
 !>
-!> \param error ...
 !> \date   03.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE setup_clm_array(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE setup_clm_array()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_clm_array', &
       routineP = moduleN//':'//routineN
@@ -490,12 +482,10 @@ CONTAINS
 !> \brief Fills in the index number for the <ij|kl> integral as well as the
 !>        symmetry index
 !>
-!> \param error ...
 !> \date   03.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE setup_ijkl_array(error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE setup_ijkl_array()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_ijkl_array', &
       routineP = moduleN//':'//routineN

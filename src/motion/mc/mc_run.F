@@ -98,18 +98,16 @@ CONTAINS
 !> \param input_declaration ...
 !> \param input_file_name the name of the input file that force_env_1 was
 !>        created from
-!> \param error the error type
 !> \author MJM
 !> \note
 !>      Designed for parallel.
 ! *****************************************************************************
-  SUBROUTINE do_mon_car ( force_env_1, globenv, input_declaration, input_file_name, error )
+  SUBROUTINE do_mon_car ( force_env_1, globenv, input_declaration, input_file_name)
 
     TYPE(force_env_type), POINTER            :: force_env_1
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(LEN=*)                         :: input_file_name
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car', &
       routineP = moduleN//':'//routineN
@@ -142,29 +140,29 @@ CONTAINS
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
          root_section,mc_molecule_info)
 
-      CALL force_env_retain(force_env_1, error)
+      CALL force_env_retain(force_env_1)
 
       para_env=>force_env_1%para_env
-      logger=>cp_error_get_logger(error)
+      logger=>cp_get_default_logger()
       iw = cp_logger_get_default_io_unit(logger)
       force_env_section => force_env_1%force_env_section
       root_section => force_env_1%root_section
-      CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
-      CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
+      CALL section_vals_get(force_env_section,n_repetition=isos)
+      CPPostconditionNoFail(isos==1,cp_warning_level,routineP)
 ! set some values...will use get_globenv if that ever comes around
 
 ! initialize the random numbers
       CALL create_rng_stream(rng_stream=rng_stream,&
                              name="first",&
-                             distribution_type=UNIFORM,error=error)
+                             distribution_type=UNIFORM)
 
 ! need to figure out how many boxes we have, based on the value
 ! of mc_par % ensemble
       NULLIFY(mc_section)
       mc_section => section_vals_get_subs_vals(root_section,&
-         "MOTION%MC",error=error)
+         "MOTION%MC")
       CALL section_vals_val_get(mc_section,"ENSEMBLE",&
-           c_val=ensemble,error=error)
+           c_val=ensemble)
 
 ! now we read in the second force_env, if we have another box
       SELECT CASE(ensemble)
@@ -173,9 +171,9 @@ CONTAINS
       CASE("GEMC_NVT","GEMC_NPT")
          nboxes=2
          CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",&
-              c_val=box2_file,error=error)
+              c_val=box2_file)
          CALL mc_create_force_env(force_env_2,input_declaration,para_env,&
-              box2_file,globenv_new=globenv_2,error=error)
+              box2_file,globenv_new=globenv_2)
       END SELECT
 
 ! now we create the various pointers that contain information for all boxes
@@ -198,7 +196,7 @@ CONTAINS
 
 ! now we need the molecule information
 ! determine the total number of molecules and atoms
-      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error,&
+      CALL mc_determine_molecule_info(force_env,mc_molecule_info,&
            coordinates_empty=empty_coordinates)
       CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
            nunits_tot=nunits_tot)
@@ -213,8 +211,7 @@ CONTAINS
          ENDIF
 
 ! allocates an mc_env and sets the variables to zero
-         CALL mc_env_create ( mc_env(ibox)%mc_env, &
-            error = error )
+         CALL mc_env_create ( mc_env(ibox)%mc_env)
 
 ! now read in the values of the mc_pars
 ! creating the mc_par
@@ -228,10 +225,10 @@ CONTAINS
          root_section => force_env(ibox)%force_env%root_section
          IF(ibox == 1) THEN
             CALL read_mc_section ( mc_par(ibox)%mc_par, para_env, globenv ,input_file_name,&
-                 root_section,force_env_section,error)
+                 root_section,force_env_section)
          ELSE
             CALL read_mc_section ( mc_par(ibox)%mc_par, para_env, globenv ,box2_file,&
-                 root_section,force_env_section,error)
+                 root_section,force_env_section)
          ENDIF
 
 ! get the input file data, in case we need to make a restart...
@@ -242,17 +239,17 @@ CONTAINS
          CALL get_mc_par(mc_par(1)%mc_par,lbias=lbias)
          IF(ibox == 1) THEN
             CALL mc_input_file_create ( mc_input_file,&
-                 input_file_name,mc_molecule_info,empty_coordinates,lhmc,error)
+                 input_file_name,mc_molecule_info,empty_coordinates,lhmc)
          ELSE
             CALL mc_input_file_create ( mc_input_file,&
-                 box2_file,mc_molecule_info,empty_coordinates,lhmc,error)
+                 box2_file,mc_molecule_info,empty_coordinates,lhmc)
          ENDIF
          CALL set_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
 
          IF(lbias) THEN
             CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
             CALL mc_input_file_create ( mc_bias_file,&
-                 "bias_template.inp",mc_molecule_info,empty_coordinates,lhmc,error)
+                 "bias_template.inp",mc_molecule_info,empty_coordinates,lhmc)
             CALL set_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
          ENDIF
 
@@ -263,9 +260,9 @@ CONTAINS
             CALL read_mc_restart(mc_par(ibox)%mc_par,force_env(ibox)%force_env,&
                  iw,nunits_tot(ibox),rng_stream)
 ! release the old force env and make the new one
-            CALL force_env_release(force_env(ibox)%force_env,error=error)
+            CALL force_env_release(force_env(ibox)%force_env)
             CALL mc_create_force_env(force_env(ibox)%force_env, &
-                 input_declaration,para_env, dat_file,error=error)
+                 input_declaration,para_env, dat_file)
          ENDIF
 
       ENDDO
@@ -286,7 +283,7 @@ CONTAINS
 
 ! in case there was a restart, we need to do this again
       CALL mc_molecule_info_destroy(mc_molecule_info)
-      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error,box_number=box_number)
+      CALL mc_determine_molecule_info(force_env,mc_molecule_info,box_number=box_number)
       CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
            nunits_tot=nunits_tot)
       DO ibox=1,nboxes
@@ -325,9 +322,9 @@ CONTAINS
 ! of running a simulation
       SELECT CASE(ensemble)
       CASE("VIRIAL")
-         CALL mc_compute_virial(mc_env,rng_stream,error)
+         CALL mc_compute_virial(mc_env,rng_stream)
       CASE DEFAULT
-         CALL mc_run_ensemble(mc_env,para_env,globenv,input_declaration,nboxes,rng_stream,error)
+         CALL mc_run_ensemble(mc_env,para_env,globenv,input_declaration,nboxes,rng_stream)
       END SELECT
 
 ! get rid of all the MC molecule information
@@ -347,22 +344,22 @@ CONTAINS
          ENDIF
 
          CALL mc_sim_par_destroy(mc_par(ibox)%mc_par)
-         CALL mc_env_release ( mc_env(ibox)%mc_env, error )
-         CALL force_env_release(force_env(ibox)%force_env,error=error)
+         CALL mc_env_release ( mc_env(ibox)%mc_env)
+         CALL force_env_release(force_env(ibox)%force_env)
       ENDDO
 
 
       DEALLOCATE ( empty_coordinates, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
       DEALLOCATE ( mc_par, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
       DEALLOCATE ( mc_env, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
       DEALLOCATE ( force_env, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
 
 ! delete the random numbers
-      CALL delete_rng_stream(rng_stream,error=error)
+      CALL delete_rng_stream(rng_stream)
 
     END SUBROUTINE do_mon_car
 

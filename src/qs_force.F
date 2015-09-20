@@ -100,40 +100,36 @@ CONTAINS
 !> \param calc_force ...
 !> \param consistent_energies ...
 !> \param linres ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_calc_energy_force(qs_env,calc_force,consistent_energies,linres,error)
+  SUBROUTINE qs_calc_energy_force(qs_env,calc_force,consistent_energies,linres)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL                                  :: calc_force, &
                                                 consistent_energies, linres
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
     qs_env%linres_run = linres
-    CALL set_qs_env(qs_env,error=error)
+    CALL set_qs_env(qs_env)
     IF (calc_force) THEN
-       CALL qs_forces(qs_env, error=error)
+       CALL qs_forces(qs_env)
     ELSE
        CALL qs_energies(qs_env, calc_forces=.FALSE.,&
-            consistent_energies=consistent_energies, error=error)
+            consistent_energies=consistent_energies)
     END IF
-    CALL get_qs_env(qs_env,error=error)
+    CALL get_qs_env(qs_env)
   END SUBROUTINE qs_calc_energy_force
 
 ! *****************************************************************************
 !> \brief   Calculate the Quickstep forces.
 !> \param qs_env ...
-!> \param error ...
 !> \date    29.10.2002
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_forces(qs_env,error)
+  SUBROUTINE qs_forces(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
       routineP = moduleN//':'//routineN
@@ -174,13 +170,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY (logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! rebuild plane wave environment
-    CALL qs_env_rebuild_pw_env(qs_env,error)
+    CALL qs_env_rebuild_pw_env(qs_env)
 
     ! zero out the forces in particle set
-    CALL get_qs_env(qs_env,particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env,particle_set=particle_set)
     natom = SIZE(particle_set)
     DO iatom=1,natom
        particle_set(iatom)%f=0.0_dp
@@ -188,9 +184,9 @@ CONTAINS
 
     ! get atom mapping
     NULLIFY (atomic_kind_set)
-    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set)
     ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          atom_of_kind=atom_of_kind,&
          kind_of=kind_of)
@@ -198,30 +194,28 @@ CONTAINS
     NULLIFY (force,subsys)
     CALL get_qs_env(qs_env,&
                     force=force,&
-                    subsys=subsys,&
-                    error=error)
+                    subsys=subsys)
     IF (.NOT.ASSOCIATED(force)) THEN
        !   *** Allocate the force data structure ***
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
-       CALL allocate_qs_force(force,natom_of_kind,error)
+       CALL allocate_qs_force(force,natom_of_kind)
        DEALLOCATE (natom_of_kind,STAT=istat)
-       CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-       CALL qs_subsys_set(subsys,force=force,error=error)
+       CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+       CALL qs_subsys_set(subsys,force=force)
     END IF
-    CALL zero_qs_force(force,error)
+    CALL zero_qs_force(force)
 
     ! recalculate energy with forces
-    CALL qs_energies(qs_env,calc_forces=.TRUE.,error=error)
+    CALL qs_energies(qs_env,calc_forces=.TRUE.)
 
     NULLIFY (dft_control,para_env)
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
     ! Now we handle some special cases
     ! Maybe some of these would be better dealt with in qs_energies?
@@ -230,20 +224,19 @@ CONTAINS
        CALL get_qs_env(qs_env,&
                        ks_env=ks_env,&
                        matrix_w=matrix_w,&
-                       matrix_s=matrix_s,&
-                       error=error)
-       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+                       matrix_s=matrix_s)
+       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins)
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_w(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
+          CALL cp_dbcsr_init(matrix_w(ispin)%matrix)
           CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
-               name="W MATRIX",error=error)
-          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+               name="W MATRIX")
+          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp)
        END DO
-       CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
+       CALL set_ks_env(ks_env,matrix_w=matrix_w)
 
-       CALL calc_c_mat_force(qs_env,error)
-       IF(dft_control%do_admm) CALL rt_admm_force(qs_env,error)
+       CALL calc_c_mat_force(qs_env)
+       IF(dft_control%do_admm) CALL rt_admm_force(qs_env)
     END IF
     ! from an eventual Mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
@@ -251,40 +244,39 @@ CONTAINS
        CALL get_qs_env(qs_env,&
                        matrix_w=matrix_w,&
                        matrix_s=matrix_s,&
-                       rho=rho,&
-                       error=error)
+                       rho=rho)
        NULLIFY (rho_ao)
-       CALL qs_rho_get(rho,rho_ao=rho_ao,error=error)
+       CALL qs_rho_get(rho,rho_ao=rho_ao)
        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-            para_env,matrix_s(1)%matrix,rho_ao,w_matrix=matrix_w,error=error)
+            para_env,matrix_s(1)%matrix,rho_ao,w_matrix=matrix_w)
     END IF
     ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
     ! digested with overlap matrix derivatives
     IF (dft_control%dft_plus_u) THEN
        NULLIFY(matrix_w)
-       CALL get_qs_env(qs_env,matrix_w=matrix_w,error=error)
-       CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
+       CALL get_qs_env(qs_env,matrix_w=matrix_w)
+       CALL plus_u(qs_env=qs_env,matrix_w=matrix_w)
     END IF
 
     ! Write W Matrix to output (if requested)
-    CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+    CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric)
     IF (.NOT.has_unit_metric) THEN
        NULLIFY(matrix_w_kp)
-       CALL get_qs_env(qs_env,matrix_w_kp=matrix_w_kp,error=error)
+       CALL get_qs_env(qs_env,matrix_w_kp=matrix_w_kp)
        nspin = SIZE(matrix_w_kp,1)
        DO ispin=1,nspin
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX"),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
-                  extension=".Log",error=error)
-             CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+                  extension=".Log")
+             CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
              after = MIN(MAX(after,1),16)
              DO ic=1,SIZE(matrix_w_kp,2)
                 CALL cp_dbcsr_write_sparse_matrix(matrix_w_kp(ispin,ic)%matrix,4,after,qs_env,&
-                     para_env,output_unit=iw,error=error)
+                     para_env,output_unit=iw)
              END DO
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                  "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
+                  "DFT%PRINT%AO_MATRICES/W_MATRIX")
           END IF
        END DO
     ENDIF
@@ -292,32 +284,31 @@ CONTAINS
     ! Compute core forces (also overwrites matrix_w)
     IF (dft_control%qs_control%semi_empirical) THEN
        CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
-            calculate_forces=.TRUE.,error=error)
-       CALL se_core_core_interaction(qs_env,para_env,calculate_forces=.TRUE.,&
-            error=error)
+            calculate_forces=.TRUE.)
+       CALL se_core_core_interaction(qs_env,para_env,calculate_forces=.TRUE.)
     ELSEIF (dft_control%qs_control%dftb) THEN
        CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
-            calculate_forces=.TRUE.,error=error)
+            calculate_forces=.TRUE.)
        CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
-            calculate_forces=.TRUE.,error=error)
+            calculate_forces=.TRUE.)
     ELSEIF (dft_control%qs_control%scptb) THEN
-       CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
-       CALL scptb_core_interaction(qs_env,calculate_forces=.TRUE.,error=error)
+       CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.TRUE.)
+       CALL scptb_core_interaction(qs_env,calculate_forces=.TRUE.)
     ELSE
-       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
-       CALL calculate_ecore_self(qs_env,error=error)
-       CALL calculate_ecore_overlap(qs_env,para_env,calculate_forces=.TRUE.,error=error)
-       CALL calculate_ecore_efield(qs_env,calculate_forces=.TRUE.,error=error)
+       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.)
+       CALL calculate_ecore_self(qs_env)
+       CALL calculate_ecore_overlap(qs_env,para_env,calculate_forces=.TRUE.)
+       CALL calculate_ecore_efield(qs_env,calculate_forces=.TRUE.)
        !swap external_e_potential before external_c_potential, to ensure 
        !that external potential on grid is loaded before calculating energy of cores
-       CALL external_e_potential(qs_env,error)
+       CALL external_e_potential(qs_env)
        IF (.NOT. dft_control%qs_control%gapw ) THEN
-         CALL external_c_potential(qs_env,calculate_forces=.TRUE.,error=error)
+         CALL external_c_potential(qs_env,calculate_forces=.TRUE.)
        END IF
     END IF
 
     ! Compute grid-based forces
-    CALL qs_ks_update_qs_env(qs_env,calculate_forces=.TRUE.,error=error)
+    CALL qs_ks_update_qs_env(qs_env,calculate_forces=.TRUE.)
 
     ! MP2 Code
     IF(ASSOCIATED(qs_env%mp2_env)) THEN
@@ -327,29 +318,27 @@ CONTAINS
                     matrix_w_mp2=matrix_w_mp2,&
                     ks_env=ks_env,&
                     rho=rho,&
-                    energy=energy,&
-                    error=error)
+                    energy=energy)
        NULLIFY (rho_ao)
-       CALL qs_rho_get(rho,rho_ao=rho_ao,error=error)
+       CALL qs_rho_get(rho,rho_ao=rho_ao)
        ! with MP2 we have to recalculate the SCF energy with the
        ! correct density
        DO ispin=1,dft_control%nspins
-          CALL cp_dbcsr_add(rho_ao(ispin)%matrix,matrix_p_mp2(ispin)%matrix,1.0_dp,-1.0_dp,error)
+          CALL cp_dbcsr_add(rho_ao(ispin)%matrix,matrix_p_mp2(ispin)%matrix,1.0_dp,-1.0_dp)
        END DO
-       CALL qs_rho_update_rho(rho,qs_env=qs_env,error=error)
-       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-       CALL qs_ks_update_qs_env(qs_env,just_energy=.TRUE.,error=error)
+       CALL qs_rho_update_rho(rho,qs_env=qs_env)
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
+       CALL qs_ks_update_qs_env(qs_env,just_energy=.TRUE.)
        energy%total = energy%total + energy%mp2
        ! deallocate mp2_W 
-       CALL cp_dbcsr_deallocate_matrix_set(matrix_w_mp2,error=error)
-       CALL set_ks_env(ks_env,matrix_w_mp2=Null(),error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(matrix_w_mp2)
+       CALL set_ks_env(ks_env,matrix_w_mp2=Null())
     END IF
 
     ! Add forces resulting from wavefunction fitting
     IF (dft_control%do_admm_dm) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Forces with ADMM DM methods not implemented", &
-            error=error)
+            message="Forces with ADMM DM methods not implemented")
     END IF
     IF (dft_control%do_admm_mo.AND..NOT.qs_env%run_rtp ) THEN
        NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_ks_aux_fit,&
@@ -360,8 +349,7 @@ CONTAINS
             matrix_ks_aux_fit=matrix_ks_aux_fit,&
             mos_aux_fit=mos_aux_fit,&
             mos=mos,&
-            admm_env=admm_env,&
-            error=error)
+            admm_env=admm_env)
        DO ispin=1,dft_control%nspins
           mo_set => mos(ispin)%mo_set
           CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
@@ -369,10 +357,10 @@ CONTAINS
           IF (admm_env%purification_method==do_admm_purify_none) THEN
              CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
              CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
-                  mo_coeff_aux_fit, matrix_ks_aux_fit, error=error)
+                  mo_coeff_aux_fit, matrix_ks_aux_fit)
           END IF
        END DO
-       CALL calc_mixed_overlap_force(qs_env, error)
+       CALL calc_mixed_overlap_force(qs_env)
     END IF
 
     !  *** replicate forces ***
@@ -436,7 +424,7 @@ CONTAINS
     END DO
 
     NULLIFY(virial,energy)
-    CALL get_qs_env(qs_env=qs_env,virial=virial,energy=energy,error=error)
+    CALL get_qs_env(qs_env=qs_env,virial=virial,energy=energy)
     !   *** distribute virial ***
     IF (virial%pv_availability) THEN
        CALL mp_sum(virial%pv_virial,para_env%group)
@@ -459,37 +447,37 @@ CONTAINS
     END IF
 
     output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
-         extension=".Log",error=error)
-    print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
+         extension=".Log")
+    print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES")
     IF (dft_control%qs_control%semi_empirical) THEN
        CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
-            print_section=print_section,error=error)
+            print_section=print_section)
     ELSE IF (dft_control%qs_control%dftb) THEN
        CALL write_forces(force,atomic_kind_set,4,output_unit=output_unit,&
-            print_section=print_section,error=error)
+            print_section=print_section)
     ELSE IF (dft_control%qs_control%gapw) THEN
        CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
-            print_section=print_section,error=error)
+            print_section=print_section)
     ELSE IF (dft_control%qs_control%scptb) THEN
        CALL write_forces(force,atomic_kind_set,5,output_unit=output_unit,&
-            print_section=print_section,error=error)
+            print_section=print_section)
     ELSE
        CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
-            print_section=print_section,error=error)
+            print_section=print_section)
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-         "DFT%PRINT%DERIVATIVES",error=error)
+         "DFT%PRINT%DERIVATIVES")
 
     ! deallocate W Matrix: 
     NULLIFY(ks_env,matrix_w_kp)
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_w_kp=matrix_w_kp,&
-                    ks_env=ks_env,error=error)
-    CALL cp_dbcsr_deallocate_matrix_set(matrix_w_kp,error=error)
-    CALL set_ks_env(ks_env,matrix_w=Null(),matrix_w_kp=Null(),error=error)
+                    ks_env=ks_env)
+    CALL cp_dbcsr_deallocate_matrix_set(matrix_w_kp)
+    CALL set_ks_env(ks_env,matrix_w=Null(),matrix_w_kp=Null())
 
     DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -502,13 +490,12 @@ CONTAINS
 !> \param ftype ...
 !> \param output_unit ...
 !> \param print_section ...
-!> \param error ...
 !> \date    05.06.2002
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,output_unit,&
-                          print_section, error)
+                          print_section)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -516,7 +503,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: ftype, output_unit
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_forces', &
       routineP = moduleN//':'//routineN
@@ -553,7 +539,7 @@ CONTAINS
 
        ! Variable precision output of the forces
        CALL section_vals_val_get(print_section,"NDIGITS",&
-            i_val=ndigits,error=error)
+            i_val=ndigits)
 
        fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
        WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5

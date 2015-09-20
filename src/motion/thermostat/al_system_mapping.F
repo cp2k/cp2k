@@ -51,11 +51,10 @@ CONTAINS
 !> \param al ...
 !> \param para_env ...
 !> \param gci ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE al_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
-       molecule_set, molecule_kind_set, al, para_env, gci, error)
+       molecule_set, molecule_kind_set, al, para_env, gci)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -65,7 +64,6 @@ CONTAINS
     TYPE(al_system_type), POINTER            :: al
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'al_to_particle_mapping', &
       routineP = moduleN//':'//routineN
@@ -90,7 +88,7 @@ CONTAINS
 
        CALL setup_al_thermostat(al, thermostat_info, deg_of_freedom,&
             massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
-            para_env, natoms_local, simpar, sum_of_thermostats, gci, error=error)
+            para_env, natoms_local, simpar, sum_of_thermostats, gci)
 
        ! Sum up the number of degrees of freedom on each thermostat.
        ! first: initialize the target
@@ -124,9 +122,9 @@ CONTAINS
        END IF
 
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE al_to_particle_mapping
@@ -146,12 +144,11 @@ CONTAINS
 !> \param sum_of_thermostats ...
 !> \param gci ...
 !> \param shell ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
   SUBROUTINE setup_al_thermostat ( al, thermostat_info, deg_of_freedom,&
        massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
-       para_env, natoms_local, simpar, sum_of_thermostats, gci, shell, error)
+       para_env, natoms_local, simpar, sum_of_thermostats, gci, shell)
 
     TYPE(al_system_type), POINTER            :: al
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
@@ -166,7 +163,6 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: sum_of_thermostats
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_al_thermostat', &
       routineP = moduleN//':'//routineN
@@ -189,12 +185,12 @@ CONTAINS
     CALL thermostat_mapping_region(map_info, deg_of_freedom, massive_atom_list,&
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
        simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
-       sum_of_thermostats, error)
+       sum_of_thermostats)
 
     ! This is the local number of available thermostats
     al%loc_num_al  = number
     al%glob_num_al = sum_of_thermostats
-    CALL al_thermo_create(al, error=error)
+    CALL al_thermo_create(al)
 
   END SUBROUTINE setup_al_thermostat
 

@@ -69,22 +69,20 @@ MODULE  rt_propagation_forces
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !>        driver routine
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE calc_c_mat_force(qs_env,error)
+  SUBROUTINE calc_c_mat_force(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force', &
       routineP = moduleN//':'//routineN
 
     IF(qs_env%rtp%linear_scaling)THEN
-       CALL calc_c_mat_force_ls(qs_env,error)
+       CALL calc_c_mat_force_ls(qs_env)
     ELSE 
-       CALL calc_c_mat_force_fm(qs_env,error)
+       CALL calc_c_mat_force_fm(qs_env)
     END IF
 
   END SUBROUTINE calc_c_mat_force
@@ -93,11 +91,9 @@ MODULE  rt_propagation_forces
 !> \brief standard treatment for fm MO based calculations
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calc_c_mat_force_fm(qs_env,error)
+  SUBROUTINE calc_c_mat_force_fm(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_fm', &
       routineP = moduleN//':'//routineN
@@ -133,25 +129,25 @@ MODULE  rt_propagation_forces
     NULLIFY(rtp,particle_set,atomic_kind_set,mos)
     NULLIFY(tmp_dbcsr,rho_im_sparse)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,particle_set=particle_set,&
-                 atomic_kind_set=atomic_kind_set,mos=mos,force=force,error=error)
+                 atomic_kind_set=atomic_kind_set,mos=mos,force=force)
 
     CALL get_rtp(rtp=rtp,C_mat=C_mat,S_der=S_der,&
-                 SinvH=SinvH,SinvB=SinvB,mos_new=mos_new,error=error)
+                 SinvH=SinvH,SinvB=SinvB,mos_new=mos_new)
 
     ALLOCATE(tmp_dbcsr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(rho_im_sparse,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(tmp_dbcsr,error=error)
-    CALL cp_dbcsr_create(tmp_dbcsr,template=SinvH(1)%matrix, error=error)
-    CALL cp_dbcsr_init(rho_im_sparse,error=error)
-    CALL cp_dbcsr_create(rho_im_sparse,template=SinvH(1)%matrix, error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_init(tmp_dbcsr)
+    CALL cp_dbcsr_create(tmp_dbcsr,template=SinvH(1)%matrix)
+    CALL cp_dbcsr_init(rho_im_sparse)
+    CALL cp_dbcsr_create(rho_im_sparse,template=SinvH(1)%matrix)
 
     natom = SIZE(particle_set)
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
@@ -165,36 +161,36 @@ MODULE  rt_propagation_forces
        NULLIFY(col_blk_size)
        CALL dbcsr_create_dist_r_unrot (dist, cp_dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
 
-       CALL cp_dbcsr_init(db_mos_re, error)
+       CALL cp_dbcsr_init(db_mos_re)
        CALL cp_dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(SinvB(ispin)%matrix), col_blk_size,&
-            nze=0, error=error)
-       CALL cp_dbcsr_init(db_mos_im, error)
-       CALL cp_dbcsr_create(db_mos_im,template=db_mos_re, error=error)
-       CALL cp_dbcsr_init(db_mo_tmp1, error)
-       CALL cp_dbcsr_create(db_mo_tmp1,template=db_mos_re, error=error)
-       CALL cp_dbcsr_init(db_mo_tmp2, error)
-       CALL cp_dbcsr_create(db_mo_tmp2,template=db_mos_re, error=error)
+            nze=0)
+       CALL cp_dbcsr_init(db_mos_im)
+       CALL cp_dbcsr_create(db_mos_im,template=db_mos_re)
+       CALL cp_dbcsr_init(db_mo_tmp1)
+       CALL cp_dbcsr_create(db_mo_tmp1,template=db_mos_re)
+       CALL cp_dbcsr_init(db_mo_tmp2)
+       CALL cp_dbcsr_create(db_mo_tmp2,template=db_mos_re)
 
-       CALL copy_fm_to_dbcsr(mos_new(im)%matrix,db_mos_im,error=error)
-       CALL copy_fm_to_dbcsr(mos_new(re)%matrix,db_mos_re,error=error)
+       CALL copy_fm_to_dbcsr(mos_new(im)%matrix,db_mos_im)
+       CALL copy_fm_to_dbcsr(mos_new(re)%matrix,db_mos_re)
 
-       CALL cp_dbcsr_multiply("N","N",alpha, SinvB(ispin)%matrix,db_mos_im,0.0_dp,db_mo_tmp1,error=error)       
-       CALL cp_dbcsr_multiply("N","N",alpha, SinvH(ispin)%matrix,db_mos_re,1.0_dp,db_mo_tmp1,error=error)       
-       CALL cp_dbcsr_multiply("N","N",-alpha,SinvB(ispin)%matrix,db_mos_re,0.0_dp,db_mo_tmp2,error=error)       
-       CALL cp_dbcsr_multiply("N","N",alpha, SinvH(ispin)%matrix,db_mos_im,1.0_dp,db_mo_tmp2,error=error)
-       CALL cp_dbcsr_multiply("N","T",1.0_dp,db_mo_tmp1,db_mos_re,0.0_dp,tmp_dbcsr,error=error)
-       CALL cp_dbcsr_multiply("N","T",1.0_dp,db_mo_tmp2,db_mos_im,1.0_dp,tmp_dbcsr,error=error)
+       CALL cp_dbcsr_multiply("N","N",alpha, SinvB(ispin)%matrix,db_mos_im,0.0_dp,db_mo_tmp1)       
+       CALL cp_dbcsr_multiply("N","N",alpha, SinvH(ispin)%matrix,db_mos_re,1.0_dp,db_mo_tmp1)       
+       CALL cp_dbcsr_multiply("N","N",-alpha,SinvB(ispin)%matrix,db_mos_re,0.0_dp,db_mo_tmp2)       
+       CALL cp_dbcsr_multiply("N","N",alpha, SinvH(ispin)%matrix,db_mos_im,1.0_dp,db_mo_tmp2)
+       CALL cp_dbcsr_multiply("N","T",1.0_dp,db_mo_tmp1,db_mos_re,0.0_dp,tmp_dbcsr)
+       CALL cp_dbcsr_multiply("N","T",1.0_dp,db_mo_tmp2,db_mos_im,1.0_dp,tmp_dbcsr)
        
-       CALL cp_dbcsr_multiply("N","T",alpha,db_mos_re,db_mos_im,0.0_dp,rho_im_sparse,error=error)
-       CALL cp_dbcsr_multiply("N","T",-alpha,db_mos_im,db_mos_re,1.0_dp,rho_im_sparse,error=error)
+       CALL cp_dbcsr_multiply("N","T",alpha,db_mos_re,db_mos_im,0.0_dp,rho_im_sparse)
+       CALL cp_dbcsr_multiply("N","T",-alpha,db_mos_im,db_mos_re,1.0_dp,rho_im_sparse)
               
-       CALL compute_forces(force,tmp_dbcsr,S_der,rho_im_sparse,C_mat,kind_of,atom_of_kind,error) 
+       CALL compute_forces(force,tmp_dbcsr,S_der,rho_im_sparse,C_mat,kind_of,atom_of_kind) 
 
-       CALL cp_dbcsr_release(db_mos_re,error)     
-       CALL cp_dbcsr_release(db_mos_im,error)     
-       CALL cp_dbcsr_release(db_mo_tmp1,error)     
-       CALL cp_dbcsr_release(db_mo_tmp2,error)     
+       CALL cp_dbcsr_release(db_mos_re)     
+       CALL cp_dbcsr_release(db_mos_im)     
+       CALL cp_dbcsr_release(db_mo_tmp1)     
+       CALL cp_dbcsr_release(db_mo_tmp2)     
        
        DEALLOCATE(col_blk_size)
        CALL dbcsr_distribution_release(dist) 
@@ -205,16 +201,16 @@ MODULE  rt_propagation_forces
        force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)
     END DO
  
-    CALL cp_dbcsr_release(tmp_dbcsr,error)     
-    CALL cp_dbcsr_release(rho_im_sparse,error)     
+    CALL cp_dbcsr_release(tmp_dbcsr)     
+    CALL cp_dbcsr_release(rho_im_sparse)     
     DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (kind_of,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tmp_dbcsr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(rho_im_sparse,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      
     CALL timestop(handle)
 
@@ -225,15 +221,13 @@ MODULE  rt_propagation_forces
 !> \brief special treatment ofr linear scaling
 !>        P_imag*C , P_imag*B*S^-1*S_der , P*S^-1*H*S_der
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !>      02.2014 switched to dbcsr matrices [Samuel Andermatt]
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE calc_c_mat_force_ls(qs_env,error)
+  SUBROUTINE calc_c_mat_force_ls(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_ls', &
       routineP = moduleN//':'//routineN
@@ -267,64 +261,63 @@ MODULE  rt_propagation_forces
                     particle_set=particle_set,&
                     atomic_kind_set=atomic_kind_set,&
                     force=force,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     rtp_control=>dft_control%rtp_control
     CALL get_rtp(rtp=rtp,C_mat=C_mat,S_der=S_der,S_inv=S_inv,&
-                 SinvH=SinvH,SinvB=SinvB,error=error)
+                 SinvH=SinvH,SinvB=SinvB)
 
     natom = SIZE(particle_set)
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
 
     NULLIFY(tmp)
     ALLOCATE(tmp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(tmp,error=error)
-    CALL cp_dbcsr_create(tmp,template=SinvB(1)%matrix,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_init(tmp)
+    CALL cp_dbcsr_create(tmp,template=SinvB(1)%matrix)
     NULLIFY(tmp2)
     ALLOCATE(tmp2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(tmp2,error=error)
-    CALL cp_dbcsr_create(tmp2,template=SinvB(1)%matrix,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_init(tmp2)
+    CALL cp_dbcsr_create(tmp2,template=SinvB(1)%matrix)
     NULLIFY(tmp3)
     ALLOCATE(tmp3,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(tmp3,error=error)
-    CALL cp_dbcsr_create(tmp3,template=SinvB(1)%matrix,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_init(tmp3)
+    CALL cp_dbcsr_create(tmp3,template=SinvB(1)%matrix)
 
-    CALL get_rtp(rtp=rtp,rho_new=rho_new,S_minus_half=S_minus_half,error=error)
+    CALL get_rtp(rtp=rtp,rho_new=rho_new,S_minus_half=S_minus_half)
 
     DO ispin=1,SIZE(SinvH)
        re=2*ispin-1
        im=2*ispin
        IF(rtp_control%orthonormal) THEN
           CALL cp_dbcsr_multiply("N","N",one,S_minus_half,SinvH(ispin)%matrix,zero,tmp2,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
           CALL cp_dbcsr_multiply("N","N",one,tmp2,rho_new(re)%matrix,zero,tmp3,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
           CALL cp_dbcsr_multiply("N","N",one,tmp3,S_minus_half,zero,tmp,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
           CALL cp_dbcsr_multiply("N","N",one,S_minus_half,SinvB(ispin)%matrix,zero,tmp2,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
           CALL cp_dbcsr_multiply("N","N",one,tmp2,rho_new(im)%matrix,zero,tmp3,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
           CALL cp_dbcsr_multiply("N","N",one,tmp3,S_minus_half,one,tmp,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
        ELSE
           CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
           CALL cp_dbcsr_multiply("N","N",-one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,&
-               filter_eps=rtp%filter_eps,error=error)
+               filter_eps=rtp%filter_eps)
        ENDIF
 
-       CALL compute_forces(force,tmp,S_der,rho_new(im)%matrix,C_mat,kind_of,atom_of_kind,error)
+       CALL compute_forces(force,tmp,S_der,rho_new(im)%matrix,C_mat,kind_of,atom_of_kind)
 
     END DO
 
@@ -333,14 +326,14 @@ MODULE  rt_propagation_forces
        force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)
     END DO
 
-    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmp3,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp)
+    CALL cp_dbcsr_deallocate_matrix(tmp2)
+    CALL cp_dbcsr_deallocate_matrix(tmp3)
 
     DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (kind_of,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -355,9 +348,8 @@ MODULE  rt_propagation_forces
 !> \param C_mat ...
 !> \param kind_of ...
 !> \param atom_of_kind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE compute_forces(force,tmp,S_der,rho_im,C_mat,kind_of,atom_of_kind,error)
+  SUBROUTINE compute_forces(force,tmp,S_der,rho_im,C_mat,kind_of,atom_of_kind)
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(cp_dbcsr_type), POINTER             :: tmp
@@ -367,7 +359,6 @@ MODULE  rt_propagation_forces
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, atom_of_kind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_forces', &
       routineP = moduleN//':'//routineN
@@ -420,11 +411,9 @@ MODULE  rt_propagation_forces
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rt_admm_force(qs_env,error)
+  SUBROUTINE rt_admm_force(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_force', &
       routineP = moduleN//':'//routineN
@@ -444,14 +433,13 @@ MODULE  rt_propagation_forces
                     matrix_ks_aux_fit=KS_aux_re,&
                     matrix_ks_aux_fit_im=KS_aux_im,&
                     matrix_s_aux_fit=matrix_s_aux_fit,&
-                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
-                    error=error)
+                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
 
-    CALL get_rtp(rtp=rtp,mos_new=mos,admm_mos=mos_admm,error=error)
+    CALL get_rtp(rtp=rtp,mos_new=mos,admm_mos=mos_admm)
 
     ! currently only none option
     CALL rt_admm_forces_none(qs_env, admm_env, KS_aux_re, KS_aux_im, &
-                             matrix_s_aux_fit, matrix_s_aux_fit_vs_orb , mos_admm,mos,error)
+                             matrix_s_aux_fit, matrix_s_aux_fit_vs_orb , mos_admm,mos)
 
   END SUBROUTINE rt_admm_force
 
@@ -465,9 +453,8 @@ MODULE  rt_propagation_forces
 !> \param matrix_s_aux_fit_vs_orb ...
 !> \param mos_admm ...
 !> \param mos ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rt_admm_forces_none(qs_env,admm_env,KS_aux_re,KS_aux_im,matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,mos_admm,mos,error)
+  SUBROUTINE rt_admm_forces_none(qs_env,admm_env,KS_aux_re,KS_aux_im,matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,mos_admm,mos)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -476,7 +463,6 @@ MODULE  rt_propagation_forces
                                                 matrix_s_aux_fit_vs_orb
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_admm, mos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_forces_none', &
       routineP = moduleN//':'//routineN
@@ -502,105 +488,101 @@ MODULE  rt_propagation_forces
 
     NULLIFY(sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env)
     failure = .FALSE.
-!   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix",error=error)
+!   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix")
 
     CALL get_qs_env(qs_env,&
                     sab_aux_fit_asymm=sab_aux_fit_asymm,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
-                    ks_env=ks_env,&
-                    error=error)
+                    ks_env=ks_env)
 
     ALLOCATE(matrix_w_s)
-    CALL cp_dbcsr_init (matrix_w_s, error)
+    CALL cp_dbcsr_init (matrix_w_s)
     CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
          cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
          cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
          cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
-         cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,sab_aux_fit_asymm,error=error)
+         cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,sab_aux_fit_asymm)
 
     ALLOCATE(matrix_w_q)
-    CALL cp_dbcsr_init(matrix_w_q, error=error)
+    CALL cp_dbcsr_init(matrix_w_q)
     CALL cp_dbcsr_copy(matrix_w_q,matrix_s_aux_fit_vs_orb(1)%matrix,&
-                    "W MATRIX AUX Q",error=error)
+                    "W MATRIX AUX Q")
 
     DO ispin=1,SIZE(KS_aux_re)
        re=2*ispin-1; im=2*ispin
        naux=admm_env%nao_aux_fit; nmo=admm_env%nmo(ispin); nao=admm_env%nao_orb
        
        ALLOCATE(tmp_aux_aux(2),tmp_aux_nao(2),tmp_aux_mo(2),tmp_aux_mo1(2))
-       CALL cp_fm_create(tmp_aux_aux(1)%matrix,admm_env%work_aux_aux%matrix_struct,name="taa",error=error)
-       CALL cp_fm_create(tmp_aux_aux(2)%matrix,admm_env%work_aux_aux%matrix_struct,name="taa",error=error)
-       CALL cp_fm_create(tmp_aux_nao(1)%matrix,admm_env%work_aux_orb%matrix_struct,name="tao",error=error)
-       CALL cp_fm_create(tmp_aux_nao(2)%matrix,admm_env%work_aux_orb%matrix_struct,name="tao",error=error)
+       CALL cp_fm_create(tmp_aux_aux(1)%matrix,admm_env%work_aux_aux%matrix_struct,name="taa")
+       CALL cp_fm_create(tmp_aux_aux(2)%matrix,admm_env%work_aux_aux%matrix_struct,name="taa")
+       CALL cp_fm_create(tmp_aux_nao(1)%matrix,admm_env%work_aux_orb%matrix_struct,name="tao")
+       CALL cp_fm_create(tmp_aux_nao(2)%matrix,admm_env%work_aux_orb%matrix_struct,name="tao")
        mstruct => admm_env%work_aux_nmo(ispin)%matrix%matrix_struct
-       CALL cp_fm_create(tmp_aux_mo(1)%matrix,mstruct,name="tam",error=error)
-       CALL cp_fm_create(tmp_aux_mo(2)%matrix,mstruct,name="tam",error=error)
-       CALL cp_fm_create(tmp_aux_mo1(1)%matrix,mstruct,name="tam",error=error)
-       CALL cp_fm_create(tmp_aux_mo1(2)%matrix,mstruct,name="tam",error=error)
+       CALL cp_fm_create(tmp_aux_mo(1)%matrix,mstruct,name="tam")
+       CALL cp_fm_create(tmp_aux_mo(2)%matrix,mstruct,name="tam")
+       CALL cp_fm_create(tmp_aux_mo1(1)%matrix,mstruct,name="tam")
+       CALL cp_fm_create(tmp_aux_mo1(2)%matrix,mstruct,name="tam")
 
 ! First calculate H=KS_aux*C~, real part ends on work_aux_aux2, imaginary part ends at work_aux_aux3
-       CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix,mos_admm(re)%matrix,tmp_aux_mo(re)%matrix,nmo,4.0_dp,0.0_dp,error)
-       CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix,mos_admm(im)%matrix,tmp_aux_mo(im)%matrix,nmo,4.0_dp,0.0_dp,error)
-       CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix,mos_admm(im)%matrix,tmp_aux_mo(re)%matrix,nmo,-4.0_dp,1.0_dp,error)
-       CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix,mos_admm(re)%matrix,tmp_aux_mo(im)%matrix,nmo,4.0_dp,1.0_dp,error)
+       CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix,mos_admm(re)%matrix,tmp_aux_mo(re)%matrix,nmo,4.0_dp,0.0_dp)
+       CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix,mos_admm(im)%matrix,tmp_aux_mo(im)%matrix,nmo,4.0_dp,0.0_dp)
+       CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix,mos_admm(im)%matrix,tmp_aux_mo(re)%matrix,nmo,-4.0_dp,1.0_dp)
+       CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix,mos_admm(re)%matrix,tmp_aux_mo(im)%matrix,nmo,4.0_dp,1.0_dp)
  
 ! Next step compute S-1*H
-       CALL cp_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(re)%matrix,0.0_dp,tmp_aux_mo1(re)%matrix,error)
-       CALL cp_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(im)%matrix,0.0_dp,tmp_aux_mo1(im)%matrix,error)
+       CALL cp_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(re)%matrix,0.0_dp,tmp_aux_mo1(re)%matrix)
+       CALL cp_gemm('N','N',naux,nmo,naux,1.0_dp,admm_env%S_inv,tmp_aux_mo(im)%matrix,0.0_dp,tmp_aux_mo1(im)%matrix)
 
 ! Here we go on with Ws=S-1*H * C^H (take care of sign of the imaginary part!!!)
 
        CALL cp_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(re)%matrix, mos(re)%matrix, 0.0_dp,&
-                       tmp_aux_nao(re)%matrix, error)
+                       tmp_aux_nao(re)%matrix)
        CALL cp_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(im)%matrix, mos(im)%matrix, 1.0_dp,&
-                       tmp_aux_nao(re)%matrix, error)
+                       tmp_aux_nao(re)%matrix)
        CALL cp_gemm("N","T",naux,nao,nmo,1.0_dp,tmp_aux_mo1(re)%matrix, mos(im)%matrix, 0.0_dp,&
-                       tmp_aux_nao(im)%matrix, error)
+                       tmp_aux_nao(im)%matrix)
        CALL cp_gemm("N","T",naux,nao,nmo,-1.0_dp,tmp_aux_mo1(im)%matrix, mos(re)%matrix, 1.0_dp,&
-                       tmp_aux_nao(im)%matrix, error)
+                       tmp_aux_nao(im)%matrix)
 
 ! Let's do the final bit  Wq=S-1*H * C^H * A^T
-       CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(re)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(re)%matrix,error)     
-       CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(im)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(im)%matrix,error)     
+       CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(re)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(re)%matrix)     
+       CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(im)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(im)%matrix)     
 
        ! *** copy to sparse matrix
-       CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q,keep_sparsity=.TRUE.,&
-            error=error)
+       CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q,keep_sparsity=.TRUE.)
 
 
        ! *** copy to sparse matrix
-       CALL copy_fm_to_dbcsr(tmp_aux_aux(re)%matrix, matrix_w_s,keep_sparsity=.TRUE.,&
-            error=error)
+       CALL copy_fm_to_dbcsr(tmp_aux_aux(re)%matrix, matrix_w_s,keep_sparsity=.TRUE.)
 
 ! *** This can be done in one call w_total = w_alpha + w_beta
        ! allocate force vector
-       CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
+       CALL get_qs_env(qs_env=qs_env,natom=natom)
        ALLOCATE(admm_force(3,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        admm_force = 0.0_dp
        CALL build_overlap_force(ks_env, admm_force,&
             basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
-            sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
+            sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s)
        CALL build_overlap_force(ks_env, admm_force,&
             basis_type_a="AUX_FIT", basis_type_b="ORB", &
-            sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
+            sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
        ! add forces
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                       force=force,error=error)
-       CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set, error)
+                       force=force)
+       CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
        DEALLOCATE(admm_force,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        
        ! *** Deallocated weighted density matrices
-       CALL cp_dbcsr_deallocate_matrix(matrix_w_s,error)
-       CALL cp_dbcsr_deallocate_matrix(matrix_w_q,error)
-       CALL cp_fm_vect_dealloc(tmp_aux_aux,error)
-       CALL cp_fm_vect_dealloc(tmp_aux_nao,error)
-       CALL cp_fm_vect_dealloc(tmp_aux_mo,error)
-       CALL cp_fm_vect_dealloc(tmp_aux_mo1,error)
+       CALL cp_dbcsr_deallocate_matrix(matrix_w_s)
+       CALL cp_dbcsr_deallocate_matrix(matrix_w_q)
+       CALL cp_fm_vect_dealloc(tmp_aux_aux)
+       CALL cp_fm_vect_dealloc(tmp_aux_nao)
+       CALL cp_fm_vect_dealloc(tmp_aux_mo)
+       CALL cp_fm_vect_dealloc(tmp_aux_mo1)
      END DO
     
   END SUBROUTINE rt_admm_forces_none

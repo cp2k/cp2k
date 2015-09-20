@@ -56,12 +56,11 @@ CONTAINS
 !> \param molecule_set ...
 !> \param topology ...
 !> \param subsys_section ...
-!> \param error ...
 !> \par History 11/2009 (Louis Vanduyhuys): added Out of Plane bends based on
 !>                                      impropers in topology 
 ! *****************************************************************************
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
-       topology,subsys_section,error)
+       topology,subsys_section)
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -69,7 +68,6 @@ CONTAINS
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
       routineP = moduleN//':'//routineN
@@ -103,18 +101,18 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
     ALLOCATE(map_atom_mol(topology%natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_atom_type(topology%natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Set the topology%[nmol_type,nmol,nmol_conn]
@@ -178,7 +176,7 @@ CONTAINS
     ELSE
        NULLIFY(molecule_kind_set)
        i = topology%nmol_type
-       CALL allocate_molecule_kind_set(molecule_kind_set,i,error=error)
+       CALL allocate_molecule_kind_set(molecule_kind_set,i)
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_kind_set, Dimenstion of ",&
             SIZE(molecule_kind_set)
     END IF
@@ -193,7 +191,7 @@ CONTAINS
     ELSE
        NULLIFY(molecule_set)
        i = topology%nmol
-       CALL allocate_molecule_set(molecule_set,i,error=error)
+       CALL allocate_molecule_set(molecule_set,i)
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_set, dimension of ",&
             topology%nmol
     END IF
@@ -246,7 +244,7 @@ CONTAINS
 
        IF (found) THEN
           ALLOCATE(molecule_list(imol-counter),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO j=1,SIZE(molecule_list)
              molecule_list(j)=j+counter
           END DO
@@ -264,7 +262,7 @@ CONTAINS
        imol    = ABS(map_atom_mol(natom))
        ! Last atom is also a molecule by itself
        ALLOCATE(molecule_list(imol-counter),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO j=1,SIZE(molecule_list)
           molecule_list(j)=j+counter
        END DO
@@ -294,9 +292,9 @@ CONTAINS
     ! 7. Set the molecule_set(imol)%[first_atom,last_atom] via set_molecule_set
     !-----------------------------------------------------------------------------
     ALLOCATE(first_list(SIZE(molecule_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(last_list(SIZE(molecule_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timeset(routineN//"_7",handle2)
     first_list(:) = 0
     last_list (:) = 0
@@ -316,7 +314,7 @@ CONTAINS
           first_list(imol)=j
        END IF
     END DO
-    CPPostcondition(imol==topology%nmol,cp_failure_level,routineP,error,failure)
+    CPPostcondition(imol==topology%nmol,cp_failure_level,routineP,failure)
     DO ikind=1,topology%nmol-1
        last_list(ikind)=first_list(ikind+1)-1
     END DO
@@ -352,7 +350,7 @@ CONTAINS
           natom = 0
           IF(first/=0 .AND. last/=0) natom = last-first+1
           ALLOCATE(atom_list(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO i=1,natom
              !Atomic kind information will be filled in (PART 2)
              NULLIFY(atom_list(i)%atomic_kind)
@@ -378,9 +376,9 @@ CONTAINS
     nval_tot1 = nvar1
     nval_tot2 = 0
     ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -395,8 +393,8 @@ CONTAINS
        j1 = map_atom_mol(min_index)
        IF ( j1 > 0 ) map_cvar_mol(i) = map_atom_type(min_index)
     END DO
-    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
-    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2, error)
+    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1)
+    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2)
     DO i = 1, topology%nmol_type
        intra_bonds = 0
        inter_bonds = 0
@@ -416,7 +414,7 @@ CONTAINS
        nval_tot2 = nval_tot2 + ibond*SIZE(molecule_kind%molecule_list)
 
        ALLOCATE(bond_list(ibond),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ibond = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -480,19 +478,19 @@ CONTAINS
        WRITE(output_unit,'(T5,A)')"ERROR| One example could be two same kind of molecules have"
        WRITE(output_unit,'(T5,A)')"ERROR| a different number of atoms. Check the connectivity!"
     END IF
-    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,failure)
     DEALLOCATE(map_var_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvar_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_vars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_ctype,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -502,15 +500,15 @@ CONTAINS
     CALL timeset(routineN//"_11_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_b(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_c(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     found = ASSOCIATED(conn_info%theta_type)
     IF (found) THEN
        ALLOCATE(c_var_type(idim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%theta_a)) THEN
        DO j=1,SIZE(conn_info%theta_a)
@@ -554,9 +552,9 @@ CONTAINS
     nval_tot1 = nvar1
     nval_tot2 = 0
     ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -572,8 +570,8 @@ CONTAINS
        j1 = map_atom_mol(min_index)
        IF ( j1 > 0 ) map_cvar_mol(i) = map_atom_type(min_index)
     END DO
-    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
-    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2, error)
+    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1)
+    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2)
     DO i=1,topology%nmol_type
        intra_bends = 0
        inter_bends = 0
@@ -592,7 +590,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + ibend*SIZE(molecule_kind%molecule_list)
        ALLOCATE(bend_list(ibend),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ibend = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -652,28 +650,28 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             nbend=SIZE(bend_list),bend_list=bend_list)
     END DO
-    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,failure)
     DEALLOCATE(map_var_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvar_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_vars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_ctype,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_a,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_b,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_c,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (found) THEN
        DEALLOCATE(c_var_type,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
@@ -683,11 +681,11 @@ CONTAINS
     CALL timeset(routineN//"_12_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_b(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_c(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%ub_a)) THEN
        DO j=1,SIZE(conn_info%ub_a)
           j1 = map_atom_mol(conn_info%ub_a(j))
@@ -724,9 +722,9 @@ CONTAINS
     nval_tot1 = nvar1
     nval_tot2 = 0
     ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -742,8 +740,8 @@ CONTAINS
        j1 = map_atom_mol(min_index)
        IF ( j1 > 0 ) map_cvar_mol(i) = map_atom_type(min_index)
     END DO
-    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
-    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2, error)
+    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1)
+    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2)
     DO i=1,topology%nmol_type
        intra_ubs = 0
        inter_ubs = 0
@@ -762,7 +760,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + iub*SIZE(molecule_kind%molecule_list)
        ALLOCATE(ub_list(iub),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        iub = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -814,25 +812,25 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             nub=SIZE(ub_list),ub_list=ub_list)
     END DO
-    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,failure)
     DEALLOCATE(map_var_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvar_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_vars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_ctype,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_a,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_b,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_c,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -842,17 +840,17 @@ CONTAINS
     CALL timeset(routineN//"_13_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_b(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_c(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_d(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     found = ASSOCIATED(conn_info%phi_type)
     IF (found) THEN
        ALLOCATE(c_var_type(idim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%phi_a)) THEN
        DO j=1,SIZE(conn_info%phi_a)
@@ -900,9 +898,9 @@ CONTAINS
     nval_tot1 = nvar1
     nval_tot2 = 0
     ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -919,8 +917,8 @@ CONTAINS
        j1 = map_atom_mol(min_index)
        IF ( j1 > 0 ) map_cvar_mol(i) = map_atom_type(min_index)
     END DO
-    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
-    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2, error)
+    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1)
+    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2)
     DO i=1,topology%nmol_type
        intra_torsions = 0
        inter_torsions = 0
@@ -939,7 +937,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + itorsion*SIZE(molecule_kind%molecule_list)
        ALLOCATE(torsion_list(itorsion),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        itorsion = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -1005,30 +1003,30 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             ntorsion=SIZE(torsion_list),torsion_list=torsion_list)
     END DO
-    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,failure)
     DEALLOCATE(map_var_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvar_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_vars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_ctype,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_a,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_b,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_c,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_d,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (found) THEN
        DEALLOCATE(c_var_type,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
@@ -1040,17 +1038,17 @@ CONTAINS
     CALL timeset(routineN//"_14_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_b(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_c(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(c_var_d(idim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     found = ASSOCIATED(conn_info%impr_type)
     IF (found) THEN
        ALLOCATE(c_var_type(idim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%impr_a)) THEN
        DO j=1,SIZE(conn_info%impr_a)
@@ -1098,9 +1096,9 @@ CONTAINS
     nval_tot1 = nvar1
     nval_tot2 = 0
     ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -1117,8 +1115,8 @@ CONTAINS
        j1 = map_atom_mol(min_index)
        IF ( j1 > 0 ) map_cvar_mol(i) = map_atom_type(min_index)
     END DO
-    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
-    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2, error)
+    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1)
+    CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2)
     DO i=1,topology%nmol_type
        intra_imprs  = 0
        inter_imprs  = 0
@@ -1141,7 +1139,7 @@ CONTAINS
        nval_tot2 = nval_tot2 + iimpr*SIZE(molecule_kind%molecule_list)
        ALLOCATE(impr_list(iimpr),STAT=stat)
        ALLOCATE(opbend_list(iimpr),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        iimpr  = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -1249,30 +1247,30 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             nopbend=SIZE(opbend_list),opbend_list=opbend_list)
     END DO
-    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,failure)
     DEALLOCATE(map_var_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvar_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_vars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_cvars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(bnd_ctype,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_a,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_b,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_c,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(c_var_d,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (found) THEN
        DEALLOCATE(c_var_type,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
@@ -1280,16 +1278,16 @@ CONTAINS
     ! Finally deallocate some stuff.
     !-----------------------------------------------------------------------------
     DEALLOCATE(first_list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(last_list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_atom_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_atom_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO")
   END SUBROUTINE topology_connectivity_pack
 
 ! *****************************************************************************
@@ -1299,16 +1297,14 @@ CONTAINS
 !> \param map_var_mol ...
 !> \param bnd_type ...
 !> \param nvar1 ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE find_bnd_typ(nmol_type, map_vars, map_var_mol, bnd_type, nvar1, error)
+  SUBROUTINE find_bnd_typ(nmol_type, map_vars, map_var_mol, bnd_type, nvar1)
     INTEGER, INTENT(IN)                      :: nmol_type
     INTEGER, DIMENSION(:), POINTER           :: map_vars, map_var_mol
     INTEGER, DIMENSION(:, :), POINTER        :: bnd_type
     INTEGER, INTENT(IN)                      :: nvar1
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_bnd_typ', &
       routineP = moduleN//':'//routineN
@@ -1318,10 +1314,10 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(map_vars(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL sort(map_var_mol,nvar1,map_vars)
     ALLOCATE(bnd_type(2,nmol_type),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     bnd_type = 0
     IF (nvar1==0) RETURN
     DO j = 1, nvar1
@@ -1345,14 +1341,12 @@ CONTAINS
 !> \brief   Handles the multiple unit cell option for the connectivity
 !> \param topology ...
 !> \param subsys_section ...
-!> \param error ...
 !> \author  Teodoro Laino [tlaino] - 06.2009
 ! *****************************************************************************
-  SUBROUTINE topology_conn_multiple(topology, subsys_section, error)
+  SUBROUTINE topology_conn_multiple(topology, subsys_section)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_conn_multiple', &
       routineP = moduleN//':'//routineN
@@ -1368,7 +1362,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(multiple_unit_cell)
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
-                              i_vals=multiple_unit_cell, error=error)
+                              i_vals=multiple_unit_cell)
     IF (ANY(multiple_unit_cell/=1)) THEN
        fac = PRODUCT(multiple_unit_cell)
        conn_info => topology%conn_info

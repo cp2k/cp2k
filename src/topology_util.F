@@ -80,11 +80,10 @@ CONTAINS
 !> \param qmmm_env_mm ...
 !> \param subsys_section ...
 !> \param force_env_section ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino 09.2006 - Rewritten with a graph matching algorithm
 ! *****************************************************************************
-  SUBROUTINE topology_reorder_atoms(topology,qmmm,qmmm_env_mm,subsys_section,force_env_section,error)
+  SUBROUTINE topology_reorder_atoms(topology,qmmm,qmmm_env_mm,subsys_section,force_env_section)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
@@ -92,7 +91,6 @@ CONTAINS
       POINTER                                :: qmmm_env_mm
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_reorder_atoms', &
       routineP = moduleN//':'//routineN
@@ -130,9 +128,9 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger,generate_section,isolated_section,tmp_v,tmp_n)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
     output_unit= cp_logger_get_default_io_unit(logger)
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
@@ -149,62 +147,62 @@ CONTAINS
     NULLIFY(tr, tatm_charge, tatm_mass, atm_map1, atm_map2, atm_map3)
     ! This routine can be called only at a very high level where these structures are still
     ! not even taken into account...
-    CPPostcondition(.NOT.ASSOCIATED(atom_info%map_mol_num),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(atom_info%map_mol_typ),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(atom_info%map_mol_res),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(atom_info%map_mol_num),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(atom_info%map_mol_typ),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(atom_info%map_mol_res),cp_failure_level,routineP,failure)
     !ALLOCATE all the temporary arrays needed for this routine
     ALLOCATE(new_position(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(mol_num(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(molname(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(tlabel_atmname(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(tlabel_molname(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(tlabel_resname(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(tr(3,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(tatm_charge(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(tatm_mass(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(telement(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(atm_map1(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(atm_map2(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! The only information we have at this level is the connectivity of the system.
     ! 0. Build a list of mapping atom types
     ALLOCATE(map_atom_type(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! 1. Build a list of bonds
     ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO I=1,natom
        map_atom_type(I) = atom_info%id_atmname(i)
        ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N)
     ALLOCATE(atom_info%map_mol_num(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     atom_info%map_mol_num = -1
     CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%id_molname)
     max_mol_num = MAXVAL(atom_info%map_mol_num)
     ! In atom_info%map_mol_num have already been mapped molecules
     ALLOCATE(mol_bnd(2,max_mol_num),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(mol_hash(max_mol_num),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(map_mol_hash(max_mol_num),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! 2. Sort the map_mol_num array.. atm_map1 contains now the mapped index
     !    of the reordered array
     CALL sort(atom_info%map_mol_num, natom, atm_map1)
@@ -233,20 +231,20 @@ CONTAINS
     ! This is the real matching of graphs
     DO j = 1, max_mol_num
        CALL setup_graph(j, reference,  map_atom_type,&
-            atom_bond_list, mol_bnd, atm_map1, atm_map2, error=error)
+            atom_bond_list, mol_bnd, atm_map1, atm_map2)
 
        ALLOCATE(order(SIZE(reference)),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL hash_molecule(reference, order, mol_hash(j))
 
        DEALLOCATE(order,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO I=1,SIZE(reference)
           DEALLOCATE(reference(I)%bonds,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ENDDO
        DEALLOCATE(reference, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     ! Reorder molecules hashes
     CALL sort(mol_hash, max_mol_num, map_mol_hash)
@@ -266,7 +264,7 @@ CONTAINS
           old_hash=mol_hash(j)
           CALL setup_graph_set(reference_set,unique_mol,map_mol_hash(j),&
                map_atom_type,atom_bond_list, mol_bnd, atm_map1, atm_map2,&
-               atm_map3, error)
+               atm_map3)
           ! Reorder Last added reference
           mol_id = TRIM(ADJUSTL(cp_to_string(unique_mol)))
           DO i=1,SIZE(atm_map3)
@@ -276,25 +274,24 @@ CONTAINS
              mol_num(natom_loc)      = unique_mol
           END DO
           DEALLOCATE(atm_map3,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ELSE
           CALL setup_graph(map_mol_hash(j), unordered,  map_atom_type,&
-                      atom_bond_list, mol_bnd, atm_map1, atm_map2, atm_map3,&
-                      error)
+                      atom_bond_list, mol_bnd, atm_map1, atm_map2, atm_map3)
           DO imol_ref=1,unique_mol
              !
              reference => reference_set(imol_ref)%graph
              ALLOCATE(order(SIZE(reference)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              CALL reorder_graph(reference, unordered, order, matches)
              IF (matches) EXIT
              DEALLOCATE(order,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ENDDO
           IF (matches) THEN
              ! Reorder according the correct index
              ALLOCATE(wrk(SIZE(order)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              CALL sort(order, SIZE(order), wrk)
              DO i=1,SIZE(order)
                 natom_loc=natom_loc+1
@@ -304,14 +301,14 @@ CONTAINS
              END DO
              !
              DEALLOCATE(order,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              DEALLOCATE(wrk,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ELSE
              unique_mol=unique_mol+1
              CALL setup_graph_set(reference_set,unique_mol,map_mol_hash(j),&
                   map_atom_type,atom_bond_list, mol_bnd, atm_map1, atm_map2,&
-                  atm_map3, error)
+                  atm_map3)
              ! Reorder Last added reference
              mol_id = TRIM(ADJUSTL(cp_to_string(unique_mol)))
              DO i=1,SIZE(atm_map3)
@@ -321,54 +318,54 @@ CONTAINS
                 mol_num(natom_loc)      = unique_mol
              END DO
              DEALLOCATE(atm_map3,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ENDIF
           DO I=1,SIZE(unordered)
              DEALLOCATE(unordered(I)%bonds,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ENDDO
           DEALLOCATE(unordered, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(atm_map3, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
     ENDDO
     IF (output_unit>0) THEN
        WRITE(output_unit,'(T2,"REORDER |  ",A,I7,A)')"Number of unique molecules found:",unique_mol,"."
     END IF
-    CPPostcondition(natom_loc==natom,cp_failure_level,routineP,error,failure)
+    CPPostcondition(natom_loc==natom,cp_failure_level,routineP,failure)
     DEALLOCATE(map_atom_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(atm_map1,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(atm_map2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mol_bnd,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mol_hash,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(map_mol_hash,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Deallocate working arrays
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(atom_info%map_mol_num,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Deallocate reference_set
     DO i = 1,SIZE(reference_set)
        DO j = 1, SIZE(reference_set(i)%graph)
           DEALLOCATE(reference_set(i)%graph(j)%bonds,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END DO
        DEALLOCATE(reference_set(i)%graph,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     DEALLOCATE(reference_set,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !Lets swap the atoms now
     DO iatm=1,natom
        location = new_position(iatm)
@@ -404,7 +401,7 @@ CONTAINS
 
     ! Let's reorder all the list provided in the input..
     ALLOCATE(wrk(SIZE(new_position)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL sort(new_position, SIZE(new_position), wrk)
 
     ! NOTE: In the future the whole list of possible integers should be updated at this level..
@@ -412,114 +409,113 @@ CONTAINS
     !       from where qmmm_env_qm will be read.
     IF (my_qmmm) THEN
        ! Update the qmmm_env_mm
-       CPPrecondition(SIZE(qmmm_env_mm%qm_atom_index)/=0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ALL(qmmm_env_mm%qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(qmmm_env_mm%qm_atom_index)/=0,cp_failure_level,routineP,failure)
+       CPPrecondition(ALL(qmmm_env_mm%qm_atom_index /= 0),cp_failure_level,routineP,failure)
        ALLOCATE(qm_atom_index(SIZE(qmmm_env_mm%qm_atom_index)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO iatm=1,SIZE(qmmm_env_mm%qm_atom_index)
           qm_atom_index(iatm) = wrk(qmmm_env_mm%qm_atom_index(iatm))
        END DO
        qmmm_env_mm%qm_atom_index = qm_atom_index
-       CPPostcondition(ALL(qmmm_env_mm%qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ALL(qmmm_env_mm%qm_atom_index /= 0),cp_failure_level,routineP,failure)
        DEALLOCATE(qm_atom_index,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Update the qmmm_section: MM_INDEX of the QM_KIND
-       qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
-       qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
-       CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
+       qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM")
+       qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND")
+       CALL section_vals_get(qm_kinds,n_repetition=nkind)
        DO ikind=1,nkind
-          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
-               error=error)
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var)
           DO k = 1, n_var
              CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
-                  i_vals=mm_indexes_v,error=error)
+                  i_vals=mm_indexes_v)
              ALLOCATE(mm_indexes_n(SIZE(mm_indexes_v)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              DO j = 1, SIZE(mm_indexes_v)
                 mm_indexes_n(j) = wrk(mm_indexes_v(j))
              END DO
              CALL section_vals_val_set(qm_kinds,"MM_INDEX", i_rep_section=ikind, &
-                                       i_vals_ptr=mm_indexes_n, i_rep_val=k, error=error)
+                                       i_vals_ptr=mm_indexes_n, i_rep_val=k)
           END DO
        END DO
        ! Handle the link atoms
        IF (qmmm_env_mm%qmmm_link) THEN
           ! Update the qmmm_env_mm
-          CPPrecondition(SIZE(qmmm_env_mm%mm_link_atoms)>0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(SIZE(qmmm_env_mm%mm_link_atoms)>0,cp_failure_level,routineP,failure)
           ALLOCATE(mm_link_atoms(SIZE(qmmm_env_mm%mm_link_atoms)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO iatm=1,SIZE(qmmm_env_mm%mm_link_atoms)
              mm_link_atoms(iatm) = wrk(qmmm_env_mm%mm_link_atoms(iatm))
           END DO
           qmmm_env_mm%mm_link_atoms = mm_link_atoms
-          CPPostcondition(ALL(qmmm_env_mm%mm_link_atoms /= 0),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ALL(qmmm_env_mm%mm_link_atoms /= 0),cp_failure_level,routineP,failure)
           DEALLOCATE(mm_link_atoms,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ! Update the qmmm_section: MM_INDEX,QM_INDEX of the LINK atom list
-          qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
-          CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
-          CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+          qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK")
+          CALL section_vals_get(qmmm_link_section,n_repetition=nlinks)
+          CPPostcondition(nlinks /= 0,cp_failure_level,routineP,failure)
           DO ikind= 1, nlinks
-             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
-             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index)
+             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
              mm_index = wrk(mm_index)
              qm_index = wrk(qm_index)
-             CALL section_vals_val_set(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
-             CALL section_vals_val_set(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
+             CALL section_vals_val_set(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
+             CALL section_vals_val_set(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index)
           END DO
        END IF
     END IF
     !
     !LIST of ISOLATED atoms
     !
-    generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE",error=error)
-    isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS",error=error)
-    CALL section_vals_get(isolated_section, explicit=explicit, error=error)
+    generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE")
+    isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS")
+    CALL section_vals_get(isolated_section, explicit=explicit)
     IF (explicit) THEN
-       CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep, error=error)
+       CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep)
        DO i = 1, n_rep
-          CALL section_vals_val_get(isolated_section,"LIST", i_vals=tmp_v, i_rep_val=i, error=error)
+          CALL section_vals_val_get(isolated_section,"LIST", i_vals=tmp_v, i_rep_val=i)
           ALLOCATE(tmp_n(SIZE(tmp_v)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO j = 1, SIZE(tmp_v)
              tmp_n(j) = wrk(tmp_v(j))
           END DO
-          CALL section_vals_val_set(isolated_section,"LIST", i_vals_ptr=tmp_n, i_rep_val=i, error=error)
+          CALL section_vals_val_set(isolated_section,"LIST", i_vals_ptr=tmp_n, i_rep_val=i)
        END DO
     END IF
     DEALLOCATE(wrk,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !DEALLOCATE all the temporary arrays needed for this routine
     DEALLOCATE(new_position,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tlabel_atmname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tlabel_molname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tlabel_resname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(telement,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tr,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tatm_charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(tatm_mass,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(molname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mol_num,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! DEALLOCATE the bond structures in the connectivity
     DEALLOCATE(conn_info%bond_a,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(conn_info%bond_b,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO")
   END SUBROUTINE topology_reorder_atoms
 
 ! *****************************************************************************
@@ -533,11 +529,10 @@ CONTAINS
 !> \param atm_map1 ...
 !> \param atm_map2 ...
 !> \param atm_map3 ...
-!> \param error ...
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
   SUBROUTINE setup_graph_set(graph_set, idim, ind, array2, atom_bond_list, map_mol,&
-       atm_map1, atm_map2, atm_map3, error)
+       atm_map1, atm_map2, atm_map3)
     TYPE(graph_type), DIMENSION(:), POINTER  :: graph_set
     INTEGER, INTENT(IN)                      :: idim, ind
     INTEGER, DIMENSION(:), POINTER           :: array2
@@ -545,7 +540,6 @@ CONTAINS
       INTENT(IN)                             :: atom_bond_list
     INTEGER, DIMENSION(:, :), POINTER        :: map_mol
     INTEGER, DIMENSION(:), POINTER           :: atm_map1, atm_map2, atm_map3
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_graph_set', &
       routineP = moduleN//':'//routineN
@@ -559,14 +553,13 @@ CONTAINS
     NULLIFY(tmp_graph_set)
     IF (ASSOCIATED(graph_set)) THEN
        ldim = SIZE(graph_set)
-       CPPostcondition(ldim+1==idim,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ldim+1==idim,cp_failure_level,routineP,failure)
        NULLIFY(tmp_graph_set)
-       CALL allocate_graph_set(graph_set, tmp_graph_set, error=error)
+       CALL allocate_graph_set(graph_set, tmp_graph_set)
     END IF
-    CALL allocate_graph_set(tmp_graph_set, graph_set, ldim, ldim+1, error)
+    CALL allocate_graph_set(tmp_graph_set, graph_set, ldim, ldim+1)
     CALL setup_graph(ind, graph_set(ldim+1)%graph, array2,&
-                   atom_bond_list, map_mol, atm_map1, atm_map2, atm_map3,&
-                   error=error)
+                   atom_bond_list, map_mol, atm_map1, atm_map2, atm_map3)
 
   END SUBROUTINE setup_graph_set
 
@@ -576,13 +569,11 @@ CONTAINS
 !> \param graph_set_out ...
 !> \param ldim_in ...
 !> \param ldim_out ...
-!> \param error ...
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
-  SUBROUTINE allocate_graph_set(graph_set_in, graph_set_out, ldim_in, ldim_out,  error)
+  SUBROUTINE allocate_graph_set(graph_set_in, graph_set_out, ldim_in, ldim_out)
     TYPE(graph_type), DIMENSION(:), POINTER  :: graph_set_in, graph_set_out
     INTEGER, INTENT(IN), OPTIONAL            :: ldim_in, ldim_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_graph_set', &
       routineP = moduleN//':'//routineN
@@ -592,7 +583,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(graph_set_out),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(graph_set_out),cp_failure_level,routineP,failure)
     mydim_in  = 0
     mydim_out = 0
     IF (ASSOCIATED(graph_set_in)) THEN
@@ -602,7 +593,7 @@ CONTAINS
     IF (PRESENT(ldim_in))  mydim_in  = ldim_in
     IF (PRESENT(ldim_out)) mydim_out = ldim_out
     ALLOCATE(graph_set_out(mydim_out),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1, mydim_out
        NULLIFY(graph_set_out(i)%graph)
     END DO
@@ -610,22 +601,22 @@ CONTAINS
     DO i = 1, mydim_in
        v_dim = SIZE(graph_set_in(i)%graph)
        ALLOCATE(graph_set_out(i)%graph(v_dim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO j = 1, v_dim
           graph_set_out(i)%graph(j)%kind = graph_set_in(i)%graph(j)%kind
           b_dim = SIZE(graph_set_in(i)%graph(j)%bonds)
           ALLOCATE(graph_set_out(i)%graph(j)%bonds(b_dim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           graph_set_out(i)%graph(j)%bonds = graph_set_in(i)%graph(j)%bonds
           DEALLOCATE(graph_set_in(i)%graph(j)%bonds,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END DO
        DEALLOCATE(graph_set_in(i)%graph,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     IF (ASSOCIATED(graph_set_in)) THEN
        DEALLOCATE(graph_set_in,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE allocate_graph_set
@@ -640,11 +631,10 @@ CONTAINS
 !> \param atm_map1 ...
 !> \param atm_map2 ...
 !> \param atm_map3 ...
-!> \param error ...
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE setup_graph(ind, graph, array2, atom_bond_list, map_mol,&
-       atm_map1, atm_map2, atm_map3, error)
+       atm_map1, atm_map2, atm_map3)
     INTEGER, INTENT(IN)                      :: ind
     TYPE(vertex), DIMENSION(:), POINTER      :: graph
     INTEGER, DIMENSION(:), POINTER           :: array2
@@ -653,7 +643,6 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: map_mol
     INTEGER, DIMENSION(:), POINTER           :: atm_map1, atm_map2
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atm_map3
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_graph', &
       routineP = moduleN//':'//routineN
@@ -664,26 +653,26 @@ CONTAINS
 
     failure = .FALSE.
     IF (PRESENT(atm_map3)) THEN
-       CPPostcondition(.NOT.ASSOCIATED(atm_map3),cp_failure_level,routineP,error,failure)
+       CPPostcondition(.NOT.ASSOCIATED(atm_map3),cp_failure_level,routineP,failure)
     END IF
-    CPPostcondition(.NOT.ASSOCIATED(graph),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(graph),cp_failure_level,routineP,failure)
     ! Setup reference graph
     idim = 0
     ifirst = map_mol(1,ind)
     ilast  = map_mol(2,ind)
     nelement = ilast-ifirst+1
     ALLOCATE(graph(nelement),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(atm_map3)) THEN
        ALLOCATE(atm_map3(nelement),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     DO i = ifirst, ilast
        idim = idim + 1
        graph(idim)%kind = array2(atm_map1(i))
        nbonds = SIZE(atom_bond_list(atm_map1(i))%array1)
        ALLOCATE(graph(idim)%bonds(nbonds),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO j = 1, nbonds
           graph(idim)%bonds(j) = atm_map2(atom_bond_list(atm_map1(i))%array1(j))
        END DO
@@ -702,14 +691,12 @@ CONTAINS
 !> \param Ilist4 ...
 !> \param nsize ...
 !> \param ndim ...
-!> \param error ...
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE reorder_list_array(Ilist1, Ilist2, Ilist3, Ilist4, nsize, ndim, error)
+  RECURSIVE SUBROUTINE reorder_list_array(Ilist1, Ilist2, Ilist3, Ilist4, nsize, ndim)
     INTEGER, DIMENSION(:), POINTER           :: Ilist1
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
     INTEGER, INTENT(IN)                      :: nsize, ndim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array', &
       routineP = moduleN//':'//routineN
@@ -719,13 +706,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(nsize>0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nsize>0,cp_failure_level,routineP,failure)
     ALLOCATE(wrk(Ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL sort(Ilist1,Ndim,wrk)
     IF (nsize/=1) THEN
        ALLOCATE(tmp(Ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        tmp = Ilist2(1:Ndim)
        DO i = 1,Ndim
           Ilist2(i)=tmp(wrk(i))
@@ -747,14 +734,14 @@ CONTAINS
           END DO
        END SELECT
        DEALLOCATE(tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        istart = 1
        DO i = 1,Ndim
           IF (Ilist1(i)/=Ilist1(istart)) THEN
              iend = i-1
              ldim = iend-istart+1
              CALL  reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
-                  ldim, istart, iend, error)
+                  ldim, istart, iend)
              istart = i
           END IF
        END DO
@@ -762,10 +749,10 @@ CONTAINS
        iend = Ndim
        ldim = iend-istart+1
        CALL  reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
-            ldim, istart, iend, error)
+            ldim, istart, iend)
     END IF
     DEALLOCATE(wrk,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE reorder_list_array
 
 ! *****************************************************************************
@@ -777,14 +764,12 @@ CONTAINS
 !> \param ldim ...
 !> \param istart ...
 !> \param iend ...
-!> \param error ...
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   RECURSIVE SUBROUTINE reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
-       ldim, istart, iend, error)
+       ldim, istart, iend)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
     INTEGER, INTENT(IN)                      :: nsize, ldim, istart, iend
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array_low', &
       routineP = moduleN//':'//routineN
@@ -797,49 +782,46 @@ CONTAINS
     SELECT CASE(nsize)
     CASE(2)
        ALLOCATE(tmp_2(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        tmp_2(:) = Ilist2(istart:iend)
-       CALL reorder_list_array(tmp_2,nsize=nsize-1,ndim=ldim,&
-            error=error)
+       CALL reorder_list_array(tmp_2,nsize=nsize-1,ndim=ldim)
        Ilist2(istart:iend) = tmp_2(:)
        DEALLOCATE(tmp_2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CASE(3)
        ALLOCATE(tmp_2(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(tmp_3(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        tmp_2(:) = Ilist2(istart:iend)
        tmp_3(:) = Ilist3(istart:iend)
-       CALL reorder_list_array(tmp_2,tmp_3,nsize=nsize-1,ndim=ldim,&
-            error=error)
+       CALL reorder_list_array(tmp_2,tmp_3,nsize=nsize-1,ndim=ldim)
        Ilist2(istart:iend) = tmp_2(:)
        Ilist3(istart:iend) = tmp_3(:)
        DEALLOCATE(tmp_2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(tmp_3,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CASE(4)
        ALLOCATE(tmp_2(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(tmp_3(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(tmp_4(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        tmp_2(:) = Ilist2(istart:iend)
        tmp_3(:) = Ilist3(istart:iend)
        tmp_4(:) = Ilist4(istart:iend)
-       CALL reorder_list_array(tmp_2, tmp_3, tmp_4, nsize=nsize-1,ndim=ldim,&
-            error=error)
+       CALL reorder_list_array(tmp_2, tmp_3, tmp_4, nsize=nsize-1,ndim=ldim)
        Ilist2(istart:iend) = tmp_2(:)
        Ilist3(istart:iend) = tmp_3(:)
        Ilist4(istart:iend) = tmp_4(:)
        DEALLOCATE(tmp_2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(tmp_3,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(tmp_4,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE reorder_list_array_low
@@ -912,15 +894,13 @@ CONTAINS
 !> \param list1 ...
 !> \param list2 ...
 !> \param N ...
-!> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE reorder_structure1d(work, list1, list2, N, error)
+  SUBROUTINE reorder_structure1d(work, list1, list2, N)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(INOUT)                          :: work
     INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2
     INTEGER, INTENT(IN)                      :: N
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure1d', &
       routineP = moduleN//':'//routineN
@@ -937,20 +917,20 @@ CONTAINS
        wrk_tmp => work(index1)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index1)%array1(Nsize+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work(index1)%array1(1:Nsize) = wrk_tmp
        work(index1)%array1(Nsize+1) = index2
        DEALLOCATE(wrk_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        wrk_tmp => work(index2)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work(index2)%array1(1:Nsize) = wrk_tmp
        work(index2)%array1(Nsize+1) = index1
        DEALLOCATE(wrk_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDDO
 
   END SUBROUTINE reorder_structure1d
@@ -963,15 +943,13 @@ CONTAINS
 !> \param list2 ...
 !> \param list3 ...
 !> \param N ...
-!> \param error ...
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE reorder_structure2d(work, list1, list2, list3, N, error)
+  SUBROUTINE reorder_structure2d(work, list1, list2, list3, N)
     TYPE(array2_list_type), DIMENSION(:), &
       INTENT(INOUT)                          :: work
     INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2, list3
     INTEGER, INTENT(IN)                      :: N
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure2d', &
       routineP = moduleN//':'//routineN
@@ -990,38 +968,38 @@ CONTAINS
        wrk_tmp => work(index1)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index1)%array1(Nsize+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work(index1)%array1(1:Nsize) = wrk_tmp
        work(index1)%array1(Nsize+1) = index2
        DEALLOCATE(wrk_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        wrk_tmp => work(index2)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work(index2)%array1(1:Nsize) = wrk_tmp
        work(index2)%array1(Nsize+1) = index1
        DEALLOCATE(wrk_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        wrk_tmp => work(index1)%array2
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index1)%array2(Nsize+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work(index1)%array2(1:Nsize) = wrk_tmp
        work(index1)%array2(Nsize+1) = index3
        DEALLOCATE(wrk_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        wrk_tmp => work(index2)%array2
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index2)%array2(Nsize+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        work(index2)%array2(1:Nsize) = wrk_tmp
        work(index2)%array2(Nsize+1) = -index3
        DEALLOCATE(wrk_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDDO
 
   END SUBROUTINE reorder_structure2d
@@ -1091,13 +1069,11 @@ CONTAINS
 !> \brief Use info from periodic table and set atm_mass
 !> \param topology ...
 !> \param subsys_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE topology_set_atm_mass(topology,subsys_section,error)
+  SUBROUTINE topology_set_atm_mass(topology,subsys_section)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_set_atm_mass', &
       routineP = moduleN//':'//routineN
@@ -1117,30 +1093,30 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     natom = topology%natoms
 
     ! Available external info
-    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
-    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND")
+    CALL section_vals_get(kind_section,n_repetition=n_rep)
     ALLOCATE(keyword(n_rep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(mass(n_rep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mass = HUGE(0.0_dp)
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-            c_val=keyword(i_rep),i_rep_section=i_rep,error=error)
+            c_val=keyword(i_rep),i_rep_section=i_rep)
        CALL uppercase(keyword(i_rep))
        CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-            keyword_name="MASS",n_rep_val=i,error=error)
+            keyword_name="MASS",n_rep_val=i)
        IF (i>0)  CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-            keyword_name="MASS",r_val=mass(i_rep),error=error)
+            keyword_name="MASS",r_val=mass(i_rep))
     END DO
     !
     DO iatom=1,natom
@@ -1165,13 +1141,13 @@ CONTAINS
             id2str(atom_info%id_element(iatom))," a_mass ", atom_info%atm_mass(iatom)
     END DO
     DEALLOCATE(keyword,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mass,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO")
 
   END SUBROUTINE topology_set_atm_mass
 
@@ -1179,13 +1155,11 @@ CONTAINS
 !> \brief Check and verify that all molecules of the same kind are bonded the same
 !> \param topology ...
 !> \param subsys_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE topology_molecules_check(topology,subsys_section,error)
+  SUBROUTINE topology_molecules_check(topology,subsys_section)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
       routineP = moduleN//':'//routineN
@@ -1204,9 +1178,9 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
@@ -1217,14 +1191,14 @@ CONTAINS
          "  Checking consistency between the generated molecules"
 
     ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO I=1,natom
        ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N)
 
     mol_typ = atom_info%map_mol_typ(1)
     mol_num = atom_info%map_mol_num(1)
@@ -1308,13 +1282,13 @@ CONTAINS
 
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO")
 
   END SUBROUTINE topology_molecules_check
 
@@ -1325,18 +1299,16 @@ CONTAINS
 !> \param element_out ...
 !> \param subsys_section ...
 !> \param use_mm_map_first ...
-!> \param error ...
 !> \par History
 !>      12.2005 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, use_mm_map_first, error)
+  SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, use_mm_map_first)
     CHARACTER(len=*), INTENT(IN)             :: element_in, atom_name_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
     TYPE(section_vals_type), POINTER         :: subsys_section
     LOGICAL                                  :: use_mm_map_first
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
       routineP = moduleN//':'//routineN
@@ -1358,18 +1330,18 @@ CONTAINS
     ! First check if a KIND section is overriding the element
     ! definition
     CALL uppercase(atom_name)
-    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
-    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND")
+    CALL section_vals_get(kind_section,n_repetition=n_rep)
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-            c_val=keyword,i_rep_section=i_rep,error=error)
+            c_val=keyword,i_rep_section=i_rep)
        CALL uppercase(keyword)
        IF (TRIM(keyword)==TRIM(atom_name)) THEN
           CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-               keyword_name="ELEMENT",n_rep_val=i,error=error)
+               keyword_name="ELEMENT",n_rep_val=i)
           IF (i>0) THEN
              CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-                  keyword_name="ELEMENT",c_val=element_symbol,error=error)
+                  keyword_name="ELEMENT",c_val=element_symbol)
              defined_kind_section = .TRUE.
              EXIT
           ELSE

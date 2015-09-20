@@ -53,13 +53,11 @@ CONTAINS
 !> \param map_index ...
 !> \param mapping_section ...
 !> \param overwrite ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
   SUBROUTINE mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces,&
       virials, results, factor, iforce_eval, nforce_eval, map_index,&
-      mapping_section, overwrite, error)
+      mapping_section, overwrite)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
@@ -75,7 +73,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: map_index
     TYPE(section_vals_type), POINTER         :: mapping_section
     LOGICAL, INTENT(IN)                      :: overwrite
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_map_forces', &
       routineP = moduleN//':'//routineN
@@ -89,7 +86,7 @@ CONTAINS
     failure = .FALSE.
     ! Get Mapping index array
     natom = SIZE(global_forces(iforce_eval)%forces,2)
-    CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
+    CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index)
     DO iparticle = 1, natom
        jparticle = map_index(iparticle)
        IF (overwrite) THEN
@@ -112,25 +109,25 @@ CONTAINS
     ! Deallocate map_index array
     IF (ASSOCIATED(map_index)) THEN
        DEALLOCATE(map_index, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     ! Collect Requested Results info
     description = '[DIPOLE]'
-    IF (overwrite) CALL cp_results_erase(results_mix, error=error)
+    IF (overwrite) CALL cp_results_erase(results_mix)
 
-    dip_exists = test_for_result(results=results(iforce_eval)%results,description=description, error=error)
+    dip_exists = test_for_result(results=results(iforce_eval)%results,description=description)
     IF (dip_exists) THEN
-      CALL get_results(results=results_mix,description=description,n_rep=nres,error=error)
-      CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
+      CALL get_results(results=results_mix,description=description,n_rep=nres)
+      CPPrecondition(nres<=1,cp_failure_level,routineP,failure)
       dip_mix = 0.0_dp
-      IF (nres==1) CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
-      CALL get_results(results=results(iforce_eval)%results,description=description,n_rep=nres,error=error)
+      IF (nres==1) CALL get_results(results=results_mix,description=description,values=dip_mix)
+      CALL get_results(results=results(iforce_eval)%results,description=description,n_rep=nres)
       CALL get_results(results=results(iforce_eval)%results,description=description,&
-           values=dip_tmp,nval=nres,error=error)
+           values=dip_tmp,nval=nres)
       dip_mix = dip_mix + factor*dip_tmp
-      CALL cp_results_erase(results=results_mix,description=description,error=error)
-      CALL put_results(results=results_mix,description=description,values=dip_mix,error=error)
+      CALL cp_results_erase(results=results_mix,description=description)
+      CALL put_results(results=results_mix,description=description,values=dip_mix)
     END IF
 
   END SUBROUTINE mixed_map_forces
@@ -142,17 +139,14 @@ CONTAINS
 !> \param iforce_eval ...
 !> \param nforce_eval ...
 !> \param map_index ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
-  SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
+  SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index)
 
     TYPE(section_vals_type), POINTER         :: mapping_section
     INTEGER, INTENT(IN)                      :: natom, iforce_eval, &
                                                 nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: map_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_subsys_map_index', &
       routineP = moduleN//':'//routineN
@@ -166,10 +160,10 @@ CONTAINS
                                                 map_force_ev, map_full_sys
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(map_index),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(map_index),cp_failure_level,routineP,failure)
     ALLOCATE(map_index(natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL section_vals_get(mapping_section, explicit=explicit, error=error)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CALL section_vals_get(mapping_section, explicit=explicit)
     IF (.NOT.explicit) THEN
        ! Standard Mapping.. subsys are assumed to have the same structure
        DO i = 1, natom
@@ -177,67 +171,65 @@ CONTAINS
        END DO
     ELSE
        ! Mapping systems with different structures
-       map_full_sys => section_vals_get_subs_vals(mapping_section,"FORCE_EVAL_MIXED",error=error)
-       map_force_ev => section_vals_get_subs_vals(mapping_section,"FORCE_EVAL",error=error)
-       CALL section_vals_get(map_full_sys, explicit=explicit, error=error)
-       CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
-       CALL section_vals_get(map_force_ev, explicit=explicit, n_repetition=n_rep, error=error)
-       CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
-       CPPrecondition(n_rep==nforce_eval,cp_failure_level,routineP,error,failure)
+       map_full_sys => section_vals_get_subs_vals(mapping_section,"FORCE_EVAL_MIXED")
+       map_force_ev => section_vals_get_subs_vals(mapping_section,"FORCE_EVAL")
+       CALL section_vals_get(map_full_sys, explicit=explicit)
+       CPPrecondition(explicit,cp_failure_level,routineP,failure)
+       CALL section_vals_get(map_force_ev, explicit=explicit, n_repetition=n_rep)
+       CPPrecondition(explicit,cp_failure_level,routineP,failure)
+       CPPrecondition(n_rep==nforce_eval,cp_failure_level,routineP,failure)
        DO i = 1, n_rep
-          CALL section_vals_val_get(map_force_ev,"_SECTION_PARAMETERS_",i_rep_section=i,i_val=ival,error=error)
+          CALL section_vals_val_get(map_force_ev,"_SECTION_PARAMETERS_",i_rep_section=i,i_val=ival)
           IF (ival==iforce_eval) EXIT
        END DO
-       CPPrecondition(i<=nforce_eval,cp_failure_level,routineP,error,failure)
-       fragments_sys => section_vals_get_subs_vals(map_full_sys,"FRAGMENT",error=error)
-       fragments_loc => section_vals_get_subs_vals(map_force_ev,"FRAGMENT",i_rep_section=i,error=error)
+       CPPrecondition(i<=nforce_eval,cp_failure_level,routineP,failure)
+       fragments_sys => section_vals_get_subs_vals(map_full_sys,"FRAGMENT")
+       fragments_loc => section_vals_get_subs_vals(map_force_ev,"FRAGMENT",i_rep_section=i)
        !Perform few check on the structure of the input mapping section. as provided by the user
-       CALL section_vals_get(fragments_loc, n_repetition=n_rep_loc, error=error)
-       CALL section_vals_get(fragments_sys, explicit=explicit, n_repetition=n_rep_sys, error=error)
-       CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
-       CPPrecondition(n_rep_sys>=n_rep_loc,cp_failure_level,routineP,error,failure)
+       CALL section_vals_get(fragments_loc, n_repetition=n_rep_loc)
+       CALL section_vals_get(fragments_sys, explicit=explicit, n_repetition=n_rep_sys)
+       CPPrecondition(explicit,cp_failure_level,routineP,failure)
+       CPPrecondition(n_rep_sys>=n_rep_loc,cp_failure_level,routineP,failure)
        IF (n_rep_loc==0) THEN
           NULLIFY(list)
           ! We expect an easier syntax in this case..
-          CALL section_vals_val_get(map_force_ev,"DEFINE_FRAGMENTS",i_rep_section=i,n_rep_val=n_rep_map,&
-               error=error)
+          CALL section_vals_val_get(map_force_ev,"DEFINE_FRAGMENTS",i_rep_section=i,n_rep_val=n_rep_map)
           check = (n_rep_map/=0)
-          CPPrecondition(check,cp_failure_level,routineP,error,failure)
-          CALL section_vals_val_get(map_force_ev,"DEFINE_FRAGMENTS",i_rep_section=i,i_vals=list,&
-               error=error)
-          CPPrecondition(SIZE(list)>0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(check,cp_failure_level,routineP,failure)
+          CALL section_vals_val_get(map_force_ev,"DEFINE_FRAGMENTS",i_rep_section=i,i_vals=list)
+          CPPrecondition(SIZE(list)>0,cp_failure_level,routineP,failure)
           iatom = 0
           DO i = 1, SIZE(list)
              jval = list(i)
              DO j = 1, n_rep_sys
-                CALL section_vals_val_get(fragments_sys,"_SECTION_PARAMETERS_",i_rep_section=j,i_val=tmp,error=error)
+                CALL section_vals_val_get(fragments_sys,"_SECTION_PARAMETERS_",i_rep_section=j,i_val=tmp)
                 IF (tmp==jval) EXIT
              END DO
-             CALL section_vals_val_get(fragments_sys,"_DEFAULT_KEYWORD_",i_rep_section=j,i_vals=index_glo,error=error)
+             CALL section_vals_val_get(fragments_sys,"_DEFAULT_KEYWORD_",i_rep_section=j,i_vals=index_glo)
              DO k = 0, index_glo(2)-index_glo(1)
                 iatom = iatom + 1
- CPPrecondition(iatom<=natom,cp_failure_level,routineP,error,failure)
+ CPPrecondition(iatom<=natom,cp_failure_level,routineP,failure)
                 map_index(iatom) = index_glo(1)+k
              END DO
           END DO
           check = (iatom==natom)
-          CPPrecondition(check,cp_failure_level,routineP,error,failure)
+          CPPrecondition(check,cp_failure_level,routineP,failure)
        ELSE
           ! General syntax..
           !Loop over the fragment of the force_eval
           DO i = 1, n_rep_loc
-             CALL section_vals_val_get(fragments_loc,"_SECTION_PARAMETERS_",i_rep_section=i,i_val=ival,error=error)
-             CALL section_vals_val_get(fragments_loc,"MAP",i_rep_section=i,i_val=jval,error=error)
+             CALL section_vals_val_get(fragments_loc,"_SECTION_PARAMETERS_",i_rep_section=i,i_val=ival)
+             CALL section_vals_val_get(fragments_loc,"MAP",i_rep_section=i,i_val=jval)
              ! Index corresponding to the mixed_force_eval fragment
              DO j = 1, n_rep_sys
-                CALL section_vals_val_get(fragments_sys,"_SECTION_PARAMETERS_",i_rep_section=j,i_val=tmp,error=error)
+                CALL section_vals_val_get(fragments_sys,"_SECTION_PARAMETERS_",i_rep_section=j,i_val=tmp)
                 IF (tmp==jval) EXIT
              END DO
-             CPPrecondition(j<=n_rep_sys,cp_failure_level,routineP,error,failure)
-             CALL section_vals_val_get(fragments_loc,"_DEFAULT_KEYWORD_",i_rep_section=i,i_vals=index_loc,error=error)
-             CALL section_vals_val_get(fragments_sys,"_DEFAULT_KEYWORD_",i_rep_section=j,i_vals=index_glo,error=error)
+             CPPrecondition(j<=n_rep_sys,cp_failure_level,routineP,failure)
+             CALL section_vals_val_get(fragments_loc,"_DEFAULT_KEYWORD_",i_rep_section=i,i_vals=index_loc)
+             CALL section_vals_val_get(fragments_sys,"_DEFAULT_KEYWORD_",i_rep_section=j,i_vals=index_glo)
              check = ((index_loc(2)-index_loc(1))==(index_glo(2)-index_glo(1)))
-             CPPrecondition(check,cp_failure_level,routineP,error,failure)
+             CPPrecondition(check,cp_failure_level,routineP,failure)
              ! Now let's build the real mapping
              DO k = 0, index_loc(2)-index_loc(1)
                 map_index(index_loc(1)+k) = index_glo(1)+k

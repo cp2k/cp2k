@@ -88,15 +88,13 @@ CONTAINS
 !> \param row         : block row index of the matrix block
 !> \param col         : block col index of the matrix block
 !> \param blk         : the matrix block to add
-!> \param error       : CP2K error handler container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_add(matrix_data, row, col, blk, error)
+  SUBROUTINE fb_matrix_data_add(matrix_data, row, col, blk)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(IN)                      :: row, col
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: blk
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_add', &
       routineP = moduleN//':'//routineN
@@ -108,37 +106,36 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     ! check if we need to resize the blks array
     IF (matrix_data%obj%nblks*ENLARGE_RATIO .GE. &
         matrix_data%obj%nmax) THEN
        CALL fb_matrix_data_resize(matrix_data, &
-                                  matrix_data%obj%nmax*EXPAND_FACTOR, &
-                                  error)
+                                  matrix_data%obj%nmax*EXPAND_FACTOR)
     END IF
     ! assign block, copy blk data instead of associate
     nrows = SIZE(blk, 1)
     ncols = SIZE(blk, 2)
     ! first check if the block already exists in matrix_data
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
-    CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found, error)
+    CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
     IF (found) THEN
        ! matrix block aready stored, need to to reassign
        IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
           DEALLOCATE(matrix_data%obj%blks(existing_ii)%p, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
        ALLOCATE(matrix_data%obj%blks(existing_ii)%p(nrows,ncols), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        matrix_data%obj%blks(existing_ii)%p(:,:) = blk(:,:)
     ELSE
        matrix_data%obj%nblks = matrix_data%obj%nblks + 1
        ii = matrix_data%obj%nblks
        ALLOCATE(matrix_data%obj%blks(ii)%p(nrows,ncols), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        matrix_data%obj%blks(ii)%p(:,:) = blk(:,:)
        ! record blk index in the index table
-       CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii, error)
+       CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
     END IF
   END SUBROUTINE fb_matrix_data_add
 
@@ -161,13 +158,11 @@ CONTAINS
 !>                      and cannot be UNDEFINED
 !> \param nmax        : max number of matrix blks can be stored
 !> \param nencode ...
-!> \param error       : CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_create(matrix_data, nmax, nencode, error)
+  SUBROUTINE fb_matrix_data_create(matrix_data, nmax, nencode)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(IN)                      :: nmax, nencode
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_create', &
       routineP = moduleN//':'//routineN
@@ -177,9 +172,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     ALLOCATE(matrix_data%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     CALL fb_hash_table_nullify(matrix_data%obj%ind)
     NULLIFY(matrix_data%obj%blks)
     matrix_data%obj%nmax = 0
@@ -187,8 +182,7 @@ CONTAINS
     matrix_data%obj%nencode = nencode
     CALL fb_matrix_data_init(matrix_data=matrix_data, &
                              nmax=nmax, &
-                             nencode=nencode, &
-                             error=error)
+                             nencode=nencode)
     ! book keeping stuff
     matrix_data%obj%ref_count = 1
     matrix_data%obj%id_nr = last_fb_matrix_data_id + 1
@@ -203,15 +197,13 @@ CONTAINS
 !> \param blk_p       : pointer to the block in the fb_matrix_data object
 !> \param found       : if the requested block exists in the fb_matrix_data
 !>                      object
-!> \param error       : CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_get(matrix_data, row, col, blk_p, found, error)
+  SUBROUTINE fb_matrix_data_get(matrix_data, row, col, blk_p, found)
     TYPE(fb_matrix_data_obj), INTENT(IN)     :: matrix_data
     INTEGER, INTENT(IN)                      :: row, col
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_p
     LOGICAL, INTENT(OUT)                     :: found
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_get', &
       routineP = moduleN//':'//routineN
@@ -222,9 +214,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
-    CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blk, found, error)
+    CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blk, found)
     IF (found) THEN
        blk_p => matrix_data%obj%blks(ind_in_blk)%p
     ELSE
@@ -253,13 +245,11 @@ CONTAINS
 !>                      to use the existing number of blocks in matrix_data
 !> \param nencode     : integer used to incode (row, col) to a single combined
 !>                      index
-!> \param error       : CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_init(matrix_data, nmax, nencode, error)
+  SUBROUTINE fb_matrix_data_init(matrix_data, nmax, nencode)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(IN), OPTIONAL            :: nmax, nencode
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_init', &
       routineP = moduleN//':'//routineN
@@ -269,26 +259,26 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     my_nmax = matrix_data%obj%nmax
     IF (PRESENT(nmax)) my_nmax = nmax
     my_nmax = MAX(my_nmax, 1)
     IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
-       CALL fb_hash_table_release(matrix_data%obj%ind, error)
+       CALL fb_hash_table_release(matrix_data%obj%ind)
     END IF
-    CALL fb_hash_table_create(matrix_data%obj%ind, my_nmax, error)
+    CALL fb_hash_table_create(matrix_data%obj%ind, my_nmax)
     IF (ASSOCIATED(matrix_data%obj%blks)) THEN
        DO ii = 1, SIZE(matrix_data%obj%blks)
           IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
              DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
        END DO
        DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     matrix_data%obj%nmax = my_nmax
     ! nullify matrix blocks
     DO ii = 1, SIZE(matrix_data%obj%blks)
@@ -312,12 +302,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases given object
 !> \param matrix_data : the fb_matrix_data object in question
-!> \param error       : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_release(matrix_data, error)
+  SUBROUTINE fb_matrix_data_release(matrix_data)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_release', &
       routineP = moduleN//':'//routineN
@@ -328,26 +316,26 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(matrix_data%obj)) THEN
        check_ok = matrix_data%obj%ref_count > 0
-       CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
+       CPPreconditionNoFail(check_ok, cp_failure_level, routineP)
        matrix_data%obj%ref_count = matrix_data%obj%ref_count - 1
        IF (matrix_data%obj%ref_count == 0) THEN
           matrix_data%obj%ref_count = 1
           IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
-             CALL fb_hash_table_release(matrix_data%obj%ind, error)
+             CALL fb_hash_table_release(matrix_data%obj%ind)
           END IF
           IF (ASSOCIATED(matrix_data%obj%blks)) THEN
              DO ii = 1, SIZE(matrix_data%obj%blks)
                 IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
                    DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
-                   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+                   CPPostcondition(stat==0, cp_failure_level, routineP,failure)
                 END IF
              END DO
              DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
           matrix_data%obj%ref_count = 0
           DEALLOCATE(matrix_data%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
     ELSE
        NULLIFY(matrix_data%obj)
@@ -357,12 +345,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains given object
 !> \param matrix_data : the fb_matrix_data object in question
-!> \param error       : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_retain(matrix_data, error)
+  SUBROUTINE fb_matrix_data_retain(matrix_data)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_retain', &
       routineP = moduleN//':'//routineN
@@ -371,9 +357,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = ASSOCIATED(matrix_data%obj)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     check_ok = matrix_data%obj%ref_count > 0
-    CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
+    CPPreconditionNoFail(check_ok, cp_failure_level, routineP)
     matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
   END SUBROUTINE fb_matrix_data_retain
 
@@ -381,13 +367,11 @@ CONTAINS
 !> \brief Resize a fb_matrix_data object
 !> \param matrix_data : the fb_matrix_data object
 !> \param nmax        : new maximun size of matrix_data%obj%blks
-!> \param error       : CP2K error handler container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_resize(matrix_data, nmax, error)
+  SUBROUTINE fb_matrix_data_resize(matrix_data, nmax)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(IN)                      :: nmax
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_resize', &
       routineP = moduleN//':'//routineN
@@ -399,14 +383,14 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     my_nmax = MAX(nmax, matrix_data%obj%nblks)
     ! resize the blks array, no need to reindex, as blks in the blks
     ! are always added to the array sequencially, and so their address
     ! do not change upon resizing.
     IF (ASSOCIATED(matrix_data%obj%blks)) THEN
        ALLOCATE(tmp_blks(matrix_data%obj%nblks), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        DO ii = 1, SIZE(tmp_blks)
           NULLIFY(tmp_blks(ii)%p)
        END DO
@@ -414,9 +398,9 @@ CONTAINS
           tmp_blks(ii)%p => matrix_data%obj%blks(ii)%p
        END DO
        DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        DO ii = 1, SIZE(matrix_data%obj%blks)
           NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
@@ -424,10 +408,10 @@ CONTAINS
           matrix_data%obj%blks(ii)%p => tmp_blks(ii)%p
        END DO
        DEALLOCATE(tmp_blks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     ELSE
        ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        DO ii = 1, SIZE(matrix_data%obj%blks)
           NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
@@ -443,15 +427,13 @@ CONTAINS
 !> \param nencode     : outputs fb_matrix_data%obj%nencode
 !> \param blk_sizes   : blk_sizes(ii,jj) gives size of jj-th dim of the 
 !>                      ii-th block stored 
-!> \param error       : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, blk_sizes, error)
+  SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, blk_sizes)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(OUT), OPTIONAL           :: nmax, nblks, nencode
     INTEGER, DIMENSION(:, :), INTENT(OUT), &
       OPTIONAL                               :: blk_sizes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_status', &
       routineP = moduleN//':'//routineN
@@ -461,14 +443,14 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
     IF (PRESENT(nmax)) nmax = matrix_data%obj%nmax
     IF (PRESENT(nblks)) nblks = matrix_data%obj%nblks
     IF (PRESENT(nencode)) nencode = matrix_data%obj%nencode
     IF (PRESENT(blk_sizes)) THEN
        check_ok = (SIZE(blk_sizes, 1) .GE. matrix_data%obj%nblks .AND. &
                    SIZE(blk_sizes, 2) .GE. 2)
-       CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+       CPPostcondition(check_ok, cp_failure_level, routineP,failure)
        blk_sizes(:,:) = 0
        DO ii = 1, matrix_data%obj%nblks
           blk_sizes(ii,1) = SIZE(matrix_data%obj%blks(ii)%p, 1)

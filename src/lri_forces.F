@@ -60,11 +60,9 @@ CONTAINS
 !> \param pmatrix density matrix
 !> \param atomic_kind_set ...
 !> \param use_virial ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_lri_forces(lri_env,lri_density,qs_env,pmatrix,&
-             atomic_kind_set,use_virial,error)
+             atomic_kind_set,use_virial)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -74,7 +72,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     LOGICAL                                  :: use_virial
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_forces', &
       routineP = moduleN//':'//routineN
@@ -99,11 +96,11 @@ CONTAINS
       nkind = lri_env%lri_ints%nkind
       nspin = SIZE(pmatrix)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
-      CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
+      CALL get_qs_env(qs_env=qs_env,force=force,virial=virial)
  
       !calculate SUM_i integral(V*fbas_i)*davec/dR 
       CALL calculate_v_dadr(lri_env,lri_density,pmatrix,atomic_kind_set,&
-                            use_virial,virial,error)
+                            use_virial,virial)
 
       DO ispin = 1, nspin
 
@@ -138,10 +135,9 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param use_virial ...
 !> \param virial ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_v_dadr(lri_env,lri_density,pmatrix,atomic_kind_set,&
-                              use_virial,virial,error)
+                              use_virial,virial)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -151,7 +147,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr', &
       routineP = moduleN//':'//routineN
@@ -197,7 +192,7 @@ CONTAINS
  
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
       ALLOCATE(atom_of_kind(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -230,7 +225,7 @@ CONTAINS
           nbb = lrii%nbb
           nn = nfa +  nfb
 
-          CALL allocate_lri_force_components(lri_density%lri_force,nfa,nfb,error)
+          CALL allocate_lri_force_components(lri_density%lri_force,nfa,nfb)
           lri_force => lri_density%lri_force
           ds        => lri_force%ds
           st        => lri_force%st
@@ -337,13 +332,13 @@ CONTAINS
           IF(use_virial) THEN
             !periodic self-pairs aa' contribute only with factor 0.5
             IF(iatom == jatom) THEN
-              CALL virial_pair_force (virial%pv_virial,0.5_dp,force_a,rab,error)
+              CALL virial_pair_force (virial%pv_virial,0.5_dp,force_a,rab)
             ELSE 
-              CALL virial_pair_force (virial%pv_virial,1.0_dp,force_a,rab,error)
+              CALL virial_pair_force (virial%pv_virial,1.0_dp,force_a,rab)
             ENDIF
           ENDIF
 
-          CALL deallocate_lri_force_components(lri_density%lri_force,error)
+          CALL deallocate_lri_force_components(lri_density%lri_force)
 
        END DO
 
@@ -352,7 +347,7 @@ CONTAINS
       ENDDO
 
       DEALLOCATE(atom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
  
     ENDIF
 

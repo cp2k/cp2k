@@ -74,15 +74,13 @@ CONTAINS
 !> \brief builds projected KS matrices for the overlapping domains
 !>        also computes the DIIS error vector as a by-product
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_ks_to_ks_xx(almo_scf_env,error)
+  SUBROUTINE almo_scf_ks_to_ks_xx(almo_scf_env)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_to_ks_xx', &
       routineP = moduleN//':'//routineN
@@ -111,8 +109,7 @@ CONTAINS
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row_col,&
-               error)
+               select_row_col)
 
        !!!!! RZK-warning MAKE SURE THAT YOU NEED BLOCKS OUTSIDE QUENCH_T
        !!!!! FOR ALL NO-MATRICES NOT COMPUTING THEM CAN SAVE LOTS OF TIME
@@ -120,156 +117,140 @@ CONTAINS
        ! 1. TMP1=KS.T
        !    Cost: NOn
        !matrix_tmp1 = create NxO, full
-       CALL cp_dbcsr_init(matrix_tmp1, error=error)
+       CALL cp_dbcsr_init(matrix_tmp1)
        CALL cp_dbcsr_create(matrix_tmp1,&
-                            template=almo_scf_env%matrix_t(ispin),&
-                            error=error)
+                            template=almo_scf_env%matrix_t(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_ks(ispin),&
                                      almo_scf_env%matrix_t(ispin),&
                                      0.0_dp, matrix_tmp1,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
 
        ! 2. TMP2=TMP1.SigInv=KS.T.SigInv
        !    Cost: NOO
        !matrix_tmp2 = create NxO, full
-       CALL cp_dbcsr_init(matrix_tmp2, error=error)
+       CALL cp_dbcsr_init(matrix_tmp2)
        CALL cp_dbcsr_create(matrix_tmp2,&
-                            template=almo_scf_env%matrix_t(ispin),&
-                            error=error)
+                            template=almo_scf_env%matrix_t(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1,&
                                      almo_scf_env%matrix_sigma_inv(ispin),&
                                      0.0_dp, matrix_tmp2,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        
        ! 3. TMP1=S.T
        !    Cost: NOn
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s(1),&
                almo_scf_env%matrix_t(ispin),&
                0.0_dp, matrix_tmp1,&
-               filter_eps=eps_multiply,&
-               error=error)
+               filter_eps=eps_multiply)
 
        ! 4. TMP4=TMP2.tr(TMP1)=KS.T.SigInv.tr(T).S
        !    Cost: NNO
        !matrix_tmp4 = create NxN
-       CALL cp_dbcsr_init(matrix_tmp4, error=error)
+       CALL cp_dbcsr_init(matrix_tmp4)
        CALL cp_dbcsr_create(matrix_tmp4,&
                template=almo_scf_env%matrix_s(1),&
-               matrix_type=dbcsr_type_no_symmetry,&
-               error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp2,&
                matrix_tmp1,&
                0.0_dp, matrix_tmp4,&
-               filter_eps=eps_multiply,&
-               error=error)
+               filter_eps=eps_multiply)
        
        ! 5. KS_xx=KS_xx-TMP4_xx-tr(TMP4_xx)
        ALLOCATE(subm_tmp1(ndomains))
-       CALL init_submatrices(subm_tmp1,error)
+       CALL init_submatrices(subm_tmp1)
        CALL construct_submatrices(&
                matrix_tmp4,&
                subm_tmp1,&
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row_col,&
-               error)
+               select_row_col)
        CALL add_submatrices(1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               -1.0_dp,subm_tmp1,'N',error)
+               -1.0_dp,subm_tmp1,'N')
        CALL add_submatrices(1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               -1.0_dp,subm_tmp1,'T',error)
+               -1.0_dp,subm_tmp1,'T')
 
        ! 6. TMP3=tr(TMP4).T=S.T.SigInv.tr(T).KS.T 
        !    Cost: NOn
        !matrix_tmp3 = create NxO, full
-       CALL cp_dbcsr_init(matrix_tmp3, error=error)
+       CALL cp_dbcsr_init(matrix_tmp3)
        CALL cp_dbcsr_create(matrix_tmp3,&
                             template=almo_scf_env%matrix_t(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("T", "N", 1.0_dp,&
                                      matrix_tmp4,&
                                      almo_scf_env%matrix_t(ispin),&
                                      0.0_dp, matrix_tmp3,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
-       CALL cp_dbcsr_release(matrix_tmp4,error=error)
+                                     filter_eps=eps_multiply)
+       CALL cp_dbcsr_release(matrix_tmp4)
        
        ! 8. TMP6=TMP3.SigInv=S.T.SigInv.tr(T).KS.T.SigInv 
        !    Cost: NOO
        !matrix_tmp6 = create NxO, full
-       CALL cp_dbcsr_init(matrix_tmp6, error=error)
+       CALL cp_dbcsr_init(matrix_tmp6)
        CALL cp_dbcsr_create(matrix_tmp6,&
                             template=almo_scf_env%matrix_t(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
                               matrix_tmp3,&
                               almo_scf_env%matrix_sigma_inv(ispin),&
                               0.0_dp, matrix_tmp6,&
-                              filter_eps=eps_multiply,&
-                              error=error)
+                              filter_eps=eps_multiply)
        
        ! 8A. Use intermediate matrices to evaluate the gradient/error 
        !     Err=(TMP2-TMP6)_q=(KS.T.SigInv-S.T.SigInv.tr(T).KS.T.SigInv)_q
        ! error vector in AO-MO basis
        CALL cp_dbcsr_copy(almo_scf_env%matrix_err_xx(ispin),&
-               almo_scf_env%quench_t(ispin),error=error)
+               almo_scf_env%quench_t(ispin))
        CALL cp_dbcsr_copy(almo_scf_env%matrix_err_xx(ispin),&
-               matrix_tmp2,keep_sparsity=.TRUE.,error=error)
-       CALL cp_dbcsr_init(matrix_tmp4, error=error)
+               matrix_tmp2,keep_sparsity=.TRUE.)
+       CALL cp_dbcsr_init(matrix_tmp4)
        CALL cp_dbcsr_create(matrix_tmp4,&
                template=almo_scf_env%matrix_t(ispin),&
-               matrix_type=dbcsr_type_no_symmetry,&
-               error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_copy(matrix_tmp4,&
-               almo_scf_env%quench_t(ispin),error=error)
+               almo_scf_env%quench_t(ispin))
        CALL cp_dbcsr_copy(matrix_tmp4,&
-               matrix_tmp6,keep_sparsity=.TRUE.,error=error)
+               matrix_tmp6,keep_sparsity=.TRUE.)
        CALL cp_dbcsr_add(almo_scf_env%matrix_err_xx(ispin),&
-               matrix_tmp4,1.0_dp,-1.0_dp,error=error)
-       CALL cp_dbcsr_release(matrix_tmp4, error=error)
+               matrix_tmp4,1.0_dp,-1.0_dp)
+       CALL cp_dbcsr_release(matrix_tmp4)
        !
        ! error vector in AO-AO basis
        ! RZK-warning tmp4 can be created using the sparsity pattern, 
        ! then retain_sparsity can be used to perform the multiply
        ! this will save some time
        CALL cp_dbcsr_copy(matrix_tmp3,&
-               matrix_tmp2,error=error)
+               matrix_tmp2)
        CALL cp_dbcsr_add(matrix_tmp3,&
-               matrix_tmp6,1.0_dp,-1.0_dp,error=error)
-       CALL cp_dbcsr_init(matrix_tmp4, error=error)
+               matrix_tmp6,1.0_dp,-1.0_dp)
+       CALL cp_dbcsr_init(matrix_tmp4)
        CALL cp_dbcsr_create(matrix_tmp4,&
                template=almo_scf_env%matrix_s(1),&
-               matrix_type=dbcsr_type_no_symmetry,&
-               error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp,&
                matrix_tmp3,&
                almo_scf_env%matrix_t(ispin),&
                0.0_dp, matrix_tmp4,&
-               filter_eps=eps_multiply,&
-               error=error)
+               filter_eps=eps_multiply)
        CALL construct_submatrices(&
                matrix_tmp4,&
                almo_scf_env%domain_err(:,ispin),&
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row_col,&
-               error)
-       CALL cp_dbcsr_release(matrix_tmp4, error=error)
+               select_row_col)
+       CALL cp_dbcsr_release(matrix_tmp4)
        ! domain_err submatrices are in down-up representation
        ! bring them into the orthogonalized basis
        ALLOCATE(subm_tmp2(ndomains))
-       CALL init_submatrices(subm_tmp2,error)
+       CALL init_submatrices(subm_tmp2)
        CALL multiply_submatrices('N','N',1.0_dp,&
                almo_scf_env%domain_err(:,ispin),&
-               almo_scf_env%domain_s_sqrt(:,ispin),0.0_dp,subm_tmp2,error)
+               almo_scf_env%domain_s_sqrt(:,ispin),0.0_dp,subm_tmp2)
        CALL multiply_submatrices('N','N',1.0_dp,&
                almo_scf_env%domain_s_sqrt_inv(:,ispin),&
-               subm_tmp2,0.0_dp,almo_scf_env%domain_err(:,ispin),error)
+               subm_tmp2,0.0_dp,almo_scf_env%domain_err(:,ispin))
        
        ! 9. TMP5=TMP6.tr(TMP1)=S.T.SigInv.tr(T).KS.T.SigInv.tr(T).S 
        !    Cost: NNO
@@ -277,17 +258,15 @@ CONTAINS
        ! RZK-warning tmp5 can be created using the sparsity pattern, 
        ! then retain_sparsity can be used to perform the multiply
        ! this will save some time
-       CALL cp_dbcsr_init(matrix_tmp5, error=error)
+       CALL cp_dbcsr_init(matrix_tmp5)
        CALL cp_dbcsr_create(matrix_tmp5,&
                             template=almo_scf_env%matrix_s(1),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp,&
                               matrix_tmp6,&
                               matrix_tmp1,&
                               0.0_dp, matrix_tmp5,&
-                              filter_eps=eps_multiply,&
-                              error=error)
+                              filter_eps=eps_multiply)
 
        ! 10. KS_xx=KS_xx+TMP5_xx
        CALL construct_submatrices(&
@@ -296,98 +275,86 @@ CONTAINS
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row_col,&
-               error)
-       CALL cp_dbcsr_release(matrix_tmp5,error=error)
+               select_row_col)
+       CALL cp_dbcsr_release(matrix_tmp5)
        CALL add_submatrices(1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               1.0_dp,subm_tmp1,'N',error)
+               1.0_dp,subm_tmp1,'N')
 
        ! 11. KS_xx=KS_xx + [S.T]_xx.[SigInv.tr(T).KS.(1-T.SigInv.tr(T).S)]_xx + transposed 
        ALLOCATE(subm_tmp3(ndomains))
-       CALL init_submatrices(subm_tmp3,error)
+       CALL init_submatrices(subm_tmp3)
        CALL construct_submatrices(&
                matrix_tmp2,&
                subm_tmp2,&
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row,&
-               error)
+               select_row)
        CALL construct_submatrices(&
                matrix_tmp6,&
                subm_tmp3,&
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row,&
-               error)
-       CALL cp_dbcsr_release(matrix_tmp6,error=error)
+               select_row)
+       CALL cp_dbcsr_release(matrix_tmp6)
        CALL add_submatrices(1.0_dp,subm_tmp2,&
-               -1.0_dp,subm_tmp3,'N',error)
+               -1.0_dp,subm_tmp3,'N')
        CALL construct_submatrices(&
                matrix_tmp1,&
                subm_tmp3,&
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row,&
-               error)
+               select_row)
        CALL multiply_submatrices('N','T',1.0_dp,subm_tmp2,&
-               subm_tmp3,0.0_dp,subm_tmp1,error)
+               subm_tmp3,0.0_dp,subm_tmp1)
        CALL add_submatrices(1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               1.0_dp,subm_tmp1,'N',error)
+               1.0_dp,subm_tmp1,'N')
        CALL add_submatrices(1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               1.0_dp,subm_tmp1,'T',error)
+               1.0_dp,subm_tmp1,'T')
       
        ! 12. TMP7=tr(T).KS.T.SigInv 
-       CALL cp_dbcsr_init(matrix_tmp7, error=error)
+       CALL cp_dbcsr_init(matrix_tmp7)
        CALL cp_dbcsr_create(matrix_tmp7,&
                             template=almo_scf_env%matrix_sigma_blk(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("T", "N", 1.0_dp,&
                               almo_scf_env%matrix_t(ispin),&
                               matrix_tmp2,&
                               0.0_dp, matrix_tmp7,&
-                              filter_eps=eps_multiply,&
-                              error=error)
+                              filter_eps=eps_multiply)
 
        ! 13. TMP8=[SigInv.tr(T).KS.T.SigInv]_xx 
-       CALL cp_dbcsr_init(matrix_tmp8, error=error)
+       CALL cp_dbcsr_init(matrix_tmp8)
        CALL cp_dbcsr_create(matrix_tmp8,&
                             template=almo_scf_env%matrix_sigma_blk(ispin),&
-                            matrix_type=dbcsr_type_symmetric,&
-                            error=error)
-       CALL cp_dbcsr_copy(matrix_tmp8,almo_scf_env%matrix_sigma_blk(ispin),&
-                          error=error)
+                            matrix_type=dbcsr_type_symmetric)
+       CALL cp_dbcsr_copy(matrix_tmp8,almo_scf_env%matrix_sigma_blk(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
                               almo_scf_env%matrix_sigma_inv(ispin),&
                               matrix_tmp7,&
                               0.0_dp, matrix_tmp8,&
                               retain_sparsity=.TRUE.,&
-                              filter_eps=eps_multiply,&
-                              error=error)
-       CALL cp_dbcsr_release(matrix_tmp7,error=error)
+                              filter_eps=eps_multiply)
+       CALL cp_dbcsr_release(matrix_tmp7)
 
        ! 13. TMP9=[S.T]_xx 
-       CALL cp_dbcsr_init(matrix_tmp9, error=error)
+       CALL cp_dbcsr_init(matrix_tmp9)
        CALL cp_dbcsr_create(matrix_tmp9,&
                             template=almo_scf_env%matrix_t(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
-       CALL cp_dbcsr_copy(matrix_tmp9,almo_scf_env%quench_t(ispin),error=error)
-       CALL cp_dbcsr_copy(matrix_tmp9,matrix_tmp1,keep_sparsity=.TRUE.,&
-                          error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
+       CALL cp_dbcsr_copy(matrix_tmp9,almo_scf_env%quench_t(ispin))
+       CALL cp_dbcsr_copy(matrix_tmp9,matrix_tmp1,keep_sparsity=.TRUE.)
 
        ! 14. TMP3=TMP9.TMP8=[S.T]_xx.[SigInv.tr(T).KS.T.SigInv]_xx
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
                               matrix_tmp9,&
                               matrix_tmp8,&
                               0.0_dp, matrix_tmp3,&
-                              filter_eps=eps_multiply,&
-                              error=error)
-       CALL cp_dbcsr_release(matrix_tmp8,error=error)
-       CALL cp_dbcsr_release(matrix_tmp9,error=error)
+                              filter_eps=eps_multiply)
+       CALL cp_dbcsr_release(matrix_tmp8)
+       CALL cp_dbcsr_release(matrix_tmp9)
 
        ! 15. KS_xx=KS_xx+[S.T]_xx.[SigInv.tr(T).KS.T.SigInv]_xx.[tr(T).S]_xx
        CALL construct_submatrices(&
@@ -396,73 +363,65 @@ CONTAINS
                almo_scf_env%quench_t(ispin),&
                almo_scf_env%domain_map(ispin),&
                almo_scf_env%cpu_of_domain,&
-               select_row,&
-               error)
+               select_row)
        CALL multiply_submatrices('N','T',1.0_dp,subm_tmp2,&
-               subm_tmp3,0.0_dp,subm_tmp1,error)
+               subm_tmp3,0.0_dp,subm_tmp1)
        CALL add_submatrices(1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               1.0_dp,subm_tmp1,'N',error)
+               1.0_dp,subm_tmp1,'N')
        
        !!!!!!! use intermediate matrices to get the error vector !!!!!!!
        !!!!!!! make sure s_blk_sqrt and its inverse exist (i.e. we use diag algorithm)
-       !CPPrecondition(almo_scf_env%almo_update_algorithm.eq.almo_scf_diag,cp_failure_level,routineP,error,failure)
+       !CPPrecondition(almo_scf_env%almo_update_algorithm.eq.almo_scf_diag,cp_failure_level,routineP,failure)
        !! tmp_err = (1-S.T_blk.SigInv.tr(T_blk)).F.T_blk.SigInv
-       !CALL cp_dbcsr_init(matrix_tmp_err,error=error)
+       !CALL cp_dbcsr_init(matrix_tmp_err)
        !CALL cp_dbcsr_create(matrix_tmp_err,&
-       !        template=almo_scf_env%matrix_t(ispin),&
-       !        error=error)
+       !        template=almo_scf_env%matrix_t(ispin))
        !CALL cp_dbcsr_copy(matrix_tmp_err,&
-       !        matrix_tmp2,&
-       !        error=error)
+       !        matrix_tmp2)
        !CALL cp_dbcsr_add(matrix_tmp_err,matrix_tmp3,&
-       !        1.0_dp,-1.0_dp,error=error)
+       !        1.0_dp,-1.0_dp)
        !! err_blk = tmp_err.tr(T_blk)
        !CALL cp_dbcsr_copy(almo_scf_env%matrix_err_blk(ispin),&
-       !        almo_scf_env%matrix_s_blk_sqrt(1),&
-       !        error=error)
+       !        almo_scf_env%matrix_s_blk_sqrt(1))
        !CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp_err,&
        !        almo_scf_env%matrix_t(ispin),&
        !        0.0_dp, almo_scf_env%matrix_err_blk(ispin),&
        !        retain_sparsity=.TRUE.,&
-       !        filter_eps=eps_multiply,&
-       !        error=error)
-       !CALL cp_dbcsr_release(matrix_tmp_err,error=error)
+       !        filter_eps=eps_multiply)
+       !CALL cp_dbcsr_release(matrix_tmp_err)
        !! bring to the orthogonal basis
        !! err_blk = (S_blk^-1/2).err_blk.(S_blk^1/2)
-       !CALL cp_dbcsr_init(matrix_tmp_err,error=error)
+       !CALL cp_dbcsr_init(matrix_tmp_err)
        !CALL cp_dbcsr_create(matrix_tmp_err,&
-       !        template=almo_scf_env%matrix_err_blk(ispin),&
-       !        error=error)
+       !        template=almo_scf_env%matrix_err_blk(ispin))
        !CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
        !        almo_scf_env%matrix_err_blk(ispin),&
        !        almo_scf_env%matrix_s_blk_sqrt(1),&
        !        0.0_dp, matrix_tmp_err,&
-       !        filter_eps=eps_multiply,&
-       !        error=error)
+       !        filter_eps=eps_multiply)
        !CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
        !        almo_scf_env%matrix_s_blk_sqrt_inv(1),&
        !        matrix_tmp_err,&
        !        0.0_dp, almo_scf_env%matrix_err_blk(ispin),&
-       !        filter_eps=eps_multiply,&
-       !        error=error)
+       !        filter_eps=eps_multiply)
        !! subtract transpose
        !CALL cp_dbcsr_transposed(matrix_tmp_err,&
-       !        almo_scf_env%matrix_err_blk(ispin),error=error)
+       !        almo_scf_env%matrix_err_blk(ispin))
        !CALL cp_dbcsr_add(almo_scf_env%matrix_err_blk(ispin),&
        !        matrix_tmp_err,&
-       !        1.0_dp,-1.0_dp,error=error)
-       !CALL cp_dbcsr_release(matrix_tmp_err,error=error)
+       !        1.0_dp,-1.0_dp)
+       !CALL cp_dbcsr_release(matrix_tmp_err)
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-       CALL release_submatrices(subm_tmp3,error)
-       CALL release_submatrices(subm_tmp2,error)
-       CALL release_submatrices(subm_tmp1,error)
+       CALL release_submatrices(subm_tmp3)
+       CALL release_submatrices(subm_tmp2)
+       CALL release_submatrices(subm_tmp1)
        DEALLOCATE(subm_tmp3)
        DEALLOCATE(subm_tmp2)
        DEALLOCATE(subm_tmp1)
-       CALL cp_dbcsr_release(matrix_tmp3,error=error)
-       CALL cp_dbcsr_release(matrix_tmp2,error=error)
-       CALL cp_dbcsr_release(matrix_tmp1,error=error)
+       CALL cp_dbcsr_release(matrix_tmp3)
+       CALL cp_dbcsr_release(matrix_tmp2)
+       CALL cp_dbcsr_release(matrix_tmp1)
 
     ENDDO ! spins
 
@@ -474,15 +433,13 @@ CONTAINS
 !> \brief computes the projected KS from the total KS matrix
 !>        also computes the DIIS error vector as a by-product
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_ks_to_ks_blk(almo_scf_env,error)
+  SUBROUTINE almo_scf_ks_to_ks_blk(almo_scf_env)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_to_ks_blk', &
       routineP = moduleN//':'//routineN
@@ -503,36 +460,30 @@ CONTAINS
        ! 1. TMP1=KS.T_blk
        !    Cost: NOn
        !matrix_tmp1 = create NxO, full
-       CALL cp_dbcsr_init(matrix_tmp1, error=error)
+       CALL cp_dbcsr_init(matrix_tmp1)
        CALL cp_dbcsr_create(matrix_tmp1,&
-                            template=almo_scf_env%matrix_t(ispin),&
-                            error=error)
+                            template=almo_scf_env%matrix_t(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_ks(ispin),&
                                      almo_scf_env%matrix_t_blk(ispin),&
                                      0.0_dp, matrix_tmp1,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        ! 2. TMP2=TMP1.SigInv=KS.T_blk.SigInv
        !    Cost: NOO
        !matrix_tmp2 = create NxO, full
-       CALL cp_dbcsr_init(matrix_tmp2, error=error)
+       CALL cp_dbcsr_init(matrix_tmp2)
        CALL cp_dbcsr_create(matrix_tmp2,&
-                            template=almo_scf_env%matrix_t(ispin),&
-                            error=error)
+                            template=almo_scf_env%matrix_t(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1,&
                                      almo_scf_env%matrix_sigma_inv(ispin),&
                                      0.0_dp, matrix_tmp2,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        
        !!!!!! use intermediate matrices to get the error vector !!!!!!!
        !CALL cp_dbcsr_copy(almo_scf_env%matrix_err_blk(ispin),&
-       !        almo_scf_env%matrix_t_blk(ispin),&
-       !        error=error)
+       !        almo_scf_env%matrix_t_blk(ispin))
        !CALL cp_dbcsr_copy(almo_scf_env%matrix_err_blk(ispin),&
        !        matrix_tmp2,&
-       !        keep_sparsity=.TRUE.,&
-       !        error=error)
+       !        keep_sparsity=.TRUE.)
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
        ! 3. TMP1=S.T_blk
@@ -540,152 +491,131 @@ CONTAINS
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s(1),&
                                      almo_scf_env%matrix_t_blk(ispin),&
                                      0.0_dp, matrix_tmp1,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        
        ! 4. TMP4_blk=TMP2.tr(TMP1)=KS.T_blk.SigInv.tr(T_blk).S
        !    Cost: NnO
        !matrix_tmp4 = create NxN, blk
-       CALL cp_dbcsr_init(matrix_tmp4, error=error)
+       CALL cp_dbcsr_init(matrix_tmp4)
        CALL cp_dbcsr_create(matrix_tmp4,&
                             template=almo_scf_env%matrix_s_blk(1),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
-       CALL cp_dbcsr_copy(matrix_tmp4,almo_scf_env%matrix_s_blk(1),&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
+       CALL cp_dbcsr_copy(matrix_tmp4,almo_scf_env%matrix_s_blk(1))
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp2,&
                                      matrix_tmp1,&
                                      0.0_dp, matrix_tmp4,&
                                      retain_sparsity=.TRUE.,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        
        ! 5. KS_blk=KS_blk-TMP4_blk
        CALL cp_dbcsr_add(almo_scf_env%matrix_ks_blk(ispin),&
                                      matrix_tmp4,&
-                                     1.0_dp,-1.0_dp,error=error)
+                                     1.0_dp,-1.0_dp)
        
        ! 6. TMP5_blk=tr(TMP4_blk)
        !    KS_blk=KS_blk-tr(TMP4_blk)
        !matrix_tmp5 = create NxN, blk
-       CALL cp_dbcsr_init(matrix_tmp5, error=error)
+       CALL cp_dbcsr_init(matrix_tmp5)
        CALL cp_dbcsr_create(matrix_tmp5,&
                             template=almo_scf_env%matrix_s_blk(1),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
-       CALL cp_dbcsr_transposed(matrix_tmp5,matrix_tmp4,error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
+       CALL cp_dbcsr_transposed(matrix_tmp5,matrix_tmp4)
        CALL cp_dbcsr_add(almo_scf_env%matrix_ks_blk(ispin),matrix_tmp5,&
-                                     1.0_dp,-1.0_dp,error=error)
+                                     1.0_dp,-1.0_dp)
        
        ! 7. TMP3=tr(T_blk).TMP2=tr(T_blk).KS.T_blk.SigInv
        !    Cost: OOn
        !matrix_tmp3 = create OxO, full
-       CALL cp_dbcsr_init(matrix_tmp3, error=error)
+       CALL cp_dbcsr_init(matrix_tmp3)
        CALL cp_dbcsr_create(matrix_tmp3,&
                             template=almo_scf_env%matrix_sigma_inv(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("T", "N", 1.0_dp,&
                                      almo_scf_env%matrix_t_blk(ispin),&
                                      matrix_tmp2,&
                                      0.0_dp, matrix_tmp3,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        
        ! 8. TMP6=SigInv.TMP3=SigInv.tr(T_blk).KS.T_blk.SigInv
        !    Cost: OOO
        !matrix_tmp6 = create OxO, full
-       CALL cp_dbcsr_init(matrix_tmp6, error=error)
+       CALL cp_dbcsr_init(matrix_tmp6)
        CALL cp_dbcsr_create(matrix_tmp6,&
                             template=almo_scf_env%matrix_sigma_inv(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
                               almo_scf_env%matrix_sigma_inv(ispin),&
                               matrix_tmp3,&
                               0.0_dp, matrix_tmp6,&
-                              filter_eps=eps_multiply,&
-                              error=error)
+                              filter_eps=eps_multiply)
        
        ! 9. TMP3=TMP1.TMP6=S.T_blk.SigInv.tr(T_blk).KS.T_blk.SigInv
        !    Cost: NOO
        !matrix_tmp3 = re-create NxO, full
-       CALL cp_dbcsr_release(matrix_tmp3,error=error)
-       CALL cp_dbcsr_init(matrix_tmp3, error=error)
+       CALL cp_dbcsr_release(matrix_tmp3)
+       CALL cp_dbcsr_init(matrix_tmp3)
        CALL cp_dbcsr_create(matrix_tmp3,&
-                            template=almo_scf_env%matrix_t(ispin),&
-                            error=error)
+                            template=almo_scf_env%matrix_t(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1,&
                                      matrix_tmp6,&
                                      0.0_dp, matrix_tmp3,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
 
        !!!!!! use intermediate matrices to get the error vector !!!!!!!
-       !CALL cp_dbcsr_init(matrix_tmp_err,error=error)
+       !CALL cp_dbcsr_init(matrix_tmp_err)
        !CALL cp_dbcsr_create(matrix_tmp_err,&
-       !        template=almo_scf_env%matrix_t_blk(ispin),&
-       !        error=error)
+       !        template=almo_scf_env%matrix_t_blk(ispin))
        !CALL cp_dbcsr_copy(matrix_tmp_err,&
-       !        almo_scf_env%matrix_t_blk(ispin),&
-       !        error=error)
+       !        almo_scf_env%matrix_t_blk(ispin))
        !CALL cp_dbcsr_copy(matrix_tmp_err,matrix_tmp3,&
-       !        keep_sparsity=.TRUE.,&
-       !        error=error)
+       !        keep_sparsity=.TRUE.)
        !CALL cp_dbcsr_add(almo_scf_env%matrix_err_blk(ispin),matrix_tmp_err,&
-       !        1.0_dp,-1.0_dp,error=error)
-       !CALL cp_dbcsr_release(matrix_tmp_err,error=error)
+       !        1.0_dp,-1.0_dp)
+       !CALL cp_dbcsr_release(matrix_tmp_err)
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        
        !!!!!! use intermediate matrices to get the error vector !!!!!!!
        !!!!!! make sure s_blk_sqrt and its inverse exist (i.e. we use diag algorithm)
-       CPPrecondition(almo_scf_env%almo_update_algorithm.eq.almo_scf_diag,cp_failure_level,routineP,error,failure)
+       CPPrecondition(almo_scf_env%almo_update_algorithm.eq.almo_scf_diag,cp_failure_level,routineP,failure)
        ! tmp_err = (1-S.T_blk.SigInv.tr(T_blk)).F.T_blk.SigInv
-       CALL cp_dbcsr_init(matrix_tmp_err,error=error)
+       CALL cp_dbcsr_init(matrix_tmp_err)
        CALL cp_dbcsr_create(matrix_tmp_err,&
-               template=almo_scf_env%matrix_t_blk(ispin),&
-               error=error)
+               template=almo_scf_env%matrix_t_blk(ispin))
        CALL cp_dbcsr_copy(matrix_tmp_err,&
-               matrix_tmp2,&
-               error=error)
+               matrix_tmp2)
        CALL cp_dbcsr_add(matrix_tmp_err,matrix_tmp3,&
-               1.0_dp,-1.0_dp,error=error)
+               1.0_dp,-1.0_dp)
        ! err_blk = tmp_err.tr(T_blk)
        CALL cp_dbcsr_copy(almo_scf_env%matrix_err_blk(ispin),&
-               almo_scf_env%matrix_s_blk_sqrt(1),&
-               error=error)
+               almo_scf_env%matrix_s_blk_sqrt(1))
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp_err,&
                almo_scf_env%matrix_t_blk(ispin),&
                0.0_dp, almo_scf_env%matrix_err_blk(ispin),&
                retain_sparsity=.TRUE.,&
-               filter_eps=eps_multiply,&
-               error=error)
-       CALL cp_dbcsr_release(matrix_tmp_err,error=error)
+               filter_eps=eps_multiply)
+       CALL cp_dbcsr_release(matrix_tmp_err)
        ! bring to the orthogonal basis
        ! err_blk = (S_blk^-1/2).err_blk.(S_blk^1/2)
-       CALL cp_dbcsr_init(matrix_tmp_err,error=error)
+       CALL cp_dbcsr_init(matrix_tmp_err)
        CALL cp_dbcsr_create(matrix_tmp_err,&
-               template=almo_scf_env%matrix_err_blk(ispin),&
-               error=error)
+               template=almo_scf_env%matrix_err_blk(ispin))
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
                almo_scf_env%matrix_err_blk(ispin),&
                almo_scf_env%matrix_s_blk_sqrt(1),&
                0.0_dp, matrix_tmp_err,&
-               filter_eps=eps_multiply,&
-               error=error)
+               filter_eps=eps_multiply)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
                almo_scf_env%matrix_s_blk_sqrt_inv(1),&
                matrix_tmp_err,&
                0.0_dp, almo_scf_env%matrix_err_blk(ispin),&
-               filter_eps=eps_multiply,&
-               error=error)
+               filter_eps=eps_multiply)
        ! subtract transpose
        CALL cp_dbcsr_transposed(matrix_tmp_err,&
-               almo_scf_env%matrix_err_blk(ispin),error=error)
+               almo_scf_env%matrix_err_blk(ispin))
        CALL cp_dbcsr_add(almo_scf_env%matrix_err_blk(ispin),&
                matrix_tmp_err,&
-               1.0_dp,-1.0_dp,error=error)
-       CALL cp_dbcsr_release(matrix_tmp_err,error=error)
+               1.0_dp,-1.0_dp)
+       CALL cp_dbcsr_release(matrix_tmp_err)
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
        ! later we will need only the blk version of TMP6
@@ -693,16 +623,13 @@ CONTAINS
        !matrix_tmp9 = create OxO, blk
        !matrix_tmp9 = copy data from matrix_tmp6, retain sparsity
        !matrix_tmp6 = release
-       CALL cp_dbcsr_init(matrix_tmp9, error=error)
+       CALL cp_dbcsr_init(matrix_tmp9)
        CALL cp_dbcsr_create(matrix_tmp9,&
                             template=almo_scf_env%matrix_sigma_blk(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
-       CALL cp_dbcsr_copy(matrix_tmp9,almo_scf_env%matrix_sigma_blk(ispin),&
-                          error=error)
-       CALL cp_dbcsr_copy(matrix_tmp9,matrix_tmp6,keep_sparsity=.TRUE.,&
-                          error=error)
-       CALL cp_dbcsr_release(matrix_tmp6,error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
+       CALL cp_dbcsr_copy(matrix_tmp9,almo_scf_env%matrix_sigma_blk(ispin))
+       CALL cp_dbcsr_copy(matrix_tmp9,matrix_tmp6,keep_sparsity=.TRUE.)
+       CALL cp_dbcsr_release(matrix_tmp6)
        
        !10. KS_blk=KS_blk+TMP3.tr(TMP1)=
        !          =KS_blk+S.T_blk.SigInv.tr.(T_blk).KS.T_blk.SigInv.tr(T_blk).S
@@ -711,8 +638,7 @@ CONTAINS
                                      matrix_tmp1,&
                                      1.0_dp, almo_scf_env%matrix_ks_blk(ispin),&
                                      retain_sparsity=.TRUE.,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        
        ! 11. TMP4_blk=TMP7_blk.tr(TMP8_blk)
        !    Cost: Nnn
@@ -722,66 +648,57 @@ CONTAINS
        !matrix_tmp8 = create NxO, blk
        !matrix_tmp8 = copy data from matrix_tmp1, retain sparsity
        !matrix_tmp1 = release
-       CALL cp_dbcsr_init(matrix_tmp7, error=error)
+       CALL cp_dbcsr_init(matrix_tmp7)
        CALL cp_dbcsr_create(matrix_tmp7,&
-                            template=almo_scf_env%matrix_t_blk(ispin),&
-                            error=error)
+                            template=almo_scf_env%matrix_t_blk(ispin))
        ! transfer only the ALMO blocks from tmp3 into tmp7:
        ! first, copy t_blk into tmp7 to transfer the blk structure,
        ! then copy tmp3 into tmp7 with retain_sparsity 
-       CALL cp_dbcsr_copy(matrix_tmp7,almo_scf_env%matrix_t_blk(ispin),&
-                          error=error)
-       CALL cp_dbcsr_copy(matrix_tmp7,matrix_tmp3,keep_sparsity=.TRUE.,&
-                          error=error)
-       CALL cp_dbcsr_release(matrix_tmp3,error=error)
+       CALL cp_dbcsr_copy(matrix_tmp7,almo_scf_env%matrix_t_blk(ispin))
+       CALL cp_dbcsr_copy(matrix_tmp7,matrix_tmp3,keep_sparsity=.TRUE.)
+       CALL cp_dbcsr_release(matrix_tmp3)
        ! do the same for tmp1->tmp8
-       CALL cp_dbcsr_init(matrix_tmp8, error=error)
+       CALL cp_dbcsr_init(matrix_tmp8)
        CALL cp_dbcsr_create(matrix_tmp8,&
-                            template=almo_scf_env%matrix_t_blk(ispin),&
-                            error=error)
-       CALL cp_dbcsr_copy(matrix_tmp8,almo_scf_env%matrix_t_blk(ispin),&
-                          error=error)
-       CALL cp_dbcsr_copy(matrix_tmp8,matrix_tmp1,keep_sparsity=.TRUE.,&
-                          error=error)
-       CALL cp_dbcsr_release(matrix_tmp1,error=error)
+                            template=almo_scf_env%matrix_t_blk(ispin))
+       CALL cp_dbcsr_copy(matrix_tmp8,almo_scf_env%matrix_t_blk(ispin))
+       CALL cp_dbcsr_copy(matrix_tmp8,matrix_tmp1,keep_sparsity=.TRUE.)
+       CALL cp_dbcsr_release(matrix_tmp1)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp7,&
                               matrix_tmp8,&
                               0.0_dp, matrix_tmp4,&
                               filter_eps=eps_multiply,&
-                              retain_sparsity=.TRUE.,&
-                              error=error)
+                              retain_sparsity=.TRUE.)
        
        ! 12. KS_blk=KS_blk-TMP4_blk
        CALL cp_dbcsr_add(almo_scf_env%matrix_ks_blk(ispin),matrix_tmp4,&
-                                     1.0_dp,-1.0_dp,error=error)
+                                     1.0_dp,-1.0_dp)
        
        ! 13. TMP5_blk=tr(TMP5_blk)
        !     KS_blk=KS_blk-tr(TMP4_blk)
-       CALL cp_dbcsr_transposed(matrix_tmp5,matrix_tmp4,error=error)
+       CALL cp_dbcsr_transposed(matrix_tmp5,matrix_tmp4)
        CALL cp_dbcsr_add(almo_scf_env%matrix_ks_blk(ispin),matrix_tmp5,&
-                                     1.0_dp,-1.0_dp,error=error)
+                                     1.0_dp,-1.0_dp)
        
        ! 14. TMP4_blk=TMP7_blk.tr(TMP8_blk)
        !     Cost: Nnn
-       CALL cp_dbcsr_copy(matrix_tmp7,matrix_tmp2,keep_sparsity=.TRUE.,&
-                          error=error)
-       CALL cp_dbcsr_release(matrix_tmp2,error=error)
+       CALL cp_dbcsr_copy(matrix_tmp7,matrix_tmp2,keep_sparsity=.TRUE.)
+       CALL cp_dbcsr_release(matrix_tmp2)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp7,&
                                      matrix_tmp8,&
                                      0.0_dp, matrix_tmp4,&
                                      retain_sparsity=.TRUE.,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
+                                     filter_eps=eps_multiply)
        ! 15. KS_blk=KS_blk+TMP4_blk
        CALL cp_dbcsr_add(almo_scf_env%matrix_ks_blk(ispin),matrix_tmp4,&
-                                     1.0_dp,1.0_dp,error=error)
+                                     1.0_dp,1.0_dp)
        
        ! 16. KS_blk=KS_blk+tr(TMP4_blk)
-       CALL cp_dbcsr_transposed(matrix_tmp5,matrix_tmp4,error=error)
-       CALL cp_dbcsr_release(matrix_tmp4,error=error)
+       CALL cp_dbcsr_transposed(matrix_tmp5,matrix_tmp4)
+       CALL cp_dbcsr_release(matrix_tmp4)
        CALL cp_dbcsr_add(almo_scf_env%matrix_ks_blk(ispin),matrix_tmp5,&
-                                     1.0_dp,1.0_dp,error=error)
-       CALL cp_dbcsr_release(matrix_tmp5,error=error)
+                                     1.0_dp,1.0_dp)
+       CALL cp_dbcsr_release(matrix_tmp5)
                                      
        ! 17. TMP10_blk=TMP8_blk.TMP9_blk
        !    Cost: Noo
@@ -789,9 +706,8 @@ CONTAINS
                                      matrix_tmp9,&
                                      0.0_dp, matrix_tmp7,&
                                      retain_sparsity=.TRUE.,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
-       CALL cp_dbcsr_release(matrix_tmp9,error=error)
+                                     filter_eps=eps_multiply)
+       CALL cp_dbcsr_release(matrix_tmp9)
        
        ! 18. KS_blk=TMP7_blk.tr(TMP8_blk)
        !    Cost: Nno
@@ -799,10 +715,9 @@ CONTAINS
                                      matrix_tmp8,&
                                      1.0_dp, almo_scf_env%matrix_ks_blk(ispin),&
                                      retain_sparsity=.TRUE.,&
-                                     filter_eps=eps_multiply,&
-                                     error=error)
-       CALL cp_dbcsr_release(matrix_tmp7,error=error)
-       CALL cp_dbcsr_release(matrix_tmp8,error=error)
+                                     filter_eps=eps_multiply)
+       CALL cp_dbcsr_release(matrix_tmp7)
+       CALL cp_dbcsr_release(matrix_tmp8)
 
     ENDDO ! spins
 
@@ -814,15 +729,13 @@ CONTAINS
 !> \brief ALMOs by diagonalizing the KS domain submatrices
 !>        computes both the occupied and virtual orbitals
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_ks_xx_to_tv_xx(almo_scf_env,error)
+  SUBROUTINE almo_scf_ks_xx_to_tv_xx(almo_scf_env)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_xx_to_tv_xx', &
       routineP = moduleN//':'//routineN
@@ -841,8 +754,8 @@ CONTAINS
 
     IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular .AND. &
         almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN
-       CPErrorMessage(cp_failure_level,routineP,"a domain must be located entirely on a CPU",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"a domain must be located entirely on a CPU")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     ndomains=almo_scf_env%ndomains
@@ -852,35 +765,35 @@ CONTAINS
 
     DO ispin=1,almo_scf_env%nspins
 
-       CALL init_submatrices(subm_tmp,error)
-       CALL init_submatrices(subm_ks_xx_orthog,error)
+       CALL init_submatrices(subm_tmp)
+       CALL init_submatrices(subm_ks_xx_orthog)
     
        ! TRY: project out T0-occupied space for each domain
        ! F=(1-R_du).F.(1-tr(R_du))
        !CALL copy_submatrices(almo_scf_env%domain_ks_xx(:,ispin),&
-       !        subm_ks_xx_orthog,copy_data=.TRUE.,error=error)
+       !        subm_ks_xx_orthog,copy_data=.TRUE.)
        !CALL multiply_submatrices('N','N',1.0_dp,&
        !        almo_scf_env%domain_r_down_up(:,ispin),&
-       !        almo_scf_env%domain_ks_xx(:,ispin),0.0_dp,subm_tmp,error)
-       !CALL add_submatrices(1.0_dp,subm_ks_xx_orthog,-1.0_dp,subm_tmp,'N',error)
-       !CALL add_submatrices(1.0_dp,subm_ks_xx_orthog,-1.0_dp,subm_tmp,'T',error)
+       !        almo_scf_env%domain_ks_xx(:,ispin),0.0_dp,subm_tmp)
+       !CALL add_submatrices(1.0_dp,subm_ks_xx_orthog,-1.0_dp,subm_tmp,'N')
+       !CALL add_submatrices(1.0_dp,subm_ks_xx_orthog,-1.0_dp,subm_tmp,'T')
        !!CALL multiply_submatrices('N','T',1.0_dp,subm_tmp,&
        !!        almo_scf_env%domain_r_down_up(:,ispin),&
-       !!        1.0_dp,subm_ks_xx_orthog,error)
+       !!        1.0_dp,subm_ks_xx_orthog)
 
        ! convert blocks to the orthogonal basis set
        ! TRY: replace one multiply
        !CALL multiply_submatrices('N','N',1.0_dp,subm_ks_xx_orthog,&
-       !        almo_scf_env%domain_s_sqrt_inv(:,ispin),0.0_dp,subm_tmp,error)
+       !        almo_scf_env%domain_s_sqrt_inv(:,ispin),0.0_dp,subm_tmp)
        CALL multiply_submatrices('N','N',1.0_dp,almo_scf_env%domain_ks_xx(:,ispin),&
-               almo_scf_env%domain_s_sqrt_inv(:,ispin),0.0_dp,subm_tmp,error)
+               almo_scf_env%domain_s_sqrt_inv(:,ispin),0.0_dp,subm_tmp)
        CALL multiply_submatrices('N','N',1.0_dp,almo_scf_env%domain_s_sqrt_inv(:,ispin),&
-               subm_tmp,0.0_dp,subm_ks_xx_orthog,error)
-       CALL release_submatrices(subm_tmp,error)
+               subm_tmp,0.0_dp,subm_ks_xx_orthog)
+       CALL release_submatrices(subm_tmp)
        
        ! create temporary matrices for occupied and virtual orbitals 
        ! represented in the orthogonalized basis set
-       CALL init_submatrices(subm_t,error)
+       CALL init_submatrices(subm_t)
    
        ! loop over domains - perform diagonalization
        DO idomain = 1, ndomains
@@ -906,8 +819,8 @@ CONTAINS
              ALLOCATE(WORK(MAX(1,LWORK)))
              CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
              IF( INFO.NE.0 ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              END IF
 
 !WRITE (*,*) "Domain", idomain ,"OCC energies", eigenvalues( 1:almo_scf_env%nocc_of_domain(idomain,ispin) )
@@ -916,13 +829,13 @@ CONTAINS
              ! Copy occupied eigenvectors
              IF ( almo_scf_env%domain_t(idomain,ispin)%ncols.NE.&
                 almo_scf_env%nocc_of_domain(idomain,ispin) ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"wrong domain structure",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"wrong domain structure")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              END IF
              CALL copy_submatrices(almo_scf_env%domain_t(idomain,ispin),&
-                     subm_t(idomain),.FALSE.,error)
+                     subm_t(idomain),.FALSE.)
              CALL copy_submatrix_data(data_copy(:,1:almo_scf_env%nocc_of_domain(idomain,ispin)),&
-                     subm_t(idomain),error)
+                     subm_t(idomain))
 
              DEALLOCATE(WORK)
              DEALLOCATE(data_copy)
@@ -932,25 +845,24 @@ CONTAINS
    
        ENDDO ! loop over domains
 
-       CALL release_submatrices(subm_ks_xx_orthog,error)
+       CALL release_submatrices(subm_ks_xx_orthog)
 
        ! convert orbitals to the AO basis set (from orthogonalized AOs)
        CALL multiply_submatrices('N','N',1.0_dp,almo_scf_env%domain_s_sqrt_inv(:,ispin),&
-               subm_t,0.0_dp,almo_scf_env%domain_t(:,ispin),error)
-       CALL release_submatrices(subm_t,error)
+               subm_t,0.0_dp,almo_scf_env%domain_t(:,ispin))
+       CALL release_submatrices(subm_t)
        
        ! convert domain orbitals to a dbcsr matrix
        CALL construct_dbcsr_from_submatrices(&
                almo_scf_env%matrix_t(ispin),&
                almo_scf_env%domain_t(:,ispin),&
-               almo_scf_env%quench_t(ispin),&
-               error)
+               almo_scf_env%quench_t(ispin))
        CALL cp_dbcsr_filter(almo_scf_env%matrix_t(ispin),&
-               almo_scf_env%eps_filter,error=error)
+               almo_scf_env%eps_filter)
        
        ! TRY: add T0 component
        !!CALL cp_dbcsr_add(almo_scf_env%matrix_t(ispin),&
-       !!        almo_scf_env%matrix_t_blk(ispin),1.0_dp,1.0_dp,error=error)
+       !!        almo_scf_env%matrix_t_blk(ispin),1.0_dp,1.0_dp)
 
     ENDDO ! spins
 
@@ -967,15 +879,13 @@ CONTAINS
 !>        uses the diagonalization code for blocks
 !>        computes both the occupied and virtual orbitals
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_ks_blk_to_tv_blk(almo_scf_env,error)
+  SUBROUTINE almo_scf_ks_blk_to_tv_blk(almo_scf_env)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_ks_blk_to_tv_blk', &
       routineP = moduleN//':'//routineN
@@ -997,48 +907,40 @@ CONTAINS
 
     IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular .AND. &
         almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN
-       CPErrorMessage(cp_failure_level,routineP,"a domain must be located entirely on a CPU",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"a domain must be located entirely on a CPU")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     DO ispin=1,almo_scf_env%nspins
 
-       CALL cp_dbcsr_init(matrix_tmp,error=error)
-       CALL cp_dbcsr_init(matrix_ks_blk_orthog,error=error)
+       CALL cp_dbcsr_init(matrix_tmp)
+       CALL cp_dbcsr_init(matrix_ks_blk_orthog)
        CALL cp_dbcsr_create(matrix_tmp,template=almo_scf_env%matrix_ks_blk(ispin),&
-               matrix_type=dbcsr_type_no_symmetry,&
-               error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_create(matrix_ks_blk_orthog,template=almo_scf_env%matrix_ks_blk(ispin),&
-               matrix_type=dbcsr_type_no_symmetry,&
-               error=error)
+               matrix_type=dbcsr_type_no_symmetry)
    
        ! convert blocks to the orthogonal basis set
        CALL cp_dbcsr_multiply("N","N",1.0_dp,almo_scf_env%matrix_ks_blk(ispin),&
                almo_scf_env%matrix_s_blk_sqrt_inv(1),0.0_dp,matrix_tmp,&
-               filter_eps=almo_scf_env%eps_filter,error=error)
+               filter_eps=almo_scf_env%eps_filter)
        CALL cp_dbcsr_multiply("N","N",1.0_dp,almo_scf_env%matrix_s_blk_sqrt_inv(1),&
                matrix_tmp,0.0_dp,matrix_ks_blk_orthog,&
-               filter_eps=almo_scf_env%eps_filter,error=error)
+               filter_eps=almo_scf_env%eps_filter)
        
-       CALL cp_dbcsr_release(matrix_tmp,error=error)
+       CALL cp_dbcsr_release(matrix_tmp)
 
        ! create temporary matrices for occupied and virtual orbitals 
        ! represented in the orthogonalized AOs basis set
-       CALL cp_dbcsr_init(matrix_t_blk_orthog,error=error)
-       CALL cp_dbcsr_init(matrix_v_blk_orthog,error=error)
-       CALL cp_dbcsr_create(matrix_t_blk_orthog,template=almo_scf_env%matrix_t_blk(ispin),&
-               error=error)
-       CALL cp_dbcsr_create(matrix_v_blk_orthog,template=almo_scf_env%matrix_v_full_blk(ispin),&
-               error=error)
-       CALL cp_dbcsr_work_create(matrix_t_blk_orthog,work_mutable=.TRUE.,&
-               error=error)
-       CALL cp_dbcsr_work_create(matrix_v_blk_orthog,work_mutable=.TRUE.,&
-               error=error)
+       CALL cp_dbcsr_init(matrix_t_blk_orthog)
+       CALL cp_dbcsr_init(matrix_v_blk_orthog)
+       CALL cp_dbcsr_create(matrix_t_blk_orthog,template=almo_scf_env%matrix_t_blk(ispin))
+       CALL cp_dbcsr_create(matrix_v_blk_orthog,template=almo_scf_env%matrix_v_full_blk(ispin))
+       CALL cp_dbcsr_work_create(matrix_t_blk_orthog,work_mutable=.TRUE.)
+       CALL cp_dbcsr_work_create(matrix_v_blk_orthog,work_mutable=.TRUE.)
        
-       CALL cp_dbcsr_work_create(almo_scf_env%matrix_eoo(ispin),work_mutable=.TRUE.,&
-               error=error)
-       CALL cp_dbcsr_work_create(almo_scf_env%matrix_evv_full(ispin),work_mutable=.TRUE.,&
-               error=error)
+       CALL cp_dbcsr_work_create(almo_scf_env%matrix_eoo(ispin),work_mutable=.TRUE.)
+       CALL cp_dbcsr_work_create(almo_scf_env%matrix_evv_full(ispin),work_mutable=.TRUE.)
    
        CALL cp_dbcsr_iterator_start(iter,matrix_ks_blk_orthog)
    
@@ -1052,8 +954,8 @@ CONTAINS
           ENDIF
    
           IF (.NOT.block_needed) THEN
-             CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           ENDIF
    
           IF (block_needed) THEN
@@ -1074,8 +976,8 @@ CONTAINS
              ALLOCATE(WORK(MAX(1,LWORK)))
              CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
              IF( INFO.NE.0 ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              END IF
 
              !!! RZK-warning                                               !!!
@@ -1088,22 +990,22 @@ CONTAINS
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(matrix_t_blk_orthog,iblock_row,iblock_col,p_new_block)
              nocc_of_block=SIZE(p_new_block,2)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
-             CPPrecondition(nocc_of_block.gt.0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPPrecondition(nocc_of_block.gt.0,cp_failure_level,routineP,failure)
              p_new_block(:,:) = data_copy(:,1:nocc_of_block)
              ! now virtuals
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(matrix_v_blk_orthog,iblock_row,iblock_col,p_new_block)
              nvirt_of_block=SIZE(p_new_block,2)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
-             CPPrecondition(nvirt_of_block.gt.0,cp_failure_level,routineP,error,failure)
-             !CPPrecondition((nvirt_of_block+nocc_of_block.eq.iblock_size),cp_failure_level,routineP,error,failure)
+             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPPrecondition(nvirt_of_block.gt.0,cp_failure_level,routineP,failure)
+             !CPPrecondition((nvirt_of_block+nocc_of_block.eq.iblock_size),cp_failure_level,routineP,failure)
              p_new_block(:,:) = data_copy(:,(nocc_of_block+1):(nocc_of_block+nvirt_of_block))
    
              ! copy eigenvalues into two diagonal cp_dbcsr matrices - Eoo and Evv
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(almo_scf_env%matrix_eoo(ispin),iblock_row,iblock_col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
              p_new_block(:,:) = 0.0_dp 
              DO orbital=1,nocc_of_block
                 p_new_block(orbital,orbital)=eigenvalues(orbital)
@@ -1111,7 +1013,7 @@ CONTAINS
              ! virtual energies
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(almo_scf_env%matrix_evv_full(ispin),iblock_row,iblock_col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
              p_new_block(:,:) = 0.0_dp 
              DO orbital=1,nvirt_of_block
                 p_new_block(orbital,orbital)=eigenvalues(nocc_of_block+orbital)
@@ -1126,26 +1028,26 @@ CONTAINS
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
    
-       CALL cp_dbcsr_finalize(matrix_t_blk_orthog,error=error)
-       CALL cp_dbcsr_finalize(matrix_v_blk_orthog,error=error)
-       CALL cp_dbcsr_finalize(almo_scf_env%matrix_eoo(ispin),error=error)
-       CALL cp_dbcsr_finalize(almo_scf_env%matrix_evv_full(ispin),error=error)
+       CALL cp_dbcsr_finalize(matrix_t_blk_orthog)
+       CALL cp_dbcsr_finalize(matrix_v_blk_orthog)
+       CALL cp_dbcsr_finalize(almo_scf_env%matrix_eoo(ispin))
+       CALL cp_dbcsr_finalize(almo_scf_env%matrix_evv_full(ispin))
       
-       CALL cp_dbcsr_filter(matrix_t_blk_orthog,almo_scf_env%eps_filter,error=error)
-       CALL cp_dbcsr_filter(matrix_v_blk_orthog,almo_scf_env%eps_filter,error=error)
+       CALL cp_dbcsr_filter(matrix_t_blk_orthog,almo_scf_env%eps_filter)
+       CALL cp_dbcsr_filter(matrix_v_blk_orthog,almo_scf_env%eps_filter)
        
-       CALL cp_dbcsr_release(matrix_ks_blk_orthog, error=error)
+       CALL cp_dbcsr_release(matrix_ks_blk_orthog)
    
        ! convert orbitals to the AO basis set (from orthogonalized AOs)
        CALL cp_dbcsr_multiply("N","N",1.0_dp,almo_scf_env%matrix_s_blk_sqrt_inv(1),&
                matrix_t_blk_orthog,0.0_dp,almo_scf_env%matrix_t_blk(ispin),&
-               filter_eps=almo_scf_env%eps_filter,error=error)
+               filter_eps=almo_scf_env%eps_filter)
        CALL cp_dbcsr_multiply("N","N",1.0_dp,almo_scf_env%matrix_s_blk_sqrt_inv(1),&
                matrix_v_blk_orthog,0.0_dp,almo_scf_env%matrix_v_full_blk(ispin),&
-               filter_eps=almo_scf_env%eps_filter,error=error)
+               filter_eps=almo_scf_env%eps_filter)
          
-       CALL cp_dbcsr_release(matrix_t_blk_orthog, error=error)
-       CALL cp_dbcsr_release(matrix_v_blk_orthog, error=error)
+       CALL cp_dbcsr_release(matrix_t_blk_orthog)
+       CALL cp_dbcsr_release(matrix_v_blk_orthog)
 
     ENDDO ! spins
 
@@ -1158,17 +1060,15 @@ CONTAINS
 !> \param matrix_in ...
 !> \param matrix_out ...
 !> \param nocc ...
-!> \param error ...
 !> \par History
 !>       2012.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE pseudo_invert_diagonal_blk(matrix_in,matrix_out,nocc,error)
+  SUBROUTINE pseudo_invert_diagonal_blk(matrix_in,matrix_out,nocc)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_in
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_out
     INTEGER, DIMENSION(:)                    :: nocc
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pseudo_invert_diagonal_blk', &
       routineP = moduleN//':'//routineN
@@ -1184,10 +1084,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cp_dbcsr_create(matrix_out,template=matrix_in,&
-            error=error)
-    CALL cp_dbcsr_work_create(matrix_out,work_mutable=.TRUE.,&
-            error=error)
+    CALL cp_dbcsr_create(matrix_out,template=matrix_in)
+    CALL cp_dbcsr_work_create(matrix_out,work_mutable=.TRUE.)
     
     CALL cp_dbcsr_iterator_start(iter,matrix_in)
    
@@ -1208,15 +1106,14 @@ CONTAINS
                   methodID,&
                   range1=nocc(iblock_row),range2=nocc(iblock_row),&
                   !range1_thr,range2_thr,&
-                  shift=1.0E-5_dp,&
-                  error=error)
+                  shift=1.0E-5_dp)
    
           !!! IT IS EXTREMELY IMPORTANT THAT THE BLOCKS OF THE "OUT"  !!!
           !!! MATRIX ARE DISTRIBUTED AS THE BLOCKS OF THE "IN" MATRIX !!!
 
           NULLIFY (p_new_block)
           CALL cp_dbcsr_reserve_block2d(matrix_out,iblock_row,iblock_col,p_new_block)
-          CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
           p_new_block(:,:) = data_copy(:,:)
    
           DEALLOCATE(data_copy)
@@ -1226,7 +1123,7 @@ CONTAINS
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
    
-    CALL cp_dbcsr_finalize(matrix_out,error=error)
+    CALL cp_dbcsr_finalize(matrix_out)
        
     CALL timestop(handle)
 
@@ -1235,15 +1132,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes occupied ALMOs from the superimposed atomic density blocks
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_p_blk_to_t_blk(almo_scf_env,error)
+  SUBROUTINE almo_scf_p_blk_to_t_blk(almo_scf_env)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_p_blk_to_t_blk', &
       routineP = moduleN//':'//routineN
@@ -1257,13 +1152,11 @@ CONTAINS
     DO ispin=1,almo_scf_env%nspins
 
        !! create a temporary matrix to keep the eigenvectors
-       !CALL cp_dbcsr_init(matrix_t_blk_tmp, error=error)
+       !CALL cp_dbcsr_init(matrix_t_blk_tmp)
        !CALL cp_dbcsr_create(matrix_t_blk_tmp,&
-       !                     template=almo_scf_env%matrix_t_blk(ispin),&
-       !                     error=error)
+       !                     template=almo_scf_env%matrix_t_blk(ispin))
        !CALL cp_dbcsr_work_create(matrix_t_blk_tmp,&
-       !        work_mutable=.TRUE.,&
-       !        error=error)
+       !        work_mutable=.TRUE.)
    
        !CALL cp_dbcsr_iterator_start(iter,almo_scf_env%matrix_p_blk(ispin))
        !DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -1276,8 +1169,8 @@ CONTAINS
        !   ENDIF
    
        !   IF (.NOT.block_needed) THEN
-       !      CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found",error)
-       !      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !      CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found")
+       !      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        !   ENDIF
    
        !   IF (block_needed) THEN
@@ -1298,8 +1191,8 @@ CONTAINS
        !      ALLOCATE(WORK(MAX(1,LWORK)))
        !      CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
        !      IF( INFO.NE.0 ) THEN
-       !         CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-       !         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !         CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+       !         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        !      END IF
 
        !      !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
@@ -1310,8 +1203,8 @@ CONTAINS
        !      CALL cp_dbcsr_reserve_block2d(matrix_t_blk_tmp,&
        !              iblock_row,iblock_col,p_new_block)
        !      nocc_of_block=SIZE(p_new_block,2)
-       !      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
-       !      CPPrecondition(nocc_of_block.gt.0,cp_failure_level,routineP,error,failure)
+       !      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+       !      CPPrecondition(nocc_of_block.gt.0,cp_failure_level,routineP,failure)
        !      p_new_block(:,:) = data_copy(:,iblock_size-nocc_of_block+1:)
 
        !      DEALLOCATE(WORK)
@@ -1323,39 +1216,36 @@ CONTAINS
        !ENDDO
        !CALL cp_dbcsr_iterator_stop(iter)
    
-       !CALL cp_dbcsr_finalize(matrix_t_blk_tmp,error=error)
+       !CALL cp_dbcsr_finalize(matrix_t_blk_tmp)
        !CALL cp_dbcsr_filter(matrix_t_blk_tmp,&
-       !        almo_scf_env%eps_filter,error=error)
+       !        almo_scf_env%eps_filter)
        !CALL cp_dbcsr_copy(almo_scf_env%matrix_t_blk(ispin),&
-       !        matrix_t_blk_tmp,error=error)
-       !CALL cp_dbcsr_release(matrix_t_blk_tmp,error=error)
+       !        matrix_t_blk_tmp)
+       !CALL cp_dbcsr_release(matrix_t_blk_tmp)
        
        !! generate a random set of ALMOs 
        !! matrix_t_blk should already be initiated to the proper domain structure
        CALL cp_dbcsr_init_random(almo_scf_env%matrix_t_blk(ispin),&
                                  keep_sparsity=.TRUE.,error=dbcsr_error)
 
-       CALL cp_dbcsr_init(matrix_t_blk_tmp, error=error)
+       CALL cp_dbcsr_init(matrix_t_blk_tmp)
        CALL cp_dbcsr_create(matrix_t_blk_tmp,&
                             template=almo_scf_env%matrix_t_blk(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
 
        ! use current ALMOs in matrix_t_blk and project them onto the blocked dm
        ! compute T_new = R_blk S_blk T_random
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s_blk(1),&
                               almo_scf_env%matrix_t_blk(ispin),&
                               0.0_dp, matrix_t_blk_tmp,&
-                              filter_eps=almo_scf_env%eps_filter,&
-                              error=error)
+                              filter_eps=almo_scf_env%eps_filter)
 
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
                   almo_scf_env%matrix_p_blk(ispin), matrix_t_blk_tmp,&
                   0.0_dp, almo_scf_env%matrix_t_blk(ispin),&
-                  filter_eps=almo_scf_env%eps_filter,&
-                  error=error)
+                  filter_eps=almo_scf_env%eps_filter)
 
-       CALL cp_dbcsr_release(matrix_t_blk_tmp, error=error)
+       CALL cp_dbcsr_release(matrix_t_blk_tmp)
 
     ENDDO
 
@@ -1371,20 +1261,18 @@ CONTAINS
 !> \param metric ...
 !> \param retain_overlap_sparsity ...
 !> \param eps_filter ...
-!> \param error ...
 !> \par History
 !>       2011.08 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE get_overlap(bra,ket,overlap,metric,retain_overlap_sparsity,&
-    eps_filter,error)
+    eps_filter)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: bra, ket
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: overlap
     TYPE(cp_dbcsr_type), INTENT(IN)          :: metric
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_overlap_sparsity
     REAL(KIND=dp)                            :: eps_filter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_overlap', &
       routineP = moduleN//':'//routineN
@@ -1401,23 +1289,22 @@ CONTAINS
        local_retain_sparsity=retain_overlap_sparsity
     ENDIF
 
-    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_init(tmp)
     CALL cp_dbcsr_create(tmp,template=ket,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
+            matrix_type=dbcsr_type_no_symmetry)
 
     ! TMP=metric*ket
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             metric,ket,0.0_dp,tmp,&
-            filter_eps=eps_filter,error=error)
+            filter_eps=eps_filter)
 
     ! OVERLAP=tr(bra)*TMP
     CALL cp_dbcsr_multiply("T","N",1.0_dp,&
             bra,tmp,0.0_dp,overlap,&
             retain_sparsity=local_retain_sparsity,&
-            filter_eps=eps_filter,error=error)
+            filter_eps=eps_filter)
  
-    CALL cp_dbcsr_release(tmp,error=error)
+    CALL cp_dbcsr_release(tmp)
 
     CALL timestop(handle)
 
@@ -1429,10 +1316,9 @@ CONTAINS
 !!>       2011.07 created [Rustam Z Khaliullin]
 !!> \author Rustam Z Khaliullin
 !! *****************************************************************************
-!  SUBROUTINE almo_scf_v_to_sigma_vv(almo_scf_env,error)
+!  SUBROUTINE almo_scf_v_to_sigma_vv(almo_scf_env)
 !
 !    TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: &
 !      routineN = 'almo_scf_v_to_sigma_vv', &
@@ -1445,27 +1331,26 @@ CONTAINS
 !
 !    DO ispin=1,almo_scf_env%nspins
 !   
-!       CALL cp_dbcsr_init(tmp, error=error)
+!       CALL cp_dbcsr_init(tmp)
 !       CALL cp_dbcsr_create(tmp,&
 !               template=almo_scf_env%matrix_v(ispin),&
-!               matrix_type=dbcsr_type_no_symmetry,&
-!               error=error)
+!               matrix_type=dbcsr_type_no_symmetry)
 !
 !       ! TMP=S.V
 !       CALL cp_dbcsr_multiply("N","N",1.0_dp,&
 !               almo_scf_env%matrix_s(1),&
 !               almo_scf_env%matrix_v(ispin),&
 !               0.0_dp,tmp,&
-!               filter_eps=almo_scf_env%eps_filter,error=error)
+!               filter_eps=almo_scf_env%eps_filter)
 !
 !       ! Sig_vv=tr(V).S.V - get MO overlap
 !       CALL cp_dbcsr_multiply("T","N",1.0_dp,&
 !               almo_scf_env%matrix_v(ispin),&
 !               tmp,&
 !               0.0_dp,almo_scf_env%matrix_sigma_vv(ispin),&
-!               filter_eps=almo_scf_env%eps_filter,error=error)
+!               filter_eps=almo_scf_env%eps_filter)
 !
-!       CALL cp_dbcsr_release(tmp,error=error)
+!       CALL cp_dbcsr_release(tmp)
 !
 !    END DO
 !  
@@ -1479,10 +1364,9 @@ CONTAINS
 !!>       2011.07 created [Rustam Z Khaliullin]
 !!> \author Rustam Z Khaliullin
 !! *****************************************************************************
-!  SUBROUTINE almo_scf_v_to_v_orthonormal_blk(almo_scf_env,error)
+!  SUBROUTINE almo_scf_v_to_v_orthonormal_blk(almo_scf_env)
 !
 !    TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: &
 !      routineN = 'almo_scf_v_to_v_orthonormal_blk', &
@@ -1498,17 +1382,15 @@ CONTAINS
 !
 !    DO ispin=1,almo_scf_env%nspins
 !   
-!       CALL cp_dbcsr_init(matrix_v_tmp, error=error)
+!       CALL cp_dbcsr_init(matrix_v_tmp)
 !       CALL cp_dbcsr_create(matrix_v_tmp,&
-!                            template=almo_scf_env%matrix_v(ispin),&
-!                            error=error)
+!                            template=almo_scf_env%matrix_v(ispin))
 !
 !       ! TMP=S.V
 !       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s(1),&
 !                              almo_scf_env%matrix_v(ispin),&
 !                              0.0_dp, matrix_v_tmp,&
-!                              filter_eps=almo_scf_env%eps_filter,&
-!                              error=error)
+!                              filter_eps=almo_scf_env%eps_filter)
 !
 !       ! Sig_blk=tr(V).TMP - get blocked MO overlap
 !       CALL cp_dbcsr_multiply("T", "N", 1.0_dp,&
@@ -1516,15 +1398,14 @@ CONTAINS
 !                              matrix_v_tmp,&
 !                              0.0_dp, almo_scf_env%matrix_sigma_vv_blk(ispin),&
 !                              filter_eps=almo_scf_env%eps_filter,&
-!                              retain_sparsity=.TRUE.,&
-!                              error=error)
+!                              retain_sparsity=.TRUE.)
 !
-!       CALL cp_dbcsr_init(sigma_vv_blk_sqrt,error=error)
-!       CALL cp_dbcsr_init(sigma_vv_blk_sqrt_inv,error=error)
+!       CALL cp_dbcsr_init(sigma_vv_blk_sqrt)
+!       CALL cp_dbcsr_init(sigma_vv_blk_sqrt_inv)
 !       CALL cp_dbcsr_create(sigma_vv_blk_sqrt,template=almo_scf_env%matrix_sigma_vv_blk(ispin),&
-!                            matrix_type=dbcsr_type_no_symmetry,error=error) 
+!                            matrix_type=dbcsr_type_no_symmetry) 
 !       CALL cp_dbcsr_create(sigma_vv_blk_sqrt_inv,template=almo_scf_env%matrix_sigma_vv_blk(ispin),&
-!                            matrix_type=dbcsr_type_no_symmetry,error=error) 
+!                            matrix_type=dbcsr_type_no_symmetry) 
 !
 !       ! compute sqrt and sqrt_inv of the blocked MO overlap
 !       CALL matrix_sqrt_Newton_Schulz(sigma_vv_blk_sqrt,sigma_vv_blk_sqrt_inv,&
@@ -1532,24 +1413,21 @@ CONTAINS
 !                                      threshold=almo_scf_env%eps_filter,&
 !                                      order=almo_scf_env%order_lanczos,&
 !                                      eps_lanczos=almo_scf_env%eps_lancsoz,&
-!                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos,&
-!                                      error=error)
+!                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos)
 !       
 !       ! TMP_blk=V.SigSQRTInv_blk
 !       CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
 !                              almo_scf_env%matrix_v(ispin),&
 !                              sigma_vv_blk_sqrt_inv,&
 !                              0.0_dp, matrix_v_tmp,&
-!                              filter_eps=almo_scf_env%eps_filter,&
-!                              error=error)
+!                              filter_eps=almo_scf_env%eps_filter)
 !
 !       ! update the orbitals with the orthonormalized MOs
-!       CALL cp_dbcsr_copy(almo_scf_env%matrix_v(ispin),matrix_v_tmp,&
-!                          error=error)
+!       CALL cp_dbcsr_copy(almo_scf_env%matrix_v(ispin),matrix_v_tmp)
 !
-!       CALL cp_dbcsr_release (matrix_v_tmp, error=error)
-!       CALL cp_dbcsr_release (sigma_vv_blk_sqrt, error=error)
-!       CALL cp_dbcsr_release (sigma_vv_blk_sqrt_inv, error=error)
+!       CALL cp_dbcsr_release (matrix_v_tmp)
+!       CALL cp_dbcsr_release (sigma_vv_blk_sqrt)
+!       CALL cp_dbcsr_release (sigma_vv_blk_sqrt_inv)
 !
 !    END DO
 !  
@@ -1568,13 +1446,12 @@ CONTAINS
 !> \param order_lanczos ...
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
-!> \param error ...
 !> \par History
 !>       2012.03 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE orthogonalize_mos(ket,overlap,metric,retain_locality,only_normalize,&
-    eps_filter,order_lanczos,eps_lanczos,max_iter_lanczos,error)
+    eps_filter,order_lanczos,eps_lanczos,max_iter_lanczos)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: ket, overlap
     TYPE(cp_dbcsr_type), INTENT(IN)          :: metric
@@ -1584,7 +1461,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: order_lanczos
     REAL(KIND=dp), INTENT(IN)                :: eps_lanczos
     INTEGER, INTENT(IN)                      :: max_iter_lanczos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'orthogonalize_mos', &
       routineP = moduleN//':'//routineN
@@ -1600,61 +1476,57 @@ CONTAINS
     ! create block-diagonal sparsity pattern for the overlap
     ! in case retain_locality is set to true
     ! RZK-warning this will fail if distribution blocks are smaller than domains!!! 
-    CALL cp_dbcsr_set(overlap,0.0_dp,error=error)
-    CALL cp_dbcsr_add_on_diag(overlap,1.0_dp,error=error)
-    CALL cp_dbcsr_filter(overlap,eps_filter,error=error)
+    CALL cp_dbcsr_set(overlap,0.0_dp)
+    CALL cp_dbcsr_add_on_diag(overlap,1.0_dp)
+    CALL cp_dbcsr_filter(overlap,eps_filter)
 
     CALL get_overlap(ket,ket,overlap,metric,retain_locality,&
-            eps_filter,error)
+            eps_filter)
 
     IF (only_normalize) THEN
 
        CALL cp_dbcsr_get_info(overlap, nfullrows_total=dim0 )
        ALLOCATE(diagonal(dim0))
-       CALL cp_dbcsr_get_diag(overlap,diagonal,error=error)
-       CALL cp_dbcsr_set(overlap,0.0_dp,error=error)
-       CALL cp_dbcsr_set_diag(overlap,diagonal,error=error)
+       CALL cp_dbcsr_get_diag(overlap,diagonal)
+       CALL cp_dbcsr_set(overlap,0.0_dp)
+       CALL cp_dbcsr_set_diag(overlap,diagonal)
        DEALLOCATE(diagonal)
-       CALL cp_dbcsr_filter(overlap,eps_filter,error=error)
+       CALL cp_dbcsr_filter(overlap,eps_filter)
 
     ENDIF
 
-    CALL cp_dbcsr_init(matrix_sigma_blk_sqrt,error=error)
-    CALL cp_dbcsr_init(matrix_sigma_blk_sqrt_inv,error=error)
+    CALL cp_dbcsr_init(matrix_sigma_blk_sqrt)
+    CALL cp_dbcsr_init(matrix_sigma_blk_sqrt_inv)
     CALL cp_dbcsr_create(matrix_sigma_blk_sqrt,template=overlap,&
-            matrix_type=dbcsr_type_no_symmetry,error=error) 
+            matrix_type=dbcsr_type_no_symmetry) 
     CALL cp_dbcsr_create(matrix_sigma_blk_sqrt_inv,template=overlap,&
-            matrix_type=dbcsr_type_no_symmetry,error=error) 
+            matrix_type=dbcsr_type_no_symmetry) 
 
     ! compute sqrt and sqrt_inv of the blocked MO overlap
     CALL matrix_sqrt_Newton_Schulz(matrix_sigma_blk_sqrt,matrix_sigma_blk_sqrt_inv,&
             overlap,threshold=eps_filter,&
             order=order_lanczos,&
             eps_lanczos=eps_lanczos,&
-            max_iter_lanczos=max_iter_lanczos,&
-            error=error)
+            max_iter_lanczos=max_iter_lanczos)
        
-    CALL cp_dbcsr_init(matrix_t_blk_tmp, error=error)
+    CALL cp_dbcsr_init(matrix_t_blk_tmp)
     CALL cp_dbcsr_create(matrix_t_blk_tmp,&
             template=ket,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
+            matrix_type=dbcsr_type_no_symmetry)
 
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
             ket,&
             matrix_sigma_blk_sqrt_inv,&
             0.0_dp, matrix_t_blk_tmp,&
-            filter_eps=eps_filter,&
+            filter_eps=eps_filter)
             !retain_sparsity=retain_locality,&
-            error=error)
 
     ! update the orbitals with the orthonormalized MOs
-    CALL cp_dbcsr_copy(ket,matrix_t_blk_tmp,&
-            error=error)
+    CALL cp_dbcsr_copy(ket,matrix_t_blk_tmp)
 
-    CALL cp_dbcsr_release (matrix_t_blk_tmp, error=error)
-    CALL cp_dbcsr_release (matrix_sigma_blk_sqrt, error=error)
-    CALL cp_dbcsr_release (matrix_sigma_blk_sqrt_inv, error=error)
+    CALL cp_dbcsr_release (matrix_t_blk_tmp)
+    CALL cp_dbcsr_release (matrix_sigma_blk_sqrt)
+    CALL cp_dbcsr_release (matrix_sigma_blk_sqrt_inv)
 
     CALL timestop(handle)
 
@@ -1663,15 +1535,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief orthogonalize ALMOs within a domain (obsolete, use orthogonalize_mos)
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env,error)
+  SUBROUTINE almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'almo_scf_t_blk_to_t_blk_orthonormal', &
@@ -1686,18 +1556,16 @@ CONTAINS
 
     DO ispin=1,almo_scf_env%nspins
    
-       CALL cp_dbcsr_init(matrix_t_blk_tmp, error=error)
+       CALL cp_dbcsr_init(matrix_t_blk_tmp)
        CALL cp_dbcsr_create(matrix_t_blk_tmp,&
                             template=almo_scf_env%matrix_t_blk(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,&
-                            error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
 
        ! TMP_blk=S_blk.T_blk
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s_blk(1),&
                               almo_scf_env%matrix_t_blk(ispin),&
                               0.0_dp, matrix_t_blk_tmp,&
-                              filter_eps=almo_scf_env%eps_filter,&
-                              error=error)
+                              filter_eps=almo_scf_env%eps_filter)
 
        ! Sig_blk=tr(T_blk).TMP_blk - get blocked MO overlap
        CALL cp_dbcsr_multiply("T", "N", 1.0_dp,&
@@ -1705,16 +1573,15 @@ CONTAINS
                               matrix_t_blk_tmp,&
                               0.0_dp, almo_scf_env%matrix_sigma_blk(ispin),&
                               filter_eps=almo_scf_env%eps_filter,&
-                              retain_sparsity=.TRUE.,&
-                              error=error)
+                              retain_sparsity=.TRUE.)
 
        ! RZK-warning try to use symmetry of the sqrt and sqrt_inv matrices
-       CALL cp_dbcsr_init(matrix_sigma_blk_sqrt,error=error)
-       CALL cp_dbcsr_init(matrix_sigma_blk_sqrt_inv,error=error)
+       CALL cp_dbcsr_init(matrix_sigma_blk_sqrt)
+       CALL cp_dbcsr_init(matrix_sigma_blk_sqrt_inv)
        CALL cp_dbcsr_create(matrix_sigma_blk_sqrt,template=almo_scf_env%matrix_sigma_blk(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,error=error) 
+                            matrix_type=dbcsr_type_no_symmetry) 
        CALL cp_dbcsr_create(matrix_sigma_blk_sqrt_inv,template=almo_scf_env%matrix_sigma_blk(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry,error=error) 
+                            matrix_type=dbcsr_type_no_symmetry) 
 
        ! compute sqrt and sqrt_inv of the blocked MO overlap
        CALL matrix_sqrt_Newton_Schulz(matrix_sigma_blk_sqrt,matrix_sigma_blk_sqrt_inv,&
@@ -1722,8 +1589,7 @@ CONTAINS
                                       threshold=almo_scf_env%eps_filter,&
                                       order=almo_scf_env%order_lanczos,&
                                       eps_lanczos=almo_scf_env%eps_lanczos,&
-                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos,&
-                                      error=error)
+                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos)
        
        ! TMP_blk=T_blk.SigSQRTInv_blk
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp,&
@@ -1731,17 +1597,15 @@ CONTAINS
                               matrix_sigma_blk_sqrt_inv,&
                               0.0_dp, matrix_t_blk_tmp,&
                               filter_eps=almo_scf_env%eps_filter,&
-                              retain_sparsity=.TRUE.,&
-                              error=error)
+                              retain_sparsity=.TRUE.)
 
        ! update the orbitals with the orthonormalized ALMOs
        CALL cp_dbcsr_copy(almo_scf_env%matrix_t_blk(ispin),matrix_t_blk_tmp,&
-                          keep_sparsity=.TRUE.,&
-                          error=error)
+                          keep_sparsity=.TRUE.)
 
-       CALL cp_dbcsr_release (matrix_t_blk_tmp, error=error)
-       CALL cp_dbcsr_release (matrix_sigma_blk_sqrt, error=error)
-       CALL cp_dbcsr_release (matrix_sigma_blk_sqrt_inv, error=error)
+       CALL cp_dbcsr_release (matrix_t_blk_tmp)
+       CALL cp_dbcsr_release (matrix_sigma_blk_sqrt)
+       CALL cp_dbcsr_release (matrix_sigma_blk_sqrt_inv)
 
     END DO
   
@@ -1760,13 +1624,12 @@ CONTAINS
 !> \param sigma ...
 !> \param sigma_inv ...
 !> \param use_guess ...
-!> \param error ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE almo_scf_t_to_p(t,p,eps_filter,orthog_orbs,s,sigma,sigma_inv,&
-    use_guess,error)
+    use_guess)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: t
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: p
@@ -1777,7 +1640,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(INOUT), &
       OPTIONAL                               :: sigma, sigma_inv
     LOGICAL, INTENT(IN), OPTIONAL            :: use_guess
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_to_p', &
       routineP = moduleN//':'//routineN
@@ -1791,7 +1653,7 @@ CONTAINS
     ! make sure that S, sigma and sigma_inv are present for non-orthogonal orbitals
     IF (.NOT.orthog_orbs) THEN
        IF ((.NOT.PRESENT(s)).OR.(.NOT.PRESENT(sigma)).OR.(.NOT.PRESENT(sigma_inv))) THEN
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
     ENDIF
 
@@ -1803,43 +1665,37 @@ CONTAINS
     IF (orthog_orbs) THEN
     
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp,t,t,&
-                              0.0_dp,p,filter_eps=eps_filter,&
-                              error=error)
+                              0.0_dp,p,filter_eps=eps_filter)
 
     ELSE
 
-       CALL cp_dbcsr_init(t_tmp, error=error)
-       CALL cp_dbcsr_create(t_tmp,template=t,error=error)
+       CALL cp_dbcsr_init(t_tmp)
+       CALL cp_dbcsr_create(t_tmp,template=t)
    
        ! TMP=S.T
        CALL cp_dbcsr_multiply("N","N",1.0_dp,s,t,0.0_dp,t_tmp,&
-                              filter_eps=eps_filter,&
-                              error=error)
+                              filter_eps=eps_filter)
    
        ! Sig=tr(T).TMP - get MO overlap
        CALL cp_dbcsr_multiply("T","N",1.0_dp,t,t_tmp,0.0_dp,sigma,&
-                              filter_eps=eps_filter,&
-                              error=error)
+                              filter_eps=eps_filter)
    
        ! invert MO overlap
        CALL invert_Hotelling(&
                matrix_inverse=sigma_inv,&
                matrix=sigma,&
                use_inv_as_guess=use_sigma_inv_guess,&
-               threshold=eps_filter,&
-               error=error)
+               threshold=eps_filter)
   
        ! TMP=T.SigInv
        CALL cp_dbcsr_multiply("N","N",1.0_dp,t,sigma_inv,0.0_dp,t_tmp,&
-                              filter_eps=eps_filter,&
-                              error=error)
+                              filter_eps=eps_filter)
    
        ! P=TMP.tr(T_blk)
        CALL cp_dbcsr_multiply("N","T",1.0_dp,t_tmp,t,0.0_dp,p,&
-                              filter_eps=eps_filter,&
-                              error=error)
+                              filter_eps=eps_filter)
    
-       CALL cp_dbcsr_release (t_tmp, error=error)
+       CALL cp_dbcsr_release (t_tmp)
 
     ENDIF
 
@@ -1861,14 +1717,13 @@ CONTAINS
 !> \param eps_filter ...
 !> \param sig_inv_projector ...
 !> \param sig_inv_template ...
-!> \param error ...
 !> \par History
 !>       2011.10 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE apply_projector(psi_in,psi_out,psi_projector,metric,project_out,&
     psi_projector_orthogonal,proj_in_template,eps_filter,sig_inv_projector,&
-    sig_inv_template,error)
+    sig_inv_template)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: psi_in
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: psi_out
@@ -1880,7 +1735,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(IN), &
       OPTIONAL                               :: sig_inv_projector, &
                                                 sig_inv_template
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_projector', &
       routineP = moduleN//':'//routineN
@@ -1893,76 +1747,69 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! =S*PSI_proj
-    CALL cp_dbcsr_init(tmp_no, error=error)
-    CALL cp_dbcsr_create(tmp_no,template=psi_projector,error=error)
+    CALL cp_dbcsr_init(tmp_no)
+    CALL cp_dbcsr_create(tmp_no,template=psi_projector)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             metric,psi_projector,&
             0.0_dp,tmp_no,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
    
     ! =tr(S.PSI_proj)*PSI_in
-    CALL cp_dbcsr_init(tmp_ov,error=error)
-    CALL cp_dbcsr_create(tmp_ov,template=proj_in_template,error=error)
+    CALL cp_dbcsr_init(tmp_ov)
+    CALL cp_dbcsr_create(tmp_ov,template=proj_in_template)
     CALL cp_dbcsr_multiply("T","N",1.0_dp,&
             tmp_no,psi_in,&
             0.0_dp,tmp_ov,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
 
     IF (.NOT.psi_projector_orthogonal) THEN
        ! =SigInv_proj*Sigma_OV
-       CALL cp_dbcsr_init(tmp_sig_inv,error=error)
-       CALL cp_dbcsr_init(tmp_ov2,error=error)
+       CALL cp_dbcsr_init(tmp_sig_inv)
+       CALL cp_dbcsr_init(tmp_ov2)
        CALL cp_dbcsr_create(tmp_ov2,&
-               template=proj_in_template,error=error)
+               template=proj_in_template)
        IF (PRESENT(sig_inv_projector)) THEN
           CALL cp_dbcsr_create(tmp_sig_inv,&
-                  template=sig_inv_projector,&
-                  error=error)
-          CALL cp_dbcsr_copy(tmp_sig_inv,sig_inv_projector,error=error)
+                  template=sig_inv_projector)
+          CALL cp_dbcsr_copy(tmp_sig_inv,sig_inv_projector)
        ELSE
           IF (.NOT.PRESENT(sig_inv_template)) THEN
-             CPErrorMessage(cp_failure_level,routineP,"PROGRAMMING ERROR: provide either template or sig_inv",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"PROGRAMMING ERROR: provide either template or sig_inv")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           ENDIF
           ! compute inverse overlap of the projector orbitals
-          CALL cp_dbcsr_init(tmp_sig,error=error)
+          CALL cp_dbcsr_init(tmp_sig)
           CALL cp_dbcsr_create(tmp_sig,&
                   template=sig_inv_template,&
-                  matrix_type=dbcsr_type_no_symmetry,&
-                  error=error)
+                  matrix_type=dbcsr_type_no_symmetry)
           CALL cp_dbcsr_multiply("T","N",1.0_dp,&
                   psi_projector,tmp_no,0.0_dp,tmp_sig,&
-                  filter_eps=eps_filter,&
-                  error=error)
+                  filter_eps=eps_filter)
           CALL cp_dbcsr_create(tmp_sig_inv,&
                   template=sig_inv_template,&
-                  matrix_type=dbcsr_type_no_symmetry,&
-                  error=error)
+                  matrix_type=dbcsr_type_no_symmetry)
           CALL invert_Hotelling(tmp_sig_inv,tmp_sig,&
-                  threshold=eps_filter,error=error)
-          CALL cp_dbcsr_release(tmp_sig,error=error)
+                  threshold=eps_filter)
+          CALL cp_dbcsr_release(tmp_sig)
        ENDIF
        CALL cp_dbcsr_multiply("N","N",1.0_dp,&
                tmp_sig_inv,tmp_ov,0.0_dp,tmp_ov2,&
-               filter_eps=eps_filter,error=error)
-       CALL cp_dbcsr_release(tmp_sig_inv,error=error)
-       CALL cp_dbcsr_copy(tmp_ov,tmp_ov2,error=error)
-       CALL cp_dbcsr_release(tmp_ov2,error=error)
+               filter_eps=eps_filter)
+       CALL cp_dbcsr_release(tmp_sig_inv)
+       CALL cp_dbcsr_copy(tmp_ov,tmp_ov2)
+       CALL cp_dbcsr_release(tmp_ov2)
     ENDIF
-    CALL cp_dbcsr_release(tmp_no,error=error)
+    CALL cp_dbcsr_release(tmp_no)
 
     ! =PSI_proj*TMP_OV
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             psi_projector,tmp_ov,0.0_dp,psi_out,&
-            filter_eps=eps_filter,&
-            error=error)
-    CALL cp_dbcsr_release(tmp_ov,error=error)
+            filter_eps=eps_filter)
+    CALL cp_dbcsr_release(tmp_ov)
 
     ! V_out=V_in-V_out
     IF (project_out) THEN
-       CALL cp_dbcsr_add(psi_out,psi_in,-1.0_dp,+1.0_dp,error=error)
+       CALL cp_dbcsr_add(psi_out,psi_in,-1.0_dp,+1.0_dp)
     ENDIF
 
     CALL timestop(handle)
@@ -1975,13 +1822,12 @@ CONTAINS
 !!>       2011.07 created [Rustam Z Khaliullin]
 !!> \author Rustam Z Khaliullin
 !! *****************************************************************************
-!  SUBROUTINE almo_scf_p_out_from_v(v_in,v_out,ov_template,ispin,almo_scf_env,error)
+!  SUBROUTINE almo_scf_p_out_from_v(v_in,v_out,ov_template,ispin,almo_scf_env)
 !    
 !    TYPE(cp_dbcsr_type), INTENT(IN)                :: v_in, ov_template
 !    TYPE(cp_dbcsr_type), INTENT(INOUT)             :: v_out
 !    INTEGER, INTENT(IN)                            :: ispin
 !    TYPE(almo_scf_env_type), INTENT(INOUT)         :: almo_scf_env
-!    TYPE(cp_error_type), INTENT(INOUT)             :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: &
 !      routineN = 'almo_scf_p_out_from_v', &
@@ -1994,45 +1840,41 @@ CONTAINS
 !    CALL timeset(routineN,handle)
 !
 !    ! =tr(T_blk)*S
-!    CALL cp_dbcsr_init(tmp_on, error=error)
+!    CALL cp_dbcsr_init(tmp_on)
 !    CALL cp_dbcsr_create(tmp_on,&
-!            template=almo_scf_env%matrix_t_tr(ispin),error=error)
+!            template=almo_scf_env%matrix_t_tr(ispin))
 !    CALL cp_dbcsr_multiply("T","N",1.0_dp,&
 !            almo_scf_env%matrix_t_blk(ispin),&
 !            almo_scf_env%matrix_s(1),&
 !            0.0_dp,tmp_on,&
-!            filter_eps=almo_scf_env%eps_filter,&
-!            error=error)
+!            filter_eps=almo_scf_env%eps_filter)
 !   
 !    ! =tr(T_blk).S*V_in
-!    CALL cp_dbcsr_init(tmp_ov,error=error)
-!    CALL cp_dbcsr_create(tmp_ov,template=ov_template,error=error)
+!    CALL cp_dbcsr_init(tmp_ov)
+!    CALL cp_dbcsr_create(tmp_ov,template=ov_template)
 !    CALL cp_dbcsr_multiply("N","N",1.0_dp,&
 !            tmp_on,v_in,0.0_dp,tmp_ov,&
-!            filter_eps=almo_scf_env%eps_filter,&
-!            error=error)
-!    CALL cp_dbcsr_release(tmp_on,error=error)
+!            filter_eps=almo_scf_env%eps_filter)
+!    CALL cp_dbcsr_release(tmp_on)
 !
 !    ! =SigmaInv*Sigma_OV
-!    CALL cp_dbcsr_init(tmp_ov2, error=error)
-!    CALL cp_dbcsr_create(tmp_ov2,template=ov_template,error=error)
+!    CALL cp_dbcsr_init(tmp_ov2)
+!    CALL cp_dbcsr_create(tmp_ov2,template=ov_template)
 !    CALL cp_dbcsr_multiply("N","N",1.0_dp,&
 !            almo_scf_env%matrix_sigma_inv(ispin),&
 !            tmp_ov,0.0_dp,tmp_ov2,&
-!            filter_eps=almo_scf_env%eps_filter,&
-!            error=error)
-!    CALL cp_dbcsr_release(tmp_ov,error=error)
+!            filter_eps=almo_scf_env%eps_filter)
+!    CALL cp_dbcsr_release(tmp_ov)
 !    
 !    ! =T_blk*SigmaInv.Sigma_OV
 !    CALL cp_dbcsr_multiply("N","N",1.0_dp,&
 !            almo_scf_env%matrix_t_blk(ispin),&
 !            tmp_ov2,0.0_dp,v_out,&
-!            filter_eps=almo_scf_env%eps_filter,&
-!            error=error)
-!    CALL cp_dbcsr_release(tmp_ov2,error=error)
+!            filter_eps=almo_scf_env%eps_filter)
+!    CALL cp_dbcsr_release(tmp_ov2)
 !
 !    ! V_out=V_in-V_out=
-!    CALL cp_dbcsr_add(v_out,v_in,-1.0_dp,+1.0_dp,error=error)
+!    CALL cp_dbcsr_add(v_out,v_in,-1.0_dp,+1.0_dp)
 !
 !    CALL timestop(handle)
 !
@@ -2042,17 +1884,15 @@ CONTAINS
 !> \brief computes the idempotent density matrix from ALMOs
 !> \param almo_scf_env ...
 !> \param use_sigma_inv_guess ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !>       2011.07 converted into a wrapper which calls almo_scf_t_to_p
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_t_blk_to_p(almo_scf_env,use_sigma_inv_guess,error)
+  SUBROUTINE almo_scf_t_blk_to_p(almo_scf_env,use_sigma_inv_guess)
 
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
     LOGICAL, INTENT(IN), OPTIONAL            :: use_sigma_inv_guess
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_t_blk_to_p', &
       routineP = moduleN//':'//routineN
@@ -2077,16 +1917,14 @@ CONTAINS
                             s=almo_scf_env%matrix_s(1),&
                             sigma=almo_scf_env%matrix_sigma(ispin),&
                             sigma_inv=almo_scf_env%matrix_sigma_inv(ispin),&
-                            use_guess=use_guess,&
-                            error=error)
+                            use_guess=use_guess)
        
        IF (almo_scf_env%nspins == 1) THEN
         spin_factor = 2.0_dp
        ELSE
         spin_factor = 1.0_dp
        ENDIF
-       CALL cp_dbcsr_scale(almo_scf_env%matrix_p(ispin),spin_factor,&
-                              error=error)
+       CALL cp_dbcsr_scale(almo_scf_env%matrix_p(ispin),spin_factor)
 
     END DO
   
@@ -2100,17 +1938,15 @@ CONTAINS
 !> \param X ...
 !> \param U ...
 !> \param eps_filter ...
-!> \param error ...
 !> \par History
 !>       2011.08 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE generator_to_unitary(X,U,eps_filter,error)
+  SUBROUTINE generator_to_unitary(X,U,eps_filter)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: X
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: U
     REAL(KIND=dp), INTENT(IN)                :: eps_filter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generator_to_unitary', &
       routineP = moduleN//':'//routineN
@@ -2126,67 +1962,67 @@ CONTAINS
     safe_mode=.TRUE.
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
        unit_nr=-1
     ENDIF
  
-    CALL cp_dbcsr_init(t1,error=error)
+    CALL cp_dbcsr_init(t1)
     CALL cp_dbcsr_create(t1,template=X,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_init(t2,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_init(t2)
     CALL cp_dbcsr_create(t2,template=X,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
     
     ! create antisymmetric Delta = -X + tr(X)
-    CALL cp_dbcsr_init(delta,error=error)
+    CALL cp_dbcsr_init(delta)
     CALL cp_dbcsr_create(delta,template=X,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_transposed(delta,X,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_transposed(delta,X)
 ! check that transposed is added correctly
-    CALL cp_dbcsr_add(delta,X,1.0_dp,-1.0_dp,error=error)
+    CALL cp_dbcsr_add(delta,X,1.0_dp,-1.0_dp)
     
     ! compute (1 - Delta)^(-1)
-    CALL cp_dbcsr_add_on_diag(t1,1.0_dp,error=error)
-    CALL cp_dbcsr_add(t1,delta,1.0_dp,-1.0_dp,error=error)
-    CALL invert_Hotelling(t2,t1,threshold=eps_filter,error=error)
+    CALL cp_dbcsr_add_on_diag(t1,1.0_dp)
+    CALL cp_dbcsr_add(t1,delta,1.0_dp,-1.0_dp)
+    CALL invert_Hotelling(t2,t1,threshold=eps_filter)
     
     IF (safe_mode) THEN
 
-       CALL cp_dbcsr_init(tmp1,error=error)
+       CALL cp_dbcsr_init(tmp1)
        CALL cp_dbcsr_create(tmp1,template=X,&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, t2, t1, 0.0_dp, tmp1,&
-               filter_eps=eps_filter,error=error)
+               filter_eps=eps_filter)
        frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-       CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
+       CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp)
        frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
        IF (unit_nr>0) THEN
           WRITE(unit_nr,*) "Error for (inv(A)*A-I)",frob_matrix/frob_matrix_base
        ENDIF
-       CALL cp_dbcsr_release(tmp1,error=error)
+       CALL cp_dbcsr_release(tmp1)
     ENDIF
 
     CALL cp_dbcsr_multiply("N","N",1.0_dp,delta,t2,0.0_dp,U,&
-            filter_eps=eps_filter,error=error)
-    CALL cp_dbcsr_add(U,t2,1.0_dp,1.0_dp,error=error)
+            filter_eps=eps_filter)
+    CALL cp_dbcsr_add(U,t2,1.0_dp,1.0_dp)
 
     IF (safe_mode) THEN
 
-       CALL cp_dbcsr_init(tmp1,error=error)
+       CALL cp_dbcsr_init(tmp1)
        CALL cp_dbcsr_create(tmp1,template=X,&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_multiply("T", "N", 1.0_dp, U, U, 0.0_dp, tmp1,&
-               filter_eps=eps_filter,error=error)
+               filter_eps=eps_filter)
        frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-       CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
+       CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp)
        frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
        IF (unit_nr>0) THEN
           WRITE(unit_nr,*) "Error for (trn(U)*U-I)",frob_matrix/frob_matrix_base
        ENDIF
-       CALL cp_dbcsr_release(tmp1,error=error)
+       CALL cp_dbcsr_release(tmp1)
     ENDIF
 
     CALL timestop(handle)
@@ -2208,14 +2044,12 @@ CONTAINS
 !> \param filter_eps ...
 !> \param matrix_trimmer ...
 !> \param use_trimmer ...
-!> \param error ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE apply_domain_operators(matrix_in,matrix_out,operator1,operator2,&
-    dpattern,map,node_of_domain,my_action,filter_eps,matrix_trimmer,use_trimmer,&
-    error)
+    dpattern,map,node_of_domain,my_action,filter_eps,matrix_trimmer,use_trimmer)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_in
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_out
@@ -2231,7 +2065,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(IN), &
       OPTIONAL                               :: matrix_trimmer
     LOGICAL, INTENT(IN), OPTIONAL            :: use_trimmer
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_domain_operators', &
       routineP = moduleN//':'//routineN
@@ -2258,16 +2091,16 @@ CONTAINS
 
     IF (my_use_trimmer) THEN
        matrix_trimmer_required=.TRUE.
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMED PROJECTOR DISABLED!",error)
+       CPErrorMessage(cp_failure_level,routineP,"TRIMMED PROJECTOR DISABLED!")
     ENDIF
 
     IF (.NOT.PRESENT(operator2).AND.operator2_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"SECOND OPERATOR IS REQUIRED",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"SECOND OPERATOR IS REQUIRED")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
     IF (.NOT.PRESENT(matrix_trimmer).AND.matrix_trimmer_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMER MATRIX IS REQUIRED",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"TRIMMER MATRIX IS REQUIRED")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
@@ -2276,43 +2109,43 @@ CONTAINS
     ALLOCATE(subm_temp(ndomains))
     ALLOCATE(subm_out(ndomains))
     !!!TRIM ALLOCATE(subm_trimmer(ndomains))
-    CALL init_submatrices(subm_in,error)
-    CALL init_submatrices(subm_temp,error)
-    CALL init_submatrices(subm_out,error)
+    CALL init_submatrices(subm_in)
+    CALL init_submatrices(subm_temp)
+    CALL init_submatrices(subm_out)
 
     CALL construct_submatrices(matrix_in,subm_in,&
-            dpattern,map,node_of_domain,select_row,error)
+            dpattern,map,node_of_domain,select_row)
     
     !!!TRIM IF (matrix_trimmer_required) THEN
     !!!TRIM    CALL construct_submatrices(matrix_trimmer,subm_trimmer,&
-    !!!TRIM            dpattern,map,node_of_domain,select_row,error)
+    !!!TRIM            dpattern,map,node_of_domain,select_row)
     !!!TRIM ENDIF
 
     IF (my_action.eq.0) THEN
        ! for example, apply preconditioner
        CALL multiply_submatrices('N','N',1.0_dp,operator1,&
-               subm_in,0.0_dp,subm_out,error)
+               subm_in,0.0_dp,subm_out)
     ELSE IF (my_action.eq.1) THEN
        ! use for projectors
-       CALL copy_submatrices(subm_in,subm_out,.TRUE.,error)
+       CALL copy_submatrices(subm_in,subm_out,.TRUE.)
        CALL multiply_submatrices('N','N',1.0_dp,operator1,&
-               subm_in,0.0_dp,subm_temp,error)
+               subm_in,0.0_dp,subm_temp)
        CALL multiply_submatrices('N','N',-1.0_dp,operator2,&
-               subm_temp,1.0_dp,subm_out,error)
+               subm_temp,1.0_dp,subm_out)
 !GroupID = dbcsr_mp_group(dbcsr_distribution_mp(&
 !   cp_dbcsr_distribution(dpattern)))
-!CALL print_submatrices(subm_out,GroupID,error)                   
+!CALL print_submatrices(subm_out,GroupID)                   
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"ILLEGAL ACTION",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"ILLEGAL ACTION")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
-    CALL construct_dbcsr_from_submatrices(matrix_out,subm_out,dpattern,error)
-    CALL cp_dbcsr_filter(matrix_out,filter_eps,error=error)
+    CALL construct_dbcsr_from_submatrices(matrix_out,subm_out,dpattern)
+    CALL cp_dbcsr_filter(matrix_out,filter_eps)
 
-    CALL release_submatrices(subm_out,error)
-    CALL release_submatrices(subm_temp,error)
-    CALL release_submatrices(subm_in,error)
+    CALL release_submatrices(subm_out)
+    CALL release_submatrices(subm_temp)
+    CALL release_submatrices(subm_in)
 
     DEALLOCATE(subm_out)
     DEALLOCATE(subm_temp)
@@ -2336,14 +2169,13 @@ CONTAINS
 !> \param preconditioner ...
 !> \param use_trimmer ...
 !> \param my_action ...
-!> \param error ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE construct_domain_preconditioner(matrix_main,subm_s_inv,&
     subm_r_down,matrix_trimmer,dpattern,map,node_of_domain,preconditioner,&
-    use_trimmer,my_action,error)
+    use_trimmer,my_action)
     
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_main
     TYPE(domain_submatrix_type), &
@@ -2357,7 +2189,6 @@ CONTAINS
       DIMENSION(:), INTENT(INOUT)            :: preconditioner
     LOGICAL, INTENT(IN), OPTIONAL            :: use_trimmer
     INTEGER, INTENT(IN)                      :: my_action
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'construct_domain_preconditioner', &
@@ -2388,20 +2219,20 @@ CONTAINS
     IF (my_action.eq.-1) matrix_r_required=.TRUE.
     IF (my_use_trimmer) THEN
        matrix_trimmer_required=.TRUE.
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMED PRECONDITIONER DISABLED!",error)
+       CPErrorMessage(cp_failure_level,routineP,"TRIMMED PRECONDITIONER DISABLED!")
     ENDIF
 
     IF (.NOT.PRESENT(subm_s_inv).AND.matrix_s_inv_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"S_inv SUBMATRICES ARE REQUIRED",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"S_inv SUBMATRICES ARE REQUIRED")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
     IF (.NOT.PRESENT(subm_r_down).AND.matrix_r_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"R SUBMATRICES ARE REQUIRED",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"R SUBMATRICES ARE REQUIRED")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
     IF (.NOT.PRESENT(matrix_trimmer).AND.matrix_trimmer_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMER MATRIX IS REQUIRED",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"TRIMMER MATRIX IS REQUIRED")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
@@ -2409,15 +2240,15 @@ CONTAINS
     nmos => cp_dbcsr_col_block_sizes(dpattern)
 
     ALLOCATE(subm_main(ndomains))
-    CALL init_submatrices(subm_main,error)
+    CALL init_submatrices(subm_main)
     !!!TRIM ALLOCATE(subm_trimmer(ndomains))
 
     CALL construct_submatrices(matrix_main,subm_main,&
-            dpattern,map,node_of_domain,select_row_col,error)
+            dpattern,map,node_of_domain,select_row_col)
                    
     !!!TRIM IF (matrix_trimmer_required) THEN
     !!!TRIM    CALL construct_submatrices(matrix_trimmer,subm_trimmer,&
-    !!!TRIM            dpattern,map,node_of_domain,select_row,error)
+    !!!TRIM            dpattern,map,node_of_domain,select_row)
     !!!TRIM ENDIF
 
     IF (my_action.eq.-1) THEN
@@ -2428,18 +2259,18 @@ CONTAINS
        !   Minv-TRANSPOSE(Minv)+MATMUL(Minv,TRANSPOSE(tmp))
        ALLOCATE(subm_tmp(ndomains))
        ALLOCATE(subm_tmp2(ndomains))
-       CALL init_submatrices(subm_tmp,error)
-       CALL init_submatrices(subm_tmp2,error)
+       CALL init_submatrices(subm_tmp)
+       CALL init_submatrices(subm_tmp2)
        CALL multiply_submatrices('N','N',1.0_dp,subm_r_down,&
-               subm_s_inv,0.0_dp,subm_tmp,error)
+               subm_s_inv,0.0_dp,subm_tmp)
        CALL multiply_submatrices('N','N',1.0_dp,subm_tmp,&
-               subm_main,0.0_dp,subm_tmp2,error)
-       CALL add_submatrices(1.0_dp,subm_main,-1.0_dp,subm_tmp2,'N',error)
-       CALL add_submatrices(1.0_dp,subm_main,-1.0_dp,subm_tmp2,'T',error)
+               subm_main,0.0_dp,subm_tmp2)
+       CALL add_submatrices(1.0_dp,subm_main,-1.0_dp,subm_tmp2,'N')
+       CALL add_submatrices(1.0_dp,subm_main,-1.0_dp,subm_tmp2,'T')
        CALL multiply_submatrices('N','T',1.0_dp,subm_tmp2,&
-               subm_tmp,1.0_dp,subm_main,error)
-       CALL release_submatrices(subm_tmp,error)
-       CALL release_submatrices(subm_tmp2,error)
+               subm_tmp,1.0_dp,subm_main)
+       CALL release_submatrices(subm_tmp)
+       CALL release_submatrices(subm_tmp2)
        DEALLOCATE(subm_tmp2)
        DEALLOCATE(subm_tmp)
     ENDIF
@@ -2489,7 +2320,7 @@ CONTAINS
           !!!TRIM               !range1_thr=1.0E-9_dp,range2_thr=1.0E-9_dp,&
           !!!TRIM               shift=1.0E-5_dp,&
           !!!TRIM               range1=nmos(idomain),range2=nmos(idomain),&
-          !!!TRIM               error=error)
+          !!!TRIM               
           !!!TRIM       ! apply the inverted matrix
           !!!TRIM       ! RZK-warning this is only possible when the preconditioner is applied
           !!!TRIM       tmp(:,ii)=MATMUL(Minv,subm_in(idomain)%mdata(:,ii))
@@ -2498,11 +2329,11 @@ CONTAINS
           !!!TRIM    deallocate(tmp)
           !!!TRIM ELSE
               CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata,Ainv=Minv,N=naos,method=1,&
-                      range1=nmos(idomain),range2=n_domain_mos,error=error)
+                      range1=nmos(idomain),range2=n_domain_mos)
           !!!TRIM ENDIF
    
-          CALL copy_submatrices(subm_main(idomain),preconditioner(idomain),.FALSE.,error)
-          CALL copy_submatrix_data(Minv,preconditioner(idomain),error)
+          CALL copy_submatrices(subm_main(idomain),preconditioner(idomain),.FALSE.)
+          CALL copy_submatrix_data(Minv,preconditioner(idomain))
           
           DEALLOCATE(Minv)
 
@@ -2510,15 +2341,15 @@ CONTAINS
 
     ENDDO ! loop over domains
 
-    CALL release_submatrices(subm_main,error)
+    CALL release_submatrices(subm_main)
     DEALLOCATE(subm_main)
     !DEALLOCATE(subm_s)
     !DEALLOCATE(subm_r)
 
     !IF (matrix_r_required) THEN
-    !   CALL cp_dbcsr_release(m_tmp_no_1,error=error)
-    !   CALL cp_dbcsr_release(m_tmp_no_2,error=error)
-    !   CALL cp_dbcsr_release(matrix_r,error=error)
+    !   CALL cp_dbcsr_release(m_tmp_no_1)
+    !   CALL cp_dbcsr_release(m_tmp_no_2)
+    !   CALL cp_dbcsr_release(matrix_r)
     !ENDIF
 
     !RZK-warning do we need a barrier here ?
@@ -2535,13 +2366,12 @@ CONTAINS
 !> \param dpattern ...
 !> \param map ...
 !> \param node_of_domain ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE construct_domain_s_sqrt(matrix_s,subm_s_sqrt,subm_s_sqrt_inv,&
-    dpattern,map,node_of_domain,error)
+    dpattern,map,node_of_domain)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s
     TYPE(domain_submatrix_type), &
@@ -2549,7 +2379,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(IN)          :: dpattern
     TYPE(domain_map_type), INTENT(IN)        :: map
     INTEGER, DIMENSION(:), INTENT(IN)        :: node_of_domain
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_s_sqrt', &
       routineP = moduleN//':'//routineN
@@ -2565,13 +2394,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
-    CPPrecondition(SIZE(subm_s_sqrt).eq.ndomains,cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(subm_s_sqrt_inv).eq.ndomains,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(subm_s_sqrt).eq.ndomains,cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(subm_s_sqrt_inv).eq.ndomains,cp_failure_level,routineP,failure)
     ALLOCATE(subm_s(ndomains))
-    CALL init_submatrices(subm_s,error)
+    CALL init_submatrices(subm_s)
 
     CALL construct_submatrices(matrix_s,subm_s,&
-            dpattern,map,node_of_domain,select_row_col,error)
+            dpattern,map,node_of_domain,select_row_col)
 
     ! loop over domains - perform inversion
     DO idomain = 1, ndomains
@@ -2585,13 +2414,13 @@ CONTAINS
           ALLOCATE(Ssqrtinv(naos,naos))
 
           CALL matrix_sqrt(A=subm_s(idomain)%mdata,Asqrt=Ssqrt,Asqrtinv=Ssqrtinv,&
-                  N=naos,error=error)
+                  N=naos)
    
-          CALL copy_submatrices(subm_s(idomain),subm_s_sqrt(idomain),.FALSE.,error)
-          CALL copy_submatrix_data(Ssqrt,subm_s_sqrt(idomain),error)
+          CALL copy_submatrices(subm_s(idomain),subm_s_sqrt(idomain),.FALSE.)
+          CALL copy_submatrix_data(Ssqrt,subm_s_sqrt(idomain))
           
-          CALL copy_submatrices(subm_s(idomain),subm_s_sqrt_inv(idomain),.FALSE.,error)
-          CALL copy_submatrix_data(Ssqrtinv,subm_s_sqrt_inv(idomain),error)
+          CALL copy_submatrices(subm_s(idomain),subm_s_sqrt_inv(idomain),.FALSE.)
+          CALL copy_submatrix_data(Ssqrtinv,subm_s_sqrt_inv(idomain))
           
           DEALLOCATE(Ssqrtinv)
           DEALLOCATE(Ssqrt)
@@ -2600,7 +2429,7 @@ CONTAINS
 
     ENDDO ! loop over domains
 
-    CALL release_submatrices(subm_s,error)
+    CALL release_submatrices(subm_s)
     DEALLOCATE(subm_s)
 
     CALL timestop(handle)
@@ -2614,13 +2443,12 @@ CONTAINS
 !> \param dpattern ...
 !> \param map ...
 !> \param node_of_domain ...
-!> \param error ...
 !> \par History
 !>       2013.02 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE construct_domain_s_inv(matrix_s,subm_s_inv,dpattern,map,&
-    node_of_domain,error)
+    node_of_domain)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s
     TYPE(domain_submatrix_type), &
@@ -2628,7 +2456,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(IN)          :: dpattern
     TYPE(domain_map_type), INTENT(IN)        :: map
     INTEGER, DIMENSION(:), INTENT(IN)        :: node_of_domain
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_s_inv', &
       routineP = moduleN//':'//routineN
@@ -2645,16 +2472,16 @@ CONTAINS
     
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
 
-    CPPrecondition(SIZE(subm_s_inv).eq.ndomains,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(subm_s_inv).eq.ndomains,cp_failure_level,routineP,failure)
     ALLOCATE(subm_s(ndomains))
-    CALL init_submatrices(subm_s,error)
+    CALL init_submatrices(subm_s)
 
     CALL construct_submatrices(matrix_s,subm_s,&
-            dpattern,map,node_of_domain,select_row_col,error)
+            dpattern,map,node_of_domain,select_row_col)
 
     !GroupID = dbcsr_mp_group(dbcsr_distribution_mp(&
     !   cp_dbcsr_distribution(dpattern)))
-    !CALL print_submatrices(domain_r_down(:,ispin),GroupID,error)
+    !CALL print_submatrices(domain_r_down(:,ispin),GroupID)
 
     ! loop over domains - perform inversion
     DO idomain = 1, ndomains
@@ -2667,10 +2494,10 @@ CONTAINS
           ALLOCATE(Sinv(naos,naos))
 
           CALL pseudo_invert_matrix(A=subm_s(idomain)%mdata,Ainv=Sinv,N=naos,&
-                  method=0,error=error)
+                  method=0)
    
-          CALL copy_submatrices(subm_s(idomain),subm_s_inv(idomain),.FALSE.,error)
-          CALL copy_submatrix_data(Sinv,subm_s_inv(idomain),error)
+          CALL copy_submatrices(subm_s(idomain),subm_s_inv(idomain),.FALSE.)
+          CALL copy_submatrix_data(Sinv,subm_s_inv(idomain))
           
           DEALLOCATE(Sinv)
 
@@ -2678,7 +2505,7 @@ CONTAINS
 
     ENDDO ! loop over domains
 
-    CALL release_submatrices(subm_s,error)
+    CALL release_submatrices(subm_s)
     DEALLOCATE(subm_s)
 
     CALL timestop(handle)
@@ -2695,13 +2522,12 @@ CONTAINS
 !> \param map ...
 !> \param node_of_domain ...
 !> \param filter_eps ...
-!> \param error ...
 !> \par History
 !>       2013.02 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE construct_domain_r_down(matrix_t,matrix_sigma_inv,matrix_s,&
-    subm_r_down,dpattern,map,node_of_domain,filter_eps,error)
+    subm_r_down,dpattern,map,node_of_domain,filter_eps)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_t, matrix_sigma_inv, &
                                                 matrix_s
@@ -2711,7 +2537,6 @@ CONTAINS
     TYPE(domain_map_type), INTENT(IN)        :: map
     INTEGER, DIMENSION(:), INTENT(IN)        :: node_of_domain
     REAL(KIND=dp)                            :: filter_eps
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_domain_r_down', &
       routineP = moduleN//':'//routineN
@@ -2724,36 +2549,36 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     ! compute the density matrix in the COVARIANT representation
-    CALL cp_dbcsr_init(matrix_r,error=error)
+    CALL cp_dbcsr_init(matrix_r)
     CALL cp_dbcsr_create(matrix_r,&
             template=matrix_s,&
-            matrix_type=dbcsr_type_symmetric,error=error)
-    CALL cp_dbcsr_init(m_tmp_no_1,error=error)
+            matrix_type=dbcsr_type_symmetric)
+    CALL cp_dbcsr_init(m_tmp_no_1)
     CALL cp_dbcsr_create(m_tmp_no_1,&
             template=matrix_t,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_init(m_tmp_no_2,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_init(m_tmp_no_2)
     CALL cp_dbcsr_create(m_tmp_no_2,&
             template=matrix_t,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
 
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s, matrix_t,&
-            0.0_dp, m_tmp_no_1, filter_eps=filter_eps, error=error)
+            0.0_dp, m_tmp_no_1, filter_eps=filter_eps)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, m_tmp_no_1, matrix_sigma_inv,&
-            0.0_dp, m_tmp_no_2, filter_eps=filter_eps, error=error)
+            0.0_dp, m_tmp_no_2, filter_eps=filter_eps)
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, m_tmp_no_2, m_tmp_no_1,&
-            0.0_dp, matrix_r, filter_eps=filter_eps, error=error)
+            0.0_dp, matrix_r, filter_eps=filter_eps)
 
-    CALL cp_dbcsr_release(m_tmp_no_1,error=error)
-    CALL cp_dbcsr_release(m_tmp_no_2,error=error)
+    CALL cp_dbcsr_release(m_tmp_no_1)
+    CALL cp_dbcsr_release(m_tmp_no_2)
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
-    CPPrecondition(SIZE(subm_r_down).eq.ndomains,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(subm_r_down).eq.ndomains,cp_failure_level,routineP,failure)
 
     CALL construct_submatrices(matrix_r,subm_r_down,&
-            dpattern,map,node_of_domain,select_row_col,error)
+            dpattern,map,node_of_domain,select_row_col)
                    
-    CALL cp_dbcsr_release(matrix_r,error=error)
+    CALL cp_dbcsr_release(matrix_r)
 
     CALL timestop(handle)
   
@@ -2765,19 +2590,17 @@ CONTAINS
 !> \param Asqrt ...
 !> \param Asqrtinv ...
 !> \param N ...
-!> \param error ...
 !> \par History
 !>       2013.03 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE matrix_sqrt(A,Asqrt,Asqrtinv,N,error)
+  SUBROUTINE matrix_sqrt(A,Asqrt,Asqrtinv,N)
     
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: A
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: Asqrt, Asqrtinv
     INTEGER, INTENT(IN)                      :: N
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_sqrt', &
       routineP = moduleN//':'//routineN
@@ -2795,13 +2618,13 @@ CONTAINS
 
     !CALL DPOTRF('L', N, Ainv, N, INFO )
     !IF( INFO.NE.0 ) THEN
-    !   CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed",error)
-    !   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    !   CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
+    !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     !END IF
     !CALL DPOTRI('L', N, Ainv, N, INFO )
     !IF( INFO.NE.0 ) THEN
-    !   CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed",error)
-    !   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    !   CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
+    !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     !END IF
     !! complete the matrix
     !DO ii=1,N
@@ -2824,8 +2647,8 @@ CONTAINS
     CALL DSYEV('V','L',N,Asqrtinv,N,eigenvalues,WORK,LWORK,INFO)
     IF ( INFO.NE.0 ) THEN
        WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
-       CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE(WORK)
    
@@ -2880,13 +2703,12 @@ CONTAINS
 !> \param range1_thr ...
 !> \param range2_thr ...
 !> \param shift ...
-!> \param error ...
 !> \par History
 !>       2012.04 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE pseudo_invert_matrix(A,Ainv,N,method,range1,range2,range1_thr,range2_thr,&
-    shift,error)
+    shift)
     
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: A
@@ -2895,7 +2717,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: N, method
     INTEGER, INTENT(IN), OPTIONAL            :: range1, range2
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: range1_thr, range2_thr, shift
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_invert_matrix', &
       routineP = moduleN//':'//routineN
@@ -2915,14 +2736,14 @@ CONTAINS
        IF (PRESENT(range1)) THEN
           use_ranges=.TRUE.
           IF (.NOT.PRESENT(range2)) THEN
-             CPErrorMessage(cp_failure_level,routineP,"SPECIFY TWO RANGES",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"SPECIFY TWO RANGES")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           ENDIF
        ELSE
           use_ranges=.FALSE.
           IF ((.NOT.PRESENT(range1_thr)).OR.(.NOT.PRESENT(range2_thr))) THEN
-             CPErrorMessage(cp_failure_level,routineP,"SPECIFY TWO THRESHOLDS",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"SPECIFY TWO THRESHOLDS")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           ENDIF
        ENDIF
     ENDIF
@@ -2940,13 +2761,13 @@ CONTAINS
 
        CALL DPOTRF('L', N, Ainv, N, INFO )
        IF( INFO.NE.0 ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
        CALL DPOTRI('L', N, Ainv, N, INFO )
        IF( INFO.NE.0 ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
        ! complete the matrix
        DO ii=1,N
@@ -2971,8 +2792,8 @@ CONTAINS
        CALL DSYEV('V','L',N,Ainv,N,eigenvalues,WORK,LWORK,INFO)
        IF ( INFO.NE.0 ) THEN
           WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
-          CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE(WORK)
 
@@ -3021,8 +2842,8 @@ CONTAINS
 
     CASE DEFAULT
 
-       CPErrorMessage(cp_failure_level,routineP,"Illegal method selected for matrix inversion",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"Illegal method selected for matrix inversion")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
 
     END SELECT
 
@@ -3057,20 +2878,18 @@ CONTAINS
 !> \param quench_t ...
 !> \param spin_factor ...
 !> \param eps_filter ...
-!> \param error ...
 !> \par History
 !>       2012.02 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE newton_grad_to_step(matrix_grad,matrix_step,matrix_s,matrix_ks,&
-    matrix_t,matrix_sigma_inv,quench_t,spin_factor,eps_filter,error)
+    matrix_t,matrix_sigma_inv,quench_t,spin_factor,eps_filter)
     
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_grad, matrix_step, &
                                                 matrix_s
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_t
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_sigma_inv, quench_t
     REAL(KIND=dp), INTENT(IN)                :: spin_factor, eps_filter
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'newton_grad_to_step', &
       routineP = moduleN//':'//routineN
@@ -3082,44 +2901,39 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     
-    CALL cp_dbcsr_init(matrix_s_ao,error=error)
+    CALL cp_dbcsr_init(matrix_s_ao)
     CALL cp_dbcsr_create(matrix_s_ao,&
             template=matrix_s,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
-    CALL cp_dbcsr_init(matrix_f_ao,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_init(matrix_f_ao)
     CALL cp_dbcsr_create(matrix_f_ao,&
             template=matrix_s,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
-    CALL cp_dbcsr_init(matrix_f_mo,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_init(matrix_f_mo)
     CALL cp_dbcsr_create(matrix_f_mo,&
             template=matrix_sigma_inv,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
-    CALL cp_dbcsr_init(matrix_s_mo,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_init(matrix_s_mo)
     CALL cp_dbcsr_create(matrix_s_mo,&
             template=matrix_sigma_inv,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
-    CALL cp_dbcsr_init(matrix_f_vo,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_init(matrix_f_vo)
     CALL cp_dbcsr_create(matrix_f_vo,&
-            template=matrix_t,error=error)
-    CALL cp_dbcsr_init(matrix_s_vo,error=error)
+            template=matrix_t)
+    CALL cp_dbcsr_init(matrix_s_vo)
     CALL cp_dbcsr_create(matrix_s_vo,&
-            template=matrix_t,error=error)
+            template=matrix_t)
 
-    CALL cp_dbcsr_init(m_tmp_no_1,error=error)
+    CALL cp_dbcsr_init(m_tmp_no_1)
     CALL cp_dbcsr_create(m_tmp_no_1,&
-            template=matrix_t,error=error)
-    CALL cp_dbcsr_init(m_tmp_no_3,error=error)
+            template=matrix_t)
+    CALL cp_dbcsr_init(m_tmp_no_3)
     CALL cp_dbcsr_create(m_tmp_no_3,&
-            template=matrix_t,error=error)
-    CALL cp_dbcsr_init(m_tmp_oo_2,error=error)
+            template=matrix_t)
+    CALL cp_dbcsr_init(m_tmp_oo_2)
     CALL cp_dbcsr_create(m_tmp_oo_2,&
             template=matrix_sigma_inv,&
-            matrix_type=dbcsr_type_no_symmetry,&
-            error=error)
+            matrix_type=dbcsr_type_no_symmetry)
     
     ! calculate S-SRS and (1-R)F(1-R)
     ! RZK-warning some optimization is ABSOLUTELY NECESSARY
@@ -3127,182 +2941,161 @@ CONTAINS
             matrix_s,&
             matrix_t,&
             0.0_dp,m_tmp_no_1,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             m_tmp_no_1,&
             matrix_sigma_inv,&
             0.0_dp,matrix_s_vo,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_desymmetrize(matrix_s,&
-            matrix_s_ao,error=error)
+            matrix_s_ao)
     CALL cp_dbcsr_multiply("N","T",-1.0_dp,&
             m_tmp_no_1,&
             matrix_s_vo,&
             1.0_dp,matrix_s_ao,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             matrix_ks,&
             matrix_t,&
             0.0_dp,m_tmp_no_1,&
-            filter_eps=eps_filter,&
-            error=error)
-    CALL cp_dbcsr_desymmetrize(matrix_ks,matrix_f_ao,error=error)
+            filter_eps=eps_filter)
+    CALL cp_dbcsr_desymmetrize(matrix_ks,matrix_f_ao)
     CALL cp_dbcsr_multiply("N","T",-1.0_dp,&
             m_tmp_no_1,&
             matrix_s_vo,&
             1.0_dp,matrix_f_ao,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","T",-1.0_dp,&
             matrix_s_vo,&
             m_tmp_no_1,&
             1.0_dp,matrix_f_ao,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("T","N",1.0_dp,&
             matrix_t,&
             m_tmp_no_1,&
             0.0_dp,matrix_f_mo,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             matrix_s_vo,&
             matrix_f_mo,&
             0.0_dp,m_tmp_no_1,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","T",1.0_dp,&
             m_tmp_no_1,&
             matrix_s_vo,&
             1.0_dp,matrix_f_ao,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
 
     ! calculate F_mo
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             matrix_sigma_inv,&
             matrix_f_mo,&
             0.0_dp,m_tmp_oo_2,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             m_tmp_oo_2,&
             matrix_sigma_inv,&
             1.0_dp,matrix_f_mo,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
 
     ! calculate F_vo
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             matrix_ks,&
             matrix_t,&
             0.0_dp,m_tmp_no_1,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             m_tmp_no_1,&
             matrix_sigma_inv,&
             0.0_dp,matrix_f_vo,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","T",-1.0_dp,&
             matrix_s_vo,&
             m_tmp_oo_2,&
             1.0_dp,matrix_f_vo,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
 
-    CALL cp_dbcsr_desymmetrize(matrix_sigma_inv,matrix_s_mo,error=error)
+    CALL cp_dbcsr_desymmetrize(matrix_sigma_inv,matrix_s_mo)
 
     !!! RZK-warning: this is HIGHLIGHTED BLOCK
     !!! check it first if the procedure does not function as it supposed to
-    !CALL cp_dbcsr_desymmetrize(matrix_s,matrix_s_ao,error=error)
-    CALL cp_dbcsr_add(matrix_f_ao,matrix_s_ao,1.0_dp,1.0_dp,error=error)
+    !CALL cp_dbcsr_desymmetrize(matrix_s,matrix_s_ao)
+    CALL cp_dbcsr_add(matrix_f_ao,matrix_s_ao,1.0_dp,1.0_dp)
     
-    CALL cp_dbcsr_set(matrix_f_mo,0.0_dp,error=error)
-    CALL cp_dbcsr_add_on_diag(matrix_f_mo,1.0_dp,error=error)
-    CALL cp_dbcsr_filter(matrix_f_mo,eps_filter,error=error)
+    CALL cp_dbcsr_set(matrix_f_mo,0.0_dp)
+    CALL cp_dbcsr_add_on_diag(matrix_f_mo,1.0_dp)
+    CALL cp_dbcsr_filter(matrix_f_mo,eps_filter)
     
-    CALL cp_dbcsr_set(matrix_s_mo,0.0_dp,error=error)
-    CALL cp_dbcsr_add_on_diag(matrix_s_mo,1.0_dp,error=error)
-    CALL cp_dbcsr_filter(matrix_s_mo,eps_filter,error=error)
+    CALL cp_dbcsr_set(matrix_s_mo,0.0_dp)
+    CALL cp_dbcsr_add_on_diag(matrix_s_mo,1.0_dp)
+    CALL cp_dbcsr_filter(matrix_s_mo,eps_filter)
     
-    CALL cp_dbcsr_set(matrix_s_ao,0.0_dp,error=error)
-    !CALL cp_dbcsr_add_on_diag(matrix_s_ao,1.0_dp,error=error)
-    CALL cp_dbcsr_filter(matrix_s_ao,eps_filter,error=error)
+    CALL cp_dbcsr_set(matrix_s_ao,0.0_dp)
+    !CALL cp_dbcsr_add_on_diag(matrix_s_ao,1.0_dp)
+    CALL cp_dbcsr_filter(matrix_s_ao,eps_filter)
     !!! RZK-warning: end of HIGHLIGHTED BLOCK
 
     CALL cp_dbcsr_scale(matrix_f_ao,&
-            2.0_dp*spin_factor,&
-            error=error)
+            2.0_dp*spin_factor)
     CALL cp_dbcsr_scale(matrix_s_ao,&
-            -2.0_dp*spin_factor,&
-            error=error)
+            -2.0_dp*spin_factor)
     CALL cp_dbcsr_scale(matrix_f_vo,&
-            2.0_dp*spin_factor,&
-            error=error)
+            2.0_dp*spin_factor)
 
     !WRITE(*,*) "INSIDE newton_grad_to_step: "
-    !CALL cp_dbcsr_print(matrix_s_mo,error=error)
-    !CALL cp_dbcsr_print(matrix_ks,error=error)
-    !CALL cp_dbcsr_print(matrix_s,error=error)
-    !CALL cp_dbcsr_print(matrix_sigma_inv,error=error)
+    !CALL cp_dbcsr_print(matrix_s_mo)
+    !CALL cp_dbcsr_print(matrix_ks)
+    !CALL cp_dbcsr_print(matrix_s)
+    !CALL cp_dbcsr_print(matrix_sigma_inv)
 
     CALL hessian_diag_apply(matrix_grad,matrix_step,matrix_s_ao,&
             matrix_f_ao,matrix_s_mo,matrix_f_mo,&
-            matrix_s_vo,matrix_f_vo,quench_t,error)
+            matrix_s_vo,matrix_f_vo,quench_t)
 
     ! check that the step satisfies H.step=-grad
-    CALL cp_dbcsr_copy(m_tmp_no_3,quench_t,error=error)
-    CALL cp_dbcsr_copy(m_tmp_no_1,quench_t,error=error)
+    CALL cp_dbcsr_copy(m_tmp_no_3,quench_t)
+    CALL cp_dbcsr_copy(m_tmp_no_1,quench_t)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             matrix_f_ao,&
             matrix_step,&
             0.0_dp,m_tmp_no_1,&
             !retain_sparsity=.TRUE.,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             m_tmp_no_1,&
             matrix_s_mo,&
             0.0_dp,m_tmp_no_3,&
             retain_sparsity=.TRUE.,&
-            filter_eps=eps_filter,&
-            error=error)
-    CALL cp_dbcsr_copy(m_tmp_no_1,quench_t,error=error)
+            filter_eps=eps_filter)
+    CALL cp_dbcsr_copy(m_tmp_no_1,quench_t)
     CALL cp_dbcsr_multiply("N","N",1.0_dp,&
             matrix_s_ao,&
             matrix_step,&
             0.0_dp,m_tmp_no_1,&
             !retain_sparsity=.TRUE.,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_multiply("N","N",-1.0_dp,&
             m_tmp_no_1,&
             matrix_f_mo,&
             1.0_dp,m_tmp_no_3,&
             retain_sparsity=.TRUE.,&
-            filter_eps=eps_filter,&
-            error=error)
+            filter_eps=eps_filter)
     CALL cp_dbcsr_add(m_tmp_no_3,matrix_grad,&
-            1.0_dp,1.0_dp,error=error)
+            1.0_dp,1.0_dp)
     CALL cp_dbcsr_norm(m_tmp_no_3,&
-            dbcsr_norm_maxabsnorm, norm_scalar=res_norm, error=error)
+            dbcsr_norm_maxabsnorm, norm_scalar=res_norm)
     WRITE(*,*) "NEWTON step error: ", res_norm
 
-    CALL cp_dbcsr_release(m_tmp_no_3,error=error)
-    CALL cp_dbcsr_release(m_tmp_no_1,error=error)
-    CALL cp_dbcsr_release(m_tmp_oo_2,error=error)
-    CALL cp_dbcsr_release(matrix_s_ao,error=error)
-    CALL cp_dbcsr_release(matrix_s_mo,error=error)
-    CALL cp_dbcsr_release(matrix_f_ao,error=error)
-    CALL cp_dbcsr_release(matrix_f_mo,error=error)
-    CALL cp_dbcsr_release(matrix_s_vo,error=error)
-    CALL cp_dbcsr_release(matrix_f_vo,error=error)
+    CALL cp_dbcsr_release(m_tmp_no_3)
+    CALL cp_dbcsr_release(m_tmp_no_1)
+    CALL cp_dbcsr_release(m_tmp_oo_2)
+    CALL cp_dbcsr_release(matrix_s_ao)
+    CALL cp_dbcsr_release(matrix_s_mo)
+    CALL cp_dbcsr_release(matrix_f_ao)
+    CALL cp_dbcsr_release(matrix_f_mo)
+    CALL cp_dbcsr_release(matrix_s_vo)
+    CALL cp_dbcsr_release(matrix_f_vo)
     
     CALL timestop(handle)
   
@@ -3319,18 +3112,16 @@ CONTAINS
 !> \param matrix_S_vo ...
 !> \param matrix_F_vo ...
 !> \param quench_t ...
-!> \param error ...
 !> \par History
 !>       2012.02 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
   SUBROUTINE hessian_diag_apply(matrix_grad,matrix_step,matrix_S_ao,&
-    matrix_F_ao,matrix_S_mo,matrix_F_mo,matrix_S_vo,matrix_F_vo,quench_t,error)
+    matrix_F_ao,matrix_S_mo,matrix_F_mo,matrix_S_vo,matrix_F_vo,quench_t)
     
     TYPE(cp_dbcsr_type), INTENT(INOUT) :: matrix_grad, matrix_step, &
       matrix_S_ao, matrix_F_ao, matrix_S_mo, matrix_F_mo, matrix_S_vo, &
       matrix_F_vo, quench_t
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hessian_diag_apply', &
       routineP = moduleN//':'//routineN
@@ -3362,7 +3153,7 @@ CONTAINS
 
     nblkrows_tot = cp_dbcsr_nblkrows_total(quench_t)
     nblkcols_tot = cp_dbcsr_nblkcols_total(quench_t)
-    CPPostcondition(nblkrows_tot==nblkcols_tot,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nblkrows_tot==nblkcols_tot,cp_failure_level,routineP,failure)
     mo_blk_sizes => cp_dbcsr_col_block_sizes(quench_t)
     ao_blk_sizes => cp_dbcsr_row_block_sizes(quench_t)
     ALLOCATE(mo_block_sizes(nblkcols_tot),ao_block_sizes(nblkcols_tot))
@@ -3371,35 +3162,35 @@ CONTAINS
     ao_block_sizes(:)=ao_blk_sizes(:)
     ao_domain_sizes(:)=0
 
-    CALL cp_dbcsr_init(matrix_S_ao_sym,error=error)
+    CALL cp_dbcsr_init(matrix_S_ao_sym)
     CALL cp_dbcsr_create(matrix_S_ao_sym,&
             template=matrix_S_ao,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_desymmetrize(matrix_S_ao,matrix_S_ao_sym,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_desymmetrize(matrix_S_ao,matrix_S_ao_sym)
 
-    CALL cp_dbcsr_init(matrix_F_ao_sym,error=error)
+    CALL cp_dbcsr_init(matrix_F_ao_sym)
     CALL cp_dbcsr_create(matrix_F_ao_sym,&
             template=matrix_F_ao,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_desymmetrize(matrix_F_ao,matrix_F_ao_sym,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_desymmetrize(matrix_F_ao,matrix_F_ao_sym)
 
-    CALL cp_dbcsr_init(matrix_S_mo_sym,error=error)
+    CALL cp_dbcsr_init(matrix_S_mo_sym)
     CALL cp_dbcsr_create(matrix_S_mo_sym,&
             template=matrix_S_mo,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_desymmetrize(matrix_S_mo,matrix_S_mo_sym,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_desymmetrize(matrix_S_mo,matrix_S_mo_sym)
 
-    CALL cp_dbcsr_init(matrix_F_mo_sym,error=error)
+    CALL cp_dbcsr_init(matrix_F_mo_sym)
     CALL cp_dbcsr_create(matrix_F_mo_sym,&
             template=matrix_F_mo,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_desymmetrize(matrix_F_mo,matrix_F_mo_sym,error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_desymmetrize(matrix_F_mo,matrix_F_mo_sym)
 
-    !CALL cp_dbcsr_print(matrix_grad,error=error)
-    !CALL cp_dbcsr_print(matrix_F_ao_sym,error=error)
-    !CALL cp_dbcsr_print(matrix_S_ao_sym,error=error)
-    !CALL cp_dbcsr_print(matrix_F_mo_sym,error=error)
-    !CALL cp_dbcsr_print(matrix_S_mo_sym,error=error)
+    !CALL cp_dbcsr_print(matrix_grad)
+    !CALL cp_dbcsr_print(matrix_F_ao_sym)
+    !CALL cp_dbcsr_print(matrix_S_ao_sym)
+    !CALL cp_dbcsr_print(matrix_F_mo_sym)
+    !CALL cp_dbcsr_print(matrix_S_mo_sym)
 
     ! loop over domains to find the size of the Hessian
     H_size=0
@@ -3553,10 +3344,10 @@ CONTAINS
 
     ENDDO ! row fragment
 
-    CALL cp_dbcsr_release(matrix_S_ao_sym,error=error)
-    CALL cp_dbcsr_release(matrix_F_ao_sym,error=error)
-    CALL cp_dbcsr_release(matrix_S_mo_sym,error=error)
-    CALL cp_dbcsr_release(matrix_F_mo_sym,error=error)
+    CALL cp_dbcsr_release(matrix_S_ao_sym)
+    CALL cp_dbcsr_release(matrix_F_ao_sym)
+    CALL cp_dbcsr_release(matrix_S_mo_sym)
+    CALL cp_dbcsr_release(matrix_F_mo_sym)
           
     ! two more terms of the Hessian
     ALLOCATE(H1(H_size,H_size))
@@ -3722,8 +3513,8 @@ CONTAINS
     CALL DSYEV('V','L',H_size,Hinv,H_size,eigenvalues,WORK,LWORK,INFO)
     IF( INFO.NE.0 ) THEN
        WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
-       CPErrorMessage(cp_failure_level,routineP,"DSYEV failed",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE(WORK)
 
@@ -3748,7 +3539,7 @@ CONTAINS
     !! shift to kill singularity
     !shift=0.0_dp
     !IF (eigenvalues(1).lt.0.0_dp) THEN
-    !   CPErrorMessage(cp_failure_level,routineP,"Negative eigenvalue(s)",error)
+    !   CPErrorMessage(cp_failure_level,routineP,"Negative eigenvalue(s)")
     !   shift=abs(eigenvalues(1))
     !   WRITE(*,*) "Lowest eigenvalue: ", eigenvalues(1)
     !ENDIF
@@ -3771,14 +3562,14 @@ CONTAINS
 !!!!    CALL DPOTRF('L', H_size, Hinv, H_size, INFO )
 !!!!    IF( INFO.NE.0 ) THEN
 !!!!       WRITE(*,*) 'DPOTRF ERROR MESSAGE: ', INFO
-!!!!       CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed",error)
-!!!!       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+!!!!       CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
+!!!!       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
 !!!!    END IF
 !!!!    CALL DPOTRI('L', H_size, Hinv, H_size, INFO )
 !!!!    IF( INFO.NE.0 ) THEN
 !!!!       WRITE(*,*) 'DPOTRI ERROR MESSAGE: ', INFO
-!!!!       CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed",error)
-!!!!       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+!!!!       CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
+!!!!       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
 !!!!    END IF
 !!!!    ! complete the matrix
 !!!!    DO ii=1,H_size
@@ -3830,9 +3621,8 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
     ! re-create the step matrix to remove all blocks
     CALL cp_dbcsr_create(matrix_step,&
             template=matrix_grad,&
-            matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_work_create(matrix_step,work_mutable=.TRUE.,&
-            error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_work_create(matrix_step,work_mutable=.TRUE.)
     
     lev1_vert_offset=0
     ! loop over all electron blocks 
@@ -3848,7 +3638,7 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
       
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(matrix_step,row,col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
              ! copy the data column by column
              DO orb_i=1, mo_block_sizes(col)
                 p_new_block(:,orb_i) = &
@@ -3869,7 +3659,7 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 
     DEALLOCATE(Step_vec)
     
-    CALL cp_dbcsr_finalize(matrix_step,error=error)
+    CALL cp_dbcsr_finalize(matrix_step)
 
     DEALLOCATE(mo_block_sizes,ao_block_sizes)
     DEALLOCATE(ao_domain_sizes)
@@ -3881,15 +3671,13 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 ! *****************************************************************************
 !> \brief Load balancing of the submatrix computations 
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2013.02 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE distribute_domains(almo_scf_env,error)
+  SUBROUTINE distribute_domains(almo_scf_env)
     
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_domains', &
       routineP = moduleN//':'//routineN
@@ -3939,17 +3727,15 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 !> \param dpattern ...
 !> \param map ...
 !> \param node_of_domain ...
-!> \param error ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE construct_test(matrix_no,dpattern,map,node_of_domain,error)
+  SUBROUTINE construct_test(matrix_no,dpattern,map,node_of_domain)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_no, dpattern
     TYPE(domain_map_type), INTENT(IN)        :: map
     INTEGER, DIMENSION(:), INTENT(IN)        :: node_of_domain
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_test', &
       routineP = moduleN//':'//routineN
@@ -3966,27 +3752,27 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
        cp_dbcsr_distribution(dpattern)))
     
     ALLOCATE(subm_no(ndomains),subm_nn(ndomains))
-    CALL init_submatrices(subm_no,error)
-    CALL init_submatrices(subm_nn,error)
+    CALL init_submatrices(subm_no)
+    CALL init_submatrices(subm_nn)
 
-    !CALL cp_dbcsr_print(matrix_nn,error=error)
-    !CALL construct_submatrices(matrix_nn,subm_nn,dpattern,map,select_row_col,error)
-    !CALL print_submatrices(subm_nn,GroupID,error)
+    !CALL cp_dbcsr_print(matrix_nn)
+    !CALL construct_submatrices(matrix_nn,subm_nn,dpattern,map,select_row_col)
+    !CALL print_submatrices(subm_nn,GroupID)
     
-    !CALL cp_dbcsr_print(matrix_no,error=error)
-    CALL construct_submatrices(matrix_no,subm_no,dpattern,map,node_of_domain,select_row,error)
-    CALL print_submatrices(subm_no,GroupID,error)
+    !CALL cp_dbcsr_print(matrix_no)
+    CALL construct_submatrices(matrix_no,subm_no,dpattern,map,node_of_domain,select_row)
+    CALL print_submatrices(subm_no,GroupID)
     
-    CALL cp_dbcsr_init(copy1,error=error)
-    CALL cp_dbcsr_create(copy1,template=matrix_no,error=error)
-    CALL cp_dbcsr_copy(copy1,matrix_no,error=error)
-    CALL cp_dbcsr_print(copy1,error=error)
-    CALL construct_dbcsr_from_submatrices(copy1,subm_no,dpattern,error)
-    CALL cp_dbcsr_print(copy1,error=error)
-    CALL cp_dbcsr_release(copy1,error=error)
+    CALL cp_dbcsr_init(copy1)
+    CALL cp_dbcsr_create(copy1,template=matrix_no)
+    CALL cp_dbcsr_copy(copy1,matrix_no)
+    CALL cp_dbcsr_print(copy1)
+    CALL construct_dbcsr_from_submatrices(copy1,subm_no,dpattern)
+    CALL cp_dbcsr_print(copy1)
+    CALL cp_dbcsr_release(copy1)
     
-    CALL release_submatrices(subm_no,error)
-    CALL release_submatrices(subm_nn,error)
+    CALL release_submatrices(subm_no)
+    CALL release_submatrices(subm_nn)
     DEALLOCATE(subm_no,subm_nn)
 
     CALL timestop(handle)

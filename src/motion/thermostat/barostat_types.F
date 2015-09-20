@@ -69,20 +69,17 @@ CONTAINS
 !> \param force_env ...
 !> \param simpar ...
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE create_barostat_type( barostat, md_section, force_env, simpar, &
-       globenv, error )
+       globenv)
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_type', &
       routineP = moduleN//':'//routineN
@@ -94,9 +91,9 @@ CONTAINS
 
     failure =.FALSE.
     check = .NOT.ASSOCIATED(barostat)
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
-    barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
-    CALL section_vals_get(barostat_section, explicit=explicit, error=error)
+    CPPrecondition(check,cp_failure_level,routineP,failure)
+    barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT")
+    CALL section_vals_get(barostat_section, explicit=explicit)
     IF (simpar%ensemble == npt_i_ensemble .OR. &
         simpar%ensemble == npt_f_ensemble .OR. &
         simpar%ensemble == npe_f_ensemble .OR. &
@@ -104,28 +101,28 @@ CONTAINS
         simpar%ensemble == nph_uniaxial_ensemble .OR. &
         simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
        ALLOCATE(barostat, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        last_barostat_id_nr = last_barostat_id_nr + 1
        barostat%id_nr      = last_barostat_id_nr
        barostat%ref_count  =  1
        barostat%section => barostat_section
        NULLIFY(barostat%npt)
-       CALL force_env_get( force_env, cell=cell, error=error )
+       CALL force_env_get( force_env, cell=cell)
 
        barostat%temp_ext = simpar%temp_baro_ext
-       CALL section_vals_val_get(barostat_section,"TEMP_TOL",r_val=simpar%temp_baro_tol,error=error)
+       CALL section_vals_val_get(barostat_section,"TEMP_TOL",r_val=simpar%temp_baro_tol)
        ! Initialize or possibly restart Barostat
        CALL initialize_npt (simpar, globenv, barostat%npt,&
-            cell, work_section=barostat_section, error=error)
+            cell, work_section=barostat_section)
 
        ! If none of the possible barostat has been allocated let's deallocate
        ! the full structure
        IF(.NOT.ASSOCIATED(barostat%npt)) THEN
-          CALL  release_barostat_type(barostat, error)
+          CALL  release_barostat_type(barostat)
        END IF
 
        ! User defined virial screening
-       CALL section_vals_val_get(barostat_section,"VIRIAL",i_val=barostat%virial_components,error=error)
+       CALL section_vals_val_get(barostat_section,"VIRIAL",i_val=barostat%virial_components)
        check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
           "The screening of the components of the virial is available only with the NPT_F ensemble!"//&
@@ -144,14 +141,12 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief retains the given barostat
 !> \param barostat ...
-!> \param error ...
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE retain_barostat_type(barostat,error)
+  SUBROUTINE retain_barostat_type(barostat)
     TYPE(barostat_type), POINTER             :: barostat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_barostat_type', &
       routineP = moduleN//':'//routineN
@@ -161,7 +156,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (ASSOCIATED(barostat)) THEN
-       CPPrecondition(barostat%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(barostat%ref_count>0,cp_failure_level,routineP,failure)
        barostat%ref_count=barostat%ref_count+1
     END IF
   END SUBROUTINE retain_barostat_type
@@ -169,15 +164,12 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief ...
 !> \param barostat ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE release_barostat_type(barostat, error)
+  SUBROUTINE release_barostat_type(barostat)
     TYPE(barostat_type), POINTER             :: barostat
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_barostat_type', &
       routineP = moduleN//':'//routineN
@@ -188,16 +180,16 @@ CPSourceFileRef,&
     failure =.FALSE.
     IF (ASSOCIATED(barostat)) THEN
        check = barostat%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPPrecondition(check,cp_failure_level,routineP,failure)
        barostat%ref_count=barostat%ref_count-1
        IF (barostat%ref_count<1) THEN
           IF ( ASSOCIATED ( barostat%npt ) ) THEN
              DEALLOCATE (barostat%npt , stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           NULLIFY(barostat%section)
           DEALLOCATE(barostat, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
 

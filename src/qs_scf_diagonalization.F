@@ -137,14 +137,13 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
 
   SUBROUTINE general_eigenproblem(scf_env,mos,matrix_ks,&
                              matrix_s,scf_control,scf_section,&
-                             diis_step,error)
+                             diis_step)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -154,7 +153,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'general_eigenproblem', &
       routineP = moduleN//':'//routineN
@@ -170,8 +168,7 @@ CONTAINS
 
     DO ispin=1,nspin
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
-                         scf_env%scf_work1(ispin)%matrix,&
-                         error=error)
+                         scf_env%scf_work1(ispin)%matrix)
     END DO
 
     eps_diis = scf_control%eps_diis
@@ -181,7 +178,7 @@ CONTAINS
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           eps_diis,scf_control%nmixing,&
                           s_matrix=matrix_s,&
-                          scf_section=scf_section,error=error)
+                          scf_section=scf_section)
     ELSE
       diis_step = .FALSE.
     END IF
@@ -231,7 +228,7 @@ CONTAINS
               mo_set=mos(ispin)%mo_set,&
               ortho_dbcsr=ortho_dbcsr,&
               ksbuf1=scf_env%buf1_dbcsr,ksbuf2=scf_env%buf2_dbcsr,&
-              work=scf_env%scf_work2, error=error)
+              work=scf_env%scf_work2)
        END DO
 
     ELSE IF (scf_env%cholesky_method>cholesky_off) THEN
@@ -246,8 +243,7 @@ CONTAINS
                        ortho=ortho,&
                        work=scf_env%scf_work2,&
                        cholesky_method=scf_env%cholesky_method,&
-                       use_jacobi=use_jacobi,&
-                       error=error)
+                       use_jacobi=use_jacobi)
       END DO
     ELSE
       ortho => scf_env%ortho
@@ -259,8 +255,7 @@ CONTAINS
                        do_level_shift=do_level_shift,&
                        level_shift=scf_control%level_shift,&
                        use_jacobi=use_jacobi,&
-                       jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
-                       error=error)
+                       jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
       END DO
     END IF
 
@@ -275,11 +270,10 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE do_general_diag( scf_env,mos,matrix_ks,&
                              matrix_s,scf_control,scf_section,&
-                             diis_step,error)
+                             diis_step)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -289,7 +283,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag', &
       routineP = moduleN//':'//routineN
@@ -299,17 +292,15 @@ CONTAINS
     nspin = SIZE(matrix_ks)
 
     CALL general_eigenproblem(scf_env,mos,matrix_ks,&
-               matrix_s,scf_control,scf_section, diis_step,error=error)
+               matrix_s,scf_control,scf_section, diis_step)
 
     CALL set_mo_occupation(mo_array=mos,&
-                             smear=scf_control%smear,&
-                             error=error)
+                             smear=scf_control%smear)
 
     DO ispin=1,nspin
       ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin,1)%matrix,&
-                                    error=error)
+                                    scf_env%p_mix_new(ispin,1)%matrix)
     END DO
 
   END SUBROUTINE do_general_diag
@@ -326,13 +317,12 @@ CONTAINS
 !> \param kpoints      Kpoint environment
 !> \param scf_control  SCF control variables
 !> \param diis_step    Have we done a DIIS step
-!> \param error        CP2K error handling
 !> \par History
 !>      08.2014 created [JGH]
 ! *****************************************************************************
 
   SUBROUTINE do_general_diag_kp(scf_env,matrix_ks,matrix_s,kpoints,&
-                                scf_control,diis_step,error)
+                                scf_control,diis_step)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -340,7 +330,6 @@ CONTAINS
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp', &
       routineP = moduleN//':'//routineN
@@ -392,49 +381,49 @@ CONTAINS
     END IF
 
     ! We always do Cholesky
-    CPAssert(scf_env%cholesky_method>cholesky_off,cp_failure_level,routineP,error,failure)
+    CPAssert(scf_env%cholesky_method>cholesky_off,cp_failure_level,routineP,failure)
 
     NULLIFY(sab_nl)
     CALL get_kpoint_info(kpoints,nkp=nkp,xkp=xkp,use_real_wfn=use_real_wfn,kp_range=kp_range,&
          nkp_groups=nkp_groups,kp_dist=kp_dist,sab_nl=sab_nl,&
-         cell_to_index=cell_to_index,error=error)
-    CPAssert(ASSOCIATED(sab_nl),cp_failure_level,routineP,error,failure)
+         cell_to_index=cell_to_index)
+    CPAssert(ASSOCIATED(sab_nl),cp_failure_level,routineP,failure)
     kplocal = kp_range(2) - kp_range(1) + 1
 
     ! allocate some work matrices
     ALLOCATE(rmatrix,cmatrix,tmpmat,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(rmatrix,error=error)
-    CALL cp_dbcsr_init(cmatrix,error=error)
-    CALL cp_dbcsr_init(tmpmat,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_init(rmatrix)
+    CALL cp_dbcsr_init(cmatrix)
+    CALL cp_dbcsr_init(tmpmat)
     CALL cp_dbcsr_create(rmatrix,template=matrix_ks(1,1)%matrix,&
-         matrix_type=dbcsr_type_symmetric,error=error)
+         matrix_type=dbcsr_type_symmetric)
     CALL cp_dbcsr_create(cmatrix,template=matrix_ks(1,1)%matrix,&
-         matrix_type=dbcsr_type_antisymmetric,error=error)
+         matrix_type=dbcsr_type_antisymmetric)
     CALL cp_dbcsr_create(tmpmat,template=matrix_ks(1,1)%matrix,&
-         matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(rmatrix,sab_nl,error)
-    CALL cp_dbcsr_alloc_block_from_nbl(cmatrix,sab_nl,error)
+         matrix_type=dbcsr_type_no_symmetry)
+    CALL cp_dbcsr_alloc_block_from_nbl(rmatrix,sab_nl)
+    CALL cp_dbcsr_alloc_block_from_nbl(cmatrix,sab_nl)
 
     fmwork => scf_env%scf_work1
 
     ! fm pools to be used within a kpoint group
-    CALL get_kpoint_info(kpoints,mpools=mpools,error=error)
-    CALL mpools_get(mpools,ao_ao_fm_pools=ao_ao_fm_pools,error=error)
+    CALL get_kpoint_info(kpoints,mpools=mpools)
+    CALL mpools_get(mpools,ao_ao_fm_pools=ao_ao_fm_pools)
 
-    CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool,fmlocal,error=error)
-    CALL cp_fm_get_info(fmlocal,matrix_struct=matrix_struct,error=error)
+    CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool,fmlocal)
+    CALL cp_fm_get_info(fmlocal,matrix_struct=matrix_struct)
     IF(use_real_wfn) THEN
-       CALL cp_fm_create(rksmat,matrix_struct,error=error)
-       CALL cp_fm_create(rsmat,matrix_struct,error=error)
+       CALL cp_fm_create(rksmat,matrix_struct)
+       CALL cp_fm_create(rsmat,matrix_struct)
     ELSE
-       CALL cp_cfm_create(cksmat,matrix_struct,error=error)
-       CALL cp_cfm_create(csmat,matrix_struct,error=error)
-       CALL cp_cfm_create(cwork,matrix_struct,error=error)
+       CALL cp_cfm_create(cksmat,matrix_struct)
+       CALL cp_cfm_create(csmat,matrix_struct)
+       CALL cp_cfm_create(cwork,matrix_struct)
        kp => kpoints%kp_env(1)%kpoint_env
        CALL get_mo_set(kp%mos(1,1)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,matrix_struct=mo_struct,error=error)
-       CALL cp_cfm_create(cmos,mo_struct,error=error)
+       CALL cp_fm_get_info(mo_coeff,matrix_struct=mo_struct)
+       CALL cp_cfm_create(cmos,mo_struct)
     END IF
 
     ! global blacs context (=groupid)
@@ -449,27 +438,27 @@ CONTAINS
              IF(use_real_wfn) THEN
                 ! FT of matrices KS and S, then transfer to FM type
                 CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_ks,ispin=ispin,&
-                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl,error=error)
-                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat,error=error)
-                CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix,error=error)
+                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
+                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
+                CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix)
                 CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_s,ispin=ispin,&
-                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl,error=error)
-                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat,error=error)
-                CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix,error=error)
+                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
+                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
+                CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix)
              ELSE
                 ! FT of matrices KS and S, then transfer to FM type
                 CALL rskp_transform(rmatrix=rmatrix,cmatrix=cmatrix,rsmat=matrix_ks,ispin=ispin,&
-                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl,error=error)
-                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat,error=error)
-                CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix,error=error)
-                CALL cp_dbcsr_desymmetrize(cmatrix,tmpmat,error=error)
-                CALL copy_dbcsr_to_fm(tmpmat,fmwork(2)%matrix,error=error)
+                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
+                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
+                CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix)
+                CALL cp_dbcsr_desymmetrize(cmatrix,tmpmat)
+                CALL copy_dbcsr_to_fm(tmpmat,fmwork(2)%matrix)
                 CALL rskp_transform(rmatrix=rmatrix,cmatrix=cmatrix,rsmat=matrix_s,ispin=ispin,&
-                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl,error=error)
-                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat,error=error)
-                CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix,error=error)
-                CALL cp_dbcsr_desymmetrize(cmatrix,tmpmat,error=error)
-                CALL copy_dbcsr_to_fm(tmpmat,fmwork(4)%matrix,error=error)
+                     xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
+                CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
+                CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix)
+                CALL cp_dbcsr_desymmetrize(cmatrix,tmpmat)
+                CALL copy_dbcsr_to_fm(tmpmat,fmwork(4)%matrix)
              END IF
              ! transfer to kpoint group
              ! redistribution of matrices, new blacs environment
@@ -477,27 +466,27 @@ CONTAINS
              ! fmwork -> fmlocal -> rsmat/csmat
              IF(use_real_wfn) THEN
                 IF(my_kpgrp) THEN
-                   CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,bcntxt,error)
-                   CALL cp_fm_copy_general(fmwork(3)%matrix,rsmat,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,bcntxt)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,rsmat,bcntxt)
                 ELSE
-                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmdummy,bcntxt,error)
-                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmdummy,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmdummy,bcntxt)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmdummy,bcntxt)
                 END IF
              ELSE
                 IF(my_kpgrp) THEN
-                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmlocal,bcntxt,error)
-                   CALL cp_cfm_add_fm(czero,cksmat,cone,fmlocal,error)
-                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmlocal,bcntxt,error)
-                   CALL cp_cfm_add_fm(cone,cksmat,ione,fmlocal,error)
-                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmlocal,bcntxt,error)
-                   CALL cp_cfm_add_fm(czero,csmat,cone,fmlocal,error)
-                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmlocal,bcntxt,error)
-                   CALL cp_cfm_add_fm(cone,csmat,ione,fmlocal,error)
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmlocal,bcntxt)
+                   CALL cp_cfm_add_fm(czero,cksmat,cone,fmlocal)
+                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmlocal,bcntxt)
+                   CALL cp_cfm_add_fm(cone,cksmat,ione,fmlocal)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmlocal,bcntxt)
+                   CALL cp_cfm_add_fm(czero,csmat,cone,fmlocal)
+                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmlocal,bcntxt)
+                   CALL cp_cfm_add_fm(cone,csmat,ione,fmlocal)
                 ELSE
-                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmdummy,bcntxt,error)
-                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmdummy,bcntxt,error)
-                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmdummy,bcntxt,error)
-                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmdummy,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmdummy,bcntxt)
+                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmdummy,bcntxt)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmdummy,bcntxt)
+                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmdummy,bcntxt)
                 END IF
              END IF
           END DO
@@ -506,41 +495,41 @@ CONTAINS
           kp => kpoints%kp_env(ikpgr)%kpoint_env
           IF(use_real_wfn) THEN
              CALL get_mo_set(kp%mos(1,ispin)%mo_set,mo_coeff=mo_coeff,eigenvalues=eigenvalues)
-             CALL cp_fm_geeig(rksmat,rsmat,mo_coeff,eigenvalues,fmlocal,error)
+             CALL cp_fm_geeig(rksmat,rsmat,mo_coeff,eigenvalues,fmlocal)
           ELSE
              CALL get_mo_set(kp%mos(1,ispin)%mo_set,mo_coeff=rmos,eigenvalues=eigenvalues)
              CALL get_mo_set(kp%mos(2,ispin)%mo_set,mo_coeff=imos)
-             CALL cp_cfm_geeig(cksmat,csmat,cmos,eigenvalues,cwork,error)
+             CALL cp_cfm_geeig(cksmat,csmat,cmos,eigenvalues,cwork)
              ! copy eigenvalues to imag set (keep them in sync)
              kp%mos(2,ispin)%mo_set%eigenvalues=eigenvalues
              ! split real and imaginary part of mos
-             CALL cp_cfm_to_fm(cmos,rmos,imos,error)
+             CALL cp_cfm_to_fm(cmos,rmos,imos)
           END IF
        END DO
     END DO
     ! MO occupations
-    CALL kpoint_set_mo_occupation(kpoints,scf_control%smear,error)
+    CALL kpoint_set_mo_occupation(kpoints,scf_control%smear)
 
     ! density matrices
-    CALL kpoint_density_matrices(kpoints,error=error)
+    CALL kpoint_density_matrices(kpoints)
     ! density matrices in real space
     CALL kpoint_density_transform(kpoints,scf_env%p_mix_new,.FALSE.,&
-         matrix_s(1,1)%matrix,sab_nl,fmwork,error)
+         matrix_s(1,1)%matrix,sab_nl,fmwork)
 
-    CALL cp_dbcsr_deallocate_matrix(rmatrix,error=error)
-    CALL cp_dbcsr_deallocate_matrix(cmatrix,error=error)
-    CALL cp_dbcsr_deallocate_matrix(tmpmat,error=error)
+    CALL cp_dbcsr_deallocate_matrix(rmatrix)
+    CALL cp_dbcsr_deallocate_matrix(cmatrix)
+    CALL cp_dbcsr_deallocate_matrix(tmpmat)
 
     IF(use_real_wfn) THEN
-       CALL cp_fm_release(rksmat,error=error)
-       CALL cp_fm_release(rsmat,error=error)
+       CALL cp_fm_release(rksmat)
+       CALL cp_fm_release(rsmat)
     ELSE
-       CALL cp_cfm_release(cksmat,error=error)
-       CALL cp_cfm_release(csmat,error=error)
-       CALL cp_cfm_release(cwork,error=error)
-       CALL cp_cfm_release(cmos,error=error)
+       CALL cp_cfm_release(cksmat)
+       CALL cp_cfm_release(csmat)
+       CALL cp_cfm_release(cwork)
+       CALL cp_cfm_release(cmos)
     END IF
-    CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal, error=error)
+    CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
 
   END SUBROUTINE do_general_diag_kp
 
@@ -555,13 +544,12 @@ CONTAINS
 !> \param ks_env ...
 !> \param scf_section ...
 !> \param scf_control ...
-!> \param error ...
 !> \par History
 !>      09.2009 created [MI]
 !> \note  it is assumed that when diagonalization is used, also some mixing procedure is active
 ! *****************************************************************************
   SUBROUTINE do_scf_diag_subspace(qs_env,scf_env,subspace_env,mos,rho,&
-                  ks_env,scf_section,scf_control,error)
+                  ks_env,scf_section,scf_control)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -572,7 +560,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_scf_diag_subspace', &
       routineP = moduleN//':'//routineN
@@ -605,37 +592,37 @@ CONTAINS
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
          mo_occupations, work, dft_control, rho_ao, rho_ao_kp)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIAG_SUB_SCF",&
-            extension=".scfLog",error=error)
+            extension=".scfLog")
 
     !Extra loop keeping mos unchanged and refining the subspace occupation
     work  => scf_env%scf_work2
 
     nspin = SIZE(mos)
-    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp)
 
     ALLOCATE( eval_first(nspin), STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE( occ_first(nspin),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                       nmo=nmo,&
                       eigenvalues=mo_eigenvalues,&
                       occupation_numbers=mo_occupations)
        ALLOCATE( eval_first(ispin)%array(nmo),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
        ALLOCATE( occ_first(ispin)%array(nmo),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
        eval_first(ispin)%array(1:nmo) = mo_eigenvalues(1:nmo)
        occ_first(ispin)%array(1:nmo) = mo_occupations(1:nmo)
     END DO
 
     DO ispin=1,nspin
        ! does not yet handle k-points
-       CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho_ao(ispin)%matrix,error=error )
-       CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin, 1)%matrix,error=error )
+       CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho_ao(ispin)%matrix)
+       CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin, 1)%matrix)
     END DO
 
     subspace_env%p_matrix_mix => scf_env%p_mix_new
@@ -646,21 +633,20 @@ CONTAINS
                     energy=energy, &
                     matrix_s=matrix_s,&
                     para_env=para_env,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     ! mixing storage allocation
     IF (subspace_env%mixing_method>=gspace_mixing_nr) THEN
          CALL mixing_allocate(qs_env,subspace_env%mixing_method,scf_env%p_mix_new, &
-                              scf_env%p_delta,nspin,subspace_env%mixing_store,error)
+                              scf_env%p_delta,nspin,subspace_env%mixing_store)
          IF(dft_control%qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
-                 rho_atom_set=rho_atom,error=error)
+                 rho_atom_set=rho_atom)
             CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&
-                           para_env,rho_atom=rho_atom,error=error)
+                           para_env,rho_atom=rho_atom)
          ELSE
             CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&
-                           para_env,error=error)
+                           para_env)
          END IF
     END IF
 
@@ -675,16 +661,16 @@ CONTAINS
    ! recalculate density matrix here
 
    ! update of density
-    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho, qs_env=qs_env)
 
     DO iloop = 1,subspace_env%max_iter
       t1 = m_walltime()
       converged=.FALSE.
       ene_old =  energy%total
 
-      CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+      CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
       CALL qs_ks_update_qs_env(qs_env,calculate_forces=.FALSE.,&
-             just_energy=.FALSE.,print_active=.FALSE.,error=error)
+             just_energy=.FALSE.,print_active=.FALSE.)
 
       max_val = 0.0_dp
       sum_val = 0.0_dp
@@ -701,23 +687,21 @@ CONTAINS
          chc => subspace_env%chc_mat(ispin)%matrix
          evec => subspace_env%c_vec(ispin)%matrix
          c0 => subspace_env%c0(ispin)%matrix
-         CALL cp_fm_to_fm(mo_coeff,c0,error=error)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,c0,work,nmo,error=error)
-         CALL cp_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
+         CALL cp_fm_to_fm(mo_coeff,c0)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,c0,work,nmo)
+         CALL cp_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc)
         !diagonalize C'HC
-         CALL choose_eigv_solver(chc,evec,mo_eigenvalues,error=error)
+         CALL choose_eigv_solver(chc,evec,mo_eigenvalues)
 
         !rotate the mos by the eigenvectors of C'HC
-         CALL cp_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,mo_coeff,error=error)
+         CALL cp_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,mo_coeff)
 
          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                           smear=scf_control%smear,&
-                           error=error)
+                           smear=scf_control%smear)
 
          ! does not yet handle k-points
          CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                  subspace_env%p_matrix_mix(ispin, 1)%matrix,&
-                                 error=error)
+                                  subspace_env%p_matrix_mix(ispin, 1)%matrix)
 
          DO i = 1, nmo
            sum_band = sum_band + mo_eigenvalues(i)*mo_occupations(i)
@@ -728,23 +712,22 @@ CONTAINS
 
       IF(subspace_env%mixing_method==direct_mixing_nr) THEN
          CALL scf_env_density_mixing(subspace_env%p_matrix_mix, &
-              scf_env%mixing_store, rho_ao_kp, para_env, iter_delta, iloop, &
-              error=error)
+              scf_env%mixing_store, rho_ao_kp, para_env, iter_delta, iloop)
       ELSE
           CALL self_consistency_check(rho_ao_kp,scf_env%p_delta,para_env,&
-               subspace_env%p_matrix_mix,delta=iter_delta,error=error)
+               subspace_env%p_matrix_mix,delta=iter_delta)
       END IF
 
       DO ispin=1,nspin
          ! does not yet handle k-points
-         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin,1)%matrix ,error=error )
+         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin,1)%matrix)
       END DO
       ! update of density
-      CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+      CALL qs_rho_update_rho(rho, qs_env=qs_env)
       ! Mixing in reciprocal space
       IF(subspace_env%mixing_method>=gspace_mixing_nr) THEN
          CALL gspace_mixing(qs_env, scf_env%mixing_method, subspace_env%mixing_store, &
-            rho, para_env, scf_env%iter_count, error=error)
+            rho, para_env, scf_env%iter_count)
       END IF
 
       ene_diff =  energy%total-ene_old
@@ -767,8 +750,8 @@ CONTAINS
     NULLIFY (subspace_env%p_matrix_mix)
     DO ispin=1,nspin
         ! does not yet handle k-points
-        CALL cp_dbcsr_copy(scf_env%p_mix_new(ispin,1)%matrix,rho_ao(ispin)%matrix,error=error )
-        CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix ,error=error )
+        CALL cp_dbcsr_copy(scf_env%p_mix_new(ispin,1)%matrix,rho_ao(ispin)%matrix)
+        CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix)
 
         DEALLOCATE(eval_first(ispin)%array,occ_first(ispin)%array)
     END DO
@@ -784,15 +767,13 @@ END SUBROUTINE  do_scf_diag_subspace
 !> \param subspace_env ...
 !> \param qs_env ...
 !> \param mos ...
-!> \param error ...
 ! *****************************************************************************
-SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
+SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos)
 
     TYPE(subspace_env_type), POINTER         :: subspace_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'diag_subspace_allocate', &
       routineP = moduleN//':'//routineN
@@ -813,47 +794,46 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
 
     NULLIFY(sab_orb, matrix_s)
     CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
-         matrix_s=matrix_s, &
-         error=error)
+         matrix_s=matrix_s)
 
     nspin = SIZE(mos)
 !   *** allocate p_atrix_store ***
     IF (.NOT.ASSOCIATED(subspace_env%p_matrix_store)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(subspace_env%p_matrix_store,nspin,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(subspace_env%p_matrix_store,nspin)
 
        DO i=1,nspin
           ALLOCATE(subspace_env%p_matrix_store(i)%matrix)
-          CALL cp_dbcsr_init(subspace_env%p_matrix_store(i)%matrix,error=error)
+          CALL cp_dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
           CALL cp_dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
                name="DENSITY_STORE", &
                dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
                col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-               nze=0, error=error)
+               nze=0)
           CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix,&
-               sab_orb, error=error)
-          CALL cp_dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp,error=error)
+               sab_orb)
+          CALL cp_dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp)
        ENDDO
 
     END IF
 
     ALLOCATE(subspace_env%chc_mat(nspin),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(subspace_env%c_vec(nspin),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(subspace_env%c0(nspin),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     DO ispin = 1,nspin
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo)
-       CALL cp_fm_create(subspace_env%c0(ispin)%matrix,mo_coeff%matrix_struct,error=error)
+       CALL cp_fm_create(subspace_env%c0(ispin)%matrix,mo_coeff%matrix_struct)
        NULLIFY(fm_struct_tmp)
        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo,&
                                    para_env=mo_coeff%matrix_struct%para_env, &
-                                   context=mo_coeff%matrix_struct%context,error=error)
-       CALL cp_fm_create(subspace_env%chc_mat(ispin)%matrix,fm_struct_tmp,"chc",error=error)
-       CALL cp_fm_create(subspace_env%c_vec(ispin)%matrix,fm_struct_tmp,"vec",error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+                                   context=mo_coeff%matrix_struct%context)
+       CALL cp_fm_create(subspace_env%chc_mat(ispin)%matrix,fm_struct_tmp,"chc")
+       CALL cp_fm_create(subspace_env%c_vec(ispin)%matrix,fm_struct_tmp,"vec")
+       CALL cp_fm_struct_release(fm_struct_tmp)
     END DO
 
     CALL timestop(handle)
@@ -869,12 +849,11 @@ END SUBROUTINE diag_subspace_allocate
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE do_special_diag(scf_env,mos,matrix_ks,scf_control,&
-                                         scf_section,diis_step,error)
+                                         scf_section,diis_step)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -884,7 +863,6 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin, nspin
     LOGICAL                                  :: do_level_shift, use_jacobi
@@ -893,14 +871,13 @@ END SUBROUTINE diag_subspace_allocate
     nspin = SIZE(matrix_ks)
 
     DO ispin=1,nspin
-      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix)
     END DO
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
-                          scf_section=scf_section,&
-                          error=error)
+                          scf_section=scf_section)
     ELSE
       diis_step = .FALSE.
     END IF
@@ -946,19 +923,16 @@ END SUBROUTINE diag_subspace_allocate
                               do_level_shift=do_level_shift,&
                               level_shift=scf_control%level_shift,&
                               use_jacobi=use_jacobi,&
-                              jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
-                              error=error)
+                              jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
     END DO
 
     CALL set_mo_occupation(mo_array=mos,&
-                           smear=scf_control%smear,&
-                           error=error)
+                           smear=scf_control%smear)
 
     DO ispin=1,nspin
       ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin, 1)%matrix,&
-                                    error=error)
+                                    scf_env%p_mix_new(ispin, 1)%matrix)
     END DO
 
   END SUBROUTINE do_special_diag
@@ -973,12 +947,11 @@ END SUBROUTINE diag_subspace_allocate
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param error ...
 !> \par History
 !>      10.2008 created [JGH]
 ! *****************************************************************************
   SUBROUTINE do_ot_diag(scf_env,mos,matrix_ks,matrix_s,&
-               scf_control,scf_section,diis_step,error)
+               scf_control,scf_section,diis_step)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -988,7 +961,6 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag', &
       routineP = moduleN//':'//routineN
@@ -1005,8 +977,7 @@ END SUBROUTINE diag_subspace_allocate
 
     DO ispin=1,nspin
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
-                            scf_env%scf_work1(ispin)%matrix,&
-                            error=error)
+                            scf_env%scf_work1(ispin)%matrix)
     END DO
 
     IF ((scf_env%iter_count > 1).AND.(.NOT.scf_env%skip_diis)) THEN
@@ -1014,7 +985,7 @@ END SUBROUTINE diag_subspace_allocate
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
                           s_matrix=matrix_s,&
-                          scf_section=scf_section,error=error)
+                          scf_section=scf_section)
     ELSE
       diis_step = .FALSE.
     END IF
@@ -1029,8 +1000,7 @@ END SUBROUTINE diag_subspace_allocate
       scf_env%iter_method = "DIIS/OTdiag"
       DO ispin=1,nspin
          CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-                               matrix_ks(ispin)%matrix,keep_sparsity=.TRUE.,&
-                               error=error)
+                               matrix_ks(ispin)%matrix,keep_sparsity=.TRUE.)
       END DO
       eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
     ELSE
@@ -1058,27 +1028,23 @@ END SUBROUTINE diag_subspace_allocate
                           eps_gradient=eps_iter,&
                           iter_max=scf_control%diagonalization%max_iter,&
                           silent=.TRUE.,&
-                          ot_settings=scf_control%diagonalization%ot_settings,&
-                          error=error)
+                          ot_settings=scf_control%diagonalization%ot_settings)
       CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
                                           evals_arg=eigenvalues,&
-                                          do_rotation=.TRUE.,&
-                                          error=error)
+                                          do_rotation=.TRUE.)
       !MK WRITE(*,*) routinen//' copy_dbcsr_to_fm'
       CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
-                            mos(ispin)%mo_set%mo_coeff_b,&
-                            error=error)!fm->dbcsr
+                            mos(ispin)%mo_set%mo_coeff_b)
+                            !fm->dbcsr
     END DO
 
     CALL set_mo_occupation(mo_array=mos,&
-                           smear=scf_control%smear,&
-                           error=error)
+                           smear=scf_control%smear)
 
     DO ispin=1,nspin
       ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin, 1)%matrix,&
-                                    error=error)
+                                    scf_env%p_mix_new(ispin, 1)%matrix)
     END DO
 
   END SUBROUTINE do_ot_diag
@@ -1094,7 +1060,6 @@ END SUBROUTINE diag_subspace_allocate
 !> \param scf_section ...
 !> \param diis_step ...
 !> \param orthogonal_basis ...
-!> \param error ...
 !> \par History
 !>      04.2006 created [MK]
 !>      Revised (01.05.06,MK)
@@ -1103,7 +1068,7 @@ END SUBROUTINE diag_subspace_allocate
 ! *****************************************************************************
   SUBROUTINE do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
                                       scf_control,scf_section,diis_step,&
-                                      orthogonal_basis,error)
+                                      orthogonal_basis)
 
     ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
     !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
@@ -1118,7 +1083,6 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
     LOGICAL, INTENT(IN)                      :: orthogonal_basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_roks_diag', &
       routineP = moduleN//':'//routineN
@@ -1144,8 +1108,8 @@ END SUBROUTINE diag_subspace_allocate
     ksa => scf_env%scf_work1(1)%matrix
     ksb => scf_env%scf_work1(2)%matrix
 
-    CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,ksa,error=error)
-    CALL copy_dbcsr_to_fm(matrix_ks(2)%matrix,ksb,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,ksa)
+    CALL copy_dbcsr_to_fm(matrix_ks(2)%matrix,ksb)
 
     ! Get MO information
 
@@ -1183,21 +1147,20 @@ END SUBROUTINE diag_subspace_allocate
       ! Transform the spin unrestricted alpha and beta Kohn-Sham matrices
       ! from AO basis to MO basis: K(MO) = C(T)*K(AO)*C
 
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work,error=error)
-      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work)
+      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa)
 
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,moa,0.0_dp,work,error=error)
-      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksb,error=error)
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,moa,0.0_dp,work)
+      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksb)
 
       ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
       ! in the MO basis
 
       IF (scf_control%roks_scheme == general_roks) THEN
         CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_f,&
-                                 nalpha,nbeta,error=error)
+                                 nalpha,nbeta)
       ELSE IF (scf_control%roks_scheme == high_spin_roks) THEN
-        CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter,&
-                                 error=error)
+        CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter)
       ELSE
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "Unknown ROKS scheme requested")
@@ -1214,13 +1177,13 @@ END SUBROUTINE diag_subspace_allocate
         mo2ao => mob
 !MK     CALL copy_sm_to_fm(matrix_s(1)%matrix,work)
 !MK     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,work,moa,0.0_dp,mo2ao)
-        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,moa,mo2ao,nao,error=error)
+        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,moa,mo2ao,nao)
       END IF
 
       ! K(AO) = Q*K(MO)*Q(T)
 
-      CALL cp_gemm("N","T",nao,nao,nao,1.0_dp,ksa,mo2ao,0.0_dp,work,error=error)
-      CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,mo2ao,work,0.0_dp,ksa,error=error)
+      CALL cp_gemm("N","T",nao,nao,nao,1.0_dp,ksa,mo2ao,0.0_dp,work)
+      CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,mo2ao,work,0.0_dp,ksa)
 
     ELSE
 
@@ -1228,7 +1191,7 @@ END SUBROUTINE diag_subspace_allocate
       ! i.e. the beta Kohn-Sham matrix in AO basis, is taken.
       ! There might be better choices, anyhow.
 
-      CALL cp_fm_to_fm(ksb,ksa,error=error)
+      CALL cp_fm_to_fm(ksb,ksa)
 
     END IF
 
@@ -1245,8 +1208,7 @@ END SUBROUTINE diag_subspace_allocate
                             diis_step=diis_step,&
                             eps_diis=scf_control%eps_diis,&
                             scf_section=scf_section,&
-                            roks=.TRUE.,&
-                            error=error)
+                            roks=.TRUE.)
       ELSE
         CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
                             mo_array=mos,&
@@ -1258,8 +1220,7 @@ END SUBROUTINE diag_subspace_allocate
                             eps_diis=scf_control%eps_diis,&
                             scf_section=scf_section,&
                             s_matrix=matrix_s,&
-                            roks=.TRUE.,&
-                            error=error)
+                            roks=.TRUE.)
       END IF
     END IF
 
@@ -1283,16 +1244,16 @@ END SUBROUTINE diag_subspace_allocate
       ! Transform the current Kohn-Sham matrix from AO to MO basis
       ! for level-shifting using the current MO set
 
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work,error=error)
-      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work)
+      CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa)
 
       ! Apply level-shifting using 50:50 split of the shift (could be relaxed)
 
       DO imo=homob+1,homoa
-        CALL cp_fm_add_to_element(ksa,imo,imo,0.5_dp*level_shift_loc,error)
+        CALL cp_fm_add_to_element(ksa,imo,imo,0.5_dp*level_shift_loc)
       END DO
       DO imo=homoa+1,nmo
-        CALL cp_fm_add_to_element(ksa,imo,imo,level_shift_loc,error)
+        CALL cp_fm_add_to_element(ksa,imo,imo,level_shift_loc)
       END DO
 
     ELSE IF (.NOT.orthogonal_basis) THEN
@@ -1300,47 +1261,47 @@ END SUBROUTINE diag_subspace_allocate
       ! Transform the current Kohn-Sham matrix to an orthogonal basis
       SELECT CASE(scf_env%cholesky_method)
       CASE(cholesky_reduce)
-        CALL cp_fm_cholesky_reduce(ksa,ortho,error=error)
+        CALL cp_fm_cholesky_reduce(ksa,ortho)
       CASE(cholesky_restore)
-         CALL cp_fm_upper_to_full(ksa,work,error=error)
+         CALL cp_fm_upper_to_full(ksa,work)
          CALL cp_fm_cholesky_restore(ksa,nao,ortho,work,&
-                "SOLVE",pos="RIGHT",error=error)
+                "SOLVE",pos="RIGHT")
          CALL cp_fm_cholesky_restore(work,nao,ortho,ksa,&
-               "SOLVE",pos="LEFT",transa="T",error=error)
+               "SOLVE",pos="LEFT",transa="T")
       CASE(cholesky_inverse)
-         CALL cp_fm_upper_to_full(ksa,work,error=error)
+         CALL cp_fm_upper_to_full(ksa,work)
          CALL cp_fm_cholesky_restore(ksa,nao,ortho,work,&
-                "MULTIPLY",pos="RIGHT",error=error)
+                "MULTIPLY",pos="RIGHT")
          CALL cp_fm_cholesky_restore(work,nao,ortho,ksa,&
-               "MULTIPLY",pos="LEFT",transa="T",error=error)
+               "MULTIPLY",pos="LEFT",transa="T")
       CASE(cholesky_off)
-        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work,error=error)
-        CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa,error=error)
+        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work)
+        CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa)
       END SELECT
 
     END IF
 
     ! Diagonalization of the ROKS operator matrix
 
-     CALL choose_eigv_solver(ksa,work,eiga,error=error)
+     CALL choose_eigv_solver(ksa,work,eiga)
 
     ! Back-transformation of the orthonormal eigenvectors if needed
 
     IF (level_shift_loc /= 0.0_dp) THEN
       ! Use old MO set for back-transformation if level-shifting was applied
-      CALL cp_fm_to_fm(moa,ortho,error=error)
-      CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
+      CALL cp_fm_to_fm(moa,ortho)
+      CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
     ELSE
       IF (orthogonal_basis) THEN
-        CALL cp_fm_to_fm(work,moa,error=error)
+        CALL cp_fm_to_fm(work,moa)
       ELSE
         SELECT CASE(scf_env%cholesky_method)
         CASE(cholesky_reduce,cholesky_restore)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE",error=error)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE")
         CASE(cholesky_inverse)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"MULTIPLY",error=error)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"MULTIPLY")
         CASE(cholesky_off)
-          CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
+          CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
         END SELECT
       END IF
     END IF
@@ -1359,15 +1320,13 @@ END SUBROUTINE diag_subspace_allocate
     ! Update also the beta MO set
 
     eigb(:) = eiga(:)
-    CALL cp_fm_to_fm(moa,mob,error=error)
+    CALL cp_fm_to_fm(moa,mob)
 
     ! Calculate the new alpha and beta density matrix
 
     ! does not yet handle k-points
-    CALL calculate_density_matrix(mos(1)%mo_set,scf_env%p_mix_new(1, 1)%matrix,&
-                                  error=error)
-    CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2, 1)%matrix,&
-                                  error=error)
+    CALL calculate_density_matrix(mos(1)%mo_set,scf_env%p_mix_new(1, 1)%matrix)
+    CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2, 1)%matrix)
 
     CALL timestop(handle)
 
@@ -1381,14 +1340,13 @@ END SUBROUTINE diag_subspace_allocate
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param check_moconv_only ...
-!> \param error ...
 !> \param
 !> \par History
 !>      05.2009 created [MI]
 ! *****************************************************************************
 
   SUBROUTINE do_block_krylov_diag(scf_env,mos,matrix_ks,&
-                     scf_control, scf_section, check_moconv_only, error)
+                     scf_control, scf_section, check_moconv_only)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1398,7 +1356,6 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_krylov_diag', &
       routineP = moduleN//':'//routineN
@@ -1415,11 +1372,11 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%LANCZOS",&
-            extension=".scfLog",error=error)
+            extension=".scfLog")
 
 
     my_check_moconv_only = .FALSE.
@@ -1438,8 +1395,7 @@ END SUBROUTINE diag_subspace_allocate
 
     DO ispin=1,SIZE(matrix_ks)
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
-                         scf_env%scf_work1(ispin)%matrix,&
-                         error=error)
+                         scf_env%scf_work1(ispin)%matrix)
     END DO
 
     IF(scf_env%mixing_method ==1) THEN
@@ -1453,7 +1409,7 @@ END SUBROUTINE diag_subspace_allocate
     DO ispin=1,SIZE(matrix_ks)
 
       ks => scf_env%scf_work1(ispin)%matrix
-      CALL cp_fm_upper_to_full(ks,work,error=error)
+      CALL cp_fm_upper_to_full(ks,work)
 
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                       nao=nao,&
@@ -1467,21 +1423,21 @@ END SUBROUTINE diag_subspace_allocate
       c1 => scf_env%krylov_space%mo_refine(ispin)%matrix
       SELECT CASE(scf_env%cholesky_method)
       CASE(cholesky_reduce)
-         CALL cp_fm_cholesky_reduce(ks,ortho,error=error)
-         CALL cp_fm_upper_to_full(ks,work,error=error)
-         CALL cp_fm_cholesky_restore(mo_coeff,nmo,ortho,c0,"MULTIPLY",error=error)
+         CALL cp_fm_cholesky_reduce(ks,ortho)
+         CALL cp_fm_upper_to_full(ks,work)
+         CALL cp_fm_cholesky_restore(mo_coeff,nmo,ortho,c0,"MULTIPLY")
       CASE(cholesky_restore)
          CALL cp_fm_cholesky_restore(ks,nao,ortho,work,&
-                "SOLVE",pos="RIGHT",error=error)
+                "SOLVE",pos="RIGHT")
          CALL cp_fm_cholesky_restore(work,nao,ortho,ks,&
-               "SOLVE",pos="LEFT",transa="T",error=error)
-         CALL cp_fm_cholesky_restore(mo_coeff,nmo,ortho,c0,"MULTIPLY",error=error)
+               "SOLVE",pos="LEFT",transa="T")
+         CALL cp_fm_cholesky_restore(mo_coeff,nmo,ortho,c0,"MULTIPLY")
       CASE(cholesky_inverse)
          CALL cp_fm_cholesky_restore(ks,nao,ortho,work,&
-                "MULTIPLY",pos="RIGHT",error=error)
+                "MULTIPLY",pos="RIGHT")
          CALL cp_fm_cholesky_restore(work,nao,ortho,ks,&
-               "MULTIPLY",pos="LEFT",transa="T",error=error)
-         CALL cp_fm_cholesky_restore(mo_coeff,nmo,ortho,c0,"SOLVE",error=error)
+               "MULTIPLY",pos="LEFT",transa="T")
+         CALL cp_fm_cholesky_restore(mo_coeff,nmo,ortho,c0,"SOLVE")
       END SELECT
 
       scf_env%krylov_space%nmo_nc  = nmo
@@ -1501,7 +1457,7 @@ END SUBROUTINE diag_subspace_allocate
       IF(my_check_moconv_only) THEN
 
          CALL lanczos_refinement(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,&
-              nao,  eps_iter, ispin, check_moconv_only=my_check_moconv_only, error=error)
+              nao,  eps_iter, ispin, check_moconv_only=my_check_moconv_only)
          t2 = m_walltime()
          IF(output_unit > 0)&
                WRITE(output_unit,'(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')  &
@@ -1513,7 +1469,7 @@ END SUBROUTINE diag_subspace_allocate
          !Block Lanczos refinement
          DO iter = 1,scf_env%krylov_space%max_iter
            CALL lanczos_refinement_2v(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,&
-                 nao, eps_iter, ispin,  error=error)
+                 nao, eps_iter, ispin)
             t2 = m_walltime()
             IF (output_unit > 0) THEN
                WRITE(output_unit,'(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')&
@@ -1545,29 +1501,27 @@ END SUBROUTINE diag_subspace_allocate
            NULLIFY( chc, evec)
            chc => scf_env%krylov_space%chc_mat(ispin)%matrix
            evec => scf_env%krylov_space%c_vec(ispin)%matrix
-           CALL cp_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
-           CALL cp_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
+           CALL cp_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work)
+           CALL cp_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc)
            !Diagonalize  (C^t)HC
-           CALL choose_eigv_solver(chc,evec,mo_eigenvalues,error=error)
+           CALL choose_eigv_solver(chc,evec,mo_eigenvalues)
            !Rotate the C vectors
-           CALL cp_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
+           CALL cp_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1)
            c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
          END IF
 
          IF(scf_env%cholesky_method==cholesky_inverse) THEN
-           CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
+           CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"MULTIPLY")
          ELSE
-           CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"SOLVE",error=error)
+           CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"SOLVE")
          END IF
 
          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                                smear=scf_control%smear,&
-                                error=error)
+                                smear=scf_control%smear)
 
          ! does not yet handle k-points
          CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                       scf_env%p_mix_new(ispin,1)%matrix,&
-                                       error=error)
+                                       scf_env%p_mix_new(ispin,1)%matrix)
       END  IF
     END DO ! ispin
 
@@ -1576,7 +1530,7 @@ END SUBROUTINE diag_subspace_allocate
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%LANCZOS", error=error)
+            "PRINT%LANCZOS")
 
     CALL timestop(handle)
 
@@ -1592,14 +1546,13 @@ END SUBROUTINE diag_subspace_allocate
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param check_moconv_only ...
-!> \param error ...
 !> \param
 !> \par History
 !>      05.2011 created [MI]
 ! *****************************************************************************
 
   SUBROUTINE do_block_davidson_diag (qs_env,scf_env,mos,matrix_ks,matrix_s,&
-                     scf_control,scf_section, check_moconv_only, error)
+                     scf_control,scf_section, check_moconv_only)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1610,7 +1563,6 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag', &
       routineP = moduleN//':'//routineN
@@ -1622,11 +1574,11 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DAVIDSON",&
-            extension=".scfLog",error=error)
+            extension=".scfLog")
 
     IF(output_unit > 0) &
         WRITE(output_unit ,"(/T15,A)") '<<<<<<<<<  DAVIDSON ITERATIONS   <<<<<<<<<<'
@@ -1653,48 +1605,44 @@ END SUBROUTINE diag_subspace_allocate
     IF( do_prec .AND. (scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
           MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0)) THEN
        CALL restart_preconditioner(qs_env,scf_env%ot_preconditioner,&
-            prec_type=scf_env%block_davidson_env(1)%prec_type,nspins=nspins,error=error)
+            prec_type=scf_env%block_davidson_env(1)%prec_type,nspins=nspins)
        CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&
             scf_env%block_davidson_env(1)%prec_type, &
             scf_env%block_davidson_env(1)%solver_type,&
             scf_env%block_davidson_env(1)%energy_gap,nspins,&
-            convert_to_dbcsr=scf_env%block_davidson_env(1)%use_sparse_mos,error=error)
+            convert_to_dbcsr=scf_env%block_davidson_env(1)%use_sparse_mos)
     END IF
 
     DO ispin = 1,nspins
       IF(scf_env%block_davidson_env(ispin)%use_sparse_mos) THEN
         IF(.NOT. do_prec) THEN
           CALL generate_extended_space_sparse(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
-             matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
-             error=error)
+             matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit)
         ELSE
           CALL generate_extended_space_sparse(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
              matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
-             scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+             scf_env%ot_preconditioner(ispin)%preconditioner)
         END IF
 
       ELSE
         IF(.NOT. do_prec) THEN
           CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
-             matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit,&
-             error=error)
+             matrix_ks(ispin)%matrix,matrix_s(1)%matrix, output_unit)
         ELSE
           CALL generate_extended_space(scf_env%block_davidson_env(ispin),mos(ispin)%mo_set,&
              matrix_ks(ispin)%matrix,matrix_s(1)%matrix,output_unit,&
-             scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+             scf_env%ot_preconditioner(ispin)%preconditioner)
         END IF
       END IF
     END DO !ispin
 
     CALL set_mo_occupation(mo_array=mos,&
-                             smear=scf_control%smear,&
-                             error=error)
+                             smear=scf_control%smear)
 
     DO ispin=1,nspins
       ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin, 1)%matrix,&
-                                    error=error)
+                                    scf_env%p_mix_new(ispin, 1)%matrix)
     END DO
 
 
@@ -1703,7 +1651,7 @@ END SUBROUTINE diag_subspace_allocate
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%DAVIDSON", error=error)
+            "PRINT%DAVIDSON")
 
     CALL timestop(handle)
 

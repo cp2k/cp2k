@@ -52,7 +52,6 @@ CONTAINS
 !> \param matrix_pVp ...
 !> \param n ...
 !> \param dkh_order ...
-!> \param error ...
 !> \par Literature
 !>  M. Reiher, A. Wolf, J. Chem. Phys. 121 (2004) 10944-10956
 !>  A. Wolf, M. Reiher, B. A. Hess, J. Chem. Phys. 117 (2002) 9215-9226
@@ -100,12 +99,11 @@ CONTAINS
 !>     Markus Reiher: ETH Zurich (09/2006)
 !>
 ! *****************************************************************************
-  SUBROUTINE DKH_full_transformation (qs_env,matrix_s,matrix_v,matrix_t,matrix_pVp,n,dkh_order,error)
+  SUBROUTINE DKH_full_transformation (qs_env,matrix_s,matrix_v,matrix_t,matrix_pVp,n,dkh_order)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: matrix_s, matrix_v, matrix_t, &
                                                 matrix_pVp
     INTEGER, INTENT(IN)                      :: n, dkh_order
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'DKH_full_transformation', &
       routineP = moduleN//':'//routineN
@@ -131,12 +129,11 @@ CONTAINS
     !-----------------------------------------------------------------------
     !     Construct the matrix structure
     !-----------------------------------------------------------------------
-    CALL get_qs_env(qs_env, blacs_env=blacs_env, error=error)
+    CALL get_qs_env(qs_env, blacs_env=blacs_env)
     CALL cp_fm_struct_create( fmstruct = matrix_full,&
          context = blacs_env,&
          nrow_global = n,&
-         ncol_global = n,&
-         error = error)
+         ncol_global = n)
 
     !-----------------------------------------------------------------------
     !     Allocate some matrices
@@ -160,32 +157,32 @@ CONTAINS
     NULLIFY(matrix_sinv)
     NULLIFY(matrix_pe1p)
 
-    CALL cp_fm_create(matrix_eig,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_aux,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_aux2,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_rev,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_se,   matrix_full, error=error)
-    CALL cp_fm_create(matrix_ev1,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_ev2,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_sinv, matrix_full, error=error)
-    CALL cp_fm_create(matrix_ev3,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_ev4,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_pe1p,  matrix_full, error=error)
+    CALL cp_fm_create(matrix_eig,  matrix_full)
+    CALL cp_fm_create(matrix_aux,  matrix_full)
+    CALL cp_fm_create(matrix_aux2,  matrix_full)
+    CALL cp_fm_create(matrix_rev,  matrix_full)
+    CALL cp_fm_create(matrix_se,   matrix_full)
+    CALL cp_fm_create(matrix_ev1,  matrix_full)
+    CALL cp_fm_create(matrix_ev2,  matrix_full)
+    CALL cp_fm_create(matrix_sinv, matrix_full)
+    CALL cp_fm_create(matrix_ev3,  matrix_full)
+    CALL cp_fm_create(matrix_ev4,  matrix_full)
+    CALL cp_fm_create(matrix_pe1p,  matrix_full)
 
 
     !-----------------------------------------------------------------------
     !     Now with Cholesky decomposition
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_to_fm(matrix_s,matrix_sinv,error)
-    CALL cp_fm_cholesky_decompose(matrix_sinv,n,error=error)
+    CALL cp_fm_to_fm(matrix_s,matrix_sinv)
+    CALL cp_fm_cholesky_decompose(matrix_sinv,n)
 
     !-----------------------------------------------------------------------
     !     Calculate matrix representation from nonrelativistic T matrix
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv,error=error)
-    CALL cp_fm_syevd(matrix_t,matrix_eig,tt,error=error)
+    CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv)
+    CALL cp_fm_syevd(matrix_t,matrix_eig,tt)
 
     !-----------------------------------------------------------------------
     !     Calculate kinetic part of Hamiltonian in T-basis
@@ -197,16 +194,16 @@ CONTAINS
     !     Calculate reverse transformation matrix revt
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_to_fm(matrix_eig,matrix_rev,error)
-    CALL cp_fm_triangular_multiply(matrix_sinv,matrix_rev,transpose_tr=.TRUE.,error=error)
+    CALL cp_fm_to_fm(matrix_eig,matrix_rev)
+    CALL cp_fm_triangular_multiply(matrix_sinv,matrix_rev,transpose_tr=.TRUE.)
 
     !-----------------------------------------------------------------------
     !     Calculate kinetic part of the Hamiltonian
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_to_fm(matrix_rev,matrix_aux,error)
+    CALL cp_fm_to_fm(matrix_rev,matrix_aux)
     CALL cp_fm_column_scale(matrix_aux,ev0t)
-    CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_rev,matrix_aux,0.0_dp,matrix_t,error)
+    CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_rev,matrix_aux,0.0_dp,matrix_t)
 
     !-----------------------------------------------------------------------
     !     Calculate kinematical factors for DKH
@@ -222,46 +219,46 @@ CONTAINS
     !     Transform v integrals to T-basis (v -> v(t))
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_v,matrix_sinv,error=error)
-    CALL cp_fm_upper_to_full(matrix_v,matrix_aux,error)
-    CALL cp_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_v,0.0_dp,matrix_aux,error)
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_v,error)
+    CALL cp_fm_cholesky_reduce(matrix_v,matrix_sinv)
+    CALL cp_fm_upper_to_full(matrix_v,matrix_aux)
+    CALL cp_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_v,0.0_dp,matrix_aux)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_v)
 
     !-----------------------------------------------------------------------
     !     Transform pVp integrals to T-basis (pVp -> pVp(t))
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_pVp,matrix_sinv,error=error)
-    CALL cp_fm_upper_to_full(matrix_pVp,matrix_aux,error)
-    CALL cp_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_pVp,0.0_dp,matrix_aux,error)
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_pVp,error)
+    CALL cp_fm_cholesky_reduce(matrix_pVp,matrix_sinv)
+    CALL cp_fm_upper_to_full(matrix_pVp,matrix_aux)
+    CALL cp_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_pVp,0.0_dp,matrix_aux)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_pVp)
 
     !-----------------------------------------------------------------------
     !     Calculate even1 in T-basis
     !-----------------------------------------------------------------------
 
-    CALL even1(matrix_ev1,matrix_v,matrix_pvp,aa,rr,matrix_aux,matrix_aux2,error)
+    CALL even1(matrix_ev1,matrix_v,matrix_pvp,aa,rr,matrix_aux,matrix_aux2)
 
     !-----------------------------------------------------------------------
     !     Calculate even2 in T-basis
     !-----------------------------------------------------------------------
 
-    CALL even2c (n,matrix_ev2,matrix_v,matrix_pVp,aa,rr,tt,e,matrix_aux,error)
+    CALL even2c (n,matrix_ev2,matrix_v,matrix_pVp,aa,rr,tt,e,matrix_aux)
 
     !-----------------------------------------------------------------------
     !     Calculate even3 in T-basis, only if requested
     !-----------------------------------------------------------------------
 
     IF (dkh_order.ge.3) THEN
-       CALL peven1p(n,matrix_pe1p,matrix_v,matrix_pvp,matrix_aux,matrix_aux2,aa,rr,tt,error)
-       CALL even3b(n,matrix_ev3,matrix_ev1,matrix_pe1p,matrix_v,matrix_pvp,aa,rr,tt,e,matrix_aux,error)
+       CALL peven1p(n,matrix_pe1p,matrix_v,matrix_pvp,matrix_aux,matrix_aux2,aa,rr,tt)
+       CALL even3b(n,matrix_ev3,matrix_ev1,matrix_pe1p,matrix_v,matrix_pvp,aa,rr,tt,e,matrix_aux)
 
        !-----------------------------------------------------------------------
        !     Transform even3 back to position space
        !-----------------------------------------------------------------------
 
-       CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev3,0.0_dp,matrix_aux,error)
-       CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev3,error)
+       CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev3,0.0_dp,matrix_aux)
+       CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev3)
 
        !-----------------------------------------------------------------------
        !     Calculate even4 in T-basis, only if requested
@@ -270,7 +267,7 @@ CONTAINS
        IF (dkh_order.ge.4) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="DKH order greater than 3 not yet available", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
           !          CALL even4a(n,matrix_ev4%local_data,matrix_ev2%local_data,matrix_pe1p%local_data,matrix_v%local_data,&
           !                      matrix_pvp%local_data,aa,rr,tt,e)
 
@@ -278,8 +275,8 @@ CONTAINS
           !     Transform even4 back to position space
           !-----------------------------------------------------------------------
 
-          !        CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev4,0.0_dp,matrix_aux,error)
-          !        CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev4,error)
+          !        CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev4,0.0_dp,matrix_aux)
+          !        CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev4)
 
        END IF
     END IF
@@ -288,46 +285,46 @@ CONTAINS
     !     Transform even1 back to position space
     !----------------------------------------------------------------------
 
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev1,0.0_dp,matrix_aux,error)
-    CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev1,error)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev1,0.0_dp,matrix_aux)
+    CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev1)
 
     !-----------------------------------------------------------------------
     !     Transform even2 back to position space
     !-----------------------------------------------------------------------
 
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev2,0.0_dp,matrix_aux,error)
-    CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev2,error)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev2,0.0_dp,matrix_aux)
+    CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev2)
 
 
     !-----------------------------------------------------------------------
     !     Calculate v in position space
     !-----------------------------------------------------------------------
     !
-    CALL cp_fm_scale_and_add(1.0_dp,matrix_ev1,1.0_dp,matrix_ev2,error)
-    CALL cp_fm_upper_to_full(matrix_ev1,matrix_aux,error)
-    CALL cp_fm_to_fm(matrix_ev1,matrix_v,error)
+    CALL cp_fm_scale_and_add(1.0_dp,matrix_ev1,1.0_dp,matrix_ev2)
+    CALL cp_fm_upper_to_full(matrix_ev1,matrix_aux)
+    CALL cp_fm_to_fm(matrix_ev1,matrix_v)
     IF(dkh_order.ge.3) THEN
-       CALL cp_fm_scale_and_add(1.0_dp,matrix_v,1.0_dp,matrix_ev3,error)
+       CALL cp_fm_scale_and_add(1.0_dp,matrix_v,1.0_dp,matrix_ev3)
        IF(dkh_order.ge.4) THEN
-          CALL cp_fm_scale_and_add(1.0_dp,matrix_v,1.0_dp,matrix_ev4,error)
+          CALL cp_fm_scale_and_add(1.0_dp,matrix_v,1.0_dp,matrix_ev4)
        END IF
     END IF
 
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_release(matrix_eig,  error=error)
-    CALL cp_fm_release(matrix_aux,  error=error)
-    CALL cp_fm_release(matrix_aux2, error=error)
-    CALL cp_fm_release(matrix_rev,  error=error)
-    CALL cp_fm_release(matrix_se,   error=error)
-    CALL cp_fm_release(matrix_ev1,  error=error)
-    CALL cp_fm_release(matrix_ev2,  error=error)
-    CALL cp_fm_release(matrix_sinv, error=error)
-    CALL cp_fm_release(matrix_ev3,  error=error)
-    CALL cp_fm_release(matrix_ev4,  error=error)
-    CALL cp_fm_release(matrix_pe1p, error=error)
+    CALL cp_fm_release(matrix_eig)
+    CALL cp_fm_release(matrix_aux)
+    CALL cp_fm_release(matrix_aux2)
+    CALL cp_fm_release(matrix_rev)
+    CALL cp_fm_release(matrix_se)
+    CALL cp_fm_release(matrix_ev1)
+    CALL cp_fm_release(matrix_ev2)
+    CALL cp_fm_release(matrix_sinv)
+    CALL cp_fm_release(matrix_ev3)
+    CALL cp_fm_release(matrix_ev4)
+    CALL cp_fm_release(matrix_pe1p)
 
-    CALL cp_fm_struct_release(matrix_full, error=error)
+    CALL cp_fm_struct_release(matrix_full)
 
     DEALLOCATE(ev0t,e,aa,rr,tt)
 
@@ -392,28 +389,26 @@ CONTAINS
 !> \param rr R-factors (diagonal)
 !> \param matrix_aux ...
 !> \param matrix_aux2 ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE even1(matrix_ev1,matrix_v,matrix_pvp,aa,rr,matrix_aux,matrix_aux2,error)
+  SUBROUTINE even1(matrix_ev1,matrix_v,matrix_pvp,aa,rr,matrix_aux,matrix_aux2)
     TYPE(cp_fm_type), POINTER                :: matrix_ev1, matrix_v, &
                                                 matrix_pVp
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: aa, rr
     TYPE(cp_fm_type), POINTER                :: matrix_aux, matrix_aux2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL cp_fm_to_fm(matrix_v,matrix_aux,error)
+    CALL cp_fm_to_fm(matrix_v,matrix_aux)
     CALL cp_fm_column_scale(matrix_aux,aa)
-    CALL cp_fm_transpose(matrix_aux,matrix_ev1,error)
+    CALL cp_fm_transpose(matrix_aux,matrix_ev1)
     CALL cp_fm_column_scale(matrix_ev1,aa)
 
-    CALL cp_fm_to_fm(matrix_pVp,matrix_aux,error)
+    CALL cp_fm_to_fm(matrix_pVp,matrix_aux)
     CALL cp_fm_column_scale(matrix_aux,aa)
     CALL cp_fm_column_scale(matrix_aux,rr)
-    CALL cp_fm_transpose(matrix_aux,matrix_aux2,error)
+    CALL cp_fm_transpose(matrix_aux,matrix_aux2)
     CALL cp_fm_column_scale(matrix_aux2,aa)
     CALL cp_fm_column_scale(matrix_aux2,rr)
 
-    CALL cp_fm_scale_and_add(1.0_dp,matrix_ev1,1.0_dp,matrix_aux2,error)
+    CALL cp_fm_scale_and_add(1.0_dp,matrix_ev1,1.0_dp,matrix_aux2)
 
     RETURN
   END SUBROUTINE even1
@@ -429,16 +424,14 @@ CONTAINS
 !> \param aa A-factors (diagonal)
 !> \param rr R-factors (diagonal)
 !> \param tt ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE peven1p(n,matrix_pe1p,matrix_v,matrix_pvp,matrix_aux,matrix_aux2,aa,rr,tt,error)
+  SUBROUTINE peven1p(n,matrix_pe1p,matrix_v,matrix_pvp,matrix_aux,matrix_aux2,aa,rr,tt)
 
     INTEGER, INTENT(IN)                      :: n
     TYPE(cp_fm_type), POINTER                :: matrix_pe1p, matrix_v, &
                                                 matrix_pvp, matrix_aux, &
                                                 matrix_aux2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: aa, rr, tt
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: row_indices
@@ -452,39 +445,38 @@ CONTAINS
        vec_arrt(i)=vec_ar(i)*rr(i)*tt(i)
     END DO
 
-    CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context, error = error)
+    CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context)
     CALL cp_fm_struct_create( fmstruct = vec_full,&
          context = context,&
          nrow_global = n,&
-         ncol_global = 1,&
-         error = error)
+         ncol_global = 1)
 
     NULLIFY(vec_a)
-    CALL cp_fm_create(vec_a,     vec_full, error=error)
+    CALL cp_fm_create(vec_a,     vec_full)
 
     CALL cp_fm_get_info(matrix_v, nrow_local=nrow_local, &
-         row_indices=row_indices,error=error)
+         row_indices=row_indices)
 
     DO i=1,nrow_local
        vec_a%local_data(i,1) = vec_arrt(row_indices(i))
     END DO
 
-    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux,error)
-    CALL cp_fm_upper_to_full(matrix_aux,matrix_aux2,error)
-    CALL cp_fm_schur_product(matrix_v,matrix_aux,matrix_pe1p,error)
+    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux)
+    CALL cp_fm_upper_to_full(matrix_aux,matrix_aux2)
+    CALL cp_fm_schur_product(matrix_v,matrix_aux,matrix_pe1p)
 
     DO i=1,nrow_local
        vec_a%local_data(i,1) = vec_ar(row_indices(i))
     END DO
 
-    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux,error)
-    CALL cp_fm_upper_to_full(matrix_aux,matrix_aux2,error)
-    CALL cp_fm_schur_product(matrix_pvp,matrix_aux,matrix_aux2,error)
+    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux)
+    CALL cp_fm_upper_to_full(matrix_aux,matrix_aux2)
+    CALL cp_fm_schur_product(matrix_pvp,matrix_aux,matrix_aux2)
 
-    CALL cp_fm_scale_and_add(4.0_dp,matrix_pe1p,1.0_dp,matrix_aux2,error)
+    CALL cp_fm_scale_and_add(4.0_dp,matrix_pe1p,1.0_dp,matrix_aux2)
 
-    CALL cp_fm_release(vec_a,error=error)
-    CALL cp_fm_struct_release(vec_full,error=error)
+    CALL cp_fm_release(vec_a)
+    CALL cp_fm_struct_release(vec_full)
 
     RETURN
   END SUBROUTINE peven1p
@@ -502,9 +494,8 @@ CONTAINS
 !> \param tt Nonrel. kinetic Energy (DIAGONAL)   
 !> \param e Rel. Energy = SQRT(p^2*c^2 + c^4)  (DIAGONAL)
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE even2c (n,matrix_ev2,matrix_v,matrix_pVp,aa,rr,tt,e,matrix_aux,error)
+  SUBROUTINE even2c (n,matrix_ev2,matrix_v,matrix_pVp,aa,rr,tt,e,matrix_aux)
 
     !***********************************************************************
     !                                                                      *
@@ -527,7 +518,6 @@ CONTAINS
                                                 matrix_pVp
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: aa, rr, tt, e
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: matrix_full
@@ -540,12 +530,11 @@ CONTAINS
 !     1.   General Structures and Patterns for DKH2
 !-----------------------------------------------------------------------
 
-    CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context, error = error)
+    CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context)
     CALL cp_fm_struct_create( fmstruct = matrix_full,&
          context = context,&
          nrow_global = n,&
-         ncol_global = n,&
-         error = error)
+         ncol_global = n)
 
     NULLIFY(matrix_aux2)
     NULLIFY(matrix_ava)
@@ -553,68 +542,68 @@ CONTAINS
     NULLIFY(matrix_apVpa)
     NULLIFY(matrix_apVVpa)
 
-    CALL cp_fm_create(matrix_aux2,    matrix_full, error=error)
-    CALL cp_fm_create(matrix_ava,     matrix_full, error=error)
-    CALL cp_fm_create(matrix_avva,    matrix_full, error=error)
-    CALL cp_fm_create(matrix_apVpa,   matrix_full, error=error)
-    CALL cp_fm_create(matrix_apVVpa,  matrix_full, error=error)
+    CALL cp_fm_create(matrix_aux2,    matrix_full)
+    CALL cp_fm_create(matrix_ava,     matrix_full)
+    CALL cp_fm_create(matrix_avva,    matrix_full)
+    CALL cp_fm_create(matrix_apVpa,   matrix_full)
+    CALL cp_fm_create(matrix_apVVpa,  matrix_full)
 
-    CALL cp_fm_to_fm(matrix_v,matrix_ava,error)
-    CALL cp_fm_to_fm(matrix_v,matrix_avva,error)
-    CALL cp_fm_to_fm(matrix_pVp,matrix_apVpa,error)
-    CALL cp_fm_to_fm(matrix_pVp,matrix_apVVpa,error)
+    CALL cp_fm_to_fm(matrix_v,matrix_ava)
+    CALL cp_fm_to_fm(matrix_v,matrix_avva)
+    CALL cp_fm_to_fm(matrix_pVp,matrix_apVpa)
+    CALL cp_fm_to_fm(matrix_pVp,matrix_apVVpa)
 
     !  Calculate  v = A V A:
 
-    CALL mat_axa(matrix_v,matrix_ava,n,aa,matrix_aux,error)
+    CALL mat_axa(matrix_v,matrix_ava,n,aa,matrix_aux)
 
     !  Calculate  pvp = A P V P A:
 
-    CALL mat_arxra(matrix_pVp,matrix_apVpa,n,aa,rr,matrix_aux,error)
+    CALL mat_arxra(matrix_pVp,matrix_apVpa,n,aa,rr,matrix_aux)
 
     !  Calculate  vh = A V~ A:
 
-    CALL mat_1_over_h(matrix_v,matrix_avva,e,matrix_aux,error)
-    CALL cp_fm_to_fm(matrix_avva,matrix_aux2,error)
-    CALL mat_axa(matrix_aux2,matrix_avva,n,aa,matrix_aux,error)
+    CALL mat_1_over_h(matrix_v,matrix_avva,e,matrix_aux)
+    CALL cp_fm_to_fm(matrix_avva,matrix_aux2)
+    CALL mat_axa(matrix_aux2,matrix_avva,n,aa,matrix_aux)
 
     !  Calculate  pvph = A P V~ P A:
 
-    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,e,matrix_aux,error)
-    CALL cp_fm_to_fm(matrix_apVVpa,matrix_aux2,error)
-    CALL mat_arxra(matrix_aux2,matrix_apVVpa,n,aa,rr,matrix_aux,error)
+    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,e,matrix_aux)
+    CALL cp_fm_to_fm(matrix_apVVpa,matrix_aux2)
+    CALL mat_arxra(matrix_aux2,matrix_apVVpa,n,aa,rr,matrix_aux)
 
     !  Calculate w1o1:
 
-    CALL cp_gemm("N","N",n,n,n,-1.0_dp,matrix_apVVpa,matrix_ava,0.0_dp,matrix_aux2,error)
-    CALL mat_muld(matrix_aux2,matrix_apVVpa,matrix_apVpa,n,  1.0_dp,1.0_dp,tt,rr,matrix_aux,error)
-    CALL mat_mulm(matrix_aux2,matrix_avva,  matrix_ava,n,    1.0_dp,1.0_dp,tt,rr,matrix_aux,error)
-    CALL cp_gemm("N","N",n,n,n,-1.0_dp,matrix_avva,matrix_apVpa,1.0_dp,matrix_aux2,error)
+    CALL cp_gemm("N","N",n,n,n,-1.0_dp,matrix_apVVpa,matrix_ava,0.0_dp,matrix_aux2)
+    CALL mat_muld(matrix_aux2,matrix_apVVpa,matrix_apVpa,n,  1.0_dp,1.0_dp,tt,rr,matrix_aux)
+    CALL mat_mulm(matrix_aux2,matrix_avva,  matrix_ava,n,    1.0_dp,1.0_dp,tt,rr,matrix_aux)
+    CALL cp_gemm("N","N",n,n,n,-1.0_dp,matrix_avva,matrix_apVpa,1.0_dp,matrix_aux2)
 
     !  Calculate o1w1 (already stored in ev2):
 
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_apVpa,matrix_avva,0.0_dp,matrix_ev2,error)
-    CALL mat_muld(matrix_ev2,matrix_apVpa,matrix_apVVpa,n,  -1.0_dp,1.0_dp,tt,rr,matrix_aux,error)
-    CALL mat_mulm(matrix_ev2,matrix_ava,  matrix_avva,n,    -1.0_dp,1.0_dp,tt,rr,matrix_aux,error)
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_ava,matrix_apVVpa,1.0_dp,matrix_ev2,error)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_apVpa,matrix_avva,0.0_dp,matrix_ev2)
+    CALL mat_muld(matrix_ev2,matrix_apVpa,matrix_apVVpa,n,  -1.0_dp,1.0_dp,tt,rr,matrix_aux)
+    CALL mat_mulm(matrix_ev2,matrix_ava,  matrix_avva,n,    -1.0_dp,1.0_dp,tt,rr,matrix_aux)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_ava,matrix_apVVpa,1.0_dp,matrix_ev2)
 
     !-----------------------------------------------------------------------
     !     2.   1/2 [W1,O1] = 1/2 W1O1 -  1/2 O1W1
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_scale_and_add(-0.5_dp,matrix_ev2,0.5_dp,matrix_aux2,error)
+    CALL cp_fm_scale_and_add(-0.5_dp,matrix_ev2,0.5_dp,matrix_aux2)
 
     !-----------------------------------------------------------------------
     !     3.   Finish up the stuff!!
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_release(matrix_aux2,   error=error)
-    CALL cp_fm_release(matrix_ava,    error=error)
-    CALL cp_fm_release(matrix_avva,   error=error)
-    CALL cp_fm_release(matrix_apVpa,  error=error)
-    CALL cp_fm_release(matrix_apVVpa, error=error)
+    CALL cp_fm_release(matrix_aux2)
+    CALL cp_fm_release(matrix_ava)
+    CALL cp_fm_release(matrix_avva)
+    CALL cp_fm_release(matrix_apVpa)
+    CALL cp_fm_release(matrix_apVVpa)
 
-    CALL cp_fm_struct_release(matrix_full, error=error)
+    CALL cp_fm_struct_release(matrix_full)
 
 !    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
 !    WRITE (*,*) "JT:  Now available in cp2k"
@@ -636,9 +625,8 @@ CONTAINS
 !> \param tt ...
 !> \param e ...
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE even3b (n,matrix_ev3,matrix_ev1,matrix_pe1p,matrix_v,matrix_pVp,aa,rr,tt,e,matrix_aux,error)
+  SUBROUTINE even3b (n,matrix_ev3,matrix_ev1,matrix_pe1p,matrix_v,matrix_pVp,aa,rr,tt,e,matrix_aux)
 
     !***********************************************************************
     !                                                                      *
@@ -684,7 +672,6 @@ CONTAINS
                                                 matrix_pVp
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: aa, rr, tt, e
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: matrix_full
@@ -696,12 +683,11 @@ CONTAINS
 !     1.   General Structures and Patterns for DKH3
 !-----------------------------------------------------------------------
 
-    CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context, error = error)
+    CALL cp_fm_struct_get(matrix_v%matrix_struct,context=context)
     CALL cp_fm_struct_create( fmstruct = matrix_full,&
          context = context,&
          nrow_global = n,&
-         ncol_global = n,&
-         error = error)
+         ncol_global = n)
 
     NULLIFY(matrix_aux2)
     NULLIFY(matrix_w1w1)
@@ -709,62 +695,62 @@ CONTAINS
     NULLIFY(matrix_avva)
     NULLIFY(matrix_apVVpa)
 
-    CALL cp_fm_create(matrix_aux2,    matrix_full, error=error)
-    CALL cp_fm_create(matrix_w1w1,    matrix_full, error=error)
-    CALL cp_fm_create(matrix_w1e1w1,  matrix_full, error=error)
-    CALL cp_fm_create(matrix_avva,    matrix_full, error=error)
-    CALL cp_fm_create(matrix_apVVpa,  matrix_full, error=error)
+    CALL cp_fm_create(matrix_aux2,    matrix_full)
+    CALL cp_fm_create(matrix_w1w1,    matrix_full)
+    CALL cp_fm_create(matrix_w1e1w1,  matrix_full)
+    CALL cp_fm_create(matrix_avva,    matrix_full)
+    CALL cp_fm_create(matrix_apVVpa,  matrix_full)
 
-    CALL cp_fm_to_fm(matrix_v,matrix_avva,error)
-    CALL cp_fm_to_fm(matrix_pVp,matrix_apVVpa,error)
+    CALL cp_fm_to_fm(matrix_v,matrix_avva)
+    CALL cp_fm_to_fm(matrix_pVp,matrix_apVVpa)
 
     !  Calculate  vh = A V~ A:
 
-    CALL mat_1_over_h(matrix_v,matrix_avva,e,matrix_aux,error)
-    CALL cp_fm_to_fm(matrix_avva,matrix_aux2,error)
-    CALL mat_axa(matrix_aux2,matrix_avva,n,aa,matrix_aux,error)
+    CALL mat_1_over_h(matrix_v,matrix_avva,e,matrix_aux)
+    CALL cp_fm_to_fm(matrix_avva,matrix_aux2)
+    CALL mat_axa(matrix_aux2,matrix_avva,n,aa,matrix_aux)
 
     !  Calculate  pvph = A P V~ P A:
 
-    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,e,matrix_aux,error)
-    CALL cp_fm_to_fm(matrix_apVVpa,matrix_aux2,error)
-    CALL mat_arxra(matrix_aux2,matrix_apVVpa,n,aa,rr,matrix_aux,error)
+    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,e,matrix_aux)
+    CALL cp_fm_to_fm(matrix_apVVpa,matrix_aux2)
+    CALL mat_arxra(matrix_aux2,matrix_apVVpa,n,aa,rr,matrix_aux)
 
     !  Calculate w1w1:
 
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_apVVpa,matrix_avva,0.0_dp,matrix_w1w1,error)
-    CALL mat_muld(matrix_w1w1,matrix_apVVpa,matrix_apVVpa,n,  -1.0_dp,1.0_dp,tt,rr,matrix_aux2,error)
-    CALL mat_mulm(matrix_w1w1,matrix_avva,  matrix_avva,n,    -1.0_dp,1.0_dp,tt,rr,matrix_aux2,error)
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_avva,matrix_apVVpa,1.0_dp,matrix_w1w1,error)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_apVVpa,matrix_avva,0.0_dp,matrix_w1w1)
+    CALL mat_muld(matrix_w1w1,matrix_apVVpa,matrix_apVVpa,n,  -1.0_dp,1.0_dp,tt,rr,matrix_aux2)
+    CALL mat_mulm(matrix_w1w1,matrix_avva,  matrix_avva,n,    -1.0_dp,1.0_dp,tt,rr,matrix_aux2)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_avva,matrix_apVVpa,1.0_dp,matrix_w1w1)
 
     !  Calculate w1e1w1: (warning: ev3 is scratch array)
 
-    CALL mat_muld(matrix_aux,matrix_apVVpa,matrix_pe1p,n,  1.0_dp,0.0_dp,tt,rr,matrix_aux2,error)
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_avva,matrix_pe1p,0.0_dp,matrix_aux2,error)
-    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_avva,0.0_dp,matrix_w1e1w1,error)
-    CALL mat_muld(matrix_w1e1w1,matrix_aux,matrix_apVVpa,n,  -1.0_dp,1.0_dp,tt,rr,matrix_ev3,error)
-    CALL cp_gemm("N","N",n,n,n,-1.0_dp,matrix_aux2,matrix_avva,1.0_dp,matrix_w1e1w1,error)
-    CALL mat_muld(matrix_w1e1w1,matrix_aux2,matrix_apVVpa,n,  1.0_dp,1.0_dp,tt,rr,matrix_ev3,error)
+    CALL mat_muld(matrix_aux,matrix_apVVpa,matrix_pe1p,n,  1.0_dp,0.0_dp,tt,rr,matrix_aux2)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_avva,matrix_pe1p,0.0_dp,matrix_aux2)
+    CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_avva,0.0_dp,matrix_w1e1w1)
+    CALL mat_muld(matrix_w1e1w1,matrix_aux,matrix_apVVpa,n,  -1.0_dp,1.0_dp,tt,rr,matrix_ev3)
+    CALL cp_gemm("N","N",n,n,n,-1.0_dp,matrix_aux2,matrix_avva,1.0_dp,matrix_w1e1w1)
+    CALL mat_muld(matrix_w1e1w1,matrix_aux2,matrix_apVVpa,n,  1.0_dp,1.0_dp,tt,rr,matrix_ev3)
 
     !-----------------------------------------------------------------------
     !     2.   ev3 = 1/2 (W1^2)E1 + 1/2 E1(W1^2) - W1E1W1
     !-----------------------------------------------------------------------
 
-    CALL cp_gemm("N","N",n,n,n,0.5_dp,matrix_w1w1,matrix_ev1,0.0_dp,matrix_ev3,error)
-    CALL cp_gemm("N","N",n,n,n,0.5_dp,matrix_ev1,matrix_w1w1,1.0_dp,matrix_ev3,error)
-    CALL cp_fm_scale_and_add(1.0_dp,matrix_ev3,-1.0_dp,matrix_w1e1w1,error)
+    CALL cp_gemm("N","N",n,n,n,0.5_dp,matrix_w1w1,matrix_ev1,0.0_dp,matrix_ev3)
+    CALL cp_gemm("N","N",n,n,n,0.5_dp,matrix_ev1,matrix_w1w1,1.0_dp,matrix_ev3)
+    CALL cp_fm_scale_and_add(1.0_dp,matrix_ev3,-1.0_dp,matrix_w1e1w1)
 
     !-----------------------------------------------------------------------
     !     3.   Finish up the stuff!!
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_release(matrix_aux2,   error=error)
-    CALL cp_fm_release(matrix_avva,   error=error)
-    CALL cp_fm_release(matrix_apVVpa, error=error)
-    CALL cp_fm_release(matrix_w1w1,   error=error)
-    CALL cp_fm_release(matrix_w1e1w1, error=error)
+    CALL cp_fm_release(matrix_aux2)
+    CALL cp_fm_release(matrix_avva)
+    CALL cp_fm_release(matrix_apVVpa)
+    CALL cp_fm_release(matrix_w1w1)
+    CALL cp_fm_release(matrix_w1e1w1)
 
-    CALL cp_fm_struct_release(matrix_full, error=error)
+    CALL cp_fm_struct_release(matrix_full)
 
 !    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
 !    WRITE (*,*) "JT:  Now available in cp2k"
@@ -1059,9 +1045,8 @@ CONTAINS
 !> \param matrix_pp ...
 !> \param e ...
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mat_1_over_h (matrix_p,matrix_pp,e,matrix_aux,error)
+  SUBROUTINE mat_1_over_h (matrix_p,matrix_pp,e,matrix_aux)
 
     !***********************************************************************
     !                                                                      *
@@ -1075,13 +1060,12 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: matrix_p, matrix_pp
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: e
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j, ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
 
     CALL cp_fm_get_info(matrix_aux, nrow_local=nrow_local, ncol_local=ncol_local,&
-         row_indices=row_indices,col_indices=col_indices,error=error)
+         row_indices=row_indices,col_indices=col_indices)
 
     DO j=1,ncol_local
        DO i=1,nrow_local
@@ -1090,7 +1074,7 @@ CONTAINS
     ENDDO
 
 
-    CALL cp_fm_schur_product(matrix_p,matrix_aux,matrix_pp,error)
+    CALL cp_fm_schur_product(matrix_p,matrix_aux,matrix_pp)
 
     RETURN
 
@@ -1106,9 +1090,8 @@ CONTAINS
 !> \param n ...
 !> \param a ...
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mat_axa (matrix_x,matrix_axa,n,a,matrix_aux,error)
+  SUBROUTINE mat_axa (matrix_x,matrix_axa,n,a,matrix_aux)
 
     !C***********************************************************************
     !C                                                                      *
@@ -1125,7 +1108,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: row_indices
@@ -1133,26 +1115,25 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: vec_full
     TYPE(cp_fm_type), POINTER                :: vec_a
 
-    CALL cp_fm_struct_get(matrix_x%matrix_struct,context=context, error = error)
+    CALL cp_fm_struct_get(matrix_x%matrix_struct,context=context)
     CALL cp_fm_struct_create( fmstruct = vec_full,&
          context = context,&
          nrow_global = n,&
-         ncol_global = 1,&
-         error = error)
+         ncol_global = 1)
 
     NULLIFY(vec_a)
-    CALL cp_fm_create(vec_a,     vec_full, error=error)
+    CALL cp_fm_create(vec_a,     vec_full)
 
     CALL cp_fm_get_info(matrix_x, nrow_local=nrow_local, &
-         row_indices=row_indices,error=error)
+         row_indices=row_indices)
 
     DO i=1,nrow_local
        vec_a%local_data(i,1) = a(row_indices(i))
     END DO
 
-    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux,error)
-    CALL cp_fm_upper_to_full(matrix_aux,matrix_axa,error)
-    CALL cp_fm_schur_product(matrix_x,matrix_aux,matrix_axa,error)
+    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux)
+    CALL cp_fm_upper_to_full(matrix_aux,matrix_axa)
+    CALL cp_fm_schur_product(matrix_x,matrix_aux,matrix_axa)
 
     !     DO i=1,n
     !       DO j=1,n
@@ -1161,8 +1142,8 @@ CONTAINS
     !     ENDDO
 
 
-    CALL cp_fm_release(vec_a,error)
-    CALL cp_fm_struct_release(vec_full,error)
+    CALL cp_fm_release(vec_a)
+    CALL cp_fm_struct_release(vec_full)
 
     RETURN
   END SUBROUTINE mat_axa
@@ -1178,9 +1159,8 @@ CONTAINS
 !> \param a ...
 !> \param r ...
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mat_arxra (matrix_x,matrix_axa,n,a,r,matrix_aux,error)
+  SUBROUTINE mat_arxra (matrix_x,matrix_axa,n,a,r,matrix_aux)
 
     !C***********************************************************************
     !C                                                                      *
@@ -1198,7 +1178,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, r
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: row_indices
@@ -1206,31 +1185,30 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: vec_full
     TYPE(cp_fm_type), POINTER                :: vec_a
 
-    CALL cp_fm_struct_get(matrix_x%matrix_struct,context=context, error = error)
+    CALL cp_fm_struct_get(matrix_x%matrix_struct,context=context)
     CALL cp_fm_struct_create( fmstruct = vec_full,&
          context = context,&
          nrow_global = n,&
-         ncol_global = 1,&
-         error = error)
+         ncol_global = 1)
 
     CALL cp_fm_get_info(matrix_aux, nrow_local=nrow_local, &
-         row_indices=row_indices,error=error)
+         row_indices=row_indices)
 
 
     NULLIFY(vec_a)
-    CALL cp_fm_create(vec_a,     vec_full, error=error)
+    CALL cp_fm_create(vec_a,     vec_full)
 
     DO i=1,nrow_local
        vec_a%local_data(i,1) = a(row_indices(i))*r(row_indices(i))
     END DO
 
-    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux,error)
-    CALL cp_fm_upper_to_full(matrix_aux,matrix_axa,error)
-    CALL cp_fm_schur_product(matrix_x,matrix_aux,matrix_axa,error)
+    CALL cp_fm_syrk('U','N',1,1.0_dp,vec_a,1,1,0.0_dp,matrix_aux)
+    CALL cp_fm_upper_to_full(matrix_aux,matrix_axa)
+    CALL cp_fm_schur_product(matrix_x,matrix_aux,matrix_axa)
 
 
-    CALL cp_fm_release(vec_a,error)
-    CALL cp_fm_struct_release(vec_full,error)
+    CALL cp_fm_release(vec_a)
+    CALL cp_fm_struct_release(vec_full)
 
     RETURN
   END SUBROUTINE mat_arxra
@@ -1249,9 +1227,8 @@ CONTAINS
 !> \param t ...
 !> \param rr ...
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mat_mulm (matrix_p,matrix_q,matrix_r,n,alpha,beta,t,rr,matrix_aux,error)
+  SUBROUTINE mat_mulm (matrix_p,matrix_q,matrix_r,n,alpha,beta,t,rr,matrix_aux)
 
     !C***********************************************************************
     !C                                                                      *
@@ -1276,19 +1253,18 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha, beta
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: t, rr
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
     REAL(KIND=dp), DIMENSION(n)              :: vec
 
-    CALL cp_fm_to_fm(matrix_q,matrix_aux,error)
+    CALL cp_fm_to_fm(matrix_q,matrix_aux)
 
     DO i=1,n
        vec(i)=2.0_dp*t(i)*rr(i)*rr(i)
     END DO
     CALL cp_fm_column_scale(matrix_aux,vec)
 
-    CALL cp_gemm("N","N",n,n,n,alpha,matrix_aux,matrix_r,beta,matrix_p,error)
+    CALL cp_gemm("N","N",n,n,n,alpha,matrix_aux,matrix_r,beta,matrix_p)
     RETURN
 
   END SUBROUTINE mat_mulm
@@ -1307,9 +1283,8 @@ CONTAINS
 !> \param t ...
 !> \param rr ...
 !> \param matrix_aux ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mat_muld (matrix_p,matrix_q,matrix_r,n,alpha,beta,t,rr,matrix_aux,error)
+  SUBROUTINE mat_muld (matrix_p,matrix_q,matrix_r,n,alpha,beta,t,rr,matrix_aux)
 
     !C***********************************************************************
     !C                                                                      *
@@ -1334,12 +1309,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha, beta
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: t, rr
     TYPE(cp_fm_type), POINTER                :: matrix_aux
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
     REAL(KIND=dp), DIMENSION(n)              :: vec
 
-    CALL cp_fm_to_fm(matrix_q,matrix_aux,error)
+    CALL cp_fm_to_fm(matrix_q,matrix_aux)
 
     DO i=1,n
        vec(i)=0.5_dp/(t(i)*rr(i)*rr(i))
@@ -1347,7 +1321,7 @@ CONTAINS
 
     CALL cp_fm_column_scale(matrix_aux,vec)
 
-    CALL cp_gemm("N","N",n,n,n,alpha,matrix_aux,matrix_r,beta,matrix_p,error)
+    CALL cp_gemm("N","N",n,n,n,alpha,matrix_aux,matrix_r,beta,matrix_p)
 
     RETURN
 

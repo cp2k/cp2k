@@ -38,7 +38,6 @@ MODULE swarm_worker
    PRIVATE
    INTEGER                                  :: id = -1
    INTEGER                                  :: iw = -1
-   TYPE(cp_error_type)                      :: error
    INTEGER                                  :: behavior = -1
    TYPE(glbopt_worker_type), POINTER        :: glbopt => Null()
    !possbily more behaviors...
@@ -56,36 +55,33 @@ MODULE swarm_worker
 !> \param root_section ...
 !> \param input_path ...
 !> \param worker_id ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_worker_init(worker, para_env, input_declaration, root_section,&
-                 input_path, worker_id, error)
+                 input_path, worker_id)
     TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     INTEGER, INTENT(in)                      :: worker_id
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
-    worker%error = error
     worker%id = worker_id
 
     ! getting an output unit for logging
-    logger => cp_error_get_logger(worker%error)
+    logger => cp_get_default_logger()
     worker%iw = cp_print_key_unit_nr(logger,root_section,&
-          "SWARM%PRINT%WORKER_RUN_INFO",extension=".workerLog", error=worker%error)
+          "SWARM%PRINT%WORKER_RUN_INFO",extension=".workerLog")
 
-    CALL section_vals_val_get(root_section,"SWARM%BEHAVIOR", i_val=worker%behavior, error=error)
+    CALL section_vals_val_get(root_section,"SWARM%BEHAVIOR", i_val=worker%behavior)
 
     SELECT CASE(worker%behavior)
       CASE(swarm_do_glbopt)
          ALLOCATE(worker%glbopt)
          CALL glbopt_worker_init(worker%glbopt, input_declaration, para_env,&
-                      root_section, input_path, worker_id, worker%iw, error)
+                      root_section, input_path, worker_id, worker%iw)
       CASE DEFAULT
          STOP "swarm_worker_init: got unknown behavior"
     END SELECT

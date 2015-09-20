@@ -10,7 +10,7 @@
 ! *****************************************************************************
 INTERFACE
   SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
-       particle_set, local_particles, iw, debug_r_space, error )
+       particle_set, local_particles, iw, debug_r_space)
     USE cell_types,                      ONLY: cell_type
     USE distribution_1d_types,           ONLY: distribution_1d_type
     USE ewald_environment_types,         ONLY: ewald_environment_type
@@ -27,7 +27,6 @@ INTERFACE
     TYPE(distribution_1d_type), POINTER      :: local_particles
     INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN)                      :: debug_r_space
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
   END SUBROUTINE debug_ewald_multipoles
 END INTERFACE
@@ -35,7 +34,7 @@ END INTERFACE
 INTERFACE
   SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,&
        particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw,&
-       atomic_kind_set, force_env_section, error)
+       atomic_kind_set, force_env_section)
     USE atomic_kind_types,               ONLY: atomic_kind_type
     USE cell_types,                      ONLY: cell_type
     USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -62,15 +61,13 @@ INTERFACE
     INTEGER, INTENT(IN)                      :: iw
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
   END SUBROUTINE debug_ewald_multipoles_fields
 END INTERFACE
 
 INTERFACE
   SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell,&
-       particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw,&
-       error)
+       particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw)
     USE cell_types,                      ONLY: cell_type
     USE distribution_1d_types,           ONLY: distribution_1d_type
     USE ewald_environment_types,         ONLY: ewald_environment_type
@@ -93,7 +90,6 @@ INTERFACE
          POINTER, OPTIONAL                   :: quadrupoles
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
   END SUBROUTINE debug_ewald_multipoles_fields2
 END INTERFACE

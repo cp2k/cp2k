@@ -180,11 +180,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocate semi-empirical type
 !> \param sep ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_create(sep, error)
+  SUBROUTINE semi_empirical_create(sep)
     TYPE(semi_empirical_type), POINTER       :: sep
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create', &
       routineP = moduleN//':'//routineN
@@ -193,32 +191,30 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(sep),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(sep),cp_failure_level,routineP,failure)
     ALLOCATE (sep,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (sep%beta(0:3),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (sep%sto_exponents(0:3),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (sep%zn(0:3),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY(sep%basis)
     NULLIFY(sep%w)
     NULLIFY(sep%w_mpole)
     NULLIFY(sep%expns3_int)
-    CALL zero_se_param(sep,error)
+    CALL zero_se_param(sep)
 
   END SUBROUTINE semi_empirical_create
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical type
 !> \param sep ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_release(sep, error)
+  SUBROUTINE semi_empirical_release(sep)
 
     TYPE(semi_empirical_type), POINTER       :: sep
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
       routineP = moduleN//':'//routineN
@@ -228,33 +224,33 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
-       CALL deallocate_sto_basis_set(sep%basis, error)
-       CALL semi_empirical_mpole_p_release(sep%w_mpole, error)
+       CALL deallocate_sto_basis_set(sep%basis)
+       CALL semi_empirical_mpole_p_release(sep%w_mpole)
        IF (ASSOCIATED(sep%beta)) THEN
           DEALLOCATE (sep%beta,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sep%sto_exponents)) THEN
           DEALLOCATE (sep%sto_exponents,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sep%zn)) THEN
           DEALLOCATE (sep%zn,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sep%w)) THEN
           DEALLOCATE (sep%w,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(sep%expns3_int)) THEN
           DO i = 1, SIZE(sep%expns3_int)
-             CALL semi_empirical_expns3_release(sep%expns3_int(i)%expns3,error)
+             CALL semi_empirical_expns3_release(sep%expns3_int(i)%expns3)
           END DO
           DEALLOCATE (sep%expns3_int,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE (sep,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE semi_empirical_release
@@ -262,11 +258,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Zero the whole semi-empirical type
 !> \param sep ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE zero_se_param(sep, error)
+  SUBROUTINE zero_se_param(sep)
     TYPE(semi_empirical_type), POINTER       :: sep
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'zero_se_param', &
       routineP = moduleN//':'//routineN
@@ -274,7 +268,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(sep),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(sep),cp_failure_level,routineP,failure)
     sep%defined            = .FALSE.
     sep%dorb               = .FALSE.
     sep%extended_basis_set = .FALSE.
@@ -560,11 +554,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates rotmat type
 !> \param rotmat ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rotmat_create(rotmat, error)
+  SUBROUTINE rotmat_create(rotmat)
     TYPE(rotmat_type), POINTER               :: rotmat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_create', &
       routineP = moduleN//':'//routineN
@@ -573,20 +565,18 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(rotmat),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(rotmat),cp_failure_level,routineP,failure)
     ALLOCATE (rotmat,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE rotmat_create
 
 ! *****************************************************************************
 !> \brief Releases rotmat type
 !> \param rotmat ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rotmat_release(rotmat, error)
+  SUBROUTINE rotmat_release(rotmat)
     TYPE(rotmat_type), POINTER               :: rotmat
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_release', &
       routineP = moduleN//':'//routineN
@@ -597,7 +587,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(rotmat)) THEN
        DEALLOCATE (rotmat,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE rotmat_release
@@ -656,12 +646,11 @@ CONTAINS
 !> \param range_scr ...
 !> \param taper_lrc ...
 !> \param range_lrc ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE se_taper_create(se_taper, integral_screening, do_ewald, &
        taper_cou, range_cou, taper_exc, range_exc, taper_scr, range_scr,&
-       taper_lrc, range_lrc, error)
+       taper_lrc, range_lrc)
     TYPE(se_taper_type), POINTER             :: se_taper
     INTEGER, INTENT(IN)                      :: integral_screening
     LOGICAL, INTENT(IN)                      :: do_ewald
@@ -669,7 +658,6 @@ CONTAINS
                                                 taper_exc, range_exc, &
                                                 taper_scr, range_scr, &
                                                 taper_lrc, range_lrc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_create', &
       routineP = moduleN//':'//routineN
@@ -678,34 +666,32 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(se_taper),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(se_taper),cp_failure_level,routineP,failure)
     ALLOCATE(se_taper, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY(se_taper%taper)
     NULLIFY(se_taper%taper_cou)
     NULLIFY(se_taper%taper_exc)
     NULLIFY(se_taper%taper_lrc)
     NULLIFY(se_taper%taper_add)
     ! Create the sub-typo taper
-    CALL taper_create(se_taper%taper_cou, taper_cou, range_cou, error)
-    CALL taper_create(se_taper%taper_exc, taper_exc, range_exc, error)
+    CALL taper_create(se_taper%taper_cou, taper_cou, range_cou)
+    CALL taper_create(se_taper%taper_exc, taper_exc, range_exc)
     IF (integral_screening==do_se_IS_kdso_d) THEN
-       CALL taper_create(se_taper%taper_add, taper_scr, range_scr, error)
+       CALL taper_create(se_taper%taper_add, taper_scr, range_scr)
     END IF
     IF ((integral_screening/=do_se_IS_slater).AND.do_ewald) THEN
-       CALL taper_create(se_taper%taper_lrc, taper_lrc, range_lrc, error)
+       CALL taper_create(se_taper%taper_lrc, taper_lrc, range_lrc)
     END IF
   END SUBROUTINE se_taper_create
 
 ! *****************************************************************************
 !> \brief Releases the taper type used in SE calculations
 !> \param se_taper ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
-  SUBROUTINE se_taper_release(se_taper, error)
+  SUBROUTINE se_taper_release(se_taper)
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_release', &
       routineP = moduleN//':'//routineN
@@ -715,13 +701,13 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(se_taper)) THEN
-       CALL taper_release(se_taper%taper_cou, error=error)
-       CALL taper_release(se_taper%taper_exc, error=error)
-       CALL taper_release(se_taper%taper_lrc, error=error)
-       CALL taper_release(se_taper%taper_add, error=error)
+       CALL taper_release(se_taper%taper_cou)
+       CALL taper_release(se_taper%taper_exc)
+       CALL taper_release(se_taper%taper_lrc)
+       CALL taper_release(se_taper%taper_add)
 
        DEALLOCATE(se_taper, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE se_taper_release
 
@@ -729,16 +715,14 @@ CONTAINS
 !> \brief Writes the semi-empirical type
 !> \param sep ...
 !> \param subsys_section ...
-!> \param error ...
 !> \par History
 !>        04.2008 Teodoro Laino [tlaino] - University of Zurich: rewriting with
 !>                support for the whole set of parameters
 ! *****************************************************************************
-  SUBROUTINE write_se_param(sep, subsys_section, error)
+  SUBROUTINE write_se_param(sep, subsys_section)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_se_param', &
       routineP = moduleN//':'//routineN
@@ -767,12 +751,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (ASSOCIATED(sep).AND.BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
-         "PRINT%KINDS/SE_PARAMETERS",error=error),cp_p_file)) THEN
+         "PRINT%KINDS/SE_PARAMETERS"),cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS/SE_PARAMETERS",&
-            extension=".Log",error=error)
+            extension=".Log")
 
        IF (output_unit >0) THEN
           CALL get_se_param(sep,name=name,typ=typ,defined=defined,&
@@ -1007,7 +991,7 @@ CONTAINS
           END SELECT
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-            "PRINT%KINDS/SE_PARAMETERS",error=error)
+            "PRINT%KINDS/SE_PARAMETERS")
     END IF
   END SUBROUTINE write_se_param
 

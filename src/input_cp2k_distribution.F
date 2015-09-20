@@ -36,13 +36,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the distribution section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE create_distribution_section(section,error)
+  SUBROUTINE create_distribution_section(section)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_distribution_section', &
       routineP = moduleN//':'//routineN
@@ -52,11 +49,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
     CALL section_create(section,name="DISTRIBUTION",&
          description="can be used used to tune the parallel distribution of the data",&
-         n_keywords=2, n_subsections=2, repeats=.FALSE., &
-         error=error)
+         n_keywords=2, n_subsections=2, repeats=.FALSE.)
 
     NULLIFY(keyword)
 
@@ -68,56 +64,56 @@ CONTAINS
          enum_desc=s2a("the number of blocks",&
                        "the number of blocks weighted by the number elements per block",&
                        "the number of blocks weighted by the sum of the lmax"), &
-         default_i_val=model_block_count,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_i_val=model_block_count)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="2D_MOLECULAR_DISTRIBUTION",&
          description="Distribute the atoms so that atoms belonging to a given molecule"//&
                      " are on the same CPU for the 2D distribution. This might give rise to a"//&
                      " worse distribution but reduces memory needs of finding the optimal distribution.",&
          usage="2D_MOLECULAR_DISTRIBUTION TRUE",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="SKIP_OPTIMIZATION",&
          description="Do not optimize the distribution, go for something very simple."//&
                      " Might be useful if the optimization, which scales quadratically in system size, is too expensive.",&
          usage="SKIP_OPTIMIZATION TRUE",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="BASIC_OPTIMIZATION",&
          description="Creates a distribution based on a few heuristics using only minimal memory "//&
                      "and CPU time.",&
          usage="BASIC_OPTIMIZATION TRUE",&
-         default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="BASIC_SPATIAL_OPTIMIZATION",&
          description="Creates a distribution with spatial info, using only minimal memory "//&
                      "and CPU time.",&
          usage="BASIC_SPATIAL_OPTIMIZATION TRUE",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="BASIC_CLUSTER_OPTIMIZATION",&
          description="Creates a distribution with spatial info, using recursively KMEANS clustering. ",&
          usage="BASIC_CLUSTER_OPTIMIZATION TRUE",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="SYMMETRIC",&
          description="Take the symmetry of the distribution_2d into account.",&
          usage="SYMMETRIC TRUE",&
-         default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
   END SUBROUTINE create_distribution_section
 

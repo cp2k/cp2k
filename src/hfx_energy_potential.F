@@ -123,8 +123,6 @@ MODULE hfx_energy_potential
 !>        new fock matrix or not
 !> \param ispin ...
 !> \param do_exx ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -134,7 +132,7 @@ MODULE hfx_energy_potential
 ! *****************************************************************************
   SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho_ao,hfx_section,para_env,&
                                    geometry_did_change,irep,distribute_fock_matrix,&
-                                   ispin,do_exx,error)
+                                   ispin,do_exx)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -149,7 +147,6 @@ MODULE hfx_energy_potential
     LOGICAL, INTENT(IN)                      :: distribute_fock_matrix
     INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, OPTIONAL                        :: do_exx
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
       routineP = moduleN//':'//routineN
@@ -289,7 +286,7 @@ MODULE hfx_energy_potential
     ! ** This is not very clean, but effective. ispin can only be 2 if we do the beta spin part in core
     IF( ispin == 2 ) geometry_did_change = .FALSE.
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1,1)%matrix).EQ.dbcsr_type_antisymmetric
 
@@ -297,25 +294,25 @@ MODULE hfx_energy_potential
       CALL m_memory(memsize_before)
       CALL mp_max(memsize_before, para_env%group)
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-                                extension=".scfLog",error=error)
+                                extension=".scfLog")
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I21))")&
               "HFX_MEM_INFO| Est. max. program size before HFX [MiB]:", memsize_before/(1024*1024)
         CALL m_flush(iw)
       END IF
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                       "HF_INFO", error=error)
+                                       "HF_INFO")
     END IF
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
-                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, error=error)
+                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
 
     NULLIFY(cell_to_index)
-    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints,error=error)
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints)
     IF (do_kpoints) THEN
-       CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
-       CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
-       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+       CALL get_qs_env(qs_env=qs_env,ks_env=ks_env)
+       CALL get_ks_env(ks_env=ks_env,kpoints=kpoints)
+       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
     END IF
 
     my_do_exx=.FALSE.
@@ -375,7 +372,6 @@ MODULE hfx_energy_potential
 !$OMP                                  irep,&
 !$OMP                                  distribute_fock_matrix,&
 !$OMP                                  cell_to_index,&
-!$OMP                                  error,&
 !$OMP                                  ncoset,&
 !$OMP                                  nso,&
 !$OMP                                  nco,&
@@ -463,8 +459,7 @@ MODULE hfx_energy_potential
       ! ** Rebuild neighbor lists in case the cell has changed (i.e. NPT MD)
       actual_x_data%periodic_parameter%number_of_shells = actual_x_data%periodic_parameter%mode
       CALL hfx_create_neighbor_cells(actual_x_data, actual_x_data%periodic_parameter%number_of_shells_from_input,&
-                                     cell, i_thread, &
-                                     error)
+                                     cell, i_thread)
     END IF
 
     screening_parameter    = actual_x_data%screening_parameter
@@ -507,8 +502,7 @@ MODULE hfx_energy_potential
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     natom = SIZE(particle_set,1)
 
@@ -518,16 +512,16 @@ MODULE hfx_energy_potential
     IF(nkimages == 1) THEN
       cell_loop_info%dokp = .FALSE.
     ELSE
-      CALL cp_unimplemented_error(routineP,"HFX with k-points not implemented",error)
+      CALL cp_unimplemented_error(routineP,"HFX with k-points not implemented")
       cell_loop_info%dokp = .TRUE.
       cell_loop_info%cell_to_index => cell_to_index
       ALLOCATE(cell_loop_info%index_to_cell(3,nkimages),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       CALL set_cell_info(cell_loop_info)
     END IF
 
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
@@ -548,40 +542,40 @@ MODULE hfx_energy_potential
     ENDDO
     !! Allocate the arrays for the integrals.
     ALLOCATE(primitive_integrals(nsgf_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     primitive_integrals = 0.0_dp
 
     ALLOCATE(pbd_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pbc_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pad_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pac_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(kbd_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(kbc_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(kad_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(kac_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ee_work(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ee_work2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ee_buffer1(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ee_buffer2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     max_contraction=0.0_dp
     max_pgf = 0
@@ -607,19 +601,19 @@ MODULE hfx_energy_potential
     ! ** Allocate buffers for pgf_lists
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pgf_list_kl(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(nimages(max_pgf**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO i=1,max_pgf**2
       ALLOCATE(pgf_list_ij(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pgf_list_kl(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
 !$OMP BARRIER
 !$OMP MASTER
@@ -633,8 +627,7 @@ MODULE hfx_energy_potential
                                  shm_master_x_data%set_offset,&
                                  shm_master_x_data%block_offset,&
                                  shm_master_x_data%map_atoms_to_cpus,&
-                                 nkind,&
-                                 error)
+                                 nkind)
 
       shm_is_assoc_atomic_block => shm_master_x_data%is_assoc_atomic_block
 
@@ -655,7 +648,6 @@ MODULE hfx_energy_potential
              "and EPS_FILTER_MATRIX in the QS section. "
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                        error_msg,&
-                       error,&
                        only_ionode=.TRUE.)
       END IF
     END IF
@@ -769,13 +761,13 @@ MODULE hfx_energy_potential
     ELSE
       buffer_overflow = .TRUE.
     END IF
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     private_lib = actual_x_data%lib
 
     !! Helper array to map local basis function indices to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -787,14 +779,13 @@ MODULE hfx_energy_potential
     !! Get the full density from all the processors
     NULLIFY(full_density_alpha,full_density_beta)
     ALLOCATE(full_density_alpha(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF( .NOT. treat_lsd_in_core .OR. nspins == 1 ) THEN
       CALL timeset(routineN//"_getP",handle_getP)
       DO img=1,nkimages
          CALL get_full_density(para_env, full_density_alpha(:,img), rho_ao(ispin,img)%matrix, shm_number_of_p_entries,&
                                shm_master_x_data%block_offset, &
-                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric,& 
-                               error=error)
+                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric) 
       END DO
 
       IF(nspins == 2) THEN
@@ -802,8 +793,7 @@ MODULE hfx_energy_potential
         DO img=1,nkimages
            CALL get_full_density(para_env, full_density_beta(:,img), rho_ao(2,img)%matrix, shm_number_of_p_entries,&
                                  shm_master_x_data%block_offset, &
-                                 kind_of, basis_parameter, get_max_vals_spin=.FALSE.,antisymmetric=is_anti_symmetric,&
-                                 error=error)
+                                 kind_of, basis_parameter, get_max_vals_spin=.FALSE.,antisymmetric=is_anti_symmetric)
         END DO
       END IF
       CALL timestop(handle_getP)
@@ -833,7 +823,7 @@ MODULE hfx_energy_potential
            CALL get_full_density(para_env, full_density_alpha(:,img), rho_ao(1,img)%matrix, shm_number_of_p_entries,&
                                  shm_master_x_data%block_offset, &
                                  kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
-                                 rho_beta=rho_ao(2,img)%matrix, antisymmetric=is_anti_symmetric, error=error)
+                                 rho_beta=rho_ao(2,img)%matrix, antisymmetric=is_anti_symmetric)
         END DO
         CALL timestop(handle_getP)
 
@@ -859,13 +849,13 @@ MODULE hfx_energy_potential
          CALL get_full_density(para_env, full_density_alpha(:,img), rho_ao(ispin,img)%matrix, shm_number_of_p_entries,&
                                shm_master_x_data%block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
-                               antisymmetric=is_anti_symmetric, error=error)
+                               antisymmetric=is_anti_symmetric)
       END DO
     END IF
 
     NULLIFY(full_ks_alpha, full_ks_beta)
     ALLOCATE(shm_master_x_data%full_ks_alpha(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     full_ks_alpha => shm_master_x_data%full_ks_alpha
     full_ks_alpha = 0.0_dp
 
@@ -873,7 +863,7 @@ MODULE hfx_energy_potential
     IF (.NOT. treat_lsd_in_core ) THEN
       IF(nspins==2) THEN
         ALLOCATE(shm_master_x_data%full_ks_beta(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         full_ks_beta => shm_master_x_data%full_ks_beta
         full_ks_beta = 0.0_dp
       END IF
@@ -891,14 +881,14 @@ MODULE hfx_energy_potential
     IF( .NOT. shm_master_x_data%screen_funct_is_initialized ) THEN
       CALL calc_pair_dist_radii(qs_env, basis_parameter,&
                                 shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
-                                n_threads, i_thread, error)
+                                n_threads, i_thread)
 !$OMP BARRIER
       CALL calc_screening_functions(qs_env, basis_parameter, private_lib, shm_master_x_data%potential_parameter,&
                                     shm_master_x_data%screen_funct_coeffs_set,&
                                     shm_master_x_data%screen_funct_coeffs_kind, &
                                     shm_master_x_data%screen_funct_coeffs_pgf, &
                                     shm_master_x_data%pair_dist_radii_pgf,&
-                                    max_set, max_pgf, n_threads, i_thread, p_work, error)
+                                    max_set, max_pgf, n_threads, i_thread, p_work)
 
 !$OMP MASTER
       shm_master_x_data%screen_funct_is_initialized = .TRUE.
@@ -935,13 +925,12 @@ MODULE hfx_energy_potential
                               shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
                               kind_of, basis_parameter, shm_initial_p, shm_pmax_atom, i_thread, n_threads, &
                               cell, do_p_screening, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_energy, shm_pmax_block, use_virial=.FALSE., error=error)
+                              nkind, hfx_do_eval_energy, shm_pmax_block, use_virial=.FALSE.)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data,para_env, &
                                      load_balance_parameter, &
-                                     i_thread, n_threads, hfx_do_eval_energy, &
-                                     error)
+                                     i_thread, n_threads, hfx_do_eval_energy)
       END IF
     END IF
 !$OMP BARRIER
@@ -1002,15 +991,15 @@ MODULE hfx_energy_potential
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
-        CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
-        CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+        CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
+        CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy)
 
         DO bin = 1,my_bin_size
           maxval_container => actual_x_data%maxval_container(bin)
           integral_containers => actual_x_data%integral_containers(:,bin)
-          CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
+          CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
           DO i=1,64
-            CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
+            CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE.)
           END DO
         END DO
       END IF
@@ -1038,9 +1027,9 @@ MODULE hfx_energy_potential
     IF(do_disk_storage) THEN
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
-        CALL hfx_init_container(maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+        CALL hfx_init_container(maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage)
         DO i=1,64
-          CALL hfx_init_container(integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+          CALL hfx_init_container(integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage)
         END DO
       END IF
       !! Decompress the first cache for maxvals and integrals
@@ -1065,7 +1054,7 @@ MODULE hfx_energy_potential
         shm_total_bins = shm_total_bins + SIZE(x_data(irep, i)%distribution_energy)
       END DO
       ALLOCATE(tmp_task_list(shm_total_bins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       shm_task_counter = 0
       DO i = 1,n_threads
         DO bin = 1,SIZE(x_data(irep,i)%distribution_energy)
@@ -1078,9 +1067,9 @@ MODULE hfx_energy_potential
 
       ! ** Now sort the task list
       ALLOCATE(tmp_task_list_cost(shm_total_bins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(tmp_index(shm_total_bins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
       DO i = 1,shm_total_bins
         tmp_task_list_cost(i) = tmp_task_list(i)%cost
@@ -1089,7 +1078,7 @@ MODULE hfx_energy_potential
       CALL sort(tmp_task_list_cost,shm_total_bins,tmp_index)
 
       ALLOCATE(shm_master_x_data%task_list(shm_total_bins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
       DO i = 1,shm_total_bins
         shm_master_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
@@ -1099,7 +1088,7 @@ MODULE hfx_energy_potential
       shm_task_counter = 0
 
       DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 !$OMP END MASTER
 !$OMP BARRIER
@@ -1121,9 +1110,9 @@ MODULE hfx_energy_potential
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1646,11 +1635,11 @@ MODULE hfx_energy_potential
                           IF(.NOT. use_disk_storage) THEN
                             CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                  maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                 use_disk_storage, max_val_memory, error)
+                                 use_disk_storage, max_val_memory)
                           ELSE
                             CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                  maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
-                                 use_disk_storage, error=error)
+                                 use_disk_storage)
                           END IF
                         END IF
                       END IF
@@ -1671,11 +1660,11 @@ MODULE hfx_energy_potential
                         IF(.NOT.use_disk_storage) THEN
                           CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                               use_disk_storage, max_val_memory, error)
+                               use_disk_storage, max_val_memory)
                         ELSE
                           CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
-                               use_disk_storage, error=error)
+                               use_disk_storage)
                         END IF
                       END IF
                       spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
@@ -1698,7 +1687,7 @@ MODULE hfx_energy_potential
                                                           integral_containers(nbits), &
                                                           eps_storage, pmax_entry, &
                                                           memory_parameter%actual_memory_usage, &
-                                                          use_disk_storage, error)
+                                                          use_disk_storage)
                           ELSE
                             CALL hfx_add_mult_cache_elements(primitive_integrals(buffer_start),&
                                                           buffer_size, nbits, &
@@ -1706,7 +1695,7 @@ MODULE hfx_energy_potential
                                                           integral_containers_disk(nbits), &
                                                           eps_storage, pmax_entry, &
                                                           memory_parameter%actual_memory_usage_disk, &
-                                                          use_disk_storage, error)
+                                                          use_disk_storage)
                           END IF
                           buffer_left = buffer_left - buffer_size
                           buffer_start = buffer_start + buffer_size
@@ -1788,25 +1777,25 @@ MODULE hfx_energy_potential
 
 
 !$OMP MASTER
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     do_print_load_balance_info = .FALSE.
     do_print_load_balance_info = BTEST(cp_print_key_should_output(logger%iter_info,hfx_section,&
-               "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",error=error),cp_p_file)
+               "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO"),cp_p_file)
 !$OMP END MASTER
 !$OMP BARRIER
     IF(do_print_load_balance_info) THEN
       iw = -1
 !$OMP MASTER
       iw = cp_print_key_unit_nr(logger,hfx_section,"LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",&
-                              extension=".scfLog",error=error)
+                              extension=".scfLog")
 !$OMP END MASTER
 
       CALL collect_load_balance_info(para_env, actual_x_data, iw, n_threads, i_thread, &
-                                     hfx_do_eval_energy, error)
+                                     hfx_do_eval_energy)
 
 !$OMP MASTER
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                       "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO", error=error)
+                                       "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO")
 !$OMP END MASTER
     END IF
 
@@ -1817,7 +1806,7 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 
     DEALLOCATE(primitive_integrals,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 !$OMP BARRIER
     !! Get some number about ERIS
 !$OMP ATOMIC
@@ -1963,22 +1952,22 @@ MODULE hfx_energy_potential
       DO img=1,nkimages
          CALL distribute_ks_matrix(para_env, full_ks_alpha(:,img), ks_matrix(ispin,img)%matrix, shm_number_of_p_entries, &
                                    shm_block_offset, kind_of, basis_parameter, &
-                                   off_diag_fac=0.5_dp,diag_fac=afac,error=error)
+                                   off_diag_fac=0.5_dp,diag_fac=afac)
       END DO
 
       NULLIFY(full_ks_alpha)
       DEALLOCATE(shm_master_x_data%full_ks_alpha, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       IF( .NOT. treat_lsd_in_core ) THEN
         IF(nspins == 2) THEN
           DO img=1,nkimages
              CALL distribute_ks_matrix(para_env, full_ks_beta(:,img), ks_matrix(2,img)%matrix, shm_number_of_p_entries, &
                                        shm_block_offset, kind_of, basis_parameter, &
-                                       off_diag_fac=0.5_dp, diag_fac=afac, error=error)
+                                       off_diag_fac=0.5_dp, diag_fac=afac)
           END DO
           NULLIFY(full_ks_beta)
           DEALLOCATE(shm_master_x_data%full_ks_beta, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         END IF
       END IF
       CALL timestop(handle_dist_ks)
@@ -1990,28 +1979,28 @@ MODULE hfx_energy_potential
       ene_x_aa = 0.0_dp
       DO img=1,nkimages
          CALL cp_dbcsr_trace(ks_matrix(ispin,img)%matrix, rho_ao(ispin,img)%matrix, &
-                             etmp, error=error)
+                             etmp)
          ene_x_aa = ene_x_aa + etmp
       END DO
       !for ADMMS, we need the exchange matrix k(d) for both spins 
       IF( dft_control%do_admm ) THEN
-        CPPostcondition(nkimages==1,cp_failure_level,routineP,error,failure)
+        CPPostcondition(nkimages==1,cp_failure_level,routineP,failure)
         CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin,1)%matrix, &
-                           name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error) 
+                           name="HF exch. part of matrix_ks_aux_fit for ADMMS") 
       END IF
 
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
         ene_x_bb = 0.0_dp
         DO img=1,nkimages
            CALL cp_dbcsr_trace(ks_matrix(2,img)%matrix, rho_ao(2,img)%matrix, &
-                               etmp, error=error)
+                               etmp)
            ene_x_bb = ene_x_bb + etmp
         END DO
         !for ADMMS, we need the exchange matrix k(d) for both spins
         IF( dft_control%do_admm ) THEN
-          CPPostcondition(nkimages==1,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nkimages==1,cp_failure_level,routineP,failure)
           CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2,1)%matrix, &
-                             name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error)          
+                             name="HF exch. part of matrix_ks_aux_fit for ADMMS")          
         END IF
       END IF
 
@@ -2071,7 +2060,7 @@ MODULE hfx_energy_potential
       END IF
 
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-           extension=".scfLog",error=error)
+           extension=".scfLog")
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Number of cart. primitive ERI's calculated:      ",shm_nprim_ints
@@ -2121,7 +2110,7 @@ MODULE hfx_energy_potential
       END IF
 
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                      "HF_INFO", error=error)
+                                      "HF_INFO")
     END IF
 !$OMP END MASTER
 
@@ -2140,10 +2129,10 @@ MODULE hfx_energy_potential
           integral_caches => actual_x_data%integral_caches(:,bin)
           integral_containers => actual_x_data%integral_containers(:,bin)
           CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                    .FALSE., error)
+                                    .FALSE.)
           DO i=1,64
             CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
-                                      memory_parameter%actual_memory_usage, .FALSE., error)
+                                      memory_parameter%actual_memory_usage, .FALSE.)
           END DO
         END DO
       END IF
@@ -2171,10 +2160,10 @@ MODULE hfx_energy_potential
       !! flush caches if the geometry changed
       IF(geometry_did_change ) THEN
         CALL hfx_flush_last_cache(bits_max_val, maxval_cache_disk, maxval_container_disk, &
-                                   memory_parameter%actual_memory_usage_disk, .TRUE., error)
+                                   memory_parameter%actual_memory_usage_disk, .TRUE.)
         DO i=1,64
           CALL hfx_flush_last_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
-                                     memory_parameter%actual_memory_usage_disk, .TRUE., error)
+                                     memory_parameter%actual_memory_usage_disk, .TRUE.)
         END DO
       END IF
       !! reset all caches except we calculate all on the fly
@@ -2189,54 +2178,54 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
     !! Clean up
     DEALLOCATE(last_sgf_global,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 !$OMP MASTER
     DEALLOCATE(full_density_alpha,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF( .NOT. treat_lsd_in_core ) THEN
       IF(nspins==2) THEN
         DEALLOCATE(full_density_beta,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
     IF (do_dynamic_load_balancing) THEN
       DEALLOCATE(shm_master_x_data%task_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 !$OMP END MASTER
     DEALLOCATE(pbd_buf, pbc_buf, pad_buf, pac_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(kbd_buf,kbc_buf,kad_buf,kac_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO i=1,max_pgf**2
       DEALLOCATE(pgf_list_ij(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(pgf_list_kl(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
 
     DEALLOCATE(pgf_list_ij, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pgf_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pgf_product_list, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(max_contraction, kind_of, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(nimages, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF(ASSOCIATED(cell_loop_info%index_to_cell)) THEN
       DEALLOCATE(cell_loop_info%index_to_cell, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
 !$OMP BARRIER

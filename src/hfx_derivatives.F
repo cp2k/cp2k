@@ -103,8 +103,6 @@ MODULE hfx_derivatives
 !> \param irep ID of HFX replica
 !> \param use_virial ...
 !> \param adiabatic_rescale_factor parameter used for MCY3 hybrid
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -112,7 +110,7 @@ MODULE hfx_derivatives
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE derivatives_four_center(qs_env,rho_ao, hfx_section, para_env, &
-                                     irep, use_virial, adiabatic_rescale_factor, error)
+                                     irep, use_virial, adiabatic_rescale_factor)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -122,7 +120,6 @@ MODULE hfx_derivatives
     INTEGER                                  :: irep
     LOGICAL                                  :: use_virial
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
       routineP = moduleN//':'//routineN
@@ -253,7 +250,7 @@ MODULE hfx_derivatives
     with_mp2_density=.FALSE.
     IF(ASSOCIATED(qs_env%mp2_env)) with_mp2_density=.TRUE.
 
-    IF(with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2, error=error)
+    IF(with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2)
     is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1,1)%matrix).EQ.dbcsr_type_antisymmetric
 
     CALL get_qs_env(qs_env,&
@@ -261,12 +258,11 @@ MODULE hfx_derivatives
                     particle_set=particle_set,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     nspins = dft_control%nspins
     nkimages = dft_control%nimages
-    CPPostcondition(nkimages==1,cp_failure_level,routineP,error,failure)
+    CPPostcondition(nkimages==1,cp_failure_level,routineP,failure)
     cell_loop_info%dokp = .FALSE.
 
     !! One atom systems have no contribution to forces
@@ -306,7 +302,7 @@ MODULE hfx_derivatives
 
 
     !! get force array
-    CALL get_qs_env(qs_env=qs_env, force=force, virial=virial, error=error)
+    CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
 
     my_adiabatic_rescale_factor = 1.0_dp
     IF(PRESENT(adiabatic_rescale_factor)) THEN
@@ -322,7 +318,6 @@ MODULE hfx_derivatives
 !$OMP                                  cell_loop_info,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
-!$OMP                                  error,&
 !$OMP                                  ncoset,&
 !$OMP                                  nco,&
 !$OMP                                  nso,&
@@ -430,8 +425,7 @@ MODULE hfx_derivatives
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set,&
-                    error=error)
+                    particle_set=particle_set)
 
     max_set = basis_info%max_set
     max_am = basis_info%max_am
@@ -460,16 +454,16 @@ MODULE hfx_derivatives
     !! Get screening parameter
 
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
     !! Create helper arrray for mapping local basis functions to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -477,7 +471,7 @@ MODULE hfx_derivatives
     END DO
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     max_contraction=0.0_dp
     max_pgf = 0
@@ -527,7 +521,7 @@ MODULE hfx_derivatives
     NULLIFY(full_density_alpha)
     NULLIFY(full_density_beta)
     ALLOCATE(full_density_alpha(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 
     !! Get the full density from all the processors
@@ -535,34 +529,34 @@ MODULE hfx_derivatives
     CALL get_full_density(para_env, full_density_alpha(:,1), rho_ao(1,1)%matrix, shm_number_of_p_entries,&
                           shm_block_offset,&
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
-                          antisymmetric=is_anti_symmetric,error=error)
+                          antisymmetric=is_anti_symmetric)
     ! for now only closed shell case
     IF(with_mp2_density) THEN
       NULLIFY(full_density_mp2)
       ALLOCATE(full_density_mp2(shm_block_offset(ncpu+1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       CALL get_full_density(para_env, full_density_mp2, rho_ao_mp2(1)%matrix, shm_number_of_p_entries,&
                             shm_block_offset,&
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
-                            antisymmetric=is_anti_symmetric,error=error)
+                            antisymmetric=is_anti_symmetric)
     END IF
 
     IF(nspins == 2) THEN
       ALLOCATE(full_density_beta(shm_block_offset(ncpu+1),1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       CALL get_full_density(para_env, full_density_beta(:,1), rho_ao(2,1)%matrix, shm_number_of_p_entries,&
                             shm_block_offset,&
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
-                            antisymmetric=is_anti_symmetric,error=error)
+                            antisymmetric=is_anti_symmetric)
       ! With mp2 density
       IF(with_mp2_density) THEN
         NULLIFY(full_density_mp2_beta)
         ALLOCATE(full_density_mp2_beta(shm_block_offset(ncpu+1)),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         CALL get_full_density(para_env, full_density_mp2_beta, rho_ao_mp2(2)%matrix, shm_number_of_p_entries,&
                               shm_block_offset,&
                               kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
-                              antisymmetric=is_anti_symmetric,error=error)
+                              antisymmetric=is_anti_symmetric)
       END IF
 
     END IF
@@ -623,13 +617,12 @@ MODULE hfx_derivatives
                               load_balance_parameter, kind_of, basis_parameter,shm_initial_p, &
                               shm_pmax_atom, i_thread, n_threads,&
                               cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_forces, shm_pmax_block, use_virial, error)
+                              nkind, hfx_do_eval_forces, shm_pmax_block, use_virial)
         actual_x_data%b_first_load_balance_forces = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data, para_env, &
                                      load_balance_parameter, &
-                                     i_thread, n_threads, hfx_do_eval_forces, &
-                                     error)
+                                     i_thread, n_threads, hfx_do_eval_forces)
       END IF
     END IF
 !$OMP MASTER
@@ -653,103 +646,103 @@ MODULE hfx_derivatives
 
     !! Allocate work arrays
     ALLOCATE(primitive_forces(12*nsgf_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     primitive_forces=0.0_dp
 
     ! ** Allocate buffers for pgf_lists
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pgf_list_kl(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(nimages(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 
     DO i=1,max_pgf**2
       ALLOCATE(pgf_list_ij(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pgf_list_kl(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
 
 
     ALLOCATE(pbd_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pbc_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pad_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(pac_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(with_mp2_density) THEN
       ALLOCATE(pbd_buf_mp2(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pbc_buf_mp2(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pad_buf_mp2(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pac_buf_mp2(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF( nspins == 2 ) THEN
       ALLOCATE(pbd_buf_beta(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pbc_buf_beta(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pad_buf_beta(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(pac_buf_beta(nsgf_max**2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       IF(with_mp2_density) THEN
         ALLOCATE(pbd_buf_mp2_beta(nsgf_max**2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         ALLOCATE(pbc_buf_mp2_beta(nsgf_max**2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         ALLOCATE(pad_buf_mp2_beta(nsgf_max**2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         ALLOCATE(pac_buf_mp2_beta(nsgf_max**2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
     END IF
 
     ALLOCATE(ede_work(ncos_max**4*12),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ede_work2(ncos_max**4*12),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ede_work_forces(ncos_max**4*12),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ede_buffer1(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ede_buffer2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ede_primitives_tmp(nsgf_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF( use_virial ) THEN
       ALLOCATE(primitive_forces_virial(12*nsgf_max**4*3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       primitive_forces_virial=0.0_dp
       ALLOCATE(ede_work_virial(ncos_max**4*12*3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(ede_work2_virial(ncos_max**4*12*3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(ede_primitives_tmp_virial(nsgf_max**4),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       tmp_virial = 0.0_dp
     ELSE
       ! dummy allocation
       ALLOCATE(primitive_forces_virial(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       primitive_forces_virial=0.0_dp
       ALLOCATE(ede_work_virial(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(ede_work2_virial(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(ede_primitives_tmp_virial(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
 
@@ -802,9 +795,9 @@ MODULE hfx_derivatives
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 !$OMP BARRIER
 
@@ -831,15 +824,15 @@ MODULE hfx_derivatives
     IF( treat_forces_in_core ) THEN
       !! IF new md step -> reinitialize containers
       IF(actual_x_data%memory_parameter%recalc_forces) THEN
-        CALL dealloc_containers(actual_x_data, hfx_do_eval_forces, error)
-        CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_forces, error)
+        CALL dealloc_containers(actual_x_data, hfx_do_eval_forces)
+        CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_forces)
 
         DO bin = 1,my_bin_size
           maxval_container => actual_x_data%maxval_container_forces(bin)
           integral_containers => actual_x_data%integral_containers_forces(:,bin)
-          CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
+          CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
           DO i=1,64
-            CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
+            CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE.)
           END DO
         END DO
       END IF
@@ -870,7 +863,7 @@ MODULE hfx_derivatives
         shm_total_bins = shm_total_bins + SIZE(qs_env%x_data(irep, i)%distribution_forces)
       END DO
       ALLOCATE(tmp_task_list(shm_total_bins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       shm_task_counter = 0
       DO i = 1,n_threads
         DO bin = 1,SIZE(qs_env%x_data(irep,i)%distribution_forces)
@@ -883,9 +876,9 @@ MODULE hfx_derivatives
 
       ! ** Now sort the task list
       ALLOCATE(tmp_task_list_cost(shm_total_bins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ALLOCATE(tmp_index(shm_total_bins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
       DO i = 1,shm_total_bins
         tmp_task_list_cost(i) = tmp_task_list(i)%cost
@@ -894,7 +887,7 @@ MODULE hfx_derivatives
       CALL sort(tmp_task_list_cost,shm_total_bins,tmp_index)
 
       ALLOCATE(actual_x_data%task_list(shm_total_bins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
       DO i = 1,shm_total_bins
         actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
@@ -904,7 +897,7 @@ MODULE hfx_derivatives
       shm_task_counter = 0
 
       DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     !! precalculate maximum density matrix elements in blocks
@@ -1409,7 +1402,7 @@ MODULE hfx_derivatives
                     IF(cartesian_estimate < eps_schwarz ) THEN
                       CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                         maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                        use_disk_storage, max_val_memory, error)
+                                        use_disk_storage, max_val_memory)
                     END IF
                   END IF
 
@@ -1437,7 +1430,7 @@ MODULE hfx_derivatives
                     CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                       maxval_cache, maxval_container, &
                                                       memory_parameter%actual_memory_usage, &
-                                                      use_disk_storage, max_val_memory, error)
+                                                      use_disk_storage, max_val_memory)
                   END IF
                   spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                   IF( .NOT. use_virial ) THEN
@@ -1457,7 +1450,7 @@ MODULE hfx_derivatives
                                                        integral_containers(nbits), &
                                                        eps_storage, pmax_entry, &
                                                        memory_parameter%actual_memory_usage, &
-                                                       use_disk_storage, error)
+                                                       use_disk_storage)
                       buffer_left = buffer_left - buffer_size
                       buffer_start = buffer_start + buffer_size
                     END DO
@@ -1587,25 +1580,25 @@ MODULE hfx_derivatives
     END DO  !bin
 
 !$OMP MASTER
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     do_print_load_balance_info = .FALSE.
     do_print_load_balance_info = BTEST(cp_print_key_should_output(logger%iter_info,hfx_section,&
-               "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",error=error),cp_p_file)
+               "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO"),cp_p_file)
 !$OMP END MASTER
 !$OMP BARRIER
     IF(do_print_load_balance_info) THEN
       iw = -1
 !$OMP MASTER
       iw = cp_print_key_unit_nr(logger,hfx_section,"LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",&
-                              extension=".scfLog",error=error)
+                              extension=".scfLog")
 !$OMP END MASTER
 
       CALL collect_load_balance_info(para_env, actual_x_data, iw, n_threads, i_thread, &
-                                     hfx_do_eval_forces, error)
+                                     hfx_do_eval_forces)
 
 !$OMP MASTER
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                       "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO", error=error)
+                                       "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO")
 !$OMP END MASTER
     END IF
 
@@ -1668,10 +1661,10 @@ MODULE hfx_derivatives
         compression_factor = 0.0_dp
       END IF
 
-      logger => cp_error_get_logger(error)
+      logger => cp_get_default_logger()
 
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-           extension=".scfLog",error=error)
+           extension=".scfLog")
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,(T3,A,T65,I16))")&
                  "HFX_MEM_INFO| Number of cart. primitive DERIV's calculated:      ",shm_nprim_ints
@@ -1696,7 +1689,7 @@ MODULE hfx_derivatives
       END IF
 
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                      "HF_INFO", error=error)
+                                      "HF_INFO")
     END IF
 !$OMP END MASTER
 
@@ -1715,10 +1708,10 @@ MODULE hfx_derivatives
           integral_caches => actual_x_data%integral_caches_forces(:,bin)
           integral_containers => actual_x_data%integral_containers_forces(:,bin)
           CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                    .FALSE., error)
+                                    .FALSE.)
           DO i=1,64
             CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
-                                      memory_parameter%actual_memory_usage, .FALSE., error)
+                                      memory_parameter%actual_memory_usage, .FALSE.)
           END DO
         END DO
       END IF
@@ -1750,94 +1743,94 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 !$OMP BARRIER
     DEALLOCATE(last_sgf_global, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 !$OMP MASTER
     DEALLOCATE(full_density_alpha,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(with_mp2_density) THEN
       DEALLOCATE(full_density_mp2,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(nspins==2) THEN
       DEALLOCATE(full_density_beta,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       IF(with_mp2_density) THEN
         DEALLOCATE(full_density_mp2_beta,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
     END IF
     IF (do_dynamic_load_balancing) THEN
       DEALLOCATE(actual_x_data%task_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 !$OMP END MASTER
     DEALLOCATE(primitive_forces, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(atom_of_kind,kind_of,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(max_contraction,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pbd_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pbc_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pad_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pac_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF(with_mp2_density) THEN
       DEALLOCATE(pbd_buf_mp2, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(pbc_buf_mp2, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(pad_buf_mp2, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(pac_buf_mp2, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     DO i=1,max_pgf**2
       DEALLOCATE(pgf_list_ij(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(pgf_list_kl(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
 
     DEALLOCATE(pgf_list_ij, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pgf_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(pgf_product_list, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(primitive_forces_virial, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(ede_work, ede_work2, ede_work_forces, ede_buffer1, ede_buffer2, ede_primitives_tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(nimages, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF( nspins == 2 ) THEN
       DEALLOCATE(pbd_buf_beta,pbc_buf_beta,pad_buf_beta,pac_buf_beta, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       IF(with_mp2_density) THEN
         DEALLOCATE(pbd_buf_mp2_beta, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         DEALLOCATE(pbc_buf_mp2_beta, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         DEALLOCATE(pad_buf_mp2_beta, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         DEALLOCATE(pac_buf_mp2_beta, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       END IF
     END IF
 

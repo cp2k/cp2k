@@ -105,14 +105,12 @@ CONTAINS
 !> \param vels ...
 !> \param pint_env ...
 !> \param helium_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE write_restart(md_env,force_env,root_section,&
-       coords, vels, pint_env, helium_env, error)
+       coords, vels, pint_env, helium_env)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -121,7 +119,6 @@ CONTAINS
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
     TYPE(helium_solvent_type), OPTIONAL, &
       POINTER                                :: helium_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
       routineP = moduleN//':'//routineN
@@ -139,69 +136,66 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
-    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+    logger => cp_get_default_logger()
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION")
 
     NULLIFY(global_section)
-    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
-    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL")
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              motion_section,keys(1),error=error),cp_p_file).OR. &
+              motion_section,keys(1)),cp_p_file).OR. &
         BTEST(cp_print_key_should_output(logger%iter_info,&
-              motion_section,keys(2),error=error),cp_p_file)) THEN
+              motion_section,keys(2)),cp_p_file)) THEN
 
-       sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-       CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
+       sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL")
+       CALL section_vals_get(sections, n_repetition=nforce_eval)
        CALL section_vals_val_get(motion_section,"PRINT%RESTART%SPLIT_RESTART_FILE",&
-                                 l_val=write_binary_restart_file,error=error)
+                                 l_val=write_binary_restart_file)
 
        IF (write_binary_restart_file) THEN
-          CALL update_subsys_release(md_env,force_env,root_section,error)
-          CALL update_motion_release(motion_section,error)
+          CALL update_subsys_release(md_env,force_env,root_section)
+          CALL update_motion_release(motion_section)
           DO ikey=1,SIZE(keys)
              log_unit = cp_logger_get_default_io_unit(logger)
              IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-                       motion_section,keys(ikey),error=error),cp_p_file)) THEN
+                       motion_section,keys(ikey)),cp_p_file)) THEN
                 ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
                                             extension=".restart.bin",&
                                             file_action="READWRITE",&
                                             file_form="UNFORMATTED",&
                                             file_position="REWIND",&
                                             file_status="UNKNOWN",&
-                                            do_backup=(ikey==2),&
-                                            error=error)
-                CALL write_binary_restart(ires,log_unit,root_section,md_env,force_env,error=error)
+                                            do_backup=(ikey==2))
+                CALL write_binary_restart(ires,log_unit,root_section,md_env,force_env)
                 CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                                                  TRIM(keys(ikey)),error=error)
+                                                  TRIM(keys(ikey)))
              END IF
           END DO
        END IF
 
        CALL update_input(md_env,force_env,root_section,coords,vels,pint_env,helium_env,&
                          save_mem=save_mem,&
-                         write_binary_restart_file=write_binary_restart_file,&
-                         error=error)
+                         write_binary_restart_file=write_binary_restart_file)
 
        DO ikey=1,SIZE(keys)
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-                    motion_section,keys(ikey),error=error),cp_p_file)) THEN
+                    motion_section,keys(ikey)),cp_p_file)) THEN
              ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
                                          extension=".restart",&
                                          file_position="REWIND",&
-                                         do_backup=(ikey==2),&
-                                         error=error)
+                                         do_backup=(ikey==2))
              IF (ires > 0) THEN
                 CALL write_restart_header(ires)
-                CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE.,error=error)
+                CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE.)
              END IF
-             CALL cp_print_key_finished_output(ires,logger,motion_section,TRIM(keys(ikey)),error=error)
+             CALL cp_print_key_finished_output(ires,logger,motion_section,TRIM(keys(ikey)))
           END IF
        END DO
 
        IF (save_mem) THEN
-          CALL update_subsys_release(md_env,force_env,root_section,error)
-          CALL update_motion_release(motion_section,error)
+          CALL update_subsys_release(md_env,force_env,root_section)
+          CALL update_motion_release(motion_section)
        END IF
 
     END IF
@@ -215,19 +209,16 @@ CONTAINS
 !> \param md_env ...
 !> \param force_env ...
 !> \param root_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE update_subsys_release(md_env,force_env,root_section,error)
+  SUBROUTINE update_subsys_release(md_env,force_env,root_section)
 
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release', &
       routineP = moduleN//':'//routineN
@@ -252,88 +243,88 @@ CONTAINS
          shell_particles,subsys,work_section)
 
     IF (PRESENT(md_env)) THEN
-       CALL get_md_env ( md_env=md_env,force_env=my_force_env,error=error)
+       CALL get_md_env ( md_env=md_env,force_env=my_force_env)
     ELSEIF (PRESENT(force_env)) THEN
        my_force_env => force_env
     END IF
 
     IF (ASSOCIATED(my_force_env))  THEN
        NULLIFY(subsys_section)
-       CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
+       CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid)
        skip_vel_section =(&
             (myid /= mol_dyn_run).AND.&
             (myid /= mon_car_run).AND.&
             (myid /= pint_run))
 
-       force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-       CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+       force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL")
+       CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval)
 
        DO iforce_eval=1,nforce_eval
           subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-               i_rep_section=i_force_eval(iforce_eval),error=error)
-          CALL section_vals_get(subsys_section, explicit=explicit, error=error)
+               i_rep_section=i_force_eval(iforce_eval))
+          CALL section_vals_get(subsys_section, explicit=explicit)
           IF (.NOT.explicit) CYCLE ! Nothing to update...
 
           my_force_b => my_force_env
           IF (iforce_eval>1) my_force_b => my_force_env%sub_force_env(iforce_eval-1)%force_env
 
-          CALL force_env_get(my_force_b, subsys=subsys, error=error)
+          CALL force_env_get(my_force_b, subsys=subsys)
 
           CALL cp_subsys_get(subsys, particles=particles, shell_particles=shell_particles,&
-               core_particles=core_particles, error=error)
+               core_particles=core_particles)
 
-          work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-          CALL section_vals_get(work_section,explicit=explicit,error=error)
+          work_section => section_vals_get_subs_vals(subsys_section,"COORD")
+          CALL section_vals_get(work_section,explicit=explicit)
           IF (explicit) THEN
-             CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-             CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+             CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+             CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
           END IF
-          CALL section_vals_remove_values(work_section, error)
+          CALL section_vals_remove_values(work_section)
           IF (explicit) THEN
-             CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
-             CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+             CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str)
+             CALL section_vals_val_set(work_section,"SCALED",l_val=scale)
           END IF
 
-          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY")
           IF (.NOT.skip_vel_section) THEN
-             CALL section_vals_remove_values(work_section, error)
+             CALL section_vals_remove_values(work_section)
           END IF
 
           IF (ASSOCIATED(shell_particles)) THEN
-             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-             CALL section_vals_get(work_section,explicit=explicit,error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD")
+             CALL section_vals_get(work_section,explicit=explicit)
              IF (explicit) THEN
-                CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-                CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+                CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+                CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
              END IF
-             CALL section_vals_remove_values(work_section, error=error)
+             CALL section_vals_remove_values(work_section)
              IF (explicit) THEN
-                CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
-                CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+                CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str)
+                CALL section_vals_val_set(work_section,"SCALED",l_val=scale)
              END IF
 
-             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY")
              IF (.NOT.skip_vel_section) THEN
-                CALL section_vals_remove_values(work_section, error=error)
+                CALL section_vals_remove_values(work_section)
              END IF
           END IF
 
           IF (ASSOCIATED(core_particles)) THEN
-             work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-             CALL section_vals_get(work_section,explicit=explicit,error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD")
+             CALL section_vals_get(work_section,explicit=explicit)
              IF (explicit) THEN
-                CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
-                CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+                CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str)
+                CALL section_vals_val_get(work_section,"SCALED",l_val=scale)
              END IF
-             CALL section_vals_remove_values(work_section, error=error)
+             CALL section_vals_remove_values(work_section)
              IF (explicit) THEN
-                CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
-                CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+                CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str)
+                CALL section_vals_val_set(work_section,"SCALED",l_val=scale)
              END IF
 
-             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY")
              IF (.NOT.skip_vel_section) THEN
-                CALL section_vals_remove_values(work_section, error=error)
+                CALL section_vals_remove_values(work_section)
              END IF
           END IF
 
@@ -350,16 +341,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocate the nose subsections (coord, vel, force, mass) in the md section
 !> \param motion_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE update_motion_release(motion_section,error)
+  SUBROUTINE update_motion_release(motion_section)
 
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_release', &
       routineP = moduleN//':'//routineN
@@ -371,35 +359,35 @@ CONTAINS
 
     NULLIFY (work_section)
 
-    work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES",error=error)
-    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES")
+    CALL section_vals_remove_values(work_section)
 
-    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%MASS")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%FORCE")
+    CALL section_vals_remove_values(work_section)
 
-    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%COORD")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%FORCE")
+    CALL section_vals_remove_values(work_section)
 
-    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section,error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section,error)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%MASS")
+    CALL section_vals_remove_values(work_section)
+    work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%FORCE")
+    CALL section_vals_remove_values(work_section)
 
     CALL timestop(handle)
 
@@ -416,14 +404,12 @@ CONTAINS
 !> \param helium_env ...
 !> \param save_mem ...
 !> \param write_binary_restart_file ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_input(md_env,force_env,root_section,coords,vels,pint_env, &
-                          helium_env,save_mem,write_binary_restart_file,error)
+                          helium_env,save_mem,write_binary_restart_file)
 
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -435,7 +421,6 @@ CONTAINS
       POINTER                                :: helium_env
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem, &
                                                 write_binary_restart_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', &
       routineP = moduleN//':'//routineN
@@ -465,18 +450,18 @@ CONTAINS
        my_write_binary_restart_file = .FALSE.
     END IF
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! Can handle md_env or force_env
     lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(pint_env).OR.PRESENT(helium_env)
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
-          CALL get_md_env ( md_env=md_env, force_env=my_force_env, error=error)
+          CALL get_md_env ( md_env=md_env, force_env=my_force_env)
        ELSE IF (PRESENT(force_env)) THEN
           my_force_env => force_env
        END IF
        ! The real restart setting...
-       motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+       motion_section => section_vals_get_subs_vals(root_section,"MOTION")
        CALL update_motion(motion_section,&
                           md_env=md_env,&
                           force_env=my_force_env,&
@@ -486,14 +471,12 @@ CONTAINS
                           pint_env=pint_env,&
                           helium_env=helium_env,&
                           save_mem=my_save_mem,&
-                          write_binary_restart_file=my_write_binary_restart_file,&
-                          error=error)
+                          write_binary_restart_file=my_write_binary_restart_file)
        ! Update one force_env_section per time..
        IF (ASSOCIATED(my_force_env)) THEN
           CALL update_force_eval(force_env=my_force_env,&
                                  root_section=root_section,&
-                                 write_binary_restart_file=my_write_binary_restart_file,&
-                                 error=error)
+                                 write_binary_restart_file=my_write_binary_restart_file)
        END IF
     END IF
 
@@ -513,15 +496,13 @@ CONTAINS
 !> \param helium_env ...
 !> \param save_mem ...
 !> \param write_binary_restart_file ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_motion(motion_section,md_env,force_env,logger,&
                            coords,vels,pint_env,helium_env,save_mem,&
-                           write_binary_restart_file,error)
+                           write_binary_restart_file)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -533,7 +514,6 @@ CONTAINS
       POINTER                                :: helium_env
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem, &
                                                 write_binary_restart_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
@@ -577,8 +557,7 @@ CONTAINS
                          constant=constant,&
                          itimes=itimes,&
                          averages=averages,&
-                         para_env=para_env,&
-                         error=error)
+                         para_env=para_env)
     ELSE
        IF (ASSOCIATED(force_env)) THEN
           para_env => force_env%para_env
@@ -587,7 +566,7 @@ CONTAINS
        ELSEIF (PRESENT(helium_env)) THEN
           para_env => helium_env%logger%para_env
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
     END IF
 
@@ -610,85 +589,85 @@ CONTAINS
     CALL timeset(routineN//"_COUNTERS",handle2)
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
-          CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
-          CPAssert(ASSOCIATED(t),cp_failure_level,routineP,error,failure)
-          CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
+          CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=itimes)
+          CPAssert(ASSOCIATED(t),cp_failure_level,routineP,failure)
+          CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=t)
        END IF
     END IF
     IF (ASSOCIATED(constant)) THEN
-       CALL section_vals_val_set(motion_section,"MD%ECONS_START_VAL",r_val=constant,error=error)
+       CALL section_vals_val_set(motion_section,"MD%ECONS_START_VAL",r_val=constant)
     END IF
     CALL timestop(handle2)
     ! AVERAGES
     CALL timeset(routineN//"_AVERAGES",handle2)
     IF (ASSOCIATED(averages)) THEN
        IF ((averages%do_averages).AND.(averages%itimes_start/=-1)) THEN
-          work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES",error=error)
-          CALL section_vals_val_set(work_section,"_SECTION_PARAMETERS_",l_val=averages%do_averages,error=error)
-          work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES",error=error)
-          CALL section_vals_val_set(work_section,"ITIMES_START",i_val=averages%itimes_start,error=error)
-          CALL section_vals_val_set(work_section,"AVECPU",r_val=averages%avecpu,error=error)
-          CALL section_vals_val_set(work_section,"AVEHUGONIOT",r_val=averages%avehugoniot,error=error)
-          CALL section_vals_val_set(work_section,"AVETEMP_BARO",r_val=averages%avetemp_baro,error=error)
-          CALL section_vals_val_set(work_section,"AVEPOT",r_val=averages%avepot,error=error)
-          CALL section_vals_val_set(work_section,"AVEKIN",r_val=averages%avekin,error=error)
-          CALL section_vals_val_set(work_section,"AVETEMP",r_val=averages%avetemp,error=error)
-          CALL section_vals_val_set(work_section,"AVEKIN_QM",r_val=averages%avekin_qm,error=error)
-          CALL section_vals_val_set(work_section,"AVETEMP_QM",r_val=averages%avetemp_qm,error=error)
-          CALL section_vals_val_set(work_section,"AVEVOL",r_val=averages%avevol,error=error)
-          CALL section_vals_val_set(work_section,"AVECELL_A",r_val=averages%aveca,error=error)
-          CALL section_vals_val_set(work_section,"AVECELL_B",r_val=averages%avecb,error=error)
-          CALL section_vals_val_set(work_section,"AVECELL_C",r_val=averages%avecc,error=error)
-          CALL section_vals_val_set(work_section,"AVEALPHA",r_val=averages%aveal,error=error)
-          CALL section_vals_val_set(work_section,"AVEBETA",r_val=averages%avebe,error=error)
-          CALL section_vals_val_set(work_section,"AVEGAMMA",r_val=averages%avega,error=error)
-          CALL section_vals_val_set(work_section,"AVE_ECONS",r_val=averages%econs,error=error)
-          CALL section_vals_val_set(work_section,"AVE_PRESS",r_val=averages%avepress,error=error)
-          CALL section_vals_val_set(work_section,"AVE_PXX",r_val=averages%avepxx,error=error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES")
+          CALL section_vals_val_set(work_section,"_SECTION_PARAMETERS_",l_val=averages%do_averages)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES")
+          CALL section_vals_val_set(work_section,"ITIMES_START",i_val=averages%itimes_start)
+          CALL section_vals_val_set(work_section,"AVECPU",r_val=averages%avecpu)
+          CALL section_vals_val_set(work_section,"AVEHUGONIOT",r_val=averages%avehugoniot)
+          CALL section_vals_val_set(work_section,"AVETEMP_BARO",r_val=averages%avetemp_baro)
+          CALL section_vals_val_set(work_section,"AVEPOT",r_val=averages%avepot)
+          CALL section_vals_val_set(work_section,"AVEKIN",r_val=averages%avekin)
+          CALL section_vals_val_set(work_section,"AVETEMP",r_val=averages%avetemp)
+          CALL section_vals_val_set(work_section,"AVEKIN_QM",r_val=averages%avekin_qm)
+          CALL section_vals_val_set(work_section,"AVETEMP_QM",r_val=averages%avetemp_qm)
+          CALL section_vals_val_set(work_section,"AVEVOL",r_val=averages%avevol)
+          CALL section_vals_val_set(work_section,"AVECELL_A",r_val=averages%aveca)
+          CALL section_vals_val_set(work_section,"AVECELL_B",r_val=averages%avecb)
+          CALL section_vals_val_set(work_section,"AVECELL_C",r_val=averages%avecc)
+          CALL section_vals_val_set(work_section,"AVEALPHA",r_val=averages%aveal)
+          CALL section_vals_val_set(work_section,"AVEBETA",r_val=averages%avebe)
+          CALL section_vals_val_set(work_section,"AVEGAMMA",r_val=averages%avega)
+          CALL section_vals_val_set(work_section,"AVE_ECONS",r_val=averages%econs)
+          CALL section_vals_val_set(work_section,"AVE_PRESS",r_val=averages%avepress)
+          CALL section_vals_val_set(work_section,"AVE_PXX",r_val=averages%avepxx)
           ! Virial averages
           IF (ASSOCIATED(averages%virial)) THEN
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = RESHAPE(averages%virial%pv_total,(/9/))
-             CALL section_vals_val_set(work_section,"AVE_PV_TOT",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_PV_TOT",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = RESHAPE(averages%virial%pv_virial,(/9/))
-             CALL section_vals_val_set(work_section,"AVE_PV_VIR",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_PV_VIR",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = RESHAPE(averages%virial%pv_kinetic,(/9/))
-             CALL section_vals_val_set(work_section,"AVE_PV_KIN",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_PV_KIN",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = RESHAPE(averages%virial%pv_constraint,(/9/))
-             CALL section_vals_val_set(work_section,"AVE_PV_CNSTR",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_PV_CNSTR",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = RESHAPE(averages%virial%pv_xc,(/9/))
-             CALL section_vals_val_set(work_section,"AVE_PV_XC",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_PV_XC",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = RESHAPE(averages%virial%pv_fock_4c,(/9/))
-             CALL section_vals_val_set(work_section,"AVE_PV_FOCK_4C",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_PV_FOCK_4C",r_vals_ptr=buffer)
           END IF
           ! Colvars averages
           IF (SIZE(averages%avecolvar)>0) THEN
              ALLOCATE(buffer(SIZE(averages%avecolvar)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = averages%avecolvar
-             CALL section_vals_val_set(work_section,"AVE_COLVARS",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_COLVARS",r_vals_ptr=buffer)
           END IF
           IF (SIZE(averages%aveMmatrix)>0) THEN
              ALLOCATE(buffer(SIZE(averages%aveMmatrix)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              buffer = averages%aveMmatrix
-             CALL section_vals_val_set(work_section,"AVE_MMATRIX",r_vals_ptr=buffer,error=error)
+             CALL section_vals_val_set(work_section,"AVE_MMATRIX",r_vals_ptr=buffer)
           END IF
        END IF
     END IF
@@ -701,22 +680,22 @@ CONTAINS
           ! Restart of Nose-Hoover Thermostat for Particles
           IF (.NOT.my_write_binary_restart_file) THEN
              nhc => thermostat_part%nhc
-             CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
-             work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE",error=error)
-             CALL set_template_restart(work_section,eta,veta,fnhc,mnhc,error)
+             CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE")
+             CALL set_template_restart(work_section,eta,veta,fnhc,mnhc)
           END IF
        ELSE IF (thermostat_part%type_of_thermostat == do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Particles
-          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR",error=error)
-          CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section, error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR")
+          CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section)
        ELSE IF (thermostat_part%type_of_thermostat == do_thermo_al) THEN
           ! Restart of AD_LANGEVIN Thermostat for Particles
-          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%AD_LANGEVIN",error=error)
-          CALL dump_al_restart_info(thermostat_part%al, para_env, work_section, error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%AD_LANGEVIN")
+          CALL dump_al_restart_info(thermostat_part%al, para_env, work_section)
        ELSE IF (thermostat_part%type_of_thermostat == do_thermo_gle) THEN
           ! Restart of GLE Thermostat for Particles
-          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%GLE",error=error)
-          CALL dump_gle_restart_info(thermostat_part%gle, para_env, work_section, error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%GLE")
+          CALL dump_gle_restart_info(thermostat_part%gle, para_env, work_section)
        END IF
     END IF
     CALL timestop(handle2)
@@ -730,13 +709,13 @@ CONTAINS
           nhc_len     = SIZE(nhc%nvt,1)
           tot_nhcneed = nhc%glob_num_nhc
           ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           counter = 0
           DO i=1,SIZE(nhc%nvt,1)
              DO j=1,SIZE(nhc%nvt,2)
@@ -747,12 +726,12 @@ CONTAINS
                 mnhc(counter)= nhc%nvt(i,j)%mass
              END DO
           END DO
-          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE",error=error)
-          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE")
+          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc)
        ELSE IF (thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
           ! Restart of CSVR Thermostat for Barostat
-          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%CSVR",error=error)
-          CALL dump_csvr_restart_info(thermostat_baro%csvr, para_env, work_section, error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%CSVR")
+          CALL dump_csvr_restart_info(thermostat_baro%csvr, para_env, work_section)
        END IF
     END IF
     CALL timestop(handle2)
@@ -761,9 +740,9 @@ CONTAINS
     CALL timeset(routineN//"_NPT",handle2)
     IF (ASSOCIATED(npt)) THEN
        ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(mnhc(SIZE(npt,1)*SIZE(npt,2)), STAT = stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        counter = 0
        DO i=1,SIZE(npt,1)
           DO j=1,SIZE(npt,2)
@@ -772,8 +751,8 @@ CONTAINS
              mnhc(counter) = npt(i,j)%mass
           END DO
        END DO
-       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
-       CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT")
+       CALL set_template_restart(work_section, veta=veta, mnhc=mnhc)
     END IF
     CALL timestop(handle2)
 
@@ -784,14 +763,14 @@ CONTAINS
           ! Restart of Nose-Hoover Thermostat for Shell Particles
           IF (.NOT.my_write_binary_restart_file) THEN
              nhc => thermostat_shell%nhc
-             CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
-             work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE",error=error)
-             CALL set_template_restart(work_section,eta,veta,fnhc,mnhc,error)
+             CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE")
+             CALL set_template_restart(work_section,eta,veta,fnhc,mnhc)
           END IF
        ELSE IF (thermostat_shell%type_of_thermostat == do_thermo_csvr) THEN
-          work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%CSVR",error=error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%CSVR")
           ! Restart of CSVR Thermostat for Shell Particles
-          CALL dump_csvr_restart_info(thermostat_shell%csvr, para_env, work_section, error)
+          CALL dump_csvr_restart_info(thermostat_shell%csvr, para_env, work_section)
        END IF
     END IF
     CALL timestop(handle2)
@@ -799,110 +778,110 @@ CONTAINS
     CALL timeset(routineN//"_META",handle2)
     IF (ASSOCIATED(meta_env)) THEN
        CALL section_vals_val_set(meta_env%metadyn_section,"STEP_START_VAL",&
-            i_val=meta_env%n_steps,error=error)
+            i_val=meta_env%n_steps)
        CALL section_vals_val_set(meta_env%metadyn_section,"NHILLS_START_VAL",&
-            i_val=meta_env%hills_env%n_hills,error=error)
+            i_val=meta_env%hills_env%n_hills)
        !RG Adaptive hills
        CALL section_vals_val_set(meta_env%metadyn_section,"MIN_DISP",&
-            r_val=meta_env%hills_env%min_disp,error=error)
+            r_val=meta_env%hills_env%min_disp)
        CALL section_vals_val_set(meta_env%metadyn_section,"OLD_HILL_NUMBER",&
-            i_val=meta_env%hills_env%old_hill_number,error=error)
+            i_val=meta_env%hills_env%old_hill_number)
        CALL section_vals_val_set(meta_env%metadyn_section,"OLD_HILL_STEP",&
-            i_val=meta_env%hills_env%old_hill_step,error=error)
+            i_val=meta_env%hills_env%old_hill_step)
        !RG Adaptive hills
        IF (meta_env%do_hills.AND.meta_env%hills_env%n_hills/=0) THEN
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_POS",error=error)
-          CALL meta_hills_val_set_ss(work_section, meta_env, error=error)
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_SCALE",error=error)
-          CALL meta_hills_val_set_ds(work_section, meta_env, error=error)
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_HEIGHT",error=error)
-          CALL meta_hills_val_set_ww(work_section, meta_env, error=error)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_POS")
+          CALL meta_hills_val_set_ss(work_section, meta_env)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_SCALE")
+          CALL meta_hills_val_set_ds(work_section, meta_env)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_HEIGHT")
+          CALL meta_hills_val_set_ww(work_section, meta_env)
           IF (meta_env%well_tempered) THEN
-             work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_INVDT",error=error)
-             CALL meta_hills_val_set_dt(work_section, meta_env, error=error)
+             work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_INVDT")
+             CALL meta_hills_val_set_dt(work_section, meta_env)
           END IF
        END IF
        IF (meta_env%extended_lagrange) THEN
           CALL section_vals_val_set(meta_env%metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
-               r_val=meta_env%avg_temp,error=error)
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
+               r_val=meta_env%avg_temp)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0")
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ss0,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep)
           END DO
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP",error=error)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP")
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%vvp,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep)
           END DO
 
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS",error=error)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS")
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ss,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep)
           END DO
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_FS",error=error)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_FS")
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ff_s,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep)
           END DO
 
        END IF
        ! Multiple Walkers
        IF (meta_env%do_multiple_walkers) THEN
           ALLOCATE(walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           walkers_status = meta_env%multiple_walkers%walkers_status
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"MULTIPLE_WALKERS",error=error)
-          CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status,error=error)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"MULTIPLE_WALKERS")
+          CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status)
        END IF
     END IF
     CALL timestop(handle2)
     CALL timeset(routineN//"_NEB",handle2)
     IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
        ! Update NEB section
-       replica_section => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
-       CALL force_env_get(force_env,subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       replica_section => section_vals_get_subs_vals(motion_section,"BAND%REPLICA")
+       CALL force_env_get(force_env,subsys=subsys)
+       CALL cp_subsys_get(subsys,particles=particles)
        IF (PRESENT(coords)) THEN
           ! Allocate possible missing sections
           DO
              IF (coords%size_wrk(2)<=SIZE(replica_section%values,2)) EXIT
-             CALL section_vals_add_values(replica_section,error=error)
+             CALL section_vals_add_values(replica_section)
           END DO
           ! Write Values
           DO isec = 1, coords%size_wrk(2)
-             CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec,error=error)
-             work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
+             CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec)
+             work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec)
              CALL section_neb_coord_val_set(work_section,coords%xyz(:,isec),SIZE(coords%xyz,1),3*SIZE(particles%els),&
-                                            3,particles%els,angstrom,error)
+                                            3,particles%els,angstrom)
              ! Update Collective Variables
              IF (coords%in_use == do_band_collective) THEN
                 ALLOCATE (wrk(coords%size_wrk(1)),stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
                 wrk = coords%wrk(:,isec)
                 CALL section_vals_val_set(replica_section,"COLLECTIVE",r_vals_ptr=wrk,&
-                     i_rep_section=isec,error=error)
+                     i_rep_section=isec)
              END IF
           END DO
        END IF
        IF (PRESENT(vels)) THEN
-          CALL force_env_get(force_env,subsys=subsys,error=error)
-          CALL cp_subsys_get(subsys,particles=particles,error=error)
+          CALL force_env_get(force_env,subsys=subsys)
+          CALL cp_subsys_get(subsys,particles=particles)
           ! Allocate possible missing sections
           DO
              IF (vels%size_wrk(2)<=SIZE(replica_section%values,2)) EXIT
-             CALL section_vals_add_values(replica_section,error=error)
+             CALL section_vals_add_values(replica_section)
           END DO
           ! Write Values
           DO isec = 1, vels%size_wrk(2)
-             work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec,error=error)
+             work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec)
              IF (vels%in_use == do_band_collective) THEN
                 CALL section_neb_coord_val_set(work_section,vels%wrk(:,isec),SIZE(vels%wrk,1),SIZE(vels%wrk,1),&
-                                               1,particles%els,1.0_dp,error)
+                                               1,particles%els,1.0_dp)
              ELSE
                 CALL section_neb_coord_val_set(work_section,vels%wrk(:,isec),SIZE(vels%wrk,1),3*SIZE(particles%els),&
-                                               3,particles%els,1.0_dp,error)
+                                               3,particles%els,1.0_dp)
              END IF
           END DO
        END IF
@@ -911,12 +890,12 @@ CONTAINS
 
     IF (PRESENT(pint_env)) THEN
       ! Update PINT section
-      CALL update_motion_pint(motion_section, pint_env, error)
+      CALL update_motion_pint(motion_section, pint_env)
     END IF
 
     IF (PRESENT(helium_env)) THEN
       ! Update HELIUM section
-      CALL update_motion_helium(helium_env, error)
+      CALL update_motion_helium(helium_env)
     END IF
 
     CALL timestop(handle)
@@ -928,15 +907,13 @@ CONTAINS
 !> \brief  Update PINT section in the input structure
 !> \param motion_section ...
 !> \param pint_env ...
-!> \param error ...
 !> \date   2010-10-13
 !> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
 ! *****************************************************************************
-  SUBROUTINE update_motion_pint(motion_section, pint_env, error)
+  SUBROUTINE update_motion_pint(motion_section, pint_env)
 
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint', &
       routineP = moduleN//':'//routineN
@@ -949,26 +926,26 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    pint_section => section_vals_get_subs_vals(motion_section,"PINT",error=error)
-    CALL section_vals_val_set(pint_section,"ITERATION",i_val=pint_env%iter,error=error)
+    pint_section => section_vals_get_subs_vals(motion_section,"PINT")
+    CALL section_vals_val_set(pint_section,"ITERATION",i_val=pint_env%iter)
 
     ! allocate memory for COORDs and VELOCITYs if the BEADS section was not
     ! explicitly given in the input (this is actually done only once since
     ! after section_vals_add_values section becomes explict)
     NULLIFY(tmpsec)
-    tmpsec => section_vals_get_subs_vals(pint_section,"BEADS", error=error)
-    CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+    tmpsec => section_vals_get_subs_vals(pint_section,"BEADS")
+    CALL section_vals_get(tmpsec,explicit=explicit)
     IF ( .NOT. explicit ) THEN
-      CALL section_vals_add_values(tmpsec,error)
+      CALL section_vals_add_values(tmpsec)
     END IF
 
     ! update bead coordinates in the global input structure
     NULLIFY(r_vals)
     ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-    CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+    CPAssert(istat==0, cp_failure_level, routineP,failure)
 
     i=1
-    CALL pint_u2x(pint_env,error=error)
+    CALL pint_u2x(pint_env)
     DO iatom=1, pint_env%ndim
       DO ibead=1, pint_env%p
         r_vals(i)=pint_env%x(ibead,iatom)
@@ -976,14 +953,14 @@ CONTAINS
       END DO
     END DO
     CALL section_vals_val_set(pint_section,"BEADS%COORD%_DEFAULT_KEYWORD_", &
-         r_vals_ptr=r_vals,error=error)
+         r_vals_ptr=r_vals)
 
     ! update bead velocities in the global input structure
     NULLIFY(r_vals)
     ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-    CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+    CPAssert(istat==0, cp_failure_level, routineP,failure)
     i=1
-    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v)
     DO iatom=1, pint_env%ndim
       DO ibead=1, pint_env%p
         r_vals(i)=pint_env%v(ibead,iatom)
@@ -991,7 +968,7 @@ CONTAINS
       END DO
     END DO
     CALL section_vals_val_set(pint_section,"BEADS%VELOCITY%_DEFAULT_KEYWORD_",&
-         r_vals_ptr=r_vals,error=error)
+         r_vals_ptr=r_vals)
 
     IF(pint_env%pimd_thermostat==thermostat_nose) THEN
 
@@ -999,16 +976,16 @@ CONTAINS
       ! explicitly given in the input (this is actually done only once since
       ! after section_vals_add_values section becomes explict)
       NULLIFY(tmpsec)
-      tmpsec => section_vals_get_subs_vals(pint_section,"NOSE", error=error)
-      CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+      tmpsec => section_vals_get_subs_vals(pint_section,"NOSE")
+      CALL section_vals_get(tmpsec,explicit=explicit)
       IF ( .NOT. explicit ) THEN
-        CALL section_vals_add_values(tmpsec,error)
+        CALL section_vals_add_values(tmpsec)
       END IF
 
       ! update thermostat coordinates in the global input structure
       NULLIFY(r_vals)
       ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-      CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+      CPAssert(istat==0, cp_failure_level, routineP,failure)
       i=1
       DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
@@ -1019,12 +996,12 @@ CONTAINS
         END DO
       END DO
       CALL section_vals_val_set(pint_section,"NOSE%COORD%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=r_vals,error=error)
+           r_vals_ptr=r_vals)
 
       ! update thermostat velocities in the global input structure
       NULLIFY(r_vals)
       ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-      CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+      CPAssert(istat==0, cp_failure_level, routineP,failure)
       i=1
       DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
@@ -1035,13 +1012,13 @@ CONTAINS
         END DO
       END DO
       CALL section_vals_val_set(pint_section,"NOSE%VELOCITY%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=r_vals,error=error)
+           r_vals_ptr=r_vals)
 
     ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
 
       NULLIFY(tmpsec)
-      tmpsec => section_vals_get_subs_vals(pint_section,"GLE",error=error)
-      CALL dump_gle_restart_info(pint_env%gle, pint_env%replicas%para_env, tmpsec, error)
+      tmpsec => section_vals_get_subs_vals(pint_section,"GLE")
+      CALL dump_gle_restart_info(pint_env%gle, pint_env%replicas%para_env, tmpsec)
 
     END IF
 
@@ -1052,17 +1029,15 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Update HELIUM section in the input structure.
 !> \param helium ...
-!> \param error ...
 !> \date   2009-11-12
 !> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
 !> \note Transfer the current helium state from the runtime environment
 !>         to the input structure, so that it can be used for I/O, etc.
 !> \note   Moved from the helium_io module directly, might be done better way
 ! *****************************************************************************
-  SUBROUTINE update_motion_helium(helium, error)
+  SUBROUTINE update_motion_helium(helium)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_helium', &
       routineP = moduleN//':'//routineN
@@ -1084,10 +1059,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF ( .NOT. helium%solute_present ) THEN
       ! update iteration number
@@ -1095,8 +1070,7 @@ CONTAINS
       CALL section_vals_val_set( &
         helium%input, &
         "MOTION%PINT%ITERATION", &
-        i_val=itmp, &
-        error=error )
+        i_val=itmp)
       ! else - PINT will do that
     END IF
 
@@ -1107,14 +1081,14 @@ CONTAINS
     NULLIFY(real_msg)
     msglen = SIZE(helium%pos)
     ALLOCATE(real_msg(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
     real_msg(:) = PACK( helium%pos, .TRUE. )
 
     ! allocate the buffer for message passing
     NULLIFY(real_msg_gather)
     msglen = SIZE(helium%pos) * logger%para_env%num_pe
     ALLOCATE(real_msg_gather(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
 
     ! pass the message from all processors to logger%para_env%source
     real_msg_gather(:) = 0.0_dp
@@ -1124,7 +1098,7 @@ CONTAINS
     ! update coordinates in the global input structure
     CALL section_vals_val_set(helium%input, &
          "MOTION%PINT%HELIUM%COORD%_DEFAULT_KEYWORD_", &
-         r_vals_ptr=real_msg_gather,error=error)
+         r_vals_ptr=real_msg_gather)
 
     ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
     ! assigned in section_vals_val_set - this memory will be used later on!
@@ -1133,7 +1107,7 @@ CONTAINS
 
     ! DEALLOCATE since this array is only used locally
     DEALLOCATE(real_msg,STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
 
     !
     ! save permutation state
@@ -1142,7 +1116,7 @@ CONTAINS
     NULLIFY(int_msg_gather)
     msglen = SIZE(helium%permutation) * logger%para_env%num_pe
     ALLOCATE(int_msg_gather(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
 
     ! pass the message from all processors to logger%para_env%source
     int_msg_gather(:) = 0
@@ -1152,7 +1126,7 @@ CONTAINS
     ! update permutation state in the global input structure
     CALL section_vals_val_set(helium%input, &
          "MOTION%PINT%HELIUM%PERM%_DEFAULT_KEYWORD_", &
-         i_vals_ptr=int_msg_gather,error=error)
+         i_vals_ptr=int_msg_gather)
 
     ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
     ! assigned in section_vals_val_set - this memory will be used later on!
@@ -1166,9 +1140,9 @@ CONTAINS
     NULLIFY(real_msg)
     msglen = 40
     ALLOCATE(real_msg(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
     CALL get_rng_stream(helium%rng_stream_uniform,bg=bg,cg=cg,ig=ig,&
-         buffer=bu,buffer_filled=lbf,error=error)
+         buffer=bu,buffer_filled=lbf)
     offset = 0
     real_msg(offset+1:offset+6)   = PACK( bg, .TRUE. )
     real_msg(offset+7:offset+12)  = PACK( cg, .TRUE. )
@@ -1181,7 +1155,7 @@ CONTAINS
     real_msg(offset+19) = bf
     real_msg(offset+20) = bu
     CALL get_rng_stream(helium%rng_stream_gaussian,bg=bg,cg=cg,ig=ig,&
-         buffer=bu,buffer_filled=lbf,error=error)
+         buffer=bu,buffer_filled=lbf)
     offset = 20
     real_msg(offset+1:offset+6)   = PACK( bg, .TRUE. )
     real_msg(offset+7:offset+12)  = PACK( cg, .TRUE. )
@@ -1199,14 +1173,14 @@ CONTAINS
     NULLIFY(real_msg_gather)
     msglen = SIZE(real_msg)*logger%para_env%num_pe
     ALLOCATE(real_msg_gather(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
     real_msg_gather(:) = 0.0_dp
     CALL mp_gather(real_msg,real_msg_gather,logger%para_env%source,logger%para_env%group)
 
     ! update the RNG state in the global input structure
     CALL section_vals_val_set(helium%input, &
          "MOTION%PINT%HELIUM%RNG_STATE%_DEFAULT_KEYWORD_", &
-         r_vals_ptr=real_msg_gather,error=error)
+         r_vals_ptr=real_msg_gather)
 
     ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
     ! assigned in section_vals_val_set - this memeory will be used later on!
@@ -1215,7 +1189,7 @@ CONTAINS
 
     ! DEALLOCATE since this array is only used locally
     DEALLOCATE(real_msg,STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(status==0,cp_failure_level,routineP,failure)
 
     IF (helium%solute_present) THEN
       !
@@ -1240,13 +1214,13 @@ CONTAINS
       ! forces should be the same on all processors, but we don't check that here
       NULLIFY(real_msg_gather)
       ALLOCATE(real_msg_gather(msglen),STAT=status)
-      CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(status==0,cp_failure_level,routineP,failure)
       real_msg_gather(:) = PACK( helium%force_avrg, .TRUE. )
 
       ! update forces in the global input structure
       CALL section_vals_val_set(helium%input, &
            "MOTION%PINT%HELIUM%FORCE%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=real_msg_gather,error=error)
+           r_vals_ptr=real_msg_gather)
 
       ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
       ! assigned in section_vals_val_set - this memeory will be used later on!
@@ -1262,11 +1236,10 @@ CONTAINS
       ! make sure that the section is explicitly present in the input structure
       NULLIFY(tmpsec)
       tmpsec => section_vals_get_subs_vals(helium%input, &
-                "MOTION%PINT%HELIUM%RHO", &
-                error=error)
-      CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+                "MOTION%PINT%HELIUM%RHO")
+      CALL section_vals_get(tmpsec,explicit=explicit)
       IF ( .NOT. explicit ) THEN
-        CALL section_vals_add_values(tmpsec,error)
+        CALL section_vals_add_values(tmpsec)
       END IF
 
       ! work on the temporary array so that accumulated data remains intact
@@ -1279,13 +1252,13 @@ CONTAINS
         CALL mp_sum(message,logger%para_env%group)
       END DO
       itmp = logger%para_env%num_pe
-      CPPostcondition(itmp>0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(itmp>0,cp_failure_level,routineP,failure)
       rtmp = 1.0_dp / REAL(itmp,dp)
       helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
 
       ! average over steps performed so far in this run
       nsteps = helium%current_step-helium%first_step
-      CPPostcondition(nsteps>0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(nsteps>0,cp_failure_level,routineP,failure)
       rtmp = 1.0_dp / REAL(nsteps,dp)
       helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
 
@@ -1302,11 +1275,11 @@ CONTAINS
       NULLIFY(real_msg)
       msglen = SIZE(helium%rho_inst)
       ALLOCATE(real_msg(msglen),STAT=status)
-      CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(status==0,cp_failure_level,routineP,failure)
       real_msg(:) = PACK( helium%rho_inst, .TRUE. )
       CALL section_vals_val_set(helium%input, &
            "MOTION%PINT%HELIUM%RHO%CUBE_DATA%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=real_msg,error=error)
+           r_vals_ptr=real_msg)
       NULLIFY(real_msg)
 
       ! update the weighting factor
@@ -1318,7 +1291,7 @@ CONTAINS
       END IF
       CALL section_vals_val_set(helium%input, &
            "MOTION%PINT%HELIUM%RHO%IWEIGHT", &
-           i_val=itmp,error=error)
+           i_val=itmp)
 
     END IF
 
@@ -1331,18 +1304,15 @@ CONTAINS
 !> \param thermostat_energy ...
 !> \param nsize ...
 !> \param work_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [teo]
 !> \author Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE dump_csvr_energy_info(thermostat_energy, nsize, work_section, error)
+  SUBROUTINE dump_csvr_energy_info(thermostat_energy, nsize, work_section)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: thermostat_energy
     INTEGER, INTENT(IN)                      :: nsize
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_energy_info', &
       routineP = moduleN//':'//routineN
@@ -1355,33 +1325,33 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(work_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition((work_section%ref_count>0),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(work_section),cp_failure_level,routineP,failure)
+    CPPrecondition((work_section%ref_count>0),cp_failure_level,routineP,failure)
 
     NULLIFY (my_val,old_val,section,vals)
 
     section => work_section%section
 
-    ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
 
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
                    "section "//TRIM(section%name)//" does not contain keyword "//&
-                   "_DEFAULT_KEYWORD_",error,failure)
+                   "_DEFAULT_KEYWORD_",failure)
 
     DO
        IF (SIZE(work_section%values,2)==1) EXIT
-       CALL section_vals_add_values(work_section,error=error)
+       CALL section_vals_add_values(work_section)
     END DO
 
     vals => work_section%values(ik,1)%list
     Nlist = 0
 
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
 
     DO irk=1,nsize
-       CALL val_create(val=my_val,r_val=thermostat_energy(irk),error=error)
+       CALL val_create(val=my_val,r_val=thermostat_energy(irk))
        IF (Nlist /= 0) THEN
           IF (irk == 1) THEN
              new_pos => vals
@@ -1389,16 +1359,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk == 1) THEN
              NULLIFY (new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY (new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -1414,17 +1384,14 @@ CONTAINS
 !> \param csvr ...
 !> \param para_env ...
 !> \param csvr_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino] - University of Zurich
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE dump_csvr_restart_info(csvr, para_env, csvr_section, error)
+  SUBROUTINE dump_csvr_restart_info(csvr, para_env, csvr_section)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: csvr_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_restart_info', &
       routineP = moduleN//':'//routineN
@@ -1441,34 +1408,34 @@ CONTAINS
     failure = .FALSE.
     ! Thermostat Energies
     ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE(thermo_energy(csvr%loc_num_csvr),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1,csvr%loc_num_csvr
        thermo_energy(i) = csvr%nvt(i)%thermostat_energy
     END DO
     CALL get_kin_energies (csvr%map_info,csvr%loc_num_csvr,&
                csvr%glob_num_csvr,thermo_energy,&
-               dum, para_env, array_kin=work, error=error)
+               dum, para_env, array_kin=work)
     DEALLOCATE(thermo_energy,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! If check passes then let's dump the info on the restart file
-    work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY",error=error)
-    CALL dump_csvr_energy_info(work, csvr%glob_num_csvr, work_section, error)
+    work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY")
+    CALL dump_csvr_energy_info(work, csvr%glob_num_csvr, work_section)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! Thermostat Random Number info for restart
-    work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT",error=error)
+    work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT")
     ALLOCATE (dwork(rng_record_length,csvr%glob_num_csvr),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     dwork = 0
     DO i=1,csvr%loc_num_csvr
        my_index = csvr%map_info%index(i)
        CALL dump_rng_stream(rng_stream=csvr%nvt(i)%gaussian_rng_stream,&
-            rng_record=rng_record, error=error)
+            rng_record=rng_record)
        CALL string_to_ascii(rng_record,dwork(:,my_index))
     END DO
 
@@ -1478,12 +1445,11 @@ CONTAINS
        CALL mp_sum(dwork,para_env%group)
     ELSE
        ! Perform some check and collect data in case of communicating thermostats
-       CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env, error)
+       CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env)
     END IF
-    CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork,&
-         error=error)
+    CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork)
     DEALLOCATE (dwork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE dump_csvr_restart_info
 
@@ -1493,17 +1459,14 @@ CONTAINS
 !> \param al ...
 !> \param para_env ...
 !> \param al_section ...
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
 !> \par History
 !>      10.2007 created [tlaino] - University of Zurich
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE dump_al_restart_info(al, para_env, al_section, error)
+  SUBROUTINE dump_al_restart_info(al, para_env, al_section)
     TYPE(al_system_type), POINTER            :: al
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: al_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_al_restart_info', &
       routineP = moduleN//':'//routineN
@@ -1518,9 +1481,9 @@ CONTAINS
 
     ! chi and mass
     ALLOCATE(work(al%glob_num_al),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(t_array(al%loc_num_al),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! copy chi into temporary
     DO i = 1,al%loc_num_al
@@ -1529,11 +1492,11 @@ CONTAINS
     ! consolidate into work
     CALL get_kin_energies (al%map_info,al%loc_num_al,&
                al%glob_num_al,t_array,&
-               dum, para_env, array_kin=work, error=error)
+               dum, para_env, array_kin=work)
 
     ! If check passes then let's dump the info on the restart file
-    work_section => section_vals_get_subs_vals(al_section,"CHI",error=error)
-    CALL dump_csvr_energy_info(work, al%glob_num_al, work_section, error)
+    work_section => section_vals_get_subs_vals(al_section,"CHI")
+    CALL dump_csvr_energy_info(work, al%glob_num_al, work_section)
 
     ! copy mass into temporary
     DO i = 1,al%loc_num_al
@@ -1542,16 +1505,16 @@ CONTAINS
     ! consolidate into work
     CALL get_kin_energies (al%map_info,al%loc_num_al,&
                al%glob_num_al,t_array,&
-               dum, para_env, array_kin=work, error=error)
+               dum, para_env, array_kin=work)
 
     ! If check passes then let's dump the info on the restart file
-    work_section => section_vals_get_subs_vals(al_section,"MASS",error=error)
-    CALL dump_csvr_energy_info(work, al%glob_num_al, work_section, error)
+    work_section => section_vals_get_subs_vals(al_section,"MASS")
+    CALL dump_csvr_energy_info(work, al%glob_num_al, work_section)
 
     DEALLOCATE (t_array,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE dump_al_restart_info
 
@@ -1561,15 +1524,12 @@ CONTAINS
 !> \param gle ...
 !> \param para_env ...
 !> \param gle_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE dump_gle_restart_info(gle, para_env, gle_section, error)
+  SUBROUTINE dump_gle_restart_info(gle, para_env, gle_section)
     TYPE(gle_type), POINTER                  :: gle
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: gle_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_gle_restart_info', &
       routineP = moduleN//':'//routineN
@@ -1590,35 +1550,35 @@ CONTAINS
 
     ! Thermostat Energies
     ALLOCATE(work(gle%glob_num_gle),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(thermo_energy(gle%loc_num_gle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1,gle%loc_num_gle
        thermo_energy(i) = gle%nvt(i)%thermostat_energy
     END DO
     CALL get_kin_energies (gle%map_info,gle%loc_num_gle,&
                gle%glob_num_gle,thermo_energy,&
-               dum, para_env, array_kin=work, error=error)
+               dum, para_env, array_kin=work)
     DEALLOCATE(thermo_energy,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! If check passes then let's dump the info on the restart file
-    work_section => section_vals_get_subs_vals(gle_section,"THERMOSTAT_ENERGY",error=error)
-    CALL dump_csvr_energy_info(work, gle%glob_num_gle, work_section, error)
+    work_section => section_vals_get_subs_vals(gle_section,"THERMOSTAT_ENERGY")
+    CALL dump_csvr_energy_info(work, gle%glob_num_gle, work_section)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! Thermostat Random Number info for restart
-    work_section => section_vals_get_subs_vals(gle_section,"RNG_INIT",error=error)
+    work_section => section_vals_get_subs_vals(gle_section,"RNG_INIT")
     glob_num = gle%glob_num_gle
     loc_num = gle%loc_num_gle
     ALLOCATE (dwork(rng_record_length,glob_num),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     dwork = 0
     DO i=1,loc_num
        j = gle%map_info%index(i)
        CALL dump_rng_stream(rng_stream= gle%nvt(i)%gaussian_rng_stream,&
-            rng_record=rng_record, error=error)
+            rng_record=rng_record)
        CALL string_to_ascii(rng_record,dwork(:,j))
     END DO
 
@@ -1628,22 +1588,21 @@ CONTAINS
        CALL mp_sum(dwork,para_env%group)
     ELSE
        ! Perform some check and collect data in case of communicating thermostats
-       CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env, error)
+       CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env)
     END IF
-    CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork,&
-         error=error)
+    CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork)
     DEALLOCATE (dwork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE ( gle_per_proc(para_env%num_pe),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     gle_per_proc(:) = 0
     CALL mp_allgather(gle%loc_num_gle,gle_per_proc,para_env%group)
 
     ! Thermostat S variable info for restart
     NULLIFY(s_tmp)
     ALLOCATE (s_tmp((gle%ndim)*gle%glob_num_gle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     s_tmp=0.0_dp
 
     NULLIFY(work,index)
@@ -1675,19 +1634,19 @@ CONTAINS
     END DO
 
     IF(SIZE(s_tmp)>0) THEN
-    work_section => section_vals_get_subs_vals(gle_section,"S",error=error)
-    CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=s_tmp,error=error)
+    work_section => section_vals_get_subs_vals(gle_section,"S")
+    CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=s_tmp)
     ELSE
       DEALLOCATE(s_tmp,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     DEALLOCATE(gle_per_proc, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( work, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( index, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE dump_gle_restart_info
 
@@ -1700,17 +1659,14 @@ CONTAINS
 !> \param veta ...
 !> \param fnhc ...
 !> \param mnhc ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [tlaino] - University of Zurich
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
+  SUBROUTINE collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc)
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eta, veta, fnhc, mnhc
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_nose_restart_info', &
       routineP = moduleN//':'//routineN
@@ -1886,14 +1842,12 @@ CONTAINS
 !> \param nfield ...
 !> \param particle_set ...
 !> \param conv_factor ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE section_neb_coord_val_set(coord_section,array,narray,nsize,nfield,&
-                                       particle_set,conv_factor,error)
+                                       particle_set,conv_factor)
 
     TYPE(section_vals_type), POINTER         :: coord_section
     REAL(KIND=dp), DIMENSION(*)              :: array
@@ -1901,7 +1855,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp)                            :: conv_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
       routineP = moduleN//':'//routineN
@@ -1915,32 +1868,32 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,failure)
+    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,failure)
     section => coord_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
-       CALL section_vals_add_values(coord_section,error=error)
+       CALL section_vals_add_values(coord_section)
     END DO
     vals  => coord_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nsize/nfield
        ALLOCATE (my_c(nfield),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        IF (nfield == 3) THEN
           my_c(1:3) = get_particle_pos_or_vel(irk,particle_set,array(1:narray))
           my_c(1:3) = my_c(1:3)*conv_factor
        ELSE
           my_c(1) = array(irk)
        END IF
-       CALL val_create(my_val,r_vals_ptr=my_c,error=error)
+       CALL val_create(my_val,r_vals_ptr=my_c)
 
        IF (Nlist /= 0) THEN
           IF (irk==1) THEN
@@ -1949,16 +1902,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -1974,17 +1927,14 @@ CONTAINS
 !> \param veta ...
 !> \param fnhc ...
 !> \param mnhc ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+  SUBROUTINE set_template_restart(work_section, eta, veta, fnhc, mnhc)
     TYPE(section_vals_type), POINTER         :: work_section
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eta, veta, fnhc, mnhc
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart', &
       routineP = moduleN//':'//routineN
@@ -1997,8 +1947,8 @@ CONTAINS
     NULLIFY (coord, force, velocity, mass)
     IF (PRESENT(eta)) THEN
        IF (SIZE(eta) > 0) THEN
-          coord => section_vals_get_subs_vals(work_section,"COORD",error=error)
-          CALL section_vals_val_set(coord,"_DEFAULT_KEYWORD_",r_vals_ptr=eta,error=error)
+          coord => section_vals_get_subs_vals(work_section,"COORD")
+          CALL section_vals_val_set(coord,"_DEFAULT_KEYWORD_",r_vals_ptr=eta)
        ELSE
           DEALLOCATE (eta,STAT=stat)
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta")
@@ -2006,8 +1956,8 @@ CONTAINS
     END IF
     IF (PRESENT(veta)) THEN
        IF (SIZE(veta) > 0) THEN
-          velocity => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
-          CALL section_vals_val_set(velocity,"_DEFAULT_KEYWORD_",r_vals_ptr=veta,error=error)
+          velocity => section_vals_get_subs_vals(work_section,"VELOCITY")
+          CALL section_vals_val_set(velocity,"_DEFAULT_KEYWORD_",r_vals_ptr=veta)
        ELSE
           DEALLOCATE (veta,STAT=stat)
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta")
@@ -2015,8 +1965,8 @@ CONTAINS
     END IF
     IF (PRESENT(fnhc)) THEN
        IF (SIZE(fnhc) > 0) THEN
-          force => section_vals_get_subs_vals(work_section,"FORCE",error=error)
-          CALL section_vals_val_set(force,"_DEFAULT_KEYWORD_",r_vals_ptr=fnhc,error=error)
+          force => section_vals_get_subs_vals(work_section,"FORCE")
+          CALL section_vals_val_set(force,"_DEFAULT_KEYWORD_",r_vals_ptr=fnhc)
        ELSE
           DEALLOCATE (fnhc,STAT=stat)
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc")
@@ -2024,8 +1974,8 @@ CONTAINS
     END IF
     IF (PRESENT(mnhc)) THEN
        IF (SIZE(mnhc) > 0) THEN
-          mass => section_vals_get_subs_vals(work_section,"MASS",error=error)
-          CALL section_vals_val_set(mass,"_DEFAULT_KEYWORD_",r_vals_ptr=mnhc,error=error)
+          mass => section_vals_get_subs_vals(work_section,"MASS")
+          CALL section_vals_val_set(mass,"_DEFAULT_KEYWORD_",r_vals_ptr=mnhc)
        ELSE
           DEALLOCATE (mnhc,STAT=stat)
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc")
@@ -2038,17 +1988,14 @@ CONTAINS
 !> \brief routine to dump hills information during metadynamics run
 !> \param ss_section ...
 !> \param meta_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE meta_hills_val_set_ss(ss_section, meta_env, error)
+  SUBROUTINE meta_hills_val_set_ss(ss_section, meta_env)
 
     TYPE(section_vals_type), POINTER         :: ss_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
       routineP = moduleN//':'//routineN
@@ -2062,29 +2009,29 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(ss_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ss_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ss_section),cp_failure_level,routineP,failure)
+    CPPrecondition(ss_section%ref_count>0,cp_failure_level,routineP,failure)
     section => ss_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
     DO
        IF (SIZE(ss_section%values,2)==1) EXIT
-       CALL section_vals_add_values(ss_section,error=error)
+       CALL section_vals_add_values(ss_section)
     END DO
     vals  => ss_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     lsize = SIZE(meta_env%hills_env%ss_history,1)
     DO irk=1,meta_env%hills_env%n_hills
        ALLOCATE(ss_val(lsize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Always stored in A.U.
        ss_val = meta_env%hills_env%ss_history(:,irk)
-       CALL val_create(my_val,r_vals_ptr=ss_val,error=error)
+       CALL val_create(my_val,r_vals_ptr=ss_val)
 
        IF (irk <= Nlist) THEN
           IF (irk==1) THEN
@@ -2093,16 +2040,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -2115,17 +2062,14 @@ CONTAINS
 !> \brief routine to dump hills information during metadynamics run
 !> \param ds_section ...
 !> \param meta_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE meta_hills_val_set_ds(ds_section, meta_env, error)
+  SUBROUTINE meta_hills_val_set_ds(ds_section, meta_env)
 
     TYPE(section_vals_type), POINTER         :: ds_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
       routineP = moduleN//':'//routineN
@@ -2139,29 +2083,29 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(ds_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ds_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ds_section),cp_failure_level,routineP,failure)
+    CPPrecondition(ds_section%ref_count>0,cp_failure_level,routineP,failure)
     section => ds_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
     DO
        IF (SIZE(ds_section%values,2)==1) EXIT
-       CALL section_vals_add_values(ds_section,error=error)
+       CALL section_vals_add_values(ds_section)
     END DO
     vals  => ds_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     lsize = SIZE(meta_env%hills_env%delta_s_history,1)
     DO irk=1,meta_env%hills_env%n_hills
        ALLOCATE(ds_val(lsize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Always stored in A.U.
        ds_val = meta_env%hills_env%delta_s_history(:,irk)
-       CALL val_create(my_val,r_vals_ptr=ds_val,error=error)
+       CALL val_create(my_val,r_vals_ptr=ds_val)
 
        IF (irk<=Nlist) THEN
           IF (irk==1) THEN
@@ -2170,16 +2114,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -2192,17 +2136,14 @@ CONTAINS
 !> \brief routine to dump hills information during metadynamics run
 !> \param ww_section ...
 !> \param meta_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE meta_hills_val_set_ww(ww_section, meta_env, error)
+  SUBROUTINE meta_hills_val_set_ww(ww_section, meta_env)
 
     TYPE(section_vals_type), POINTER         :: ww_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ww', &
       routineP = moduleN//':'//routineN
@@ -2215,25 +2156,25 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(ww_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ww_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ww_section),cp_failure_level,routineP,failure)
+    CPPrecondition(ww_section%ref_count>0,cp_failure_level,routineP,failure)
     section => ww_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
     DO
        IF (SIZE(ww_section%values,2)==1) EXIT
-       CALL section_vals_add_values(ww_section,error=error)
+       CALL section_vals_add_values(ww_section)
     END DO
     vals  => ww_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     lsize = meta_env%hills_env%n_hills
     DO irk=1,lsize
-       CALL val_create(my_val,r_val=meta_env%hills_env%ww_history(irk),error=error)
+       CALL val_create(my_val,r_val=meta_env%hills_env%ww_history(irk))
 
        IF (irk<=Nlist) THEN
           IF (irk==1) THEN
@@ -2242,16 +2183,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -2264,17 +2205,14 @@ CONTAINS
 !> \brief routine to dump hills information during metadynamics run
 !> \param invdt_section ...
 !> \param meta_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2009 created [seb]
 !> \author SC
 ! *****************************************************************************
-  SUBROUTINE meta_hills_val_set_dt(invdt_section, meta_env, error)
+  SUBROUTINE meta_hills_val_set_dt(invdt_section, meta_env)
 
     TYPE(section_vals_type), POINTER         :: invdt_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_dt', &
       routineP = moduleN//':'//routineN
@@ -2287,25 +2225,25 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(invdt_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(invdt_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(invdt_section),cp_failure_level,routineP,failure)
+    CPPrecondition(invdt_section%ref_count>0,cp_failure_level,routineP,failure)
     section => invdt_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+         "_DEFAULT_KEYWORD_",failure)
     DO
        IF (SIZE(invdt_section%values,2)==1) EXIT
-       CALL section_vals_add_values(invdt_section,error=error)
+       CALL section_vals_add_values(invdt_section)
     END DO
     vals  => invdt_section%values(ik,1)%list
     Nlist = 0
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+       Nlist = cp_sll_val_get_length(vals)
     END IF
     lsize = meta_env%hills_env%n_hills
     DO irk=1,lsize
-       CALL val_create(my_val,r_val=meta_env%hills_env%invdt_history(irk),error=error)
+       CALL val_create(my_val,r_val=meta_env%hills_env%invdt_history(irk))
 
        IF (irk<=Nlist) THEN
           IF (irk==1) THEN
@@ -2314,16 +2252,16 @@ CONTAINS
              new_pos => new_pos%rest
           END IF
           old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
+          CALL val_release(old_val)
           new_pos%first_el => my_val
        ELSE
           IF (irk==1) THEN
              NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos,first_el=my_val)
              vals => new_pos
           ELSE
              NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val)
              new_pos => new_pos%rest
           END IF
        END IF
@@ -2340,21 +2278,18 @@ CONTAINS
 !> \param root_section ...
 !> \param md_env ...
 !> \param force_env ...
-!> \param error ...
 !> \par History
 !>      - Creation (10.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_binary_restart(output_unit,log_unit,root_section,md_env,force_env,&
-                                  error)
+  SUBROUTINE write_binary_restart(output_unit,log_unit,root_section,md_env,force_env)
 
     INTEGER, INTENT(IN)                      :: output_unit, log_unit
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_restart', &
       routineP = moduleN//':'//routineN
@@ -2398,8 +2333,7 @@ CONTAINS
        CALL get_md_env(md_env=md_env,&
                        force_env=my_force_env,&
                        thermostat_part=thermostat_part,&
-                       thermostat_shell=thermostat_shell,&
-                       error=error)
+                       thermostat_shell=thermostat_shell)
     ELSE IF (PRESENT(force_env)) THEN
        my_force_env => force_env
     END IF
@@ -2409,7 +2343,7 @@ CONTAINS
        RETURN
     END IF
 
-    CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=print_level,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=print_level)
 
     IF (print_level > 1) THEN
        print_info = .TRUE.
@@ -2419,15 +2353,14 @@ CONTAINS
 
     
 
-    CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=run_type,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=run_type)
     write_velocities = ((run_type == mol_dyn_run).OR.&
                         (run_type == mon_car_run).OR.&
                         (run_type == pint_run))
 
     CALL force_env_get(force_env=my_force_env,&
                        para_env=para_env,&
-                       subsys=subsys,&
-                       error=error)
+                       subsys=subsys)
     CALL cp_subsys_get(subsys,&
                        atomic_kinds=atomic_kinds,&
                        particles=particles,&
@@ -2437,8 +2370,7 @@ CONTAINS
                        shell_particles=shell_particles,&
                        nshell=nshell,&
                        molecule_kinds_new=molecule_kinds,&
-                       molecules_new=molecules,&
-                       error=error)
+                       molecules_new=molecules)
 
     natomkind = atomic_kinds%n_els
     IF (ASSOCIATED(molecule_kinds)) THEN
@@ -2671,7 +2603,7 @@ CONTAINS
           nhc => thermostat_part%nhc
           CALL write_binary_thermostats_nose(nhc,output_unit,log_unit,section_label,&
                                              n_char_size,n_dp_size,n_int_size,&
-                                             print_info,para_env,error)
+                                             print_info,para_env)
        END IF
     ELSE
        nhc_size = 0
@@ -2700,7 +2632,7 @@ CONTAINS
           nhc => thermostat_shell%nhc
           CALL write_binary_thermostats_nose(nhc,output_unit,log_unit,section_label,&
                                              n_char_size,n_dp_size,n_int_size,&
-                                             print_info,para_env,error)
+                                             print_info,para_env)
        END IF
     ELSE
        nhc_size = 0
@@ -2848,7 +2780,6 @@ CONTAINS
 !> \param n_int_size ...
 !> \param print_info ...
 !> \param para_env ...
-!> \param error ...
 !> \par History
 !>      - Creation (23.03.2011,MK)
 !> \author  Matthias Krack (MK)
@@ -2856,7 +2787,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE write_binary_thermostats_nose(nhc,output_unit,log_unit,section_label,&
                                            n_char_size,n_dp_size,n_int_size,&
-                                           print_info,para_env,error)
+                                           print_info,para_env)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     INTEGER, INTENT(IN)                      :: output_unit, log_unit
@@ -2866,7 +2797,6 @@ CONTAINS
                                                 n_int_size
     LOGICAL, INTENT(IN)                      :: print_info
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'write_binary_thermostats_nose', &
@@ -2882,7 +2812,7 @@ CONTAINS
     NULLIFY (mnhc)
     NULLIFY (veta)
 
-    CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc,error)
+    CALL collect_nose_restart_info(nhc,para_env,eta,veta,fnhc,mnhc)
 
     nhc_size = SIZE(eta)
 

@@ -34,15 +34,13 @@
 !> \param E_range ...
 !> \param aw ...
 !> \param ierr ...
-!> \param error ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
-   SUBROUTINE get_rpa_minimax_coeff(k,E_range,aw,ierr,error)
+   SUBROUTINE get_rpa_minimax_coeff(k,E_range,aw,ierr)
     INTEGER                                  :: k
     REAL(KIND=dp)                            :: E_range
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: aw
     INTEGER                                  :: ierr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_minimax_coeff', &
       routineP = moduleN//':'//routineN
@@ -114,20 +112,20 @@
                   "for the required number of quadrature points. The Minimax parameters "//& 
                   "have been optimized for the lower bound of: ",TRIM(Rc_cha) 
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      error_msg,error,only_ionode=.TRUE.)
+                      error_msg,only_ionode=.TRUE.)
      END IF
      IF( E_range > Rc ) THEN
        WRITE(error_msg,'(A,A)') " The range for the Minimax approximation exceeds the upper bound "//& 
                   "for the required number of quadrature points. The Minimax parameters "//& 
                   "have been optimized for the upper bound of: ",TRIM(Rc_cha) 
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      error_msg,error,only_ionode=.TRUE.)
+                      error_msg,only_ionode=.TRUE.)
      END IF
      IF( ierr < 0 ) THEN
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "The required number of quadrature point exceeds the maximum available. "//& 
             "The number of quadrature point has been reset to 20.", & 
-            error,only_ionode=.TRUE.)
+            only_ionode=.TRUE.)
      END IF
 
      R_transf=SQRT(L_b/Rc)

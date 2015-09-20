@@ -36,12 +36,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param iw ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE eri_test (iw,error)
+  SUBROUTINE eri_test (iw)
 
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_test', &
       routineP = moduleN//':'//routineN
@@ -108,7 +106,7 @@ CONTAINS
     n = MAX(npgfa,npgfb,npgfc,npgfd)
 
     ALLOCATE(zeta(npgfa),zetb(npgfb),zetc(npgfc),zetd(npgfd),rpgf(n),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     zeta(1:npgfa) = 0.5_dp
     zetb(1:npgfb) = 0.4_dp
@@ -134,7 +132,7 @@ CONTAINS
          lc_min=l
          ll = ncoset(l)
          ALLOCATE(f(0:2*l+2),v(npgfa*ll,npgfc*ll,2*l+1),vac(npgfa*ll,npgfc*ll),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          vac = 0._dp
          ii = MAX(100/(l+1)**2,1)
          tstart = m_walltime ( )
@@ -146,13 +144,13 @@ CONTAINS
          perf = REAL(ii*nco(l)**2)*1.e-6_dp * REAL(npgfa*npgfc,dp)/t
          WRITE(iw,'(A,T40,A,T66,F15.3)') " Performance [Mintegrals/s] ",i2c(l),perf
          DEALLOCATE(f,v,vac,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END DO
 
     END IF
 
     DEALLOCATE(zeta,zetb,zetc,zetd,rpgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL deallocate_orbital_pointers()
 

@@ -55,10 +55,9 @@ CONTAINS
 !> \param energy_only ...
 !> \param epr_xc ...
 !> \param adiabatic_rescale_factor ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE vxc_of_r_new(xc_fun_section,rho_set,deriv_set,deriv_order,needs,w,&
-                          lsd,na,nr,exc,vxc,vxg,vtau,energy_only,epr_xc,adiabatic_rescale_factor,error)
+                          lsd,na,nr,exc,vxc,vxg,vtau,energy_only,epr_xc,adiabatic_rescale_factor)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -84,7 +83,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vtau
     LOGICAL, INTENT(IN), OPTIONAL            :: energy_only, epr_xc
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
       routineP = moduleN//':'//routineN
@@ -123,10 +121,9 @@ CONTAINS
          lsd=lsd,&
          rho_set=rho_set, &
          deriv_set=deriv_set,&
-         deriv_order=my_deriv_order, &
-         error=error)
+         deriv_order=my_deriv_order)
 
-    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
+    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff)
 
    NULLIFY (deriv_data)
 
@@ -134,9 +131,9 @@ CONTAINS
       ! nabla v_xc (using the vxg arrays)
       ! there's no point doing this when lsd = false
       IF(lsd) THEN
-         deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)",error=error)
+         deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)")
          IF (ASSOCIATED(deriv_att)) THEN
-            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
             DO ir = 1,nr
                DO ia = 1,na
                   DO idir = 1,3
@@ -147,9 +144,9 @@ CONTAINS
             END DO !ir
             NULLIFY(deriv_data)
          END IF
-         deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)",error=error)
+         deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)")
          IF (ASSOCIATED(deriv_att)) THEN
-            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
             DO ir = 1,nr
                DO ia = 1,na
                   DO idir = 1,3
@@ -162,9 +159,9 @@ CONTAINS
          END IF
       END IF
       !  EXC energy ! is that needed for epr?
-      deriv_att => xc_dset_get_derivative(deriv_set,"", error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set,"")
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
          exc = 0.0_dp
          DO ir = 1, nr
             DO ia = 1, na
@@ -175,9 +172,9 @@ CONTAINS
       END IF
    ELSE
 !  EXC energy
-   deriv_att => xc_dset_get_derivative(deriv_set,"", error=error)
+   deriv_att => xc_dset_get_derivative(deriv_set,"")
    IF (ASSOCIATED(deriv_att)) THEN
-      CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+      CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
       exc = 0.0_dp
       DO ir = 1, nr
          DO ia = 1, na
@@ -190,29 +187,29 @@ CONTAINS
    IF(.NOT.my_only_energy) THEN
 !  Derivative with respect to the density
    IF(lsd) THEN
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)",error=error)
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
      IF (ASSOCIATED(deriv_att)) THEN
-       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
        vxc(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
        NULLIFY (deriv_data)
      END IF
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)",error=error)
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)")
      IF (ASSOCIATED(deriv_att)) THEN
-       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
        vxc(:,:,2) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
        NULLIFY(deriv_data)
      END IF
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
      IF(ASSOCIATED(deriv_att)) THEN
-        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
         vxc(:,:,1) = vxc(:,:,1) + deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
         vxc(:,:,2) = vxc(:,:,2) + deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
         NULLIFY (deriv_data)
      END IF
    ELSE
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
      IF (ASSOCIATED(deriv_att)) THEN
-       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
+       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
        vxc(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
        NULLIFY (deriv_data)
      END IF
@@ -220,9 +217,9 @@ CONTAINS
 
 !  Derivatives with respect to the gradient
    IF (lsd) THEN
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhoa)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhoa)")
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
          DO ir = 1, nr
             DO ia = 1, na
                DO idir=1, 3
@@ -238,9 +235,9 @@ CONTAINS
          END DO
          NULLIFY(deriv_data)
       END IF
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhob)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhob)")
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
          DO ir = 1, nr
             DO ia = 1, na
                DO idir=1, 3
@@ -257,9 +254,9 @@ CONTAINS
          NULLIFY(deriv_data)
       END IF
       ! Cross Terms
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
       IF(ASSOCIATED(deriv_att)) THEN
-         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
          DO ir = 1, nr
             DO ia = 1, na
                DO idir = 1, 3
@@ -274,9 +271,9 @@ CONTAINS
          NULLIFY (deriv_data)
       END IF
    ELSE
-      deriv_att => xc_dset_get_derivative(deriv_set,"(norm_drho)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set,"(norm_drho)")
       IF (ASSOCIATED(deriv_att)) THEN
-         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
          DO ir = 1, nr
             DO ia = 1, na
                IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
@@ -295,22 +292,22 @@ CONTAINS
    END IF  ! lsd
 !  Derivative with respect to tau
    IF (lsd) THEN
-      deriv_att => xc_dset_get_derivative(deriv_set,"(taua)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set,"(taua)")
       IF (ASSOCIATED(deriv_att)) THEN
-        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
         vtau(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
         NULLIFY (deriv_data)
       END IF
-      deriv_att => xc_dset_get_derivative(deriv_set,"(taub)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set,"(taub)")
       IF (ASSOCIATED(deriv_att)) THEN
-        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
         vtau(:,:,2) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
         NULLIFY (deriv_data)
       END IF
    ELSE
-      deriv_att => xc_dset_get_derivative(deriv_set,"(tau)",error=error)
+      deriv_att => xc_dset_get_derivative(deriv_set,"(tau)")
       IF (ASSOCIATED(deriv_att)) THEN
-        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
         vtau(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
         NULLIFY (deriv_data)
       END IF
@@ -331,10 +328,9 @@ CONTAINS
 !> \param w ...
 !> \param vxc ...
 !> \param vxg ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE xc_2nd_deriv_of_r(rho_set, rho1_set,xc_section,&
-       deriv_set,  w,  vxc, vxg, error)
+       deriv_set,  w,  vxc, vxg)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid.
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
@@ -349,7 +345,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: w
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
       routineP = moduleN//':'//routineN
@@ -371,49 +366,48 @@ CONTAINS
     IF (ASSOCIATED(rho_set%rhoa)) THEN
        lsd = .TRUE.
     END IF
-    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
+    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff)
     xc_fun_section => section_vals_get_subs_vals(xc_section,&
-         "XC_FUNCTIONAL",error=error)
+         "XC_FUNCTIONAL")
 
     !  Calculate the derivatives
     CALL xc_functionals_eval(xc_fun_section, &
          lsd=lsd,&
          rho_set=rho_set, &
          deriv_set=deriv_set,&
-         deriv_order=2, &
-         error=error)
+         deriv_order=2)
 
-    CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
+    CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 
     ! multiply by -w
     pos => deriv_set%derivs
-    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att))
        !deriv_att%deriv_data(:,:,1) = -w(:,:)*deriv_att%deriv_data(:,:,1)
        deriv_att%deriv_data(:,:,1) = w(:,:)*deriv_att%deriv_data(:,:,1)
     END DO
 
     NULLIFY(pw_pool)
     ALLOCATE(vxc_pw(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ispin=1, nspins
        ALLOCATE(vxc_pw(ispin)%pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        vxc_pw(ispin)%pw%cr3d => vxc(:,:,ispin:ispin)
     END DO
 
     CALL xc_calc_2nd_deriv(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, &
-         xc_section,gapw=.TRUE., vxg=vxg, error=error)
+         xc_section,gapw=.TRUE., vxg=vxg)
 
     DO ispin=1, nspins
        DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     DEALLOCATE(vxc_pw, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! zero the derivative data for the next call
     pos => deriv_set%derivs
-    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att))
        deriv_att%deriv_data = 0.0_dp
     END DO
 
@@ -582,9 +576,8 @@ CONTAINS
 !> \param tau ...
 !> \param na ...
 !> \param ir ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,tau,na,ir,error)
+  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,tau,na,ir)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
@@ -594,7 +587,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho
     REAL(dp), DIMENSION(:, :), POINTER       :: tau
     INTEGER, INTENT(IN)                      :: na, ir
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set', &
       routineP = moduleN//':'//routineN
@@ -615,18 +607,18 @@ CONTAINS
     ! some checks
     IF (lsd) THEN
     ELSE
-       CPPrecondition(SIZE(rho,2)==1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(rho,2)==1,cp_failure_level,routineP,failure)
     END IF
     SELECT CASE(my_nspins)
     CASE(1)
-       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,failure)
     CASE(2)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
@@ -831,8 +823,8 @@ CONTAINS
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(tau,2)==my_nspins,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,failure)
+       CPPrecondition(SIZE(tau,2)==my_nspins,cp_failure_level,routineP,failure)
     END IF
     IF (needs%tau) THEN
        IF (my_nspins==2) THEN

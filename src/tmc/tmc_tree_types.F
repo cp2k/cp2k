@@ -172,15 +172,12 @@ CONTAINS
 !> \param list  ...
 !> \param temp_ind ...
 !> \param nr ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE add_to_list(elem, list, temp_ind, nr, error)
+  SUBROUTINE add_to_list(elem, list, temp_ind, nr)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(elem_list_type), POINTER            :: list
     INTEGER, OPTIONAL                        :: temp_ind, nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_to_list', &
       routineP = moduleN//':'//routineN
@@ -190,7 +187,7 @@ CONTAINS
 
     NULLIFY(list_elem_tmp, last)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
     
     ALLOCATE(list_elem_tmp)
     list_elem_tmp%elem => elem
@@ -222,13 +219,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief clean a certain element element list 
 !> \param list  ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE clean_list(list, error)
+  SUBROUTINE clean_list(list)
     TYPE(elem_list_type), POINTER            :: list
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_list', &
       routineP = moduleN//':'//routineN
@@ -248,15 +242,12 @@ CONTAINS
 !> \brief prints out the TMC sub tree structure element unformated in file 
 !> \param elem ...
 !> \param io_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE write_subtree_elem_unformated(elem, io_unit, error)
+  SUBROUTINE write_subtree_elem_unformated(elem, io_unit)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: io_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'write_subtree_elem_unformated', &
@@ -264,8 +255,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(io_unit.GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(io_unit.GT.0,cp_failure_level,routineP,failure)
     WRITE(io_unit)   elem%nr, &
                      elem%sub_tree_nr, &
                      elem%stat, &
@@ -276,34 +267,31 @@ CONTAINS
                      elem%e_pot_approx, &
                      elem%ekin, &
                      elem%ekin_before_md
-    CALL write_subtree_elem_darray(elem%pos, io_unit, error)
-    CALL write_subtree_elem_darray(elem%vel, io_unit, error)
-    CALL write_subtree_elem_darray(elem%frc, io_unit, error)
-    CALL write_subtree_elem_darray(elem%box_scale, io_unit, error)
-    CALL write_subtree_elem_darray(elem%dipole, io_unit, error)
+    CALL write_subtree_elem_darray(elem%pos, io_unit)
+    CALL write_subtree_elem_darray(elem%vel, io_unit)
+    CALL write_subtree_elem_darray(elem%frc, io_unit)
+    CALL write_subtree_elem_darray(elem%box_scale, io_unit)
+    CALL write_subtree_elem_darray(elem%dipole, io_unit)
   END SUBROUTINE write_subtree_elem_unformated
 
 ! *****************************************************************************
 !> \brief reads the TMC sub tree structure element unformated in file 
 !> \param elem ...
 !> \param io_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE read_subtree_elem_unformated(elem, io_unit, error)
+  SUBROUTINE read_subtree_elem_unformated(elem, io_unit)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: io_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_unformated', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(io_unit.GT.0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(io_unit.GT.0,cp_failure_level,routineP,failure)
 
     READ(io_unit)   elem%nr, &
                     elem%sub_tree_nr, &
@@ -315,23 +303,21 @@ CONTAINS
                     elem%e_pot_approx, &
                     elem%ekin, &
                     elem%ekin_before_md
-    CALL read_subtree_elem_darray(elem%pos, io_unit, error)
-    CALL read_subtree_elem_darray(elem%vel, io_unit, error)
-    CALL read_subtree_elem_darray(elem%frc, io_unit, error)
-    CALL read_subtree_elem_darray(elem%box_scale, io_unit, error)
-    CALL read_subtree_elem_darray(elem%dipole, io_unit, error)
+    CALL read_subtree_elem_darray(elem%pos, io_unit)
+    CALL read_subtree_elem_darray(elem%vel, io_unit)
+    CALL read_subtree_elem_darray(elem%frc, io_unit)
+    CALL read_subtree_elem_darray(elem%box_scale, io_unit)
+    CALL read_subtree_elem_darray(elem%dipole, io_unit)
   END SUBROUTINE read_subtree_elem_unformated
 
 ! *****************************************************************************
 !> \brief ...
 !> \param array ...
 !> \param io_unit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_subtree_elem_darray(array, io_unit, error)
+  SUBROUTINE write_subtree_elem_darray(array, io_unit)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     INTEGER                                  :: io_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_darray', &
       routineP = moduleN//':'//routineN
@@ -347,12 +333,10 @@ CONTAINS
 !> \brief ...
 !> \param array ...
 !> \param io_unit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_subtree_elem_darray(array, io_unit, error)
+  SUBROUTINE read_subtree_elem_darray(array, io_unit)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     INTEGER                                  :: io_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_darray', &
       routineP = moduleN//':'//routineN
@@ -364,7 +348,7 @@ CONTAINS
     IF(l_tmp) THEN 
       READ(io_unit) i_tmp
       IF(ASSOCIATED(array)) THEN
-        CPPostcondition(SIZE(array).EQ.i_tmp,cp_failure_level,routineP,error,failure)
+        CPPostcondition(SIZE(array).EQ.i_tmp,cp_failure_level,routineP,failure)
       ELSE
         ALLOCATE(array(i_tmp)) 
       END IF

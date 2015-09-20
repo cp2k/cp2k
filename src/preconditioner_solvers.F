@@ -62,16 +62,14 @@ CONTAINS
 !> \param matrix_s ...
 !> \param matrix_h ...
 !> \param my_mixed_precision ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, &
-                                  matrix_h, my_mixed_precision, error)
+                                  matrix_h, my_mixed_precision)
     INTEGER                                  :: my_solver_type
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: matrix_h
     LOGICAL                                  :: my_mixed_precision
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solve_preconditioner', &
       routineP = moduleN//':'//routineN
@@ -85,12 +83,12 @@ CONTAINS
        !
        ! compute the full inverse
        preconditioner_env%solver=ot_precond_solver_inv_chol
-       CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error=error)
+       CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision)
     CASE (ot_precond_solver_direct)
        !
        ! prepare for the direct solver
        preconditioner_env%solver=ot_precond_solver_direct
-       CALL make_full_fact_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error)
+       CALL make_full_fact_cholesky(preconditioner_env, matrix_s, my_mixed_precision)
     CASE (ot_precond_solver_update)
        !
        ! uses an update of the full inverse (needs to be computed the first time)
@@ -98,18 +96,18 @@ CONTAINS
        occ_matrix=1.0_dp
        IF(ASSOCIATED(preconditioner_env%sparse_matrix))THEN
           IF(preconditioner_env%condition_num<0.0_dp)&
-             CALL estimate_cond_num(preconditioner_env%sparse_matrix, preconditioner_env%condition_num, error)
+             CALL estimate_cond_num(preconditioner_env%sparse_matrix, preconditioner_env%condition_num)
           CALL cp_dbcsr_filter(preconditioner_env%sparse_matrix,&
-                               1.0_dp/ preconditioner_env%condition_num*0.01_dp, error=error)
+                               1.0_dp/ preconditioner_env%condition_num*0.01_dp)
           occ_matrix=cp_dbcsr_get_occupation(preconditioner_env%sparse_matrix)
        END IF
        ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
        IF(preconditioner_env%solver.NE.ot_precond_solver_update.AND.occ_matrix>0.5_dp)THEN
           preconditioner_env%solver=ot_precond_solver_update
-          CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error=error)
+          CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision)
        ELSE
           preconditioner_env%solver=ot_precond_solver_update
-          CALL make_inverse_update(preconditioner_env, matrix_h, my_mixed_precision, error)
+          CALL make_inverse_update(preconditioner_env, matrix_h, my_mixed_precision)
        END IF
     CASE (ot_precond_solver_default)
        preconditioner_env%solver=ot_precond_solver_default
@@ -125,15 +123,12 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_s ...
 !> \param mixed_precision ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE make_full_inverse_cholesky(preconditioner_env, matrix_s, mixed_precision, &
-       error)
+  SUBROUTINE make_full_inverse_cholesky(preconditioner_env, matrix_s, mixed_precision)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
     LOGICAL, INTENT(IN)                      :: mixed_precision
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
       routineP = moduleN//':'//routineN
@@ -150,15 +145,15 @@ CONTAINS
     ! if stuff was stored in fm anyway this simple returns
     CALL transfer_dbcsr_to_fm(preconditioner_env%sparse_matrix, preconditioner_env%fm, &
                               preconditioner_env%para_env, preconditioner_env%ctxt, &
-                              mixed_precision, error)
+                              mixed_precision)
     fm=>preconditioner_env%fm
 
     NULLIFY(fm_work)
 
-    CALL cp_fm_create(fm_work, fm%matrix_struct, name="fm_work", use_sp=mixed_precision, error=error)
+    CALL cp_fm_create(fm_work, fm%matrix_struct, name="fm_work", use_sp=mixed_precision)
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
-    CALL cp_fm_cholesky_decompose(fm, info_out=info, error=error)
+    CALL cp_fm_cholesky_decompose(fm, info_out=info)
 
     !
     ! if fm not SPD we go with the overlap matrix
@@ -166,16 +161,16 @@ CONTAINS
        !
        ! just the overlap matrix
        IF(PRESENT(matrix_s)) THEN
-          CALL copy_dbcsr_to_fm(matrix_s, fm, error=error)
-          CALL cp_fm_cholesky_decompose(fm, error=error)
+          CALL copy_dbcsr_to_fm(matrix_s, fm)
+          CALL cp_fm_cholesky_decompose(fm)
        ELSE
-          CALL cp_fm_set_all(fm, alpha=0._dp, beta=1._dp, error=error)
+          CALL cp_fm_set_all(fm, alpha=0._dp, beta=1._dp)
        ENDIF
     ENDIF
-    CALL cp_fm_cholesky_invert(fm, error=error)
+    CALL cp_fm_cholesky_invert(fm)
 
-    CALL cp_fm_upper_to_full(fm, fm_work, error=error)
-    CALL cp_fm_release(fm_work, error=error)
+    CALL cp_fm_upper_to_full(fm, fm_work)
+    CALL cp_fm_release(fm_work)
 
     CALL timestop(handle)
 
@@ -187,14 +182,12 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_s ...
 !> \param mixed_precision ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE make_full_fact_cholesky(preconditioner_env, matrix_s, mixed_precision, error)
+  SUBROUTINE make_full_fact_cholesky(preconditioner_env, matrix_s, mixed_precision)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
     LOGICAL, INTENT(IN)                      :: mixed_precision
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
       routineP = moduleN//':'//routineN
@@ -211,12 +204,12 @@ CONTAINS
     ! if stuff was stored in fm anyway this simple returns
     CALL transfer_dbcsr_to_fm(preconditioner_env%sparse_matrix, preconditioner_env%fm, &
                               preconditioner_env%para_env, preconditioner_env%ctxt, &
-                              mixed_precision, error)
+                              mixed_precision)
 
     fm=>preconditioner_env%fm
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
-    CALL cp_fm_cholesky_decompose(fm, error=error)
+    CALL cp_fm_cholesky_decompose(fm)
     failure = .FALSE.
     !
     ! if fm not SPD we go with the overlap matrix
@@ -224,10 +217,10 @@ CONTAINS
        !
        ! just the overlap matrix
        IF(PRESENT(matrix_s)) THEN
-          CALL copy_dbcsr_to_fm(matrix_s, fm, error=error)
-          CALL cp_fm_cholesky_decompose(fm, error=error)
+          CALL copy_dbcsr_to_fm(matrix_s, fm)
+          CALL cp_fm_cholesky_decompose(fm)
        ELSE
-          CALL cp_fm_set_all(fm, alpha=0._dp, beta=1._dp, error=error)
+          CALL cp_fm_set_all(fm, alpha=0._dp, beta=1._dp)
        ENDIF
     ENDIF
 
@@ -240,13 +233,11 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_h as S is not always present this is a safe template for the transfer
 !> \param mixed_precision ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE make_inverse_update(preconditioner_env, matrix_h, mixed_precision, error)
+  SUBROUTINE make_inverse_update(preconditioner_env, matrix_h, mixed_precision)
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), POINTER             :: matrix_h
     LOGICAL, INTENT(IN)                      :: mixed_precision
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_inverse_update', &
       routineP = moduleN//':'//routineN
@@ -264,22 +255,22 @@ CONTAINS
 
     ! Maybe I gonna add a fm Hotelling, ... for now the same as above make sure we are dbcsr
     CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%sparse_matrix, &
-                              matrix_h, mixed_precision, error)
+                              matrix_h, mixed_precision)
     IF(.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix))THEN
       use_guess=.FALSE.
-      CALL cp_dbcsr_init_p(preconditioner_env%dbcsr_matrix, error)
+      CALL cp_dbcsr_init_p(preconditioner_env%dbcsr_matrix)
       CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "prec_dbcsr", &
-           template=matrix_h, matrix_type=dbcsr_type_no_symmetry, error=error)
+           template=matrix_h, matrix_type=dbcsr_type_no_symmetry)
     END IF 
 
     ! Try to get a reasonbale guess for the filtering threshold
     filter_eps=1.0_dp/preconditioner_env%condition_num*0.1_dp
 
     ! Agressive filtering on the initial guess is needed to avoid fill ins and retain sparsity
-    CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp, error=error)
+    CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp)
     ! We don't need a high accuracy for the inverse so 0.4 is reasonable for convergence 
     CALL invert_Hotelling(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, filter_eps*10.0_dp, &
-                          use_inv_as_guess=use_guess, norm_convergence=0.4_dp, filter_eps=filter_eps, error=error)
+                          use_inv_as_guess=use_guess, norm_convergence=0.4_dp, filter_eps=filter_eps)
 
     CALL timestop(handle)
 
@@ -290,12 +281,10 @@ CONTAINS
 !>        arnoldi iterations 
 !> \param matrix ...
 !> \param cond_num ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE estimate_cond_num(matrix, cond_num, error)
+  SUBROUTINE estimate_cond_num(matrix, cond_num)
     TYPE(cp_dbcsr_type), POINTER             :: matrix
     REAL(KIND=dp)                            :: cond_num
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'estimate_cond_num', &
       routineP = moduleN//':'//routineN
@@ -314,13 +303,13 @@ CONTAINS
      ! compute the minimum ev
      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=2, &
                                       nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
-     CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi, error)                                      
+     CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi)                                      
      max_ev=REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
      CALL deallocate_arnoldi_data(my_arnoldi)
 
      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=3, &
                                       nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
-     CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi, error)                                 
+     CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi)                                 
      min_ev=REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
      CALL deallocate_arnoldi_data(my_arnoldi)
      
@@ -336,14 +325,12 @@ CONTAINS
 !> \param dbcsr_matrix a dbcsr matrix, gets create from a template
 !> \param template_mat the template which is used for the structure
 !> \param mixed_precision  whether to use single or double precision
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE transfer_fm_to_dbcsr(fm_matrix, dbcsr_matrix, template_mat, mixed_precision, error)
+  SUBROUTINE transfer_fm_to_dbcsr(fm_matrix, dbcsr_matrix, template_mat, mixed_precision)
 
     TYPE(cp_fm_type), POINTER                :: fm_matrix
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_matrix, template_mat
     LOGICAL                                  :: mixed_precision
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transfer_fm_to_dbcsr', &
       routineP = moduleN//':'//routineN
@@ -353,24 +340,24 @@ CONTAINS
     CALL timeset(routineN, handle)
     IF(ASSOCIATED(fm_matrix))THEN
        IF(.NOT.ASSOCIATED(dbcsr_matrix)) THEN
-          CALL cp_dbcsr_init_p(dbcsr_matrix, error=error)
+          CALL cp_dbcsr_init_p(dbcsr_matrix)
           IF(mixed_precision) THEN
              CALL cp_dbcsr_create(dbcsr_matrix, "transfered_matrix", &
                   cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
                   cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                  nze=0, data_type=dbcsr_type_real_4, error=error)
+                  nze=0, data_type=dbcsr_type_real_4)
           ELSE
              CALL cp_dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
                   cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
                   cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                  nze=0, data_type=dbcsr_type_real_default, error=error)
+                  nze=0, data_type=dbcsr_type_real_default)
           ENDIF
        ENDIF
-!       CALL cp_fm_create(fm_tmp, matrix_struct=fm_matrix%matrix_struct, error=error)
-!       CALL cp_fm_upper_to_full(fm_matrix, fm_tmp, error)
-       CALL copy_fm_to_dbcsr(fm_matrix, dbcsr_matrix, error=error)
-!       CALL cp_fm_release(fm_tmp, error)
-       CALL cp_fm_release(fm_matrix, error)
+!       CALL cp_fm_create(fm_tmp, matrix_struct=fm_matrix%matrix_struct)
+!       CALL cp_fm_upper_to_full(fm_matrix, fm_tmp)
+       CALL copy_fm_to_dbcsr(fm_matrix, dbcsr_matrix)
+!       CALL cp_fm_release(fm_tmp)
+       CALL cp_fm_release(fm_matrix)
     END IF
   
     CALL timestop(handle)
@@ -384,16 +371,14 @@ CONTAINS
 !> \param para_env the para_env
 !> \param context the blacs context
 !> \param mixed_precision  whether to use single or double precision
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE transfer_dbcsr_to_fm(dbcsr_matrix, fm_matrix, para_env, context, mixed_precision, error)
+  SUBROUTINE transfer_dbcsr_to_fm(dbcsr_matrix, fm_matrix, para_env, context, mixed_precision)
 
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_matrix
     TYPE(cp_fm_type), POINTER                :: fm_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: context
     LOGICAL                                  :: mixed_precision
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transfer_dbcsr_to_fm', &
       routineP = moduleN//':'//routineN
@@ -406,17 +391,17 @@ CONTAINS
        NULLIFY(fm_struct_tmp)
 
        IF (ASSOCIATED(fm_matrix)) THEN
-          CALL cp_fm_release(fm_matrix, error=error)
+          CALL cp_fm_release(fm_matrix)
        ENDIF
 
        CALL cp_dbcsr_get_info(dbcsr_matrix, nfullrows_total=n)
        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
-                                  context=context, para_env=para_env, error=error)
-       CALL cp_fm_create(fm_matrix, fm_struct_tmp, use_sp=mixed_precision , error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp, error=error)
+                                  context=context, para_env=para_env)
+       CALL cp_fm_create(fm_matrix, fm_struct_tmp, use_sp=mixed_precision)
+       CALL cp_fm_struct_release(fm_struct_tmp)
 
-       CALL copy_dbcsr_to_fm(dbcsr_matrix, fm_matrix, error=error)
-       CALL cp_dbcsr_release(dbcsr_matrix, error)
+       CALL copy_dbcsr_to_fm(dbcsr_matrix, fm_matrix)
+       CALL cp_dbcsr_release(dbcsr_matrix)
        DEALLOCATE(dbcsr_matrix)
     END IF
 

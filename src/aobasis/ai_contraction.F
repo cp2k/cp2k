@@ -65,9 +65,8 @@ CONTAINS
 !> \param mb      Second dimension of cb, optional
 !> \param fscale  Optional scaling of output
 !> \param trans   Optional transposition of output
-!> \param error   CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE contraction_ab(sab,qab,ca,na,ma,cb,nb,mb,fscale,trans,error)
+  SUBROUTINE contraction_ab(sab,qab,ca,na,ma,cb,nb,mb,fscale,trans)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sab
@@ -81,7 +80,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nb, mb
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fscale
     LOGICAL, INTENT(IN), OPTIONAL            :: trans
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'contraction_ab', &
       routineP = moduleN//':'//routineN
@@ -143,7 +141,7 @@ CONTAINS
     IF(PRESENT(ca) .AND. PRESENT(cb)) THEN
        ! Full transform
        ALLOCATE(work(nal,mbl),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ldw = nal
        CALL dgemm("N","N",nal,mbl,nbl,1.0_dp,sab(1,1),lds,cb(1,1),ldb,0.0_dp,work(1,1),ldw)
        IF(my_trans) THEN
@@ -152,7 +150,7 @@ CONTAINS
           CALL dgemm("T","N",mal,mbl,nal,fs,ca(1,1),lda,work(1,1),ldw,0.0_dp,qab(1,1),ldq)
        END IF
        DEALLOCATE(work,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ELSE IF(PRESENT(ca)) THEN
        IF(PRESENT(nb)) THEN
           nbl = nb
@@ -177,7 +175,7 @@ CONTAINS
        END IF
     ELSE
        ! Copy of arrays is not covered here
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE contraction_ab
@@ -198,9 +196,8 @@ CONTAINS
 !> \param cc      Transformation matrix (index 3), optional
 !> \param nc      First dimension of cc, optional
 !> \param mc      Second dimension of cc, optional
-!> \param error   CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE contraction_abc(sabc,qabc,ca,na,ma,cb,nb,mb,cc,nc,mc,error)
+  SUBROUTINE contraction_abc(sabc,qabc,ca,na,ma,cb,nb,mb,cc,nc,mc)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: sabc
@@ -215,7 +212,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: cc
     INTEGER, INTENT(IN), OPTIONAL            :: nc, mc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'contraction_abc', &
       routineP = moduleN//':'//routineN
@@ -272,48 +268,48 @@ CONTAINS
     IF(PRESENT(ca) .AND. PRESENT(cb) .AND. PRESENT(cc)) THEN
        ! Full transform
        ALLOCATE(work1(nal,nbl,ncl),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ! make sure that we have contigous memory, needed for transpose algorithm
        work1(1:nal,1:nbl,1:ncl) = sabc(1:nal,1:nbl,1:ncl)
        !
        ALLOCATE(work2(nbl,ncl,mal),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL dgemm("T","N",nbl*ncl,mal,nal,1.0_dp,work1(1,1,1),nal,ca(1,1),lda,0.0_dp,work2(1,1,1),nbl*ncl)
        !
        ALLOCATE(work3(ncl,mal,mbl),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL dgemm("T","N",ncl*mal,mbl,nbl,1.0_dp,work2(1,1,1),nbl,cb(1,1),ldb,0.0_dp,work3(1,1,1),ncl*mal)
        !
        ALLOCATE(work4(mal,mbl,mcl),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL dgemm("T","N",mal*mbl,mcl,ncl,1.0_dp,work3(1,1,1),ncl,cc(1,1),ldc,0.0_dp,work4(1,1,1),mal*mbl)
        !
        work4(1:mal,1:mbl,1:mcl) = qabc(1:mal,1:mbl,1:mcl)
        !
        DEALLOCATE(work1,work2,work3,work4,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        !
     ELSE IF(PRESENT(ca) .AND. PRESENT(cb)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented", error=error, error_level=cp_failure_level)
+            message="Not implemented",error_level=cp_failure_level)
     ELSE IF(PRESENT(ca) .AND. PRESENT(cc)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented", error=error, error_level=cp_failure_level)
+            message="Not implemented",error_level=cp_failure_level)
     ELSE IF(PRESENT(cb) .AND. PRESENT(cc)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented", error=error, error_level=cp_failure_level)
+            message="Not implemented",error_level=cp_failure_level)
     ELSE IF(PRESENT(ca)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented", error=error, error_level=cp_failure_level)
+            message="Not implemented",error_level=cp_failure_level)
     ELSE IF(PRESENT(cb)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented", error=error, error_level=cp_failure_level)
+            message="Not implemented",error_level=cp_failure_level)
     ELSE IF(PRESENT(cc)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented", error=error, error_level=cp_failure_level)
+            message="Not implemented",error_level=cp_failure_level)
     ELSE
        ! Copy of arrays is not covered here
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE contraction_abc
@@ -332,9 +328,8 @@ CONTAINS
 !> \param nb      First dimension of cb
 !> \param mb      Second dimension of cb
 !> \param trans   Optional transposition of input matrix
-!> \param error   CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE decontraction_ab(sab,qab,ca,na,ma,cb,nb,mb,trans,error)
+  SUBROUTINE decontraction_ab(sab,qab,ca,na,ma,cb,nb,mb,trans)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sab
@@ -347,7 +342,6 @@ CONTAINS
       INTENT(IN)                             :: cb
     INTEGER, INTENT(IN)                      :: nb, mb
     LOGICAL, INTENT(IN), OPTIONAL            :: trans
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'decontraction_ab', &
       routineP = moduleN//':'//routineN
@@ -372,7 +366,7 @@ CONTAINS
     ldb = SIZE(cb,1)
 
     ALLOCATE(work(na,mb),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ldw = na
 
     IF(my_trans) THEN
@@ -383,7 +377,7 @@ CONTAINS
     CALL dgemm("N","T",na,nb,mb,1.0_dp,work,ldw,cb,ldb,0.0_dp,qab,ldq)
 
     DEALLOCATE(work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE decontraction_ab
 
@@ -397,9 +391,8 @@ CONTAINS
 !> \param nb      Active second dimension
 !> \param m       Number of matrices to be traced
 !> \param trans   Matrices are transposed (Sab and Pab)
-!> \param error   CP2K errror reporting
 ! *****************************************************************************
-  SUBROUTINE force_trace_ab(force,sab,pab,na,nb,m,trans,error)
+  SUBROUTINE force_trace_ab(force,sab,pab,na,nb,m,trans)
 
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: force
@@ -409,7 +402,6 @@ CONTAINS
       INTENT(IN)                             :: pab
     INTEGER, INTENT(IN)                      :: na, nb, m
     LOGICAL, INTENT(IN), OPTIONAL            :: trans
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_trace_ab', &
       routineP = moduleN//':'//routineN
@@ -418,8 +410,8 @@ CONTAINS
     LOGICAL                                  :: failure, my_trans
 
     failure = .FALSE.
-    CPPrecondition(m<=SIZE(SAB,3),cp_failure_level,routineP,error,failure)
-    CPPrecondition(m<=SIZE(force,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(m<=SIZE(SAB,3),cp_failure_level,routineP,failure)
+    CPPrecondition(m<=SIZE(force,1),cp_failure_level,routineP,failure)
 
     ! are matrices transposed?
     IF(PRESENT(trans)) THEN
@@ -451,9 +443,8 @@ CONTAINS
 !> \param ia     Starting index in qab first dimension
 !> \param ib     Starting index in qab second dimension
 !> \param trans  Matrices (qab and sab) are transposed
-!> \param error  CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE block_add_ab(dir,sab,na,nb,qab,ia,ib,trans,error)
+  SUBROUTINE block_add_ab(dir,sab,na,nb,qab,ia,ib,trans)
 
     CHARACTER(LEN=*), INTENT(IN)             :: dir
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -463,7 +454,6 @@ CONTAINS
       INTENT(INOUT)                          :: qab
     INTEGER, INTENT(IN)                      :: ia, ib
     LOGICAL, INTENT(IN), OPTIONAL            :: trans
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_add_ab', &
       routineP = moduleN//':'//routineN
@@ -498,7 +488,7 @@ CONTAINS
           sab(1:na,1:nb) = sab(1:na,1:nb) + qab(ia:ja,ib:jb)
        END IF
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE block_add_ab

@@ -69,16 +69,14 @@ CONTAINS
 !> \brief Read CP2K input section PEXSI and pass it to the PEXSI environment
 !> \param pexsi_section ...
 !> \param pexsi_env ...
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE pexsi_init_read_input(pexsi_section, pexsi_env, error)
+  SUBROUTINE pexsi_init_read_input(pexsi_section, pexsi_env)
     TYPE(section_vals_type), INTENT(IN), &
       POINTER                                :: pexsi_section
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pexsi_init_read_input', &
       routineP = moduleN//':'//routineN
@@ -96,51 +94,51 @@ CONTAINS
 ! of fixed sparsity pattern)
 
     CALL section_vals_val_get(pexsi_section,"TEMPERATURE",&
-      r_val=temperature,error=error)
+      r_val=temperature)
     CALL section_vals_val_get(pexsi_section,"GAP",&
-      r_val=gap,error=error)
+      r_val=gap)
     CALL section_vals_val_get(pexsi_section,"NUM_POLE",&
-      i_val=numPole,error=error)
+      i_val=numPole)
     CALL section_vals_val_get(pexsi_section,"IS_INERTIA_COUNT",&
-      l_val=isInertiaCount,error=error)
+      l_val=isInertiaCount)
     CALL section_vals_val_get(pexsi_section,"MAX_PEXSI_ITER",&
-      i_val=maxPEXSIIter,error=error)
+      i_val=maxPEXSIIter)
     CALL section_vals_val_get(pexsi_section,"MU_MIN_0",&
-      r_val=muMin0,error=error)
+      r_val=muMin0)
     CALL section_vals_val_get(pexsi_section,"MU_MAX_0",&
-      r_val=muMax0,error=error)
+      r_val=muMax0)
     CALL section_vals_val_get(pexsi_section,"MU_INERTIA_TOLERANCE",&
-      r_val=muInertiaTolerance,error=error)
+      r_val=muInertiaTolerance)
     CALL section_vals_val_get(pexsi_section,"MU_INERTIA_EXPANSION",&
-      r_val=muInertiaExpansion,error=error)
+      r_val=muInertiaExpansion)
     CALL section_vals_val_get(pexsi_section,"MU_PEXSI_SAFE_GUARD",&
-      r_val=muPEXSISafeGuard,error=error)
+      r_val=muPEXSISafeGuard)
     CALL section_vals_val_get(pexsi_section,"NUM_ELECTRON_INITIAL_TOLERANCE",&
-      r_val=numElectronInitialTolerance,error=error)
+      r_val=numElectronInitialTolerance)
     CALL section_vals_val_get(pexsi_section,"NUM_ELECTRON_PEXSI_TOLERANCE",&
-      r_val=numElectronTargetTolerance,error=error)
+      r_val=numElectronTargetTolerance)
     CALL section_vals_val_get(pexsi_section,"ORDERING",&
-      i_val=ordering,error=error)
+      i_val=ordering)
     CALL section_vals_val_get(pexsi_section,"NP_SYMB_FACT",&
-      i_val=npSymbFact,error=error)
+      i_val=npSymbFact)
     CALL section_vals_val_get(pexsi_section,"VERBOSITY",&
-      i_val=verbosity,error=error)
+      i_val=verbosity)
     CALL section_vals_val_get(pexsi_section,"MIN_RANKS_PER_POLE",&
-      i_val=min_ranks_per_pole,error=error)
+      i_val=min_ranks_per_pole)
     CALL section_vals_val_get(pexsi_section,"CSR_SCREENING",&
-      l_val=csr_screening,error=error)
+      l_val=csr_screening)
 
     isInertiaCount_int = MERGE(1,0,isInertiaCount) ! is integer in PEXSI
 
     ! Set default options inside PEXSI
-    CALL cp_pexsi_set_default_options(pexsi_env%options,error)
+    CALL cp_pexsi_set_default_options(pexsi_env%options)
 
     ! Pass CP2K input to PEXSI options
     CALL cp_pexsi_set_options(pexsi_env%options, temperature = temperature, gap = gap,&
       numPole = numPole, isInertiaCount = isInertiaCount_int, maxPEXSIIter = maxPEXSIIter, &
       muMin0 = muMin0, muMax0 = muMax0, muInertiaTolerance = muInertiaTolerance,&
       muInertiaExpansion = muInertiaExpansion, muPEXSISafeGuard = muPEXSISafeGuard,&
-      ordering = ordering, npSymbFact = npSymbFact, verbosity = verbosity, error = error)
+      ordering = ordering, npSymbFact = npSymbFact, verbosity = verbosity)
 
     pexsi_env%num_ranks_per_pole = min_ranks_per_pole ! not a PEXSI option
     pexsi_env%csr_screening = csr_screening
@@ -159,13 +157,11 @@ CONTAINS
 !> \param pexsi_env ...
 !> \param template_matrix DBCSR matrix that defines the block structure and
 !>        sparsity pattern of all matrices that are sent to PEXSI
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pexsi_init_scf(ks_env, pexsi_env, template_matrix, error)
+  SUBROUTINE pexsi_init_scf(ks_env, pexsi_env, template_matrix)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: template_matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_init_scf', &
       routineP = moduleN//':'//routineN
@@ -175,7 +171,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -183,54 +179,53 @@ CONTAINS
     ENDIF
 
     ! Create template matrices fixing sparsity pattern for PEXSI
-    CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_sym, error)
-    CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_nonsym, error)
-    CALL cp_dbcsr_init(pexsi_env%csr_sparsity, error)
+    CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_sym)
+    CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_nonsym)
+    CALL cp_dbcsr_init(pexsi_env%csr_sparsity)
 
     IF (cp_dbcsr_has_symmetry (template_matrix)) THEN
       CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_sym, template_matrix,&
-                         "symmetric template matrix for CSR conversion", error=error)
+                         "symmetric template matrix for CSR conversion")
       CALL cp_dbcsr_desymmetrize(pexsi_env%dbcsr_template_matrix_sym, &
-                                 pexsi_env%dbcsr_template_matrix_nonsym, error)
+                                 pexsi_env%dbcsr_template_matrix_nonsym)
     ELSE
       CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_nonsym, template_matrix,& 
-                         "non-symmetric template matrix for CSR conversion", error=error)
+                         "non-symmetric template matrix for CSR conversion")
       CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_sym, template_matrix,&
-                         "symmetric template matrix for CSR conversion", error=error)
+                         "symmetric template matrix for CSR conversion")
     ENDIF
 
     CALL cp_dbcsr_create(pexsi_env%csr_sparsity, "CSR sparsity", &
                          template = pexsi_env%dbcsr_template_matrix_sym, &
-                         data_type=dbcsr_type_real_4, error=error)
-    CALL cp_dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym, error=error)
+                         data_type=dbcsr_type_real_4)
+    CALL cp_dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym)
 
-    CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity, error)
+    CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)
 
-    IF (.NOT. pexsi_env%csr_screening) CALL cp_dbcsr_set (pexsi_env%csr_sparsity, 1.0, error)
+    IF (.NOT. pexsi_env%csr_screening) CALL cp_dbcsr_set (pexsi_env%csr_sparsity, 1.0)
     CALL cp_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
                                   pexsi_env%csr_mat_s, &
                                   csr_eqrow_floor_dist, &
                                   csr_sparsity = pexsi_env%csr_sparsity, &
-                                  numnodes = pexsi_env%num_ranks_per_pole, &
-                                  error = error)
+                                  numnodes = pexsi_env%num_ranks_per_pole)
 
     IF (unit_nr>0) WRITE(unit_nr,"(/T2,A)") "SPARSITY OF THE OVERLAP MATRIX IN CSR FORMAT"
-    CALL cp_csr_print_sparsity(pexsi_env%csr_mat_s, unit_nr, error)
+    CALL cp_csr_print_sparsity(pexsi_env%csr_mat_s, unit_nr)
 
-    CALL cp_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s, error=error)
+    CALL cp_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s)
 
-    CALL cp_csr_create(pexsi_env%csr_mat_ks, pexsi_env%csr_mat_s, error = error)
-    CALL cp_csr_create(pexsi_env%csr_mat_p, pexsi_env%csr_mat_s, error = error)
-    CALL cp_csr_create(pexsi_env%csr_mat_E, pexsi_env%csr_mat_s, error = error)
-    CALL cp_csr_create(pexsi_env%csr_mat_F, pexsi_env%csr_mat_s, error = error)
+    CALL cp_csr_create(pexsi_env%csr_mat_ks, pexsi_env%csr_mat_s)
+    CALL cp_csr_create(pexsi_env%csr_mat_p, pexsi_env%csr_mat_s)
+    CALL cp_csr_create(pexsi_env%csr_mat_E, pexsi_env%csr_mat_s)
+    CALL cp_csr_create(pexsi_env%csr_mat_F, pexsi_env%csr_mat_s)
 
     DO ispin=1, pexsi_env%nspin
-      CALL cp_dbcsr_init(pexsi_env%matrix_w(ispin)%matrix, error)
+      CALL cp_dbcsr_init(pexsi_env%matrix_w(ispin)%matrix)
       CALL cp_dbcsr_create(pexsi_env%matrix_w(ispin)%matrix, "W matrix",&
-        template = template_matrix, matrix_type=dbcsr_type_no_symmetry, error = error)
+        template = template_matrix, matrix_type=dbcsr_type_no_symmetry)
     ENDDO
 
-    CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance = pexsi_env%tol_nel_initial, error=error)
+    CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance = pexsi_env%tol_nel_initial)
 
     CALL timestop(handle)
 
@@ -240,12 +235,10 @@ CONTAINS
 !> \brief Deallocations and post-processing after SCF
 !> \param pexsi_env ...
 !> \param mu_spin ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pexsi_finalize_scf(pexsi_env,mu_spin,error)
+  SUBROUTINE pexsi_finalize_scf(pexsi_env,mu_spin)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: mu_spin
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_finalize_scf', &
       routineP = moduleN//':'//routineN
@@ -256,7 +249,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -274,17 +267,17 @@ CONTAINS
                      " PEXSI| Chemical potential (a.u.):", mu_total
     ENDIF
 
-    CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_sym, error)
-    CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_nonsym, error)
-    CALL cp_dbcsr_release(pexsi_env%csr_sparsity,error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_p, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_ks, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_s, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_E, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_F, error)
+    CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_sym)
+    CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_nonsym)
+    CALL cp_dbcsr_release(pexsi_env%csr_sparsity)
+    CALL cp_csr_destroy(pexsi_env%csr_mat_p)
+    CALL cp_csr_destroy(pexsi_env%csr_mat_ks)
+    CALL cp_csr_destroy(pexsi_env%csr_mat_s)
+    CALL cp_csr_destroy(pexsi_env%csr_mat_E)
+    CALL cp_csr_destroy(pexsi_env%csr_mat_F)
     DO ispin = 1, pexsi_env%nspin
-      CALL cp_dbcsr_release(pexsi_env%max_ev_vector(ispin), error)
-      CALL cp_dbcsr_release(pexsi_env%matrix_w(ispin)%matrix, error)
+      CALL cp_dbcsr_release(pexsi_env%max_ev_vector(ispin))
+      CALL cp_dbcsr_release(pexsi_env%matrix_w(ispin)%matrix)
     ENDDO
     CALL timestop(handle)
     pexsi_env%tol_nel_initial = pexsi_env%tol_nel_target ! Turn off adaptive threshold for subsequent SCF cycles
@@ -303,13 +296,12 @@ CONTAINS
 !> \param[out] mu               chemical potential calculated by PEXSI
 !> \param[in] iscf              SCF step
 !> \param[in] ispin             Number of spin
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE density_matrix_pexsi(pexsi_env, matrix_p, matrix_w, kTS, matrix_ks, matrix_s,& 
-                                  nelectron_exact, mu, iscf, ispin, error)
+                                  nelectron_exact, mu, iscf, ispin)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     TYPE(cp_dbcsr_p_type), INTENT(INOUT)     :: matrix_w
@@ -318,7 +310,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nelectron_exact
     REAL(KIND=dp), INTENT(OUT)               :: mu
     INTEGER, INTENT(IN)                      :: iscf, ispin
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_pexsi', &
       routineP = moduleN//':'//routineN
@@ -339,7 +330,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -355,25 +346,25 @@ CONTAINS
       CALL cp_assert(cp_dbcsr_has_symmetry (matrix_ks),&
            cp_fatal_level, cp_internal_error, routineP,&
            "PEXSI interface expects a non-symmetric DBCSR Kohn-Sham matrix",&
-           only_ionode=.TRUE., error=error)
+           only_ionode=.TRUE.)
       CALL cp_assert(cp_dbcsr_has_symmetry (matrix_s),&
            cp_fatal_level, cp_internal_error, routineP,&
            "PEXSI interface expects a non-symmetric DBCSR overlap matrix",&
-           only_ionode=.TRUE., error=error)
+           only_ionode=.TRUE.)
   
       ! Assertion on datatype
       CALL cp_assert((pexsi_env%csr_mat_s%nzval_local%data_type .EQ. dbcsr_type_real_8) &
            .AND. (pexsi_env%csr_mat_ks%nzval_local%data_type .EQ. dbcsr_type_real_8), &
            cp_fatal_level,cp_wrong_args_error, routineP,&
            "Complex data type not supported by PEXSI",&
-           only_ionode=.TRUE., error=error)
+           only_ionode=.TRUE.)
    
       ! Assertion on number of non-zero elements 
       !(TODO: update when PEXSI changes to Long Int) 
       CALL cp_assert(pexsi_env%csr_mat_s%nze_total .LT. INT(2,kind=int_8)**31,&
            cp_fatal_level, cp_internal_error, routineP,&
            "Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI",&
-           only_ionode=.TRUE., error=error)
+           only_ionode=.TRUE.)
     ENDIF
 
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_ks)))
@@ -381,18 +372,18 @@ CONTAINS
     ! Convert DBCSR matrices to PEXSI CSR format. Intermediate step to template matrix 
     ! needed in order to retain the initial sparsity pattern that is required for the 
     ! conversion to CSR format.
-    CALL cp_dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, matrix_s, error)
+    CALL cp_dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, matrix_s)
     CALL cp_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, & 
-                                 pexsi_env%csr_mat_s,error=error)
+                                 pexsi_env%csr_mat_s)
 
     CALL cp_dbcsr_copy_into_existing(pexsi_env%dbcsr_template_matrix_sym, &
-                                     matrix_ks, error)
+                                     matrix_ks)
     CALL cp_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_sym, &
-                                 pexsi_env%csr_mat_ks,error=error)
+                                 pexsi_env%csr_mat_ks)
 
     ! Get PEXSI input delta_E (upper bound for largest eigenvalue) using Arnoldi
     NULLIFY(arnoldi_matrices)
-    CALL cp_dbcsr_allocate_matrix_set(arnoldi_matrices, 2, error)
+    CALL cp_dbcsr_allocate_matrix_set(arnoldi_matrices, 2)
     arnoldi_matrices(1)%matrix => matrix_ks
     arnoldi_matrices(2)%matrix => matrix_s 
     CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,arnoldi_matrices,max_iter=20,&
@@ -400,32 +391,32 @@ CONTAINS
          generalized_ev=.TRUE.,iram=.FALSE.)
     IF(iscf .GT. 1) CALL cp_set_arnoldi_initial_vector(my_arnoldi, &
                          pexsi_env%max_ev_vector(ispin))
-    CALL cp_dbcsr_arnoldi_ev(arnoldi_matrices,my_arnoldi,error)
+    CALL cp_dbcsr_arnoldi_ev(arnoldi_matrices,my_arnoldi)
     delta_E = REAL(get_selected_ritz_val(my_arnoldi,1),dp)
     ! increase delta_E a bit to make sure that it really is an upper bound
     delta_E = delta_E + 1.0E-2_dp*ABS(delta_E)
     CALL get_selected_ritz_vec(my_arnoldi,1,arnoldi_matrices(1)%matrix, &
-                               pexsi_env%max_ev_vector(ispin),error)
+                               pexsi_env%max_ev_vector(ispin))
     CALL deallocate_arnoldi_data(my_arnoldi)
     DEALLOCATE(arnoldi_matrices)
 
     nelectron_exact_pexsi = nelectron_exact
 
-    CALL cp_pexsi_set_options(pexsi_env%options, deltaE=delta_E, error=error)
+    CALL cp_pexsi_set_options(pexsi_env%options, deltaE=delta_E)
 
     ! Set PEXSI options appropriately for first SCF iteration
     IF (iscf .EQ. 1) THEN
       ! Get option isInertiaCount to reset it later on and set it to 1 for first SCF iteration
-      CALL cp_pexsi_get_options(pexsi_env%options, isInertiaCount = isInertiaCount, error = error)
+      CALL cp_pexsi_get_options(pexsi_env%options, isInertiaCount = isInertiaCount)
       CALL cp_pexsi_set_options(pexsi_env%options, isInertiaCount = 1, &
-                                isSymbolicFactorize = 1, error=error)
+                                isSymbolicFactorize = 1)
     ENDIF
 
     ! Write PEXSI options to output
     CALL cp_pexsi_get_options(pexsi_env%options, isInertiaCount = isInertiaCount_out, &
                               isSymbolicFactorize = is_symbolic_factorize, &
                               muMin0 = mu_min_in, muMax0 = mu_max_in, &
-                              NumElectronPEXSITolerance=nel_tol, error = error)
+                              NumElectronPEXSITolerance=nel_tol)
 
 
 !    IF(unit_nr>0) WRITE(unit_nr,'(/A,I4,A,I4)') " PEXSI| SCF", iscf, &
@@ -457,18 +448,16 @@ CONTAINS
       pexsi_env%csr_mat_ks%colind_local,&
       pexsi_env%csr_mat_ks%nzval_local%r_dp,&
       S_not_identity,&
-      pexsi_env%csr_mat_s%nzval_local%r_dp,&
-      error)
+      pexsi_env%csr_mat_s%nzval_local%r_dp)
 
     ! convert to spin restricted before passing number of electrons to PEXSI
     CALL convert_nspin_cp2k_pexsi(cp2k_to_pexsi, &
-                    numElectron=nelectron_exact_pexsi, error=error)
+                    numElectron=nelectron_exact_pexsi)
 
     ! Call DFT driver of PEXSI doing the actual calculation
     CALL cp_pexsi_dft_driver(pexsi_env%plan, pexsi_env%options,&
        nelectron_exact_pexsi,mu,nelectron_out,mu_min_out,mu_max_out,&
-       n_total_inertia_iter,n_total_pexsi_iter,&
-       error)
+       n_total_inertia_iter,n_total_pexsi_iter)
 
     ! Check convergence 
     nelectron_diff = nelectron_out - nelectron_exact_pexsi
@@ -502,8 +491,7 @@ CONTAINS
         pexsi_env%csr_mat_p%nzval_local%r_dp,& 
         pexsi_env%csr_mat_E%nzval_local%r_dp,& 
         pexsi_env%csr_mat_F%nzval_local%r_dp,&
-        energy_H,energy_S,free_energy,& 
-        error)
+        energy_H,energy_S,free_energy) 
         ! calculate entropic energy contribution -TS = A - U
         kTS = (free_energy - energy_H)
     ENDIF 
@@ -513,30 +501,29 @@ CONTAINS
 
     ! Convert PEXSI CSR matrices to DBCSR matrices
     CALL cp_convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
-                                 pexsi_env%csr_mat_p, error)
-    CALL cp_dbcsr_copy(matrix_p, pexsi_env%dbcsr_template_matrix_nonsym, error=error) 
+                                 pexsi_env%csr_mat_p)
+    CALL cp_dbcsr_copy(matrix_p, pexsi_env%dbcsr_template_matrix_nonsym) 
     CALL cp_convert_csr_to_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
-                                 pexsi_env%csr_mat_E, error)
-    CALL cp_dbcsr_copy(matrix_w%matrix, pexsi_env%dbcsr_template_matrix_nonsym, error=error)
+                                 pexsi_env%csr_mat_E)
+    CALL cp_dbcsr_copy(matrix_w%matrix, pexsi_env%dbcsr_template_matrix_nonsym)
 
     ! Convert to spin unrestricted
     CALL convert_nspin_cp2k_pexsi(pexsi_to_cp2k, matrix_p = matrix_p, & 
-                                  matrix_w = matrix_w, kTS = kTS, error = error)
+                                  matrix_w = matrix_w, kTS = kTS)
 
     ! Pass resulting mu as initial guess for next SCF to PEXSI
     CALL cp_pexsi_set_options(pexsi_env%options, mu0=mu,muMin0=mu_min_out, &
-                              muMax0=mu_max_out, error= error)
+                              muMax0=mu_max_out)
 
     ! Reset isInertiaCount according to user input
     IF (iscf .EQ. 1) THEN
       CALL cp_pexsi_set_options(pexsi_env%options, isInertiaCount = &
-                                isInertiaCount, error= error)
+                                isInertiaCount)
     ENDIF
 
     ! Turn off symbolic factorization for subsequent calls
     IF (first_call) THEN
-      CALL cp_pexsi_set_options(pexsi_env%options, isSymbolicFactorize = 0, &
-                                error= error)
+      CALL cp_pexsi_set_options(pexsi_env%options, isSymbolicFactorize = 0)
     ENDIF
 
     CALL timestop(handle)
@@ -559,15 +546,13 @@ CONTAINS
 !>        with delta_scf as initial convergence error
 !> \param check_convergence is set to .FALSE. if convergence in number of electrons
 !>        will not be achieved in next SCF step
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pexsi_set_convergence_tolerance(pexsi_env, delta_scf, eps_scf, initialize, &
-                                             check_convergence, error)
+                                             check_convergence)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
     REAL(KIND=dp), INTENT(IN)                :: delta_scf, eps_scf
     LOGICAL, INTENT(IN)                      :: initialize
     LOGICAL, INTENT(OUT)                     :: check_convergence
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'pexsi_set_convergence_tolerance', &
@@ -595,7 +580,7 @@ CONTAINS
 
     check_convergence = (tol_nel.LE.pexsi_env%tol_nel_target)
 
-    CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance = tol_nel, error=error)
+    CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance = tol_nel)
     CALL timestop(handle)
   END SUBROUTINE
 
@@ -606,12 +591,11 @@ CONTAINS
 !> \param qs_env ...
 !> \param kTS ...
 !> \param matrix_w ...
-!> \param error ...
 !> \par History
 !>      12.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE pexsi_to_qs(ls_scf_env, qs_env, kTS, matrix_w, error)
+  SUBROUTINE pexsi_to_qs(ls_scf_env, qs_env, kTS, matrix_w)
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     TYPE(qs_environment_type), &
       INTENT(INOUT), POINTER                 :: qs_env
@@ -619,7 +603,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: kTS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: matrix_w
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_to_qs', &
       routineP = moduleN//':'//routineN
@@ -636,21 +619,21 @@ CONTAINS
     NULLIFY(energy)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
        unit_nr=-1
     ENDIF
 
-    CALL get_qs_env(qs_env, energy = energy, matrix_w = matrix_w_qs, error=error)
+    CALL get_qs_env(qs_env, energy = energy, matrix_w = matrix_w_qs)
 
     IF (PRESENT(matrix_w)) THEN
       DO ispin=1, ls_scf_env%nspins
         CALL matrix_ls_to_qs(matrix_w_qs(ispin)%matrix, matrix_w(ispin)%matrix,& 
-                             ls_scf_env%ls_mstruct, error=error)
+                             ls_scf_env%ls_mstruct)
         IF (ls_scf_env%nspins.EQ.1) CALL cp_dbcsr_scale(matrix_w_qs(ispin)%matrix, &
-                                                        2.0_dp,error=error)
+                                                        2.0_dp)
       ENDDO
     ENDIF
 

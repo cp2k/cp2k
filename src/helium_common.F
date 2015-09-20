@@ -340,16 +340,14 @@ MODULE helium_common
 ! *****************************************************************************
 !> \brief  Calculate helium radial distribution function wrt <r0>.
 !> \param helium ...
-!> \param error ...
 !> \date   2009-07-22
 !> \author Lukasz Walewski
 !> \note   Actually calculate the histogram only, the normalization is
 !>         postponed to the postprocessing stage.
 ! *****************************************************************************
-  SUBROUTINE helium_calc_rdf( helium, error )
+  SUBROUTINE helium_calc_rdf( helium)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
       routineP = moduleN//':'//routineN
@@ -362,7 +360,7 @@ MODULE helium_common
 !    CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
 
     ! calculate the histogram of distances
     helium%rdf_inst(:) = 0.0_dp
@@ -402,7 +400,6 @@ MODULE helium_common
 ! *****************************************************************************
 !> \brief  Calculate helium density distribution function wrt <r0>.
 !> \param helium ...
-!> \param error ...
 !> \date   2011-06-14
 !> \author Lukasz Walewski
 !> \note   The calculated density is stored in the helium%rho_inst array. 
@@ -411,10 +408,9 @@ MODULE helium_common
 !>         suitable for the superfluid density estimator calculation
 !>         (full version still in the development branch) [lwalewski]
 ! *****************************************************************************
-  SUBROUTINE helium_calc_rho( helium, error )
+  SUBROUTINE helium_calc_rho( helium)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
       routineP = moduleN//':'//routineN
@@ -428,7 +424,7 @@ MODULE helium_common
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
 
     helium%rho_inst(:,:,:,:) = 0.0_dp
     r0(:) = helium%origin(:)
@@ -448,11 +444,11 @@ MODULE helium_common
         ! check that bin numbers are within bounds
         itmp = helium%rho_nbin
         ltmp = (0 .LT. bx) .AND. ( bx .LE. itmp )
-        CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
+        CPPrecondition(ltmp,cp_failure_level,routineP,failure)
         ltmp = (0 .LT. by) .AND. ( by .LE. itmp )
-        CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
+        CPPrecondition(ltmp,cp_failure_level,routineP,failure)
         ltmp = (0 .LT. bz) .AND. ( bz .LE. itmp )
-        CPPrecondition(ltmp,cp_failure_level,routineP,error,failure)
+        CPPrecondition(ltmp,cp_failure_level,routineP,failure)
 
         helium%rho_inst(1,bx,by,bz) = helium%rho_inst(1,bx,by,bz) + c
 
@@ -468,7 +464,6 @@ MODULE helium_common
 ! ***************************************************************************
 !> \brief  Calculate probability distribution of the permutation lengths
 !> \param helium ...
-!> \param error ...
 !> \date   2010-06-07
 !> \author Lukasz Walewski
 !> \note  Valid permutation path length is an integer (1, NATOMS), number
@@ -476,10 +471,9 @@ MODULE helium_common
 !>         inner loop iterations and helium environments is done in
 !>         helium_sample.
 ! *****************************************************************************
-  SUBROUTINE helium_calc_plength( helium, error )
+  SUBROUTINE helium_calc_plength( helium)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_plength', &
       routineP = moduleN//':'//routineN
@@ -506,7 +500,6 @@ MODULE helium_common
 !> \brief  Rotate helium particles in imaginary time by nslices
 !> \param helium ...
 !> \param nslices ...
-!> \param error ...
 !> \author hforbert
 !> \note  Positions of helium beads in helium%pos array are reorganized such
 !>         that the indices are cyclically translated in a permutation-aware
@@ -515,10 +508,9 @@ MODULE helium_common
 !>         should be always within 0 (no rotation) and helium%beads-1 (almost
 !>         full rotation). [lwalewski]
 ! *****************************************************************************
-  SUBROUTINE helium_rotate(helium, nslices, error)
+  SUBROUTINE helium_rotate(helium, nslices)
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: nslices
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_rotate', &
       routineP = moduleN//':'//routineN
@@ -527,7 +519,7 @@ MODULE helium_common
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
 
     b = helium%beads
     n = helium%atoms
@@ -628,12 +620,10 @@ MODULE helium_common
 ! *****************************************************************************
 !> \brief ...
 !> \param helium ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE helium_update_transition_matrix(helium,error)
+  SUBROUTINE helium_update_transition_matrix(helium)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: b, c, i, j, k, m, n, nb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lens, order
@@ -895,7 +885,7 @@ MODULE helium_common
       ! number of random numbers to generate:
       c = 1000000000
       DO j=1, c
-         v = next_random_number(helium%rng_stream_uniform,error=error)
+         v = next_random_number(helium%rng_stream_uniform)
          ! walk down the search tree:
          k = nb-1
          DO
@@ -974,7 +964,7 @@ MODULE helium_common
    ! (should not be taken, but just in case it does we have something valid)
 
    helium%pweight = 0.0_dp
-   t = next_random_number(helium%rng_stream_uniform,error=error)
+   t = next_random_number(helium%rng_stream_uniform)
    helium%ptable(1) = 1+INT(t*nb)
    helium%ptable(2) = -1
 
@@ -1515,16 +1505,14 @@ END SUBROUTINE helium_update_transition_matrix
 ! ***************************************************************************
 !> \brief  Given the permutation state assign cycle lengths to all He atoms.
 !> \param helium ...
-!> \param error ...
 !> \date   2011-07-06
 !> \author Lukasz Walewski
 !> \note   The helium%atom_plength array is filled with cycle lengths,
 !>         each atom gets the length of the permutation cycle it belongs to.
 ! *****************************************************************************
-  SUBROUTINE helium_calc_atom_cycle_length( helium, error )
+  SUBROUTINE helium_calc_atom_cycle_length( helium)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'helium_calc_atom_cycle_length', &

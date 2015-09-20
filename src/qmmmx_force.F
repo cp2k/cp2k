@@ -55,19 +55,16 @@ CONTAINS
 !> \param consistent_energies ...
 !> \param linres ...
 !> \param require_consistent_energy_force ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qmmmx_calc_energy_force(qmmmx_env,calc_force,consistent_energies,linres,&
-                                    require_consistent_energy_force,error)
+                                    require_consistent_energy_force)
     TYPE(qmmmx_env_type), POINTER            :: qmmmx_env
     LOGICAL, INTENT(IN)                      :: calc_force, &
                                                 consistent_energies, linres
     LOGICAL, INTENT(IN), OPTIONAL :: require_consistent_energy_force
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_calc_energy_force', &
       routineP = moduleN//':'//routineN
@@ -93,23 +90,23 @@ CONTAINS
        CALL cp_assert(.NOT.require_consistent_energy_force,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. "//&
-            CPSourceFileRef,error,failure)
+            CPSourceFileRef,failure)
     ENDIF
 
     ! Possibly translate the system
-    CALL apply_qmmmx_translate(qmmmx_env, error)
+    CALL apply_qmmmx_translate(qmmmx_env)
 
     ! actual energy force calculation
-    CALL qmmmx_calc_energy_force_low(qmmmx_env%ext, calc_force, consistent_energies, linres, "ext", error=error)
-    CALL qmmmx_calc_energy_force_low(qmmmx_env%core, calc_force, consistent_energies, linres, "core", error=error)
+    CALL qmmmx_calc_energy_force_low(qmmmx_env%ext, calc_force, consistent_energies, linres, "ext")
+    CALL qmmmx_calc_energy_force_low(qmmmx_env%core, calc_force, consistent_energies, linres, "core")
 
     ! get forces from subsys of each sub force env
-    CALL qmmm_env_get(qmmmx_env%core, subsys=subsys_qmmm_core, error=error)
-    CALL qmmm_env_get(qmmmx_env%ext, subsys=subsys_qmmm_extended, error=error)
+    CALL qmmm_env_get(qmmmx_env%core, subsys=subsys_qmmm_core)
+    CALL qmmm_env_get(qmmmx_env%ext, subsys=subsys_qmmm_extended)
 
-    CALL get_qs_env(qmmmx_env%ext%qs_env, input=force_env_section, error=error)
-    CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
-    CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
+    CALL get_qs_env(qmmmx_env%ext%qs_env, input=force_env_section)
+    CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices)
+    CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels)
 
     particles_qmmm_extended => subsys_qmmm_extended%particles%els
     particles_qmmm_core => subsys_qmmm_core%particles%els
@@ -122,10 +119,10 @@ CONTAINS
 
     ! zero momentum
     CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%MOMENTUM_CONSERVATION_TYPE",&
-                              i_val=mom_conserv_type,error=error)
+                              i_val=mom_conserv_type)
     IF (mom_conserv_type /= do_fm_mom_conserv_none) THEN
        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%MOMENTUM_CONSERVATION_REGION",&
-                                 i_val=mom_conserv_region,error=error)
+                                 i_val=mom_conserv_region)
 
        IF (mom_conserv_region == do_fm_mom_conserv_core) THEN
           mom_conserv_min_label = force_mixing_label_QM_core
@@ -137,7 +134,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"Got unknown MOMENTUM_CONSERVATION_REGION (not CORE, QM, or BUFFER) !"//&
              CPSourceFileRef,&
-            error,failure)
+            failure)
        ENDIF
 
        total_f = 0.0_dp
@@ -168,7 +165,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL qmmm_env_get(qmmmx_env%ext, subsys=subsys_primary, error=error)
+    CALL qmmm_env_get(qmmmx_env%ext, subsys=subsys_primary)
     particles_primary => subsys_primary%particles%els
     DO ip=1,SIZE(particles_qmmm_core)
        particles_primary(ip)%f=particles_qmmm_core(ip)%f
@@ -183,14 +180,12 @@ CONTAINS
 !> \param consistent_energies ...
 !> \param linres ...
 !> \param label ...
-!> \param error ...
 ! *****************************************************************************
- SUBROUTINE qmmmx_calc_energy_force_low(qmmm_env,calc_force,consistent_energies,linres,label,error)
+ SUBROUTINE qmmmx_calc_energy_force_low(qmmm_env,calc_force,consistent_energies,linres,label)
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
     LOGICAL, INTENT(IN)                      :: calc_force, &
                                                 consistent_energies, linres
     CHARACTER(*)                             :: label
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_calc_energy_force_low', &
       routineP = moduleN//':'//routineN
@@ -208,28 +203,28 @@ CONTAINS
 
     NULLIFY(mm_cell,subsys_qm,subsys_mm,qm_atom_index)
 
-    CALL get_qs_env(qmmm_env%qs_env, input=force_env_section, error=error)
+    CALL get_qs_env(qmmm_env%qs_env, input=force_env_section)
 
     ! rewrite RESTART%FILENAME
     CALL section_vals_val_get(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME",&
-                              c_val=old_restart_fn, error=error)
+                              c_val=old_restart_fn)
     new_restart_fn = TRIM(old_restart_fn)//"-"//TRIM(label)
     CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME",&
-                              c_val=new_restart_fn, error=error)
+                              c_val=new_restart_fn)
 
     ! rewrite RESTART_HISTORY%FILENAME
     CALL section_vals_val_get(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME",&
-                              c_val=old_restart_hist_fn, error=error)
+                              c_val=old_restart_hist_fn)
     new_restart_hist_fn = TRIM(old_restart_hist_fn)//"-"//TRIM(label)
     CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME",&
-                              c_val=new_restart_hist_fn, error=error)
+                              c_val=new_restart_hist_fn)
 
     ! wrap positions before QM/MM calculation.
     ! Required if diffusion causes atoms outside of periodic box get added to QM
-    CALL fist_env_get(qmmm_env%fist_env, cell=mm_cell,subsys=subsys_mm,error=error)
-    CALL get_qs_env(qmmm_env%qs_env, cp_subsys=subsys_qm,error=error)
+    CALL fist_env_get(qmmm_env%fist_env, cell=mm_cell,subsys=subsys_mm)
+    CALL get_qs_env(qmmm_env%qs_env, cp_subsys=subsys_qm)
     qm_atom_index => qmmm_env%qm%qm_atom_index
-    CALL apply_qmmm_wrap(subsys_mm, mm_cell, subsys_qm, qm_atom_index, saved_pos, error)
+    CALL apply_qmmm_wrap(subsys_mm, mm_cell, subsys_qm, qm_atom_index, saved_pos)
 
     ! Turn off box translation, it was already performed by apply_qmmmx_translate(),
     ! the particles coordinates will still be copied from MM to QM.
@@ -237,19 +232,19 @@ CONTAINS
     qmmm_env%qm%do_translate = .FALSE.
 
     ! actual energy force calculation
-    CALL qmmm_calc_energy_force(qmmm_env, calc_force, consistent_energies, linres, error)
+    CALL qmmm_calc_energy_force(qmmm_env, calc_force, consistent_energies, linres)
 
     ! restore do_translate
     qmmm_env%qm%do_translate = saved_do_translate
 
     ! restore unwrapped positions
-    CALL apply_qmmm_unwrap(subsys_mm, subsys_qm, qm_atom_index, saved_pos, error)
+    CALL apply_qmmm_unwrap(subsys_mm, subsys_qm, qm_atom_index, saved_pos)
 
     ! restore RESTART filenames
     CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME",&
-                              c_val=old_restart_fn, error=error)
+                              c_val=old_restart_fn)
     CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART_HISTORY%FILENAME",&
-                              c_val=old_restart_hist_fn, error=error)
+                              c_val=old_restart_hist_fn)
 
   END SUBROUTINE qmmmx_calc_energy_force_low
 

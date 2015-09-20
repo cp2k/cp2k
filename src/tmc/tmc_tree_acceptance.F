@@ -76,20 +76,17 @@ CONTAINS
 !> \param accept result (configuration accepted of rejected)
 !> \param rnd_nr random number for acceptance check
 !> \param approx_ener for NMC the approximated energies schould be used
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE acceptance_check(tree_element, parent_element, tmc_params, &
                               temperature, diff_pot_check, accept, rnd_nr, &
-                              approx_ener, error)
+                              approx_ener)
     TYPE(tree_type), POINTER                 :: tree_element, parent_element
     TYPE(tmc_param_type), POINTER            :: tmc_params
     REAL(KIND=dp)                            :: temperature
     LOGICAL                                  :: diff_pot_check, accept
     REAL(KIND=dp)                            :: rnd_nr
     LOGICAL, OPTIONAL                        :: approx_ener
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'acceptance_check', &
       routineP = moduleN//':'//routineN
@@ -100,11 +97,11 @@ CONTAINS
                                                 parent_ener
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_element),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(parent_element),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(temperature.GT.0.0_dp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(rnd_nr.GE.0.0_dp.AND.rnd_nr.LE.1.0_dp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tree_element),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(parent_element),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(temperature.GT.0.0_dp,cp_failure_level,routineP,failure)
+    CPPrecondition(rnd_nr.GE.0.0_dp.AND.rnd_nr.LE.1.0_dp,cp_failure_level,routineP,failure)
 
     kB = boltzmann/joule
 
@@ -112,7 +109,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(tmc_params%task_type.EQ.task_type_gaussian_adaptation) THEN
-CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
+CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
 !TODO       CALL acc_check_gauss_adapt(f=tree_element%potential, ct=tree_element%ekin_before_md, acc=accept)
 !DO NOT DO       RETURN
     END IF
@@ -184,7 +181,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 
     ! update the estimated energy acceptance probability distribution
     IF(diff_pot_check) THEN
-      CPPrecondition(ASSOCIATED(tmc_params%prior_NMC_acc),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(tmc_params%prior_NMC_acc),cp_failure_level,routineP,failure)
       tmc_params%prior_NMC_acc%counter = tmc_params%prior_NMC_acc%counter +1
       tmc_params%prior_NMC_acc%aver    = (tmc_params%prior_NMC_acc%aver*(tmc_params%prior_NMC_acc%counter-1)+&
                                          ((elem_ener-parent_ener)))/REAL(tmc_params%prior_NMC_acc%counter,KIND=dp)
@@ -208,16 +205,13 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param conf2 sub tree element of higher temperature
 !> \param tmc_params TMC environment parameters
 !> \param accept acceptance of configurational change
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE swap_acceptance_check(tree_elem, conf1, conf2, tmc_params, accept, error)
+  SUBROUTINE swap_acceptance_check(tree_elem, conf1, conf2, tmc_params, accept)
     TYPE(global_tree_type), POINTER          :: tree_elem
     TYPE(tree_type), POINTER                 :: conf1, conf2
     TYPE(tmc_param_type), POINTER            :: tmc_params
     LOGICAL                                  :: accept
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'swap_acceptance_check', &
       routineP = moduleN//':'//routineN
@@ -230,11 +224,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     failure = .FALSE.
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(tree_elem%rnd_nr.GE.0.0_dp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(conf1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(conf2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(tree_elem%rnd_nr.GE.0.0_dp,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(conf1),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(conf2),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -257,9 +251,9 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     ELSE
       ! pt-NpT (parallel Tempering with constant pressure, temperature and num. particle)
       CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf1%box_scale, &
-                           vol=vol1, error=error)
+                           vol=vol1)
       CALL get_scaled_cell(cell=tmc_params%cell, box_scale=conf2%box_scale, &
-                           vol=vol2, error=error)
+                           vol=vol2)
       ! delta= (beta_m-beta_n)(U_n-U_m) + (beta_m*P_m-beta_n*P_n)(V_n-V_m)
       delta = ( 1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf)) &
                 - 1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf+1)) ) * &
@@ -288,17 +282,14 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param rnd_nr random number to check with
 !> \param tmc_params TMC environment parameters
 !> \param accept Monte Carlo move acceptance (result)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE volume_acceptance_check(parent_elem, new_elem, temperature, &
-                                     rnd_nr, tmc_params, accept, error)
+                                     rnd_nr, tmc_params, accept)
     TYPE(tree_type), POINTER                 :: parent_elem, new_elem
     REAL(KIND=dp)                            :: temperature, rnd_nr
     TYPE(tmc_param_type), POINTER            :: tmc_params
     LOGICAL                                  :: accept
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'volume_acceptance_check', &
       routineP = moduleN//':'//routineN
@@ -310,20 +301,20 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     failure = .FALSE.
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(new_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(temperature.GT.0.0_dp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(rnd_nr.GT.0.0_dp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(tmc_params%pressure.GE.0.0_dp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(new_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(temperature.GT.0.0_dp,cp_failure_level,routineP,failure)
+    CPPrecondition(rnd_nr.GT.0.0_dp,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPPrecondition(tmc_params%pressure.GE.0.0_dp,cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
 
     CALL get_scaled_cell(cell=tmc_params%cell, box_scale=parent_elem%box_scale,&
-                         vol=p_vol, error=error)
+                         vol=p_vol)
     CALL get_scaled_cell(cell=tmc_params%cell, box_scale=new_elem%box_scale, &
-                         vol=n_vol, error=error)
+                         vol=n_vol)
     ! H=enthalpy, U=energy, P=pressure, V=volume, kB=Boltzmann constant, T=temperature, N=amount particle
     ! delta_H  =      delta_U                               + P*delta_V           - kB*T*N*ln(V_n/V_p) 
     IF(.FALSE.) THEN
@@ -370,14 +361,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !>        when ready 
 !> \param tree_elem actual tree element with calculated energy
 !> \param tmc_env TMC environment parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE check_acceptance_of_depending_subtree_nodes(tree_elem, tmc_env, error)
+  SUBROUTINE check_acceptance_of_depending_subtree_nodes(tree_elem, tmc_env)
     TYPE(tree_type), POINTER                 :: tree_elem
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'check_acceptance_of_depending_subtree_nodes', &
@@ -390,10 +378,10 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(tree_elem%stat.EQ.status_calculated,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tree_elem%parent),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(tree_elem%stat.EQ.status_calculated,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tree_elem%parent),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -402,8 +390,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 
     ! ------------------------------------------------------
     ! check this element 
-    parent_elem => search_parent_element(act_elem, error)
-    CPPostconditionNoFail(.NOT.ASSOCIATED(act_elem, parent_elem),cp_failure_level,routineP,error)
+    parent_elem => search_parent_element(act_elem)
+    CPPostconditionNoFail(.NOT.ASSOCIATED(act_elem, parent_elem),cp_failure_level,routineP)
 
     ! check status of parent element
     SELECT CASE(parent_elem%stat)
@@ -416,14 +404,14 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       parent_ready = .TRUE.
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown parent element status"//cp_to_string(parent_elem%stat),error,failure)
+                 routineP,"unknown parent element status"//cp_to_string(parent_elem%stat),failure)
     END SELECT
 
     ! ready ?
     IF(parent_ready) THEN
     ! acceptance check
       CALL check_and_change_status_of_subtree_elem(act_elem=act_elem, &
-               parent_elem=parent_elem, tmc_env=tmc_env,error=error)
+               parent_elem=parent_elem, tmc_env=tmc_env)
     END IF
     !------------------------------------------------------
     ! check acc child
@@ -432,7 +420,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       act_elem => tree_elem%acc
       IF(act_elem%stat .EQ. status_calculated) THEN
          CALL check_and_change_status_of_subtree_elem(act_elem=act_elem, &
-                  parent_elem=parent_elem, tmc_env=tmc_env,error=error)
+                  parent_elem=parent_elem, tmc_env=tmc_env)
       END IF
       !------------------------------------------------------
       ! check all nacc childs
@@ -441,7 +429,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
         act_elem => act_elem%nacc
         IF(act_elem%stat .EQ. status_calculated) THEN
           CALL check_and_change_status_of_subtree_elem(act_elem=act_elem, &
-                   parent_elem=parent_elem, tmc_env=tmc_env, error=error)
+                   parent_elem=parent_elem, tmc_env=tmc_env)
         END IF
       END DO nacc_loop
     END IF
@@ -455,14 +443,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param act_elem actual tree element (new configuration)
 !> \param parent_elem parent tree element (old configuration)
 !> \param tmc_env TMC environment parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE check_and_change_status_of_subtree_elem(act_elem, parent_elem, tmc_env, error)
+  SUBROUTINE check_and_change_status_of_subtree_elem(act_elem, parent_elem, tmc_env)
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'check_and_change_status_of_subtree_elem', &
@@ -479,11 +464,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     ! start the timing
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(act_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(act_elem%stat.EQ.status_calculated,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(act_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(act_elem%stat.EQ.status_calculated,cp_failure_level,routineP,failure)
 
     flag = .FALSE.
 
@@ -491,15 +476,15 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     ! check for all global tree elements refering to this subtree element
     ! same subtree element can be accepted at a certain temperature and rejected at another one
     DO WHILE(ASSOCIATED(tmp_gt_list_ptr))
-      CPPrecondition(tmp_gt_list_ptr%gt_elem%stat.NE.status_accepted_result,cp_failure_level,routineP,error,failure)
-      CPPrecondition(tmp_gt_list_ptr%gt_elem%stat.NE.status_rejected_result,cp_failure_level,routineP,error,failure)
+      CPPrecondition(tmp_gt_list_ptr%gt_elem%stat.NE.status_accepted_result,cp_failure_level,routineP,failure)
+      CPPrecondition(tmp_gt_list_ptr%gt_elem%stat.NE.status_rejected_result,cp_failure_level,routineP,failure)
 
       CALL check_elements(gt_act_elem=tmp_gt_list_ptr%gt_elem, tmc_env=tmc_env,&
-                          check_done=flag, result_acc=result_acc, error=error)
+                          check_done=flag, result_acc=result_acc)
       IF(flag)THEN
         ! probability update 
         CALL prob_update(move_types=tmc_env%params%move_types, elem=act_elem, &
-                 acc=result_acc, prob_opt=tmc_env%params%esimate_acc_prob, error=error)
+                 acc=result_acc, prob_opt=tmc_env%params%esimate_acc_prob)
 
         ! change status
         ! accepted case: delete (and cancel) not accepted branch
@@ -509,7 +494,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
             tmp_gt_ptr => tmp_gt_list_ptr%gt_elem%nacc
             CALL remove_unused_g_tree(begin_ptr=tmp_gt_ptr, &
                      end_ptr=tmp_gt_list_ptr%gt_elem, removed=flag, &
-                     tmc_env=tmc_env, error=error)
+                     tmc_env=tmc_env)
           END IF
         ELSE
         ! not accepted case: delete (and cancel) accepted branch
@@ -518,13 +503,13 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
             tmp_gt_ptr => tmp_gt_list_ptr%gt_elem%acc
             CALL remove_unused_g_tree(begin_ptr=tmp_gt_ptr, &
                      end_ptr=tmp_gt_list_ptr%gt_elem, removed=flag, &
-                     tmc_env=tmc_env, error=error)
+                     tmc_env=tmc_env)
           END IF
         END IF
 
         IF(tmc_env%params%DRAW_TREE) &
           CALL create_global_tree_dot_color(gt_tree_element=tmp_gt_list_ptr%gt_elem, &
-                                 tmc_params=tmc_env%params, error=error)
+                                 tmc_params=tmc_env%params)
       END IF
       tmp_gt_list_ptr => tmp_gt_list_ptr%next
     END DO
@@ -539,15 +524,12 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !>        should change status
 !> \param stat the status of the global tree element
 !> \param tmc_params TMC emvironment parameters for drawing
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE subtree_configuration_stat_change(gt_ptr, stat, tmc_params, error)
+  SUBROUTINE subtree_configuration_stat_change(gt_ptr, stat, tmc_params)
     TYPE(global_tree_type), POINTER          :: gt_ptr
     INTEGER                                  :: stat
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'subtree_configuration_stat_change', &
@@ -560,8 +542,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     failure = .FALSE.
     NULLIFY(ptr)
 
-    CPPrecondition(ASSOCIATED(gt_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gt_ptr),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -582,12 +564,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                  routineP,"unknown global tree status"//&
-                 cp_to_string(stat),error,failure)
+                 cp_to_string(stat),failure)
       END SELECT
 
       IF(tmc_params%DRAW_TREE) &
-        CALL create_dot_color(tree_element=ptr, tmc_params=tmc_params, &
-                              error=error)
+        CALL create_dot_color(tree_element=ptr, tmc_params=tmc_params)
     END IF
 
     ! end the timing
@@ -598,14 +579,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \brief checks if the element is ready for an acceptance check
 !> \param elem sub tree element
 !> \param ready return value
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE elem_ready_to_check(elem, ready, error)
+  SUBROUTINE elem_ready_to_check(elem, ready)
     TYPE(tree_type), POINTER                 :: elem
     LOGICAL                                  :: ready
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'elem_ready_to_check', &
       routineP = moduleN//':'//routineN
@@ -614,7 +592,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -631,7 +609,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"status of actual tree node is unknown"&
-               //cp_to_string(elem%stat),error,failure)
+               //cp_to_string(elem%stat),failure)
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -643,15 +621,12 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param tmc_env TMC environment
 !> \param check_done successful checked? (result)
 !> \param result_acc checked configuration accepted? (result)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE check_elements(gt_act_elem, tmc_env, check_done, result_acc, error)
+  SUBROUTINE check_elements(gt_act_elem, tmc_env, check_done, result_acc)
     TYPE(global_tree_type), POINTER          :: gt_act_elem
     TYPE(tmc_env_type), POINTER              :: tmc_env
     LOGICAL                                  :: check_done, result_acc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_elements', &
       routineP = moduleN//':'//routineN
@@ -664,9 +639,9 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     NULLIFY(act_element, tmp_element)
     check_done = .FALSE.
 
-    CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -683,7 +658,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       ELSE
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                 routineP,"undefinite status of already checked elements:"&
-                //cp_to_string(gt_act_elem%stat),error,failure)
+                //cp_to_string(gt_act_elem%stat),failure)
       END IF
     CASE DEFAULT
     END SELECT
@@ -692,13 +667,13 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       !====================================================================================
       ! get elements related to global tree element to check
       CALL get_subtree_elements_to_check(gt_act_elem=gt_act_elem, elem1=act_element, &
-                                         elem2=tmp_element, error=error)
-      CPPostcondition(ASSOCIATED(act_element),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(tmp_element),cp_failure_level,routineP,error,failure)
+                                         elem2=tmp_element)
+      CPPostcondition(ASSOCIATED(act_element),cp_failure_level,routineP,failure)
+      CPPostcondition(ASSOCIATED(tmp_element),cp_failure_level,routineP,failure)
   
       ! check status of both elements (if they are already calculated and hence ready to check)
-      CALL elem_ready_to_check(elem=act_element, ready=act_ready, error=error)
-      CALL elem_ready_to_check(elem=tmp_element, ready=tmp_ready, error=error)
+      CALL elem_ready_to_check(elem=act_element, ready=act_ready)
+      CALL elem_ready_to_check(elem=tmp_element, ready=tmp_ready)
   
       ! both ready ? check
       IF(act_ready .AND. tmp_ready) THEN
@@ -706,26 +681,25 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
         IF(gt_act_elem%swaped)THEN
           CALL swap_acceptance_check(tree_elem=gt_act_elem, conf1=act_element, &
                                      conf2=tmp_element, tmc_params=tmc_env%params, &
-                                     accept=result_acc, error=error)
+                                     accept=result_acc)
         ! volume move check
         ELSE IF(act_element%move_type.EQ.mv_type_volume_move) THEN
           CALL volume_acceptance_check(parent_elem=tmp_element, new_elem=act_element, &
                                        temperature=tmc_env%params%Temp(gt_act_elem%mv_conf),&
                                        rnd_nr=gt_act_elem%rnd_nr, &
-                                       tmc_params=tmc_env%params, accept=result_acc, &
-                                       error=error)
+                                       tmc_params=tmc_env%params, accept=result_acc)
         ELSE
            IF(tmc_env%m_env%temp_decrease.NE.1.0_dp)THEN
              CALL acceptance_check(tree_element=act_element, parent_element=tmp_element, &
                                    tmc_params=tmc_env%params, temperature=gt_act_elem%Temp, &
                                    diff_pot_check=.TRUE., accept=result_acc, &
-                                   rnd_nr=gt_act_elem%rnd_nr, error=error)
+                                   rnd_nr=gt_act_elem%rnd_nr)
            ELSE
              CALL acceptance_check(tree_element=act_element, parent_element=tmp_element, &
                                    tmc_params=tmc_env%params, &
                                    temperature=tmc_env%params%Temp(gt_act_elem%mv_conf), &
                                    diff_pot_check=.TRUE., accept=result_acc, &
-                                   rnd_nr=gt_act_elem%rnd_nr, error=error)
+                                   rnd_nr=gt_act_elem%rnd_nr)
            END IF
         END IF
         check_done = .TRUE.
@@ -743,7 +717,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
         CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"status of actual checked node is unknown"&
-               //cp_to_string(gt_act_elem%stat),error,failure)
+               //cp_to_string(gt_act_elem%stat),failure)
         END SELECT
       END IF
     END IF
@@ -757,17 +731,13 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param tmc_env TMC environment
 !> \param result_acc checked configuration accepted? (result)
 !> \param something_updated ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \param 
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE tree_update(tmc_env, result_acc, something_updated, &
-                         error)
+  SUBROUTINE tree_update(tmc_env, result_acc, something_updated)
     TYPE(tmc_env_type), POINTER              :: tmc_env
     LOGICAL                                  :: result_acc, something_updated
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tree_update', &
       routineP = moduleN//':'//routineN
@@ -780,7 +750,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     failure = .FALSE.
     NULLIFY(gt_act_elem, tmp_element, act_element)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -792,19 +762,18 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     search_calculated_element_loop: DO
       NULLIFY(act_element, tmp_element)
       ! search for element to check
-      CALL search_next_gt_element_to_check(ptr=gt_act_elem, found=found, error=error)
+      CALL search_next_gt_element_to_check(ptr=gt_act_elem, found=found)
       IF(.NOT.found) EXIT search_calculated_element_loop
 
       ! check the elements status end, if possible, do acceptance check
       CALL check_elements(gt_act_elem=gt_act_elem, tmc_env=tmc_env, &
-                          check_done=found, result_acc=result_acc,error=error)
+                          check_done=found, result_acc=result_acc)
       ! if check was not possible, update the status of the global tree element and return
       IF(.NOT.found) EXIT search_calculated_element_loop
 
       ! get elements related to global tree element, which were checked 
       CALL get_subtree_elements_to_check(gt_act_elem=gt_act_elem, &
-                                         elem1=act_element, elem2=tmp_element,&
-                                         error=error)
+                                         elem1=act_element, elem2=tmp_element)
 
       !========================================================================
       !-- set result counters
@@ -878,44 +847,39 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
       IF(.NOT.gt_act_elem%swaped) &
         CALL subtree_configuration_stat_change(gt_ptr=gt_act_elem, &
                                                stat=gt_act_elem%stat, &
-                                               tmc_params=tmc_env%params, &
-                                               error=error)
+                                               tmc_params=tmc_env%params)
 
       IF(tmc_env%params%DRAW_TREE) &
         CALL create_global_tree_dot_color(gt_tree_element=gt_act_elem, &
-                                          tmc_params=tmc_env%params, &
-                                          error=error)
+                                          tmc_params=tmc_env%params)
 
       ! probability update 
       CALL prob_update(move_types=tmc_env%params%move_types,&
                        pt_el=gt_act_elem, &
-                       prob_opt=tmc_env%params%esimate_acc_prob, &
-                       error=error)
+                       prob_opt=tmc_env%params%esimate_acc_prob)
 
       !writes only different configurations with repetition file if possible
       CALL write_result_list_element(result_list=tmc_env%m_env%result_list, &
              result_count=tmc_env%m_env%result_count,&
              conf_updated=gt_act_elem%mv_conf, accepted=result_acc, &
-             tmc_params=tmc_env%params, error=error)
+             tmc_params=tmc_env%params)
       IF(gt_act_elem%swaped)&
         CALL write_result_list_element(result_list=tmc_env%m_env%result_list, &
                result_count=tmc_env%m_env%result_count,&
                conf_updated=gt_act_elem%mv_conf+1, accepted=result_acc, &
-               tmc_params=tmc_env%params, error=error)
+               tmc_params=tmc_env%params)
 
       ! save for analysis
       IF(tmc_env%tmc_comp_set%para_env_m_ana%num_pe.GT.1.AND.result_acc) THEN
         CALL add_to_list(elem=tmc_env%m_env%result_list(gt_act_elem%mv_conf)%elem, &
                          list=tmc_env%m_env%analysis_list, &
                          temp_ind=gt_act_elem%mv_conf, &
-                         nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf),&
-                         error=error)
+                         nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf))
         IF(gt_act_elem%swaped) THEN
           CALL add_to_list(elem=tmc_env%m_env%result_list(gt_act_elem%mv_conf+1)%elem, &
                            list=tmc_env%m_env%analysis_list, &
                            temp_ind=gt_act_elem%mv_conf+1, &
-                           nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf+1),&
-                           error=error)
+                           nr=tmc_env%m_env%result_count(gt_act_elem%mv_conf+1))
         END IF
       END IF
     END DO search_calculated_element_loop
@@ -933,14 +897,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \brief checks if element is ready for accaptance probability update
 !>        checks status and the amount of already received intermediate energies
 !> \param elem sub tree element to update
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval ready return value
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  FUNCTION ready_for_update_acc_prob(elem, error) RESULT(ready)
+  FUNCTION ready_for_update_acc_prob(elem) RESULT(ready)
     TYPE(tree_type), POINTER                 :: elem
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: ready
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ready_for_update_acc_prob', &
@@ -949,7 +910,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
     ready = .FALSE.
     IF((elem%scf_energies_count.GE.4)&
        .AND.(elem%stat.NE.status_deleted).AND.(elem%stat.NE.status_deleted_result)&
@@ -963,14 +924,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !>        global tree elements (pt references)
 !> \param tree_elem sub tree element to update
 !> \param tmc_env TMC environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE check_elements_for_acc_prob_update(tree_elem, tmc_env, error)
+  SUBROUTINE check_elements_for_acc_prob_update(tree_elem, tmc_env)
     TYPE(tree_type), POINTER                 :: tree_elem
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'check_elements_for_acc_prob_update', &
@@ -983,8 +941,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
 
 
     ! start the timing
@@ -993,16 +951,16 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
     act_elem => tree_elem
     !-- nothing to do if option is disabled or element not ready
     IF(tmc_env%params%esimate_acc_prob.AND.&
-       ready_for_update_acc_prob(act_elem,error=error))THEN
+       ready_for_update_acc_prob(act_elem))THEN
       ! ------------------------------------------------------
       ! check this element
       !   for usual moves and swapping
       ! get parent subtree elment for case of not swapped configurations
-      parent_elem => search_parent_element(act_elem, error=error)
+      parent_elem => search_parent_element(act_elem)
       ! update the prob of accaptance
       CALL update_prob_gt_node_list(reference_list=act_elem%gt_nodes_references, &
               act_elem=act_elem, parent_elem=parent_elem, act_parent=.TRUE., &
-              tmc_env=tmc_env, error=error)
+              tmc_env=tmc_env)
 
       !------------------------------------------------------
       ! check the childs of this element
@@ -1014,7 +972,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
          ! update the prob of accaptance
          CALL update_prob_gt_node_list(reference_list=act_elem%gt_nodes_references, &
                  act_elem=act_elem, parent_elem=parent_elem, act_parent=.FALSE.,&
-                 tmc_env=tmc_env, error=error)
+                 tmc_env=tmc_env)
       END IF
 
       ! check all NACC childs of next accepted one
@@ -1023,7 +981,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
          act_elem => act_elem%nacc
          CALL update_prob_gt_node_list(reference_list=act_elem%gt_nodes_references,&
                  act_elem=act_elem, parent_elem=parent_elem, act_parent=.FALSE.,&
-                 tmc_env=tmc_env, error=error)
+                 tmc_env=tmc_env)
       END DO nacc_loop
     END IF
     ! end the timing
@@ -1040,16 +998,13 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param act_parent flag if updated element is the actual (TRUE) or 
 !>        the parent (FALSE) element
 !> \param tmc_env TMC environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE update_prob_gt_node_list(reference_list, act_elem, parent_elem, act_parent, tmc_env, error)
+  SUBROUTINE update_prob_gt_node_list(reference_list, act_elem, parent_elem, act_parent, tmc_env)
     TYPE(gt_elem_list_type), POINTER         :: reference_list
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
     LOGICAL                                  :: act_parent
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_prob_gt_node_list', &
       routineP = moduleN//':'//routineN
@@ -1067,15 +1022,15 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 
     IF(.NOT.ASSOCIATED(reference_list)) RETURN ! could be canceled already
 
-    CPPrecondition(ASSOCIATED(reference_list%gt_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(act_elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(reference_list%gt_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(act_elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
 
     ! check if element is ready
-    IF(ready_for_update_acc_prob(act_elem, error)) THEN
+    IF(ready_for_update_acc_prob(act_elem)) THEN
       ! set the number of integration steps used for 3 point approximation 
       ! of the exact energy, using the sub step energies
       ! still fixed value
@@ -1089,10 +1044,10 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
           NULLIFY(tmp_elem,tmp_parent_elem)
           ! in case of swap use the other swaped configuration as related one
           CALL get_subtree_elements_to_check(gt_act_elem=tmp_pt_ptr%gt_elem, &
-                     elem1=tmp_elem, elem2=tmp_parent_elem, error=error)
+                     elem1=tmp_elem, elem2=tmp_parent_elem)
           ! NOT if parent is the updated one, and check for correct elements ready
           IF(act_parent .AND. ASSOCIATED(act_elem, tmp_elem) .AND. &
-             ready_for_update_acc_prob(elem=tmp_parent_elem, error=error)) THEN
+             ready_for_update_acc_prob(elem=tmp_parent_elem)) THEN
             ! using ln(rnd)/-(beta_i-beta_j) < U_j-U_i)
             tmp_prob = compute_estimated_prob(elem_old=tmp_parent_elem, &
                                               elem_new=act_elem, &
@@ -1100,20 +1055,20 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
                                               rnd_nr=tmp_pt_ptr%gt_elem%rnd_nr, &
                                               beta=1.0_dp/(kB*(tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf)-&
                                                                tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf+1))), &
-                                              tmc_params=tmc_env%params,error=error)
+                                              tmc_params=tmc_env%params)
           ELSE
             tmp_pt_ptr => tmp_pt_ptr%next
             CYCLE reference_loop
           END IF
         ELSE
           ! if no swap, use the parent configuration as related one
-          IF(ready_for_update_acc_prob(parent_elem, error=error)) THEN
+          IF(ready_for_update_acc_prob(parent_elem)) THEN
             tmp_prob = compute_estimated_prob(elem_old=parent_elem, &
                                               elem_new=act_elem, &
                                               E_classical_diff=act_elem%e_pot_approx-parent_elem%e_pot_approx, &
                                               rnd_nr=tmp_pt_ptr%gt_elem%rnd_nr, &
                                               beta=1.0_dp/(kB*tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf)), &
-                                              tmc_params=tmc_env%params,error=error)
+                                              tmc_params=tmc_env%params)
           END IF
         END IF
         !successfull probability update
@@ -1122,7 +1077,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
           !-- speculative canceling for the related direction
           IF(tmc_env%params%SPECULATIVE_CANCELING) &
             CALL search_canceling_elements(pt_elem_in=tmp_pt_ptr%gt_elem, &
-                    prob=tmp_pt_ptr%gt_elem%prob_acc, tmc_env=tmc_env, error=error)
+                    prob=tmp_pt_ptr%gt_elem%prob_acc, tmc_env=tmc_env)
         END IF
 
         ! get next related global tree pointer

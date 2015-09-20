@@ -143,18 +143,16 @@ CONTAINS
 !> \param linres_control ...
 !> \param nspins ...
 !> \param centers_only ...
-!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_localize(qs_env,linres_control,nspins,centers_only,error)
+  SUBROUTINE linres_localize(qs_env,linres_control,nspins,centers_only)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
@@ -176,31 +174,31 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section, loc_print_section,localized_wfn_control)
-    logger => cp_error_get_logger(error)
-    lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
-    loc_section => section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
-    loc_print_section => section_vals_get_subs_vals(lr_section,"LOCALIZE%PRINT",error=error)
+    logger => cp_get_default_logger()
+    lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
+    loc_section => section_vals_get_subs_vals(lr_section,"LOCALIZE")
+    loc_print_section => section_vals_get_subs_vals(lr_section,"LOCALIZE%PRINT")
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-                                       extension=".linresLog",error=error)
+                                       extension=".linresLog")
     my_centers_only = .FALSE.
     IF(PRESENT(centers_only)) my_centers_only = centers_only
 
     NULLIFY(mos,mo_coeff,qs_loc_env,mos_localized)
-    CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
-    CALL qs_loc_env_create(qs_loc_env,error=error)
-    CALL  qs_loc_env_retain(qs_loc_env, error=error)
+    CALL get_qs_env(qs_env=qs_env,mos=mos)
+    CALL qs_loc_env_create(qs_loc_env)
+    CALL  qs_loc_env_retain(qs_loc_env)
     linres_control% qs_loc_env=> qs_loc_env
-    CALL qs_loc_env_release(qs_loc_env,error=error)
+    CALL qs_loc_env_release(qs_loc_env)
     qs_loc_env => linres_control% qs_loc_env
-    CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.TRUE.,error=error)
-    CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
+    CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.TRUE.)
+    CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control)
 
     ALLOCATE(mos_localized(nspins),stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
-      CALL  cp_fm_create(mos_localized(ispin)%matrix,mo_coeff%matrix_struct,error=error)
-      CALL cp_fm_to_fm(mo_coeff,mos_localized(ispin)%matrix,error=error)
+      CALL  cp_fm_create(mos_localized(ispin)%matrix,mo_coeff%matrix_struct)
+      CALL cp_fm_to_fm(mo_coeff,mos_localized(ispin)%matrix)
     END DO
 
 
@@ -212,19 +210,19 @@ CONTAINS
     ENDIF
 
     CALL qs_loc_init(qs_env, qs_loc_env,loc_section,mos_localized=mos_localized,&
-         do_homo=.TRUE.,error=error)
+         do_homo=.TRUE.)
 
     ! The orbital centers are stored in linres_control%localized_wfn_control
     DO ispin = 1,nspins
       CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_section, myspin = ispin,&
-           ext_mo_coeff=mos_localized(ispin)%matrix,error=error)
+           ext_mo_coeff=mos_localized(ispin)%matrix)
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
-      CALL cp_fm_to_fm(mos_localized(ispin)%matrix,mo_coeff,error=error)
+      CALL cp_fm_to_fm(mos_localized(ispin)%matrix,mo_coeff)
     END DO
 
     CALL loc_write_restart(qs_loc_env,loc_print_section,mos,&
-                 mos_localized, do_homo=.TRUE., error=error)
-    CALL cp_fm_vect_dealloc(mos_localized,error)
+                 mos_localized, do_homo=.TRUE.)
+    CALL cp_fm_vect_dealloc(mos_localized)
 
 
     ! Write Centers and Spreads on std out
@@ -257,19 +255,17 @@ CONTAINS
 !> \param h1_psi0 ...
 !> \param psi0_order ...
 !> \param should_stop ...
-!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop, error)
+  SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, should_stop)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi1, h1_psi0, psi0_order
     LOGICAL, INTENT(OUT)                     :: should_stop
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver', &
       routineP = moduleN//':'//routineN
@@ -306,7 +302,7 @@ CONTAINS
     NULLIFY(Ap,r,p,z,lr_section,logger,buf,mos,tmp_fm_struct,mo_coeff)
     NULLIFY(Sc,chc)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     t1 = m_walltime()
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -316,8 +312,7 @@ CONTAINS
                     dft_control=dft_control,&
                     linres_control=linres_control,&
                     para_env=para_env,&
-                    mos=mos,&
-                    error=error)
+                    mos=mos)
 
     !
     nspins = dft_control%nspins
@@ -327,21 +322,21 @@ CONTAINS
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,nmo=ncol)
        maxnmo = MAX(maxnmo,ncol)
-       CALL cp_fm_get_info(psi0_order(ispin)%matrix,ncol_global=ncol,error=error)
+       CALL cp_fm_get_info(psi0_order(ispin)%matrix,ncol_global=ncol)
        maxnmo_o = MAX(maxnmo_o,ncol)
     ENDDO
     !
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-                                       extension=".linresLog",error=error)
+                                       extension=".linresLog")
 
     !
-    CALL check_p_env_init(p_env,linres_control,nspins,error=error)
+    CALL check_p_env_init(p_env,linres_control,nspins)
     !
     ! allocate the vectors
     ALLOCATE(alpha(nspins),beta(nspins),tr_pAp(nspins),tr_rz0(nspins),tr_rz00(nspins),tr_rz1(nspins),&
              r(nspins),p(nspins),z(nspins),Ap(nspins),mo_coeff_array(nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
        mo_coeff_array(ispin)%matrix => mo_coeff
@@ -349,49 +344,47 @@ CONTAINS
     !
     DO ispin = 1,nspins
        NULLIFY(r(ispin)%matrix,p(ispin)%matrix,z(ispin)%matrix,Ap(ispin)%matrix)
-       CALL cp_fm_create(r(ispin)%matrix,psi1(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(p(ispin)%matrix,psi1(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(z(ispin)%matrix,psi1(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(Ap(ispin)%matrix,psi1(ispin)%matrix%matrix_struct,error=error)
+       CALL cp_fm_create(r(ispin)%matrix,psi1(ispin)%matrix%matrix_struct)
+       CALL cp_fm_create(p(ispin)%matrix,psi1(ispin)%matrix%matrix_struct)
+       CALL cp_fm_create(z(ispin)%matrix,psi1(ispin)%matrix%matrix_struct)
+       CALL cp_fm_create(Ap(ispin)%matrix,psi1(ispin)%matrix%matrix_struct)
     ENDDO
     !
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                              ncol_global=maxnmo,para_env=para_env,&
-                             context=psi1(1)%matrix%matrix_struct%context,&
-                             error=error)
-    CALL cp_fm_create(buf,tmp_fm_struct,error=error)
-    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+                             context=psi1(1)%matrix%matrix_struct%context)
+    CALL cp_fm_create(buf,tmp_fm_struct)
+    CALL cp_fm_struct_release(tmp_fm_struct)
     !
     !
     !
     ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
     ALLOCATE(chc(nspins),Sc(nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo)
-       CALL cp_fm_create(Sc(ispin)%matrix,mo_coeff%matrix_struct,error=error)
+       CALL cp_fm_create(Sc(ispin)%matrix,mo_coeff%matrix_struct)
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
                                 ncol_global=nmo,para_env=para_env,&
-                                context=mo_coeff%matrix_struct%context,&
-                                error=error)
-       CALL cp_fm_create(chc(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+                                context=mo_coeff%matrix_struct%context)
+       CALL cp_fm_create(chc(ispin)%matrix,tmp_fm_struct)
+       CALL cp_fm_struct_release(tmp_fm_struct)
     ENDDO
     !
     DO ispin = 1,nspins
        !
        ! C0_order' * H * C0_order
        mo_coeff => psi0_order(ispin)%matrix
-       CALL cp_fm_get_info(mo_coeff,ncol_global=ncol,error=error)
-       CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_coeff,buf,ncol,error=error)
-       CALL cp_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix,error)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=ncol)
+       CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_coeff,buf,ncol)
+       CALL cp_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix)
        !
        ! S * C0
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,ncol_global=ncol,error=error)
-       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,Sc(ispin)%matrix,ncol,error=error)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=ncol)
+       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,Sc(ispin)%matrix,ncol)
     ENDDO
     !
     !
@@ -404,7 +397,7 @@ CONTAINS
     ENDIF
     !
     ! orthogonalize x with respect to the psi0
-    CALL preortho(psi1,mo_coeff_array,Sc,buf,error)
+    CALL preortho(psi1,mo_coeff_array,Sc,buf)
     !
     ! build the preconditioner
     IF(linres_control%preconditioner_type /= ot_precond_none) THEN
@@ -414,7 +407,7 @@ CONTAINS
              CALL make_preconditioner(p_env%preconditioner(ispin),&
                   linres_control%preconditioner_type,ot_precond_solver_default,&
                   matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
-                  mos(ispin)%mo_set,linres_control%energy_gap,error=error)
+                  mos(ispin)%mo_set,linres_control%energy_gap)
           ENDDO
           p_env%new_preconditioner = .FALSE.
        ENDIF
@@ -423,17 +416,17 @@ CONTAINS
     ! initalization of the linear solver
     !
     ! A * x0
-    CALL apply_op(qs_env,p_env,psi0_order,psi1,Ap,chc,buf,error)
+    CALL apply_op(qs_env,p_env,psi0_order,psi1,Ap,chc,buf)
     !
     !
     ! r_0 = b - Ax0
     DO ispin = 1,nspins
-       CALL cp_fm_to_fm(h1_psi0(ispin)%matrix,r(ispin)%matrix,error=error)
-       CALL cp_fm_scale_and_add(-1.0_dp,r(ispin)%matrix,-1.0_dp,Ap(ispin)%matrix,error=error)
+       CALL cp_fm_to_fm(h1_psi0(ispin)%matrix,r(ispin)%matrix)
+       CALL cp_fm_scale_and_add(-1.0_dp,r(ispin)%matrix,-1.0_dp,Ap(ispin)%matrix)
     ENDDO
     !
     ! proj r
-    CALL postortho(r,mo_coeff_array,Sc,buf,error)
+    CALL postortho(r,mo_coeff_array,Sc,buf)
     !
     ! preconditioner
     linres_control%flag=""
@@ -441,7 +434,7 @@ CONTAINS
        !
        ! z_0 = r_0
        DO ispin = 1,nspins
-          CALL cp_fm_to_fm(r(ispin)%matrix,z(ispin)%matrix,error=error)
+          CALL cp_fm_to_fm(r(ispin)%matrix,z(ispin)%matrix)
        ENDDO
        linres_control%flag="CG"
     ELSE
@@ -449,7 +442,7 @@ CONTAINS
        ! z_0 = M * r_0
        DO ispin = 1,nspins
           CALL apply_preconditioner(p_env%preconditioner(ispin),r(ispin)%matrix,&
-                                    z(ispin)%matrix,error)
+                                    z(ispin)%matrix)
        ENDDO
        linres_control%flag="PCG"
     ENDIF
@@ -458,10 +451,10 @@ CONTAINS
     DO ispin = 1,nspins
        !
        ! p_0 = z_0
-       CALL cp_fm_to_fm(z(ispin)%matrix,p(ispin)%matrix,error=error)
+       CALL cp_fm_to_fm(z(ispin)%matrix,p(ispin)%matrix)
        !
        ! trace(r_0 * z_0)
-       CALL cp_fm_trace(r(ispin)%matrix,z(ispin)%matrix,tr_rz0(ispin),error)
+       CALL cp_fm_trace(r(ispin)%matrix,z(ispin)%matrix,tr_rz0(ispin))
        IF(tr_rz0(ispin).LT.0.0_dp) CALL stop_program(routineN,moduleN,__LINE__,&
                                                      "tr(r_j*z_j) < 0")
        norm_res = MAX(norm_res,ABS(tr_rz0(ispin))/SQRT(REAL(nao*maxnmo_o,dp)))
@@ -515,35 +508,35 @@ CONTAINS
        !
        !
        ! Apply the operators that do not depend on the perturbation
-       CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf,error)
+       CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf)
        !
        !
 !       ! proj Ap onto the virtual subspace
-       CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
+       CALL postortho(Ap,mo_coeff_array,Sc,buf)
        !
        !
        DO ispin = 1,nspins
           !
           ! tr(Ap_j*p_j)
-          CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin),error)
+          CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin))
           IF (tr_pAp(ispin).LT.0.0_dp) THEN
              
              ! try to fix it by getting rid of the preconditioner
              IF(iter>1) THEN
-               CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,-1.0_dp,z(ispin)%matrix,error=error)
-               CALL cp_fm_trace(r(ispin)%matrix,r(ispin)%matrix,tr_rz1(ispin),error)
+               CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,-1.0_dp,z(ispin)%matrix)
+               CALL cp_fm_trace(r(ispin)%matrix,r(ispin)%matrix,tr_rz1(ispin))
                beta(ispin) = tr_rz1(ispin)/tr_rz00(ispin)
-               CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,r(ispin)%matrix,error=error)
+               CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,r(ispin)%matrix)
                tr_rz0(ispin) = tr_rz1(ispin)
              ELSE
-               CALL cp_fm_to_fm(r(ispin)%matrix,p(ispin)%matrix,error=error)
-               CALL cp_fm_trace(r(ispin)%matrix,r(ispin)%matrix,tr_rz0(ispin),error)
+               CALL cp_fm_to_fm(r(ispin)%matrix,p(ispin)%matrix)
+               CALL cp_fm_trace(r(ispin)%matrix,r(ispin)%matrix,tr_rz0(ispin))
              END IF
              linres_control%flag="CG"
 
-             CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf,error)
-             CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
-             CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin),error)
+             CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf)
+             CALL postortho(Ap,mo_coeff_array,Sc,buf)
+             CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin))
              CALL stop_program(routineN,moduleN,__LINE__,&
                                "tr(Ap_j*p_j) < 0")
           END IF
@@ -556,7 +549,7 @@ CONTAINS
           ENDIF
           !
           ! x_j+1 = x_j + alpha * p_j
-          CALL cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,alpha(ispin),p(ispin)%matrix,error=error)
+          CALL cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,alpha(ispin),p(ispin)%matrix)
        ENDDO
        !
        ! need to recompute the residue
@@ -565,24 +558,24 @@ CONTAINS
           !
           !
           ! r_j+1 = b - A * x_j+1
-          CALL apply_op(qs_env,p_env,psi0_order,psi1,Ap,chc,buf,error)
+          CALL apply_op(qs_env,p_env,psi0_order,psi1,Ap,chc,buf)
           !
           !
           DO ispin = 1,nspins
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_to_fm(h1_psi0(ispin)%matrix,r(ispin)%matrix,error=error)
-             CALL cp_fm_scale_and_add(-1.0_dp,r(ispin)%matrix,-1.0_dp,Ap(ispin)%matrix,error=error)
+             CALL cp_fm_to_fm(h1_psi0(ispin)%matrix,r(ispin)%matrix)
+             CALL cp_fm_scale_and_add(-1.0_dp,r(ispin)%matrix,-1.0_dp,Ap(ispin)%matrix)
           ENDDO
-          CALL postortho(r,mo_coeff_array,Sc,buf,error)
+          CALL postortho(r,mo_coeff_array,Sc,buf)
           !
           restart = .TRUE.
        ELSE
 !       ! proj Ap onto the virtual subspace
-          CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
+          CALL postortho(Ap,mo_coeff_array,Sc,buf)
           !
           ! r_j+1 = r_j - alpha * Ap_j
           DO ispin = 1,nspins
-             CALL cp_fm_scale_and_add(1.0_dp,r(ispin)%matrix,-alpha(ispin),Ap(ispin)%matrix,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,r(ispin)%matrix,-alpha(ispin),Ap(ispin)%matrix)
           ENDDO
           restart = .FALSE.
        ENDIF
@@ -593,7 +586,7 @@ CONTAINS
           !
           ! z_j+1 = r_j+1
           DO ispin = 1,nspins
-             CALL cp_fm_to_fm(r(ispin)%matrix,z(ispin)%matrix,error=error)
+             CALL cp_fm_to_fm(r(ispin)%matrix,z(ispin)%matrix)
           ENDDO
           linres_control%flag="CG"
        ELSE
@@ -601,7 +594,7 @@ CONTAINS
           ! z_j+1 = M * r_j+1
           DO ispin = 1,nspins
              CALL apply_preconditioner(p_env%preconditioner(ispin),r(ispin)%matrix,&
-                                       z(ispin)%matrix,error)
+                                       z(ispin)%matrix)
           ENDDO
           linres_control%flag="PCG"
        ENDIF
@@ -610,7 +603,7 @@ CONTAINS
        DO ispin = 1,nspins
           !
           ! tr(r_j+1*z_j+1)
-          CALL cp_fm_trace(r(ispin)%matrix,z(ispin)%matrix,tr_rz1(ispin),error)
+          CALL cp_fm_trace(r(ispin)%matrix,z(ispin)%matrix,tr_rz1(ispin))
           IF(tr_rz1(ispin).LT.0.0_dp) CALL stop_program(routineN,moduleN,__LINE__,&
                                                         "tr(r_j+1*z_j+1) < 0")
           norm_res = MAX(norm_res,tr_rz1(ispin)/SQRT(REAL(nao*maxnmo_o,dp)))
@@ -623,36 +616,36 @@ CONTAINS
           ENDIF
           !
           ! p_j+1 = z_j+1 + beta * p_j
-          CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,z(ispin)%matrix,error=error)
+          CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,z(ispin)%matrix)
           tr_rz00(ispin) = tr_rz0(ispin)
           tr_rz0(ispin) = tr_rz1(ispin)
        ENDDO
 
        ! ** can we exit the SCF loop  ?
        CALL external_control(should_stop,"LINRES",target_time=qs_env%target_time, &
-               start_time=qs_env%start_time,error=error)
+               start_time=qs_env%start_time)
 
 
     ENDDO iteration
     !
     ! proj psi1
-    CALL preortho(psi1,mo_coeff_array,Sc,buf,error)
+    CALL preortho(psi1,mo_coeff_array,Sc,buf)
     !
     ! clean up
     DO ispin = 1,nspins
-       CALL cp_fm_release(r(ispin)%matrix,error=error)
-       CALL cp_fm_release(p(ispin)%matrix,error=error)
-       CALL cp_fm_release(z(ispin)%matrix,error=error)
-       CALL cp_fm_release(Ap(ispin)%matrix,error=error)
+       CALL cp_fm_release(r(ispin)%matrix)
+       CALL cp_fm_release(p(ispin)%matrix)
+       CALL cp_fm_release(z(ispin)%matrix)
+       CALL cp_fm_release(Ap(ispin)%matrix)
        !
-       CALL cp_fm_release(Sc(ispin)%matrix,error=error)
-       CALL cp_fm_release(chc(ispin)%matrix,error=error)
+       CALL cp_fm_release(Sc(ispin)%matrix)
+       CALL cp_fm_release(chc(ispin)%matrix)
     ENDDO
-    CALL cp_fm_release(buf,error=error)
+    CALL cp_fm_release(buf)
     DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz00,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
     !
-    CALL cp_print_key_finished_output(output_unit,logger,lr_section,"PRINT%PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,"PRINT%PROGRAM_RUN_INFO")
     !
     CALL timestop(handle)
     !
@@ -668,16 +661,14 @@ CONTAINS
 !> \param Av ...
 !> \param chc ...
 !> \param buf ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_op(qs_env,p_env,c0,v,Av,chc,buf,error)
+  SUBROUTINE apply_op(qs_env,p_env,c0,v,Av,chc,buf)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: c0, v, Av, chc
     TYPE(cp_fm_type), POINTER                :: buf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op', &
       routineP = moduleN//':'//routineN
@@ -699,17 +690,16 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
     !
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_ks=matrix_ks,&
                     matrix_s=matrix_s,&
                     dft_control=dft_control,&
-                    linres_control=linres_control,&
-                    error=error)
+                    linres_control=linres_control)
 
     !
     nspins = dft_control%nspins
@@ -718,52 +708,51 @@ CONTAINS
     ! apply the uncoupled operator
     DO ispin = 1,nspins
        CALL apply_op_1(v(ispin)%matrix,Av(ispin)%matrix,matrix_ks(ispin)%matrix,&
-                       matrix_s(1)%matrix,chc(ispin)%matrix,buf,error)
+                       matrix_s(1)%matrix,chc(ispin)%matrix,buf)
     ENDDO
 
 
     IF(linres_control%do_kernel) THEN!.AND.chksum.GT.1.0E-10_dp) THEN
        !
        ! build DM
-       CALL build_dm_response(c0,v,p_env%p1,error)
+       CALL build_dm_response(c0,v,p_env%p1)
 
        chksum = 0.0_dp
        DO ispin = 1,nspins
-          chksum = chksum + cp_dbcsr_checksum(p_env%p1(ispin)%matrix,error=error)
+          chksum = chksum + cp_dbcsr_checksum(p_env%p1(ispin)%matrix)
        ENDDO
 
        !
        ! skip the kernel if the DM is very small
        IF(chksum.GT.1.0E-14_dp) THEN
 
-          CALL p_env_check_i_alloc(p_env,qs_env,error)
+          CALL p_env_check_i_alloc(p_env,qs_env)
 
-          CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao, error=error)
+          CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
           DO ispin = 1,nspins
-             CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix,p_env%p1(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix,p_env%p1(ispin)%matrix)
           ENDDO
 
              CALL qs_rho_update_rho(rho_struct=p_env%rho1,local_rho_set=p_env%local_rho_set,&
-                                    qs_env=qs_env,error=error)
+                                    qs_env=qs_env)
 
           !if(first_time) then
-          CALL get_qs_env(qs_env,rho=rho,error=error) ! that could be called before
-          CALL qs_rho_update_rho(rho,qs_env=qs_env,error=error) ! that could be called before
+          CALL get_qs_env(qs_env,rho=rho) ! that could be called before
+          CALL qs_rho_update_rho(rho,qs_env=qs_env) ! that could be called before
           !   first_time = .false.
           !endif
 
 
 
-          CALL apply_op_2(qs_env,p_env,c0,v,Av,chc,buf,error)
+          CALL apply_op_2(qs_env,p_env,c0,v,Av,chc,buf)
 
-          !CALL kpp1_calc_k_p_p1(p_env%kpp1_env, p_env, qs_env, p_env%kpp1, qs_env%rho, p_env%rho1, p_env%rho1_xc, error)
+          !CALL kpp1_calc_k_p_p1(p_env%kpp1_env, p_env, qs_env, p_env%kpp1, qs_env%rho, p_env%rho1, p_env%rho1_xc)
           !DO ispin = 1,nspins
-          !   CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
+          !   CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol)
           !   CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
           !                          v_in=c0(ispin)%matrix,&
           !                          v_out=Av(ispin)%matrix,&
-          !                          ncol=ncol,alpha=1.0_dp,beta=1.0_dp,&
-          !                          error=error)
+          !                          ncol=ncol,alpha=1.0_dp,beta=1.0_dp)
           !ENDDO
 
        ENDIF
@@ -780,15 +769,13 @@ CONTAINS
 !> \param c0 ...
 !> \param c1 ...
 !> \param dm ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_dm_response(c0,c1,dm,error)
+  SUBROUTINE build_dm_response(c0,c1,dm)
     !
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: c0, c1
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: dm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
       routineP = moduleN//':'//routineN
@@ -801,23 +788,23 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(c1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(dm),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(c1),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(dm),cp_failure_level,routineP,failure)
 
     nspins = SIZE(dm,1)
 
     DO ispin = 1,nspins
-       CALL cp_dbcsr_set(dm(ispin)%matrix,0.0_dp,error=error)
-       CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
+       CALL cp_dbcsr_set(dm(ispin)%matrix,0.0_dp)
+       CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol)
        CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix,&
                                matrix_v=c0(ispin)%matrix,&
                                matrix_g=c1(ispin)%matrix,&
-                               ncol=ncol,alpha=1.0_dp,error=error)
+                               ncol=ncol,alpha=1.0_dp)
        CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix,&
                                matrix_v=c1(ispin)%matrix,&
                                matrix_g=c0(ispin)%matrix,&
-                               ncol=ncol,alpha=1.0_dp,error=error)
+                               ncol=ncol,alpha=1.0_dp)
     ENDDO
 
   END SUBROUTINE build_dm_response
@@ -831,14 +818,12 @@ CONTAINS
 !> \param matrix_s ...
 !> \param chc ...
 !> \param buf ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_op_1(v,Av,matrix_ks,matrix_s,chc,buf,error)
+  SUBROUTINE apply_op_1(v,Av,matrix_ks,matrix_s,chc,buf)
     !
     TYPE(cp_fm_type), POINTER                :: v, Av
     TYPE(cp_dbcsr_type), POINTER             :: matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: chc, buf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op_1', &
       routineP = moduleN//':'//routineN
@@ -852,20 +837,20 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_ks),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(matrix_ks),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
     !
-    CALL cp_fm_get_info(v,ncol_global=ncol,nrow_global=nrow,error=error)
+    CALL cp_fm_get_info(v,ncol_global=ncol,nrow_global=nrow)
     ! H * v
-    CALL cp_dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol)
     ! v * e  (chc already multiplied by -1)
-    CALL cp_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
+    CALL cp_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf)
     ! S * ve
-    CALL cp_dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp)
     !Results is H*C1 - S*<iHj>*C1
     !
     CALL timestop(handle)
@@ -882,16 +867,14 @@ CONTAINS
 !> \param Av ...
 !> \param chc ...
 !> \param buf ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_op_2(qs_env,p_env,c0,v,Av,chc,buf,error)
+  SUBROUTINE apply_op_2(qs_env,p_env,c0,v,Av,chc,buf)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: c0, v, Av, chc
     TYPE(cp_fm_type), POINTER                :: buf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2', &
       routineP = moduleN//':'//routineN
@@ -933,110 +916,107 @@ CONTAINS
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, rho1_ao, rho_ao, &
             poisson_env, input, scf_section,rho,dft_control,logger, rho1_g)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     energy_hartree=0.0_dp
     energy_hartree_1c=0.0_dp
 
-    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
 
 
-    CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(p_env%kpp1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(p_env%kpp1),cp_failure_level,routineP,failure)
     rho1    => p_env%rho1
     rho1_xc => p_env%rho1_xc
-    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,failure)
 
-    CPPrecondition(p_env%kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
 
     CALL get_qs_env(qs_env=qs_env,&
          pw_env=pw_env,&
          input=input,&
          rho=rho,&
          linres_control=linres_control,&
-         dft_control=dft_control,&
-         error=error)
+         dft_control=dft_control)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     lr_triplet = linres_control%lr_triplet
-    CALL kpp1_check_i_alloc(p_env%kpp1_env,qs_env,lr_triplet,error=error)
-    !gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
-    !gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
+    CALL kpp1_check_i_alloc(p_env%kpp1_env,qs_env,lr_triplet)
+    !gapw=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw)
+    !gapw_xc=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw_xc)
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc) THEN
-       CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,failure)
     END IF
 
     nspins = SIZE(p_env%kpp1)
     lsd = (nspins==2)
 
-    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-    scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC")
+    scf_section => section_vals_get_subs_vals(input,"DFT%SCF")
 
     p_env%kpp1_env%iter=p_env%kpp1_env%iter+1
 
 ! gets the tmp grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-         pw_pools=pw_pools, poisson_env=poisson_env,error=error)
+         pw_pools=pw_pools, poisson_env=poisson_env)
     ALLOCATE(v_rspace_new(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
          use_data = COMPLEXDATA1D,&
-         in_space = RECIPROCALSPACE, error=error)
+         in_space = RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
          use_data = REALDATA3D,&
-         in_space = REALSPACE, error=error)
+         in_space = REALSPACE)
 
     IF (gapw .OR. gapw_xc) &
-       CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc), error=error)
+       CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc))
 
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
 
        CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
             use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
+            in_space = RECIPROCALSPACE)
 
-       CALL qs_rho_get(rho1, rho_g=rho1_g, error=error)
-       CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw, error=error)
+       CALL qs_rho_get(rho1, rho_g=rho1_g)
+       CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw)
        DO ispin=2,nspins
-          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw, error=error)
+          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
        END DO
        IF (gapw) &
-            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw,&
-            error=error)
+            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
 
        !IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
-       !     error=error)/=0) THEN
+       !     /=0) THEN
        !   output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-       !        extension=".scfLog",error=error)
-       !   CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error=error)
+       !        extension=".scfLog")
+       !   CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit)
        !   CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-       !        "PRINT%TOTAL_DENSITIES", error=error)
+       !        "PRINT%TOTAL_DENSITIES")
        !END IF
 
        IF (.NOT.(nspins==1 .AND. lr_triplet )) THEN
           CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
                                  energy_hartree, &
-                                 v_hartree_gspace%pw,error=error)
-          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw, error=error)
+                                 v_hartree_gspace%pw)
+          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw)
        ENDIF
 
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
-            error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
 ! *** calculate the xc potential ***
        IF(gapw_xc) THEN
-         CALL qs_rho_get(rho1_xc, rho_r=rho1_r, error=error)
+         CALL qs_rho_get(rho1_xc, rho_r=rho1_r)
        ELSE
-         CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
+         CALL qs_rho_get(rho1, rho_r=rho1_r)
        END IF
 
        IF (nspins == 1 .AND.  (lr_triplet)) THEN
@@ -1046,8 +1026,8 @@ CONTAINS
           DO ispin=1, 2
              NULLIFY(rho1_r_pw(ispin)%pw)
              CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
-                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space,error=error)
-             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw, error=error)
+                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
+             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
           END DO
 
        ELSE
@@ -1055,7 +1035,7 @@ CONTAINS
           ALLOCATE(rho1_r_pw(nspins))
           DO ispin=1, nspins
              rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
-             CALL pw_retain(rho1_r_pw(ispin)%pw,error=error)
+             CALL pw_retain(rho1_r_pw(ispin)%pw)
           END DO
 
        END IF
@@ -1068,29 +1048,27 @@ CONTAINS
        bo = rho1_r(1)%pw%pw_grid%bounds_local
        ! create the place where to store the argument for the functionals
        CALL xc_rho_set_create(rho1_set, bo, &
-                           rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
-                           drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
-                           tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
-                           error=error)
+                           rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                           drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                           tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
 
-       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
-            error=error)
-       needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
+       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
+       needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.)
 
        ! calculate the arguments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
-                             section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
-                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
-                             auxbas_pw_pool,  error)
+                             section_get_ival(xc_section,"XC_GRID%XC_DERIV"),&
+                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
+                             auxbas_pw_pool)
 
        ALLOCATE(v_xc(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO ispin=1, nspins
           NULLIFY(v_xc(ispin)%pw)
           CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
                                  use_data = REALDATA3D,&
-                                 in_space = REALSPACE, error=error)
-          CALL pw_zero(v_xc(ispin)%pw, error=error)
+                                 in_space = REALSPACE)
+          CALL pw_zero(v_xc(ispin)%pw)
        END DO
 
        fac=0._dp
@@ -1100,24 +1078,24 @@ CONTAINS
 
        CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
             rho1_set, auxbas_pw_pool,xc_section=xc_section,&
-            tddfpt_fac=fac, error=error)
+            tddfpt_fac=fac)
 
        DO ispin=1,nspins
           v_rspace_new(ispin)%pw => v_xc(ispin)%pw
        END DO
        DEALLOCATE(v_xc,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        IF(gapw) CALL calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft=.FALSE.,&
-                                                 do_triplet=lr_triplet,error=error)
+                                                 do_triplet=lr_triplet)
 
-       CALL xc_rho_set_release(rho1_set,error=error)
+       CALL xc_rho_set_release(rho1_set)
 
        DO ispin=1,SIZE(rho1_r_pw)
-          CALL pw_release(rho1_r_pw(ispin)%pw,error=error)
+          CALL pw_release(rho1_r_pw(ispin)%pw)
        END DO
        DEALLOCATE(rho1_r_pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        !-------------------------------!
        ! Add both hartree and xc terms !
@@ -1137,14 +1115,14 @@ CONTAINS
                    v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
 
                 END IF
-                CALL qs_rho_get(rho1, rho_ao=rho1_ao, error=error)
+                CALL qs_rho_get(rho1, rho_ao=rho1_ao)
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-                CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                      pmat=rho1_ao(ispin),&
                      hmat=p_env%kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
-                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+                     calculate_forces=.FALSE.,gapw=gapw_xc)
 
                ! add hartree only for SINGLETS
                 IF (.NOT.lr_triplet) THEN
@@ -1156,16 +1134,16 @@ CONTAINS
                          pmat=rho_ao(ispin),&
                          hmat=p_env%kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
-                         calculate_forces=.FALSE.,gapw=gapw,error=error)
+                         calculate_forces=.FALSE.,gapw=gapw)
                 END IF
              ELSE
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-                CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                      pmat=rho_ao(ispin),&
                      hmat=p_env%kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
-                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+                     calculate_forces=.FALSE.,gapw=gapw_xc)
 
                 IF (ispin == 1) THEN
                    v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
@@ -1176,7 +1154,7 @@ CONTAINS
                          pmat=rho_ao(ispin),&
                          hmat=p_env%kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
-                         calculate_forces=.FALSE.,gapw=gapw,error=error)
+                         calculate_forces=.FALSE.,gapw=gapw)
              END IF
 
           ELSE
@@ -1209,29 +1187,28 @@ CONTAINS
              END IF
 
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-             CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
 
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                  pmat=rho_ao(ispin),&
                  hmat=p_env%kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
-                 calculate_forces=.FALSE.,gapw=gapw,error=error)
+                 calculate_forces=.FALSE.,gapw=gapw)
 
           END IF
 
-          CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,p_env%kpp1_env%v_ao(ispin)%matrix,&
-               error=error)
+          CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,p_env%kpp1_env%v_ao(ispin)%matrix)
        END DO
 
        IF (gapw) THEN
 
           IF (.NOT. ( (nspins == 1 .AND.  lr_triplet))) THEN
              CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., do_triplet=lr_triplet, &
-                                     p_env=p_env,error=error)
+                                     p_env=p_env)
 
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
                                         .FALSE., tddft=.TRUE., do_triplet=lr_triplet, &
-                                        p_env=p_env, error=error)
+                                        p_env=p_env)
           END IF
 
 !         ***  Add single atom contributions to the KS matrix ***
@@ -1242,30 +1219,26 @@ CONTAINS
           ns = SIZE(rho_ao)
           psmat(1:ns,1:1) => rho_ao(1:ns)
 
-          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env,error)
+          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env)
 
        END IF
 
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
-            error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
-            error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw)
        DO ispin=1,nspins
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
-               error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
        END DO
        DEALLOCATE(v_rspace_new, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     END IF
 
     DO ispin = 1,nspins
-       CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
+       CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol)
        CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix,&
                                  c0(ispin)%matrix,&
                                  Av(ispin)%matrix,&
-                                 ncol=ncol,alpha=1.0_dp,beta=1.0_dp,&
-                                 error=error)
+                                 ncol=ncol,alpha=1.0_dp,beta=1.0_dp)
     ENDDO
     !
     CALL timestop(handle)
@@ -1277,12 +1250,10 @@ CONTAINS
 !> \brief ...
 !> \param p_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
+  SUBROUTINE p_env_check_i_alloc(p_env, qs_env)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -1299,35 +1270,35 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
     gapw_xc = dft_control%qs_control%gapw_xc
     IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
-       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s)
        nspins=dft_control%nspins
 
-       CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1,nspins)
           name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
           !CALL compress(name,full=.TRUE.)
           DO ispin=1,nspins
              ALLOCATE(p_env%kpp1(ispin)%matrix)
-             CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix,error=error)
+             CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix)
              CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,matrix_s(1)%matrix,&
-                  name=TRIM(name)//ADJUSTL(cp_to_string(ispin)),error=error)
-             CALL cp_dbcsr_set(p_env%kpp1(ispin)%matrix,0.0_dp,error=error)
+                  name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
+             CALL cp_dbcsr_set(p_env%kpp1(ispin)%matrix,0.0_dp)
           END DO
 
-       CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+       CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env)
        IF(gapw_xc) THEN
-          CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
+          CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env)
        END IF
     END IF
 
     IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
-       CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+       CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env)
        IF(gapw_xc) THEN
-          CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
+          CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env)
        END IF
     END IF
     CALL timestop(handle)
@@ -1339,14 +1310,12 @@ CONTAINS
 !> \param kpp1_env ...
 !> \param qs_env ...
 !> \param lr_triplet ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, lr_triplet,error)
+  SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, lr_triplet)
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: lr_triplet
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -1366,34 +1335,34 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
 
     CALL get_qs_env(qs_env, pw_env=pw_env,&
-                    matrix_s=matrix_s, input=input, error=error, rho=rho)
+                    matrix_s=matrix_s, input=input,rho=rho)
 
-    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r)
     nspins=SIZE(rho_r)
 
-    CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool, error=error)
+    CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool)
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
        ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO ispin=1,nspins
           CALL pw_pool_create_pw(auxbas_pw_pool, &
                kpp1_env%v_rspace(ispin)%pw,&
-               use_data=REALDATA3D, in_space=REALSPACE,error=error)
+               use_data=REALDATA3D, in_space=REALSPACE)
        END DO
     END IF
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error)
+       CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins)
           DO ispin=1,nspins
              ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
-             CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)
+             CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
              CALL cp_dbcsr_copy(kpp1_env%v_ao(ispin)%matrix,matrix_s(1)%matrix,&
-                  name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
+                  name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
           END DO
     END IF
 
@@ -1401,40 +1370,39 @@ CONTAINS
 
        IF (nspins==1.AND.lr_triplet) THEN
           ALLOCATE(my_rho_r(2),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO ispin=1,2
              CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
-                  use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space,&
-                  error=error)
+                  use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
              my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
           END DO
        ELSE
           ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO ispin=1,SIZE(rho_r)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
-             CALL pw_retain(my_rho_r(ispin)%pw,error=error)
+             CALL pw_retain(my_rho_r(ispin)%pw)
           END DO
        END IF
 
        !ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-       !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        !DO ispin=1,SIZE(rho_r)
        !   my_rho_r(ispin)%pw => rho_r(ispin)%pw
-       !   CALL pw_retain(my_rho_r(ispin)%pw,error=error)
+       !   CALL pw_retain(my_rho_r(ispin)%pw)
        !END DO
 
-       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC")
 
        CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                               my_rho_r, auxbas_pw_pool, &
-                              xc_section=xc_section, error=error)
+                              xc_section=xc_section)
 
        DO ispin=1,SIZE(my_rho_r)
-          CALL pw_release(my_rho_r(ispin)%pw,error=error)
+          CALL pw_release(my_rho_r(ispin)%pw)
        ENDDO
        DEALLOCATE(my_rho_r,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
 
   END SUBROUTINE kpp1_check_i_alloc
@@ -1446,15 +1414,13 @@ CONTAINS
 !> \param psi0 ...
 !> \param S_psi0 ...
 !> \param buf ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE preortho(v,psi0,S_psi0,buf,error)
+  SUBROUTINE preortho(v,psi0,S_psi0,buf)
     !v = (I-PS)v
     !
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: v, psi0, S_psi0
     TYPE(cp_fm_type), POINTER                :: buf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'preortho', &
       routineP = moduleN//':'//routineN
@@ -1469,27 +1435,27 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(S_psi0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(S_psi0),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
     !
     nspins = SIZE(v,1)
     !
     DO ispin = 1,nspins
        !
-       CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv,error=error)
-       CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np,error=error)
-       CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt,error=error)
-       CPPrecondition(nv==np,cp_failure_level,routineP,error,failure)
-       CPPrecondition(mt>=mv,cp_failure_level,routineP,error,failure)
-       CPPrecondition(mt>=mp,cp_failure_level,routineP,error,failure)
-       CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
+       CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv)
+       CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np)
+       CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt)
+       CPPrecondition(nv==np,cp_failure_level,routineP,failure)
+       CPPrecondition(mt>=mv,cp_failure_level,routineP,failure)
+       CPPrecondition(mt>=mp,cp_failure_level,routineP,failure)
+       CPPrecondition(nt==nv,cp_failure_level,routineP,failure)
        !
        ! buf = v' * S_psi0
-       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf,error)
+       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf)
        ! v = v - psi0 * buf'
-       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix)
        !
     ENDDO
     !
@@ -1504,15 +1470,13 @@ CONTAINS
 !> \param psi0 ...
 !> \param S_psi0 ...
 !> \param buf ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE postortho(v,psi0,S_psi0,buf,error)
+  SUBROUTINE postortho(v,psi0,S_psi0,buf)
     !v = (I-SP)v
     !
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: v, psi0, S_psi0
     TYPE(cp_fm_type), POINTER                :: buf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'postortho', &
       routineP = moduleN//':'//routineN
@@ -1525,27 +1489,27 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(S_psi0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(S_psi0),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
     !
     nspins = SIZE(v,1)
     !
     DO ispin = 1,nspins
        !
-       CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv,error=error)
-       CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np,error=error)
-       CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt,error=error)
-       CPPrecondition(nv==np,cp_failure_level,routineP,error,failure)
-       CPPrecondition(mt>=mv,cp_failure_level,routineP,error,failure)
-       CPPrecondition(mt>=mp,cp_failure_level,routineP,error,failure)
-       CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
+       CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv)
+       CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np)
+       CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt)
+       CPPrecondition(nv==np,cp_failure_level,routineP,failure)
+       CPPrecondition(mt>=mv,cp_failure_level,routineP,failure)
+       CPPrecondition(mt>=mp,cp_failure_level,routineP,failure)
+       CPPrecondition(nt==nv,cp_failure_level,routineP,failure)
        !
        ! buf = v' * psi0
-       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
+       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf)
        ! v = v - S_psi0 * buf'
-       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix)
        !
     ENDDO
     !
@@ -1561,9 +1525,8 @@ CONTAINS
 !> \param ivec ...
 !> \param tag ...
 !> \param ind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE linres_write_restart(qs_env,linres_section,vec,ivec,tag,ind,error)
+  SUBROUTINE linres_write_restart(qs_env,linres_section,vec,ivec,tag,ind)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: linres_section
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1571,7 +1534,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ivec
     CHARACTER(LEN=*)                         :: tag
     INTEGER, INTENT(IN), OPTIONAL            :: ind
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_write_restart', &
       routineP = moduleN//':'//routineN
@@ -1597,19 +1559,18 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART",&
-              used_print_key=print_key,error=error),&
+              used_print_key=print_key),&
          cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,linres_section,&
-            "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
+            "PRINT%PROGRAM_RUN_INFO",extension=".Log")
 
        CALL get_qs_env(qs_env=qs_env, &
                        mos=mos, &
-                       para_env=para_env, &
-                       error=error)
+                       para_env=para_env)
 
        nspins = SIZE(mos)
 
@@ -1627,12 +1588,11 @@ CONTAINS
        END IF
        rst_unit = cp_print_key_unit_nr(logger,linres_section,"PRINT%RESTART",&
             extension=".lr",middle_name=TRIM(my_middle),file_status=TRIM(my_status),&
-            file_position=TRIM(my_pos),file_action="WRITE",file_form="UNFORMATTED",&
-            error=error)
+            file_position=TRIM(my_pos),file_action="WRITE",file_form="UNFORMATTED")
 
 
        filename =  cp_print_key_generate_filename(logger,print_key,&
-            extension=".lr",middle_name=TRIM(my_middle), my_local=.FALSE.,error=error)
+            extension=".lr",middle_name=TRIM(my_middle), my_local=.FALSE.)
 
        IF(output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,A,/)")&
@@ -1644,9 +1604,9 @@ CONTAINS
        ! write data to file
        ! use the scalapack block size as a default for buffering columns
        CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block,error=error)
+       CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block)
        ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        IF(PRESENT(ind)) THEN
          IF(rst_unit>0) WRITE(rst_unit) ind,ivec,nspins,nao
@@ -1655,13 +1615,13 @@ CONTAINS
        END IF
 
        DO ispin=1,nspins
-          CALL cp_fm_get_info(vec(ispin)%matrix,ncol_global=nmo,error=error)
+          CALL cp_fm_get_info(vec(ispin)%matrix,ncol_global=nmo)
 
           IF(rst_unit>0) WRITE(rst_unit) nmo
 
           DO i=1,nmo,MAX(max_block,1)
              i_block=MIN(max_block,nmo-i+1)
-             CALL cp_fm_get_submatrix(vec(ispin)%matrix,vecbuffer,1,i,nao,i_block,error=error)
+             CALL cp_fm_get_submatrix(vec(ispin)%matrix,vecbuffer,1,i,nao,i_block)
              ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
              ! to old ones, and in cases where max_block is different between runs, as might happen during
              ! restarts with a different number of CPUs
@@ -1672,10 +1632,10 @@ CONTAINS
        ENDDO
 
        DEALLOCATE (vecbuffer,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
-            "PRINT%RESTART",error=error)
+            "PRINT%RESTART")
     ENDIF
 
     CALL timestop(handle)
@@ -1685,11 +1645,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param linres_section ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE linres_init_write_restart(linres_section,error)
+  SUBROUTINE linres_init_write_restart(linres_section)
     TYPE(section_vals_type), POINTER         :: linres_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init_write_restart', &
       routineP = moduleN//':'//routineN
@@ -1703,23 +1661,22 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART",error=error),&
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART"),&
          cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,linres_section,&
-            "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
+            "PRINT%PROGRAM_RUN_INFO",extension=".Log")
 
        rst_unit = cp_print_key_unit_nr(logger,linres_section,"PRINT%RESTART",&
             extension=".lr",middle_name="RESTART",file_status="REPLACE",&
-            file_action="WRITE",file_position="APPEND",file_form="UNFORMATTED",&
-            error=error)
+            file_action="WRITE",file_position="APPEND",file_form="UNFORMATTED")
 
        ! may write some infos here about the response...
 
        CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
-            "PRINT%RESTART",error=error)
+            "PRINT%RESTART")
     ENDIF
 
     CALL timestop(handle)
@@ -1735,9 +1692,8 @@ CONTAINS
 !> \param ivec ...
 !> \param tag ...
 !> \param ind ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE linres_read_restart(qs_env,linres_section,vec,ivec,tag,ind,error)
+  SUBROUTINE linres_read_restart(qs_env,linres_section,vec,ivec,tag,ind)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: linres_section
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1745,7 +1701,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ivec
     CHARACTER(LEN=*)                         :: tag
     INTEGER, INTENT(INOUT), OPTIONAL         :: ind
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_read_restart', &
       routineP = moduleN//':'//routineN
@@ -1770,15 +1725,14 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(mos,para_env,logger,print_key,vecbuffer)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     output_unit = cp_print_key_unit_nr(logger,linres_section,&
-         "PRINT%PROGRAM_RUN_INFO", extension=".Log",error=error)
+         "PRINT%PROGRAM_RUN_INFO", extension=".Log")
 
     CALL get_qs_env(qs_env=qs_env, &
                     para_env=para_env,&
-                    mos=mos,&
-                    error=error)
+                    mos=mos)
 
     nspins = SIZE(mos)
     group  = para_env%group
@@ -1787,7 +1741,7 @@ CONTAINS
     rst_unit = -1
     IF(para_env%ionode) THEN
        CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",&
-            n_rep_val=n_rep_val,error=error)
+            n_rep_val=n_rep_val)
     
        CALL XSTRING(tag,ia,ie)
        IF(PRESENT(ind)) THEN
@@ -1797,14 +1751,14 @@ CONTAINS
        END IF
 
        IF(n_rep_val>0) THEN
-          CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
+          CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",c_val=filename)
           CALL xstring (filename, ia, ie )
           filename = filename(ia:ie)//TRIM(my_middle)//".lr"         
        ELSE
          ! try to read from the filename that is generated automatically from the printkey
-          print_key => section_vals_get_subs_vals(linres_section,"PRINT%RESTART",error=error)
+          print_key => section_vals_get_subs_vals(linres_section,"PRINT%RESTART")
           filename = cp_print_key_generate_filename(logger,print_key, &
-                      extension=".lr",middle_name=TRIM(my_middle),my_local=.FALSE., error=error)
+                      extension=".lr",middle_name=TRIM(my_middle),my_local=.FALSE.)
        ENDIF
        INQUIRE(FILE=filename,exist=file_exists)
        !
@@ -1830,10 +1784,10 @@ CONTAINS
     IF(file_exists) THEN
 
        CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block,error=error)
+       CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block)
 
        ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        !
        ! read headers
        IF(PRESENT(ind)) THEN
@@ -1864,7 +1818,7 @@ CONTAINS
           !
           DO ispin = 1,nspins
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+             CALL cp_fm_get_info(mo_coeff,ncol_global=nmo)
              !
              IF(rst_unit>0) READ(rst_unit) nmo_tmp
              CALL mp_bcast(nmo_tmp,source,group)
@@ -1879,7 +1833,7 @@ CONTAINS
                 ENDDO
                 IF(iv.EQ.ivec_tmp) THEN
                    CALL mp_bcast(vecbuffer,source,group)
-                   CALL cp_fm_set_submatrix(vec(ispin)%matrix,vecbuffer,1,i,nao,i_block,error=error)
+                   CALL cp_fm_set_submatrix(vec(ispin)%matrix,vecbuffer,1,i,nao,i_block)
                 ENDIF
              ENDDO
           ENDDO
@@ -1892,7 +1846,7 @@ CONTAINS
        ENDIF
 
        DEALLOCATE(vecbuffer,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ENDIF
 
@@ -1911,14 +1865,12 @@ CONTAINS
 !> \param p_env ...
 !> \param linres_control ...
 !> \param nspins ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE check_p_env_init(p_env,linres_control, nspins, error)
+  SUBROUTINE check_p_env_init(p_env,linres_control, nspins)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
       routineP = moduleN//':'//routineN
@@ -1938,11 +1890,11 @@ CONTAINS
     p_env%gnorm_old = 1.0_dp
 
     IF(linres_control%preconditioner_type /= ot_precond_none) THEN
-       CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,failure)
        DO ispin = 1,nspins
-          CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
-          CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
-          CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
+          CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
+          CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,failure)
+          CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,failure)
        ENDDO
     ENDIF
 

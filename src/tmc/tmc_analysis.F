@@ -81,14 +81,11 @@ CONTAINS
 !> \brief creates a new para environment for tmc analysis
 !> \param tmc_ana_section ...
 !> \param tmc_ana TMC analysis environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE tmc_read_ana_input(tmc_ana_section, tmc_ana, error)
+  SUBROUTINE tmc_read_ana_input(tmc_ana_section, tmc_ana)
     TYPE(section_vals_type), POINTER         :: tmc_ana_section
     TYPE(tmc_analysis_env), POINTER          :: tmc_ana
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_ana_input', &
       routineP = moduleN//':'//routineN
@@ -106,38 +103,38 @@ CONTAINS
 
     NULLIFY(tmp_section, charge_atm, i_arr_tmp, charge)
 
-    CPPrecondition(ASSOCIATED(tmc_ana_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(tmc_ana),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_ana_section),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
 
 
-    CALL section_vals_get(tmc_ana_section,explicit=explicit,error=error)
+    CALL section_vals_get(tmc_ana_section,explicit=explicit)
     IF(explicit) THEN
-      CALL tmc_ana_env_create(tmc_ana=tmc_ana, error=error)
+      CALL tmc_ana_env_create(tmc_ana=tmc_ana)
       ! restarting
-      CALL section_vals_val_get(tmc_ana_section,"RESTART",l_val=tmc_ana%restart,error=error)
+      CALL section_vals_val_get(tmc_ana_section,"RESTART",l_val=tmc_ana%restart)
       ! file name prefix
       CALL section_vals_val_get(tmc_ana_section,"PREFIX_ANA_FILES",&
-             c_val=tmc_ana%out_file_prefix, error=error)
+             c_val=tmc_ana%out_file_prefix)
       IF(tmc_ana%out_file_prefix .NE. "")THEN
         tmc_ana%out_file_prefix = TRIM(tmc_ana%out_file_prefix)//"_"
       END IF
 
       ! density calculation
-      CALL section_vals_val_get(tmc_ana_section,"DENSITY" ,explicit=explicit_key,error=error)
+      CALL section_vals_val_get(tmc_ana_section,"DENSITY" ,explicit=explicit_key)
       IF(explicit_key)THEN
-        CALL section_vals_val_get(tmc_ana_section,"DENSITY",i_vals=i_arr_tmp,error=error)
+        CALL section_vals_val_get(tmc_ana_section,"DENSITY",i_vals=i_arr_tmp)
 
         IF(SIZE(i_arr_tmp(:)).EQ.3)THEN
           CALL cp_assert(ALL(i_arr_tmp(:).GT.0),&
                  cp_failure_level,cp_assertion_failed,routineP,&
                  "The amount of intervals in each direction has to be greater than 0.",&
-                 error, failure=flag, only_ionode=.TRUE.)
+                 failure=flag, only_ionode=.TRUE.)
           nr_bins(:) = i_arr_tmp(:)
         ELSE IF(SIZE(i_arr_tmp(:)).EQ.1) THEN
           CALL cp_assert(ALL(i_arr_tmp(:).GT.0),&
                  cp_failure_level,cp_assertion_failed,routineP,&
                  "The amount of intervals has to be greater than 0.",&
-                 error, failure=flag, only_ionode=.TRUE.)
+                 failure=flag, only_ionode=.TRUE.)
           nr_bins(:) = i_arr_tmp(1)
         ELSE IF(SIZE(i_arr_tmp(:)).EQ.0) THEN
           nr_bins(:) = 1
@@ -145,49 +142,49 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                  cp_failure_level,cp_assertion_failed,routineP,&
                  "unknown amount of dimentions for the binning.",&
-                 error, failure=flag, only_ionode=.TRUE.)
+                 failure=flag, only_ionode=.TRUE.)
         END IF
-        CALL tmc_ana_density_create(tmc_ana%density_3d, nr_bins, error)
+        CALL tmc_ana_density_create(tmc_ana%density_3d, nr_bins)
       END IF
 
       ! radial distribution function calculation
-      CALL section_vals_val_get(tmc_ana_section,"G_R" ,explicit=explicit_key,error=error)
+      CALL section_vals_val_get(tmc_ana_section,"G_R" ,explicit=explicit_key)
       IF(explicit_key)THEN
-        CALL section_vals_val_get(tmc_ana_section,"G_R",i_val=i_tmp,error=error)
+        CALL section_vals_val_get(tmc_ana_section,"G_R",i_val=i_tmp)
         CALL tmc_ana_pair_correl_create(ana_pair_correl=tmc_ana%pair_correl, &
-               nr_bins=i_tmp, error=error)
+               nr_bins=i_tmp)
       END IF
 
       ! radial distribution function calculation
-      CALL section_vals_val_get(tmc_ana_section,"CLASSICAL_DIPOLE_MOMENTS" ,explicit=explicit_key,error=error)
+      CALL section_vals_val_get(tmc_ana_section,"CLASSICAL_DIPOLE_MOMENTS" ,explicit=explicit_key)
       IF(explicit_key)THEN
         ! charges for dipoles needed
-        tmp_section => section_vals_get_subs_vals(tmc_ana_section,"CHARGE",error=error)
-        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=i_tmp,error=error)
+        tmp_section => section_vals_get_subs_vals(tmc_ana_section,"CHARGE")
+        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=i_tmp)
         IF (explicit) THEN
           ntot=0
           ALLOCATE(charge_atm(i_tmp))
           ALLOCATE(charge(i_tmp))
-          CALL read_chrg_section(charge_atm,charge,tmp_section,ntot,error)
+          CALL read_chrg_section(charge_atm,charge,tmp_section,ntot)
         ELSE 
           CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                        "to calculate the classical cell dipole moment "// &
                        "the charges has to be specified",&
-                       error, failure=flag)
+                       failure=flag)
         END IF
         
         CALL tmc_ana_dipole_moment_create(tmc_ana%dip_mom, charge_atm,charge,&
-                                          tmc_ana%dim_per_elem, error)
+                                          tmc_ana%dim_per_elem)
 
         IF(ASSOCIATED(charge_atm)) DEALLOCATE(charge_atm)
         IF(ASSOCIATED(charge))     DEALLOCATE(charge)
       END IF
 
       ! dipole moment analysis
-      CALL section_vals_val_get(tmc_ana_section,"DIPOLE_ANALYSIS" ,explicit=explicit_key,error=error)
+      CALL section_vals_val_get(tmc_ana_section,"DIPOLE_ANALYSIS" ,explicit=explicit_key)
       IF(explicit_key)THEN
-        CALL tmc_ana_dipole_analysis_create(tmc_ana%dip_ana, error)
-        CALL section_vals_val_get(tmc_ana_section,"DIPOLE_ANALYSIS",c_val=c_tmp,error=error)
+        CALL tmc_ana_dipole_analysis_create(tmc_ana%dip_ana)
+        CALL section_vals_val_get(tmc_ana_section,"DIPOLE_ANALYSIS",c_val=c_tmp)
         SELECT CASE (TRIM(c_tmp))
         CASE (TRIM(tmc_default_unspecified_name))
           tmc_ana%dip_ana%ana_type = ana_type_default
@@ -200,7 +197,7 @@ CONTAINS
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'unknown analysis type "'//TRIM(c_tmp)//'" specified. '//&
                  " Set to default.",&
-                 error, failure=flag, only_ionode=.TRUE.)
+                 failure=flag, only_ionode=.TRUE.)
           tmc_ana%dip_ana%ana_type = ana_type_default
         END SELECT
       END IF
@@ -208,10 +205,10 @@ CONTAINS
     END IF
 
     ! cell displacement (deviation)
-    CALL section_vals_val_get(tmc_ana_section,"DEVIATION",l_val=flag,error=error)
+    CALL section_vals_val_get(tmc_ana_section,"DEVIATION",l_val=flag)
     IF(flag) THEN
       CALL tmc_ana_displacement_create(ana_disp=tmc_ana%displace, &
-             dim_per_elem=tmc_ana%dim_per_elem, error=error)
+             dim_per_elem=tmc_ana%dim_per_elem)
     END IF
   END SUBROUTINE tmc_read_ana_input
 
@@ -219,14 +216,11 @@ CONTAINS
 !> \brief initialize all the necessarry analysis structures
 !> \param ana_env ...
 !> \param nr_dim dimension of the pos, frc etc. array
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analysis_init(ana_env, nr_dim, error)
+  SUBROUTINE analysis_init(ana_env, nr_dim)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
     INTEGER                                  :: nr_dim
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'analysis_init', &
       routineP = moduleN//':'//routineN
@@ -237,8 +231,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(nr_dim>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(nr_dim>0,cp_failure_level,routineP,failure)
 
     ana_env%nr_dim = nr_dim
 
@@ -284,25 +278,21 @@ CONTAINS
     ! init radial distribution function
     IF(ASSOCIATED(ana_env%pair_correl)) &
       CALL ana_pair_correl_init(ana_pair_correl=ana_env%pair_correl, &
-                                atoms=ana_env%atoms, cell=ana_env%cell, &
-                                error=error)
+                                atoms=ana_env%atoms, cell=ana_env%cell)
     ! init classical dipole moment calculations
     IF(ASSOCIATED(ana_env%dip_mom)) &
       CALL ana_dipole_moment_init(ana_dip_mom=ana_env%dip_mom, &
-             atoms=ana_env%atoms, error=error)
+             atoms=ana_env%atoms)
   END SUBROUTINE analysis_init
 
 ! *****************************************************************************
 !> \brief print analysis restart file
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analysis_restart_print(ana_env, error)
+  SUBROUTINE analysis_restart_print(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'analysis_restart_print', &
       routineP = moduleN//':'//routineN
@@ -313,22 +303,22 @@ CONTAINS
     LOGICAL                                  :: failure, l_tmp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,failure)
     IF(.NOT.ana_env%restart) RETURN
 
     WRITE(file_name, FMT='(I9.9)') ana_env%last_elem%nr
     file_name_tmp = TRIM(expand_file_name_temp(expand_file_name_char(&
                              TRIM(ana_env%out_file_prefix)//&
                              tmc_default_restart_out_file_name,&
-                             "ana",error), ana_env%temperature, error))
+                             "ana"), ana_env%temperature))
     restart_file_name = expand_file_name_char(file_name_tmp, &
-                                              file_name, error)
+                                              file_name)
     CALL open_file(file_name=restart_file_name, file_status="REPLACE", &
                    file_action="WRITE", file_form="UNFORMATTED", &
                    unit_number=file_ptr)
     WRITE(file_ptr) ana_env%temperature
-    CALL write_subtree_elem_unformated(ana_env%last_elem, file_ptr, error)
+    CALL write_subtree_elem_unformated(ana_env%last_elem, file_ptr)
 
     ! first mention the different kind of anlysis types initialized
     ! then the variables for each calculation type
@@ -385,9 +375,9 @@ CONTAINS
     CALL close_file(unit_number=file_ptr)
 
     file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
-                      tmc_default_restart_in_file_name, "ana",error)
+                      tmc_default_restart_in_file_name, "ana")
     file_name = expand_file_name_temp(file_name_tmp, &
-                      ana_env%temperature, error)
+                      ana_env%temperature)
     CALL open_file(file_name=file_name, &
                    file_action="WRITE", file_status="REPLACE", &
                    unit_number=file_ptr)
@@ -399,15 +389,12 @@ CONTAINS
 !> \brief read analysis restart file
 !> \param ana_env ...
 !> \param elem ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE analysis_restart_read(ana_env, elem, error)
+  SUBROUTINE analysis_restart_read(ana_env, elem)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
     TYPE(tree_type), POINTER                 :: elem
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'analysis_restart_read', &
       routineP = moduleN//':'//routineN
@@ -418,14 +405,14 @@ CONTAINS
     REAL(KIND=dp)                            :: temp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)   
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)   
     IF(.NOT.ana_env%restart) RETURN
  
     file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
-                      tmc_default_restart_in_file_name, "ana",error)
+                      tmc_default_restart_in_file_name, "ana")
     file_name = expand_file_name_temp(file_name_tmp, &
-                      ana_env%temperature, error)
+                      ana_env%temperature)
     INQUIRE(FILE=file_name, EXIST=l_tmp)
     IF(l_tmp) THEN
       CALL open_file(file_name=file_name, file_status="OLD", &
@@ -436,14 +423,14 @@ CONTAINS
       CALL open_file(file_name=file_name_tmp, file_status="OLD", file_form="UNFORMATTED", &
                    file_action="READ", unit_number=file_ptr) 
       READ(file_ptr) temp
-      CPPrecondition(ana_env%temperature.EQ.temp,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ana_env%temperature.EQ.temp,cp_failure_level,routineP,failure)
       ana_env%last_elem => elem
-      CALL read_subtree_elem_unformated(elem, file_ptr, error)
+      CALL read_subtree_elem_unformated(elem, file_ptr)
 
       ! first mention the different kind of anlysis types initialized
       ! then the variables for each calculation type
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%density_3d).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(ana_env%density_3d).EQV.l_tmp,cp_failure_level,routineP,failure)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%density_3d%conf_counter, &
                ana_env%density_3d%nr_bins, &
@@ -456,7 +443,7 @@ CONTAINS
       END IF
   
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%pair_correl).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(ana_env%pair_correl).EQV.l_tmp,cp_failure_level,routineP,failure)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%pair_correl%conf_counter, &
                  ana_env%pair_correl%nr_bins, &
@@ -466,7 +453,7 @@ CONTAINS
       END IF
   
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%dip_mom).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(ana_env%dip_mom).EQV.l_tmp,cp_failure_level,routineP,failure)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%dip_mom%conf_counter, &
                  ana_env%dip_mom%charges, &
@@ -474,7 +461,7 @@ CONTAINS
       END IF
 
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%dip_ana).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(ana_env%dip_ana).EQV.l_tmp,cp_failure_level,routineP,failure)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%dip_ana%conf_counter, &
                  ana_env%dip_ana%ana_type,&
@@ -486,7 +473,7 @@ CONTAINS
       END IF
 
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%displace).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(ana_env%displace).EQV.l_tmp,cp_failure_level,routineP,failure)
       IF(l_tmp)THEN
         READ(file_ptr)ana_env%displace%conf_counter, &
                 ana_env%displace%disp
@@ -505,15 +492,12 @@ CONTAINS
 !>        afterwards the previous configuration can be deallocated (outside)
 !> \param elem ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE do_tmc_analysis(elem, ana_env, error)
+  SUBROUTINE do_tmc_analysis(elem, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_tmc_analysis', &
       routineP = moduleN//':'//routineN
@@ -525,8 +509,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -537,16 +521,15 @@ CONTAINS
         IF(ASSOCIATED(ana_env%density_3d)) &
           CALL calc_density_3d(elem=ana_env%last_elem, &
                                weight=weight_act, atoms=ana_env%atoms, &
-                               ana_env=ana_env, error=error)
+                               ana_env=ana_env)
         ! calculated the radial distribution function for each atom type
         IF(ASSOCIATED(ana_env%pair_correl)) &
           CALL calc_paircorrelation(elem=ana_env%last_elem, weight=weight_act,&
-                                    atoms=ana_env%atoms, ana_env=ana_env, &
-                                    error=error)
+                                    atoms=ana_env%atoms, ana_env=ana_env)
         ! calculates the classical dipole moments
         IF(ASSOCIATED(ana_env%dip_mom)) &
           CALL calc_dipole_moment(elem=ana_env%last_elem, weight=weight_act,&
-                                  ana_env=ana_env, error=error)
+                                  ana_env=ana_env)
         ! calculates the dipole moments analysis and dielectric constant
         IF(ASSOCIATED(ana_env%dip_ana)) THEN
           ! in symmetric case use also the dipoles 
@@ -558,7 +541,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(1) = -ana_env%dip_mom%last_dip_cl(1)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! (-x,-y,z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(2) = -ana_env%last_elem%dipole(2)
@@ -566,7 +549,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(2) = -ana_env%dip_mom%last_dip_cl(2)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! (-x,-y,-z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(3) = -ana_env%last_elem%dipole(3)
@@ -574,7 +557,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(3) = -ana_env%dip_mom%last_dip_cl(3)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! (x,-y,-z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(1) = -ana_env%last_elem%dipole(1)
@@ -582,7 +565,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(1) = -ana_env%dip_mom%last_dip_cl(1)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! (x,y,-z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(2) = -ana_env%last_elem%dipole(2)
@@ -590,7 +573,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(2) = -ana_env%dip_mom%last_dip_cl(2)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! (-x,y,-z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(1) = -ana_env%last_elem%dipole(1)
@@ -598,7 +581,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(1) = -ana_env%dip_mom%last_dip_cl(1)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! (x,-y,z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(:) = -ana_env%last_elem%dipole(:)
@@ -606,7 +589,7 @@ CONTAINS
             IF(ASSOCIATED(ana_env%dip_mom)) &
               ana_env%dip_mom%last_dip_cl(:) = -ana_env%dip_mom%last_dip_cl(:)
             CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                      ana_env=ana_env, error=error)
+                                      ana_env=ana_env)
             ! back to (x,y,z)
             ana_env%last_elem%dipole(:) = dip_tmp(:)
             ana_env%last_elem%dipole(2) = -ana_env%last_elem%dipole(2)
@@ -615,14 +598,14 @@ CONTAINS
               ana_env%dip_mom%last_dip_cl(2) = -ana_env%dip_mom%last_dip_cl(2)
           END IF
           CALL calc_dipole_analysis(elem=ana_env%last_elem, weight=weight_act,&
-                                    ana_env=ana_env, error=error)
+                                    ana_env=ana_env)
           CALL print_act_dipole_analysis(elem=ana_env%last_elem, &
-                                         ana_env=ana_env, error=error)
+                                         ana_env=ana_env)
         END IF
 
         ! calculates the cell displacement from last cell
         IF(ASSOCIATED(ana_env%displace).AND.weight_act.GT.0) &
-          CALL calc_displacement(elem=elem, ana_env=ana_env, error=error)
+          CALL calc_displacement(elem=elem, ana_env=ana_env)
     END IF
     ! swap elem with last elem, to delete original last element and store the actual one
     elem_tmp => ana_env%last_elem
@@ -635,14 +618,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief call all the necessarry analysis printing routines
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE finalize_tmc_analysis(ana_env, error)
+  SUBROUTINE finalize_tmc_analysis(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_tmc_analysis', &
       routineP = moduleN//':'//routineN
@@ -650,29 +630,29 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
     IF(ASSOCIATED(ana_env%density_3d)) THEN
       IF(ana_env%density_3d%conf_counter.GT.0) &
-        CALL print_density_3d(ana_env=ana_env, error=error)
+        CALL print_density_3d(ana_env=ana_env)
     END IF
     IF(ASSOCIATED(ana_env%pair_correl)) THEN
       IF(ana_env%pair_correl%conf_counter.GT.0) &
-        CALL print_paircorrelation(ana_env=ana_env, error=error)
+        CALL print_paircorrelation(ana_env=ana_env)
     END IF
     IF(ASSOCIATED(ana_env%dip_mom)) THEN
       IF(ana_env%dip_mom%conf_counter.GT.0) &
-        CALL print_dipole_moment(ana_env, error)
+        CALL print_dipole_moment(ana_env)
     END IF
     IF(ASSOCIATED(ana_env%dip_ana)) THEN
       IF(ana_env%dip_ana%conf_counter.GT.0) &
-        CALL print_dipole_analysis(ana_env, error)
+        CALL print_dipole_analysis(ana_env)
     END IF
     IF(ASSOCIATED(ana_env%displace)) THEN
       IF(ana_env%displace%conf_counter.GT.0) &
-        CALL print_average_displacement(ana_env, error)
+        CALL print_average_displacement(ana_env)
     END IF
 
     ! end the timing
@@ -686,17 +666,14 @@ CONTAINS
 !> \param dir_ind ...
 !> \param ana_env ...
 !> \param tmc_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 03.2013
 ! *****************************************************************************
   SUBROUTINE analyze_file_configurations(start_id, end_id, dir_ind, &
-                                         ana_env, tmc_params, error)
+                                         ana_env, tmc_params)
     INTEGER                                  :: start_id, end_id
     INTEGER, OPTIONAL                        :: dir_ind
     TYPE(tmc_analysis_env), POINTER          :: ana_env
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'analyze_file_configurations', &
       routineP = moduleN//':'//routineN
@@ -708,15 +685,14 @@ CONTAINS
     NULLIFY(elem)
     conf_nr = -1
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
 
     ! open the files
-    CALL analyse_files_open(tmc_ana=ana_env, stat=stat, dir_ind=dir_ind, &
-                            error=error)
+    CALL analyse_files_open(tmc_ana=ana_env, stat=stat, dir_ind=dir_ind)
     ! set the existence of exact dipoles (from file)
     IF(ana_env%id_dip .GT. 0) THEN
       tmc_params%print_dipole = .TRUE.
@@ -726,7 +702,7 @@ CONTAINS
 
     ! allocate the actual element structure
     CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem,&
-           nr_dim=ana_env%nr_dim, error=error)
+           nr_dim=ana_env%nr_dim)
 
     IF(ASSOCIATED(ana_env%last_elem)) conf_nr = ana_env%last_elem%nr
     nr_dim = SIZE(elem%pos)
@@ -734,34 +710,34 @@ CONTAINS
     IF(stat .EQ. TMC_STATUS_OK) THEN
       conf_loop: DO
         CALL read_element_from_file(elem=elem, tmc_ana=ana_env, conf_nr=conf_nr, &
-                                    stat=stat, error=error)
+                                    stat=stat)
         IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
-          CALL deallocate_sub_tree_node(tree_elem=elem,error=error)
+          CALL deallocate_sub_tree_node(tree_elem=elem)
           EXIT conf_loop
         END IF
         ! if we want just a certain part of the trajectory
         IF(start_id.LT.0 .OR. conf_nr.GE.start_id) THEN
           IF(end_id.LT.0 .OR. conf_nr.LE.end_id) THEN
             ! do the analysis calculations
-            CALL do_tmc_analysis(elem=elem, ana_env=ana_env, error=error)
+            CALL do_tmc_analysis(elem=elem, ana_env=ana_env)
           END IF
         END IF
   
         ! clean temporary element (already analyzed)
         IF(ASSOCIATED(elem)) THEN
-          CALL deallocate_sub_tree_node(tree_elem=elem,error=error)
+          CALL deallocate_sub_tree_node(tree_elem=elem)
         END IF
         ! if there was no previous element, create a new temp element to write in
         IF(.NOT.ASSOCIATED(elem)) &
           CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem, &
-                 nr_dim=nr_dim, error=error)
+                 nr_dim=nr_dim)
       END DO conf_loop
     END IF
     ! close the files
-    CALL analyse_files_close(tmc_ana=ana_env, error=error)
+    CALL analyse_files_close(tmc_ana=ana_env)
 
     IF(ASSOCIATED(elem)) &
-      CALL deallocate_sub_tree_node(tree_elem=elem, error=error)
+      CALL deallocate_sub_tree_node(tree_elem=elem)
 
     ! end the timing
     CALL timestop(handle)
@@ -779,18 +755,15 @@ CONTAINS
 !> \param weight ...
 !> \param atoms ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE calc_density_3d(elem, weight, atoms, ana_env, error)
+  SUBROUTINE calc_density_3d(elem, weight, atoms, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: weight
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_density_3d', &
       routineP = moduleN//':'//routineN
@@ -808,15 +781,15 @@ CONTAINS
 
     NULLIFY(mass_bin)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(weight.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_density),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_dens2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(weight.GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%cell),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%density_3d),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_density),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_dens2),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -836,7 +809,7 @@ CONTAINS
     ! ATTENTION then the sub box middle points are not correct in the output
     !  espacially if we use multiple sub boxes
     CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
-                         abc=cell_size, vol=vol_cell, error=error)
+                         abc=cell_size, vol=vol_cell)
     ! volume summed over configurations for average volume [A]
     ana_env%density_3d%sum_vol = ana_env%density_3d%sum_vol + &
                                    vol_cell*(au2a)**3 *weight
@@ -864,17 +837,17 @@ CONTAINS
       atom_pos(:) = elem%pos(atom:atom+2)
       ! fold into box
       CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
-                           vec=atom_pos, error=error)
+                           vec=atom_pos)
       ! shifts the box to positive values (before 0,0,0 is the center)
       atom_pos(:) = atom_pos(:)+0.5_dp*cell_size(:)
       ! calculate the index of the sub box
       bin_x = INT(atom_pos(1)/interval_size(1))+1
       bin_y = INT(atom_pos(2)/interval_size(2))+1
       bin_z = INT(atom_pos(3)/interval_size(3))+1
-      CPPostcondition(bin_x.GT.0.AND.bin_y.GT.0.AND.bin_z.GT.0,cp_failure_level,routineP,error,failure)
-      CPPostcondition(bin_x.LE.SIZE(ana_env%density_3d%sum_density(:,1,1)),cp_failure_level,routineP,error,failure)
-      CPPostcondition(bin_y.LE.SIZE(ana_env%density_3d%sum_density(1,:,1)),cp_failure_level,routineP,error,failure)
-      CPPostcondition(bin_z.LE.SIZE(ana_env%density_3d%sum_density(1,1,:)),cp_failure_level,routineP,error,failure)
+      CPPostcondition(bin_x.GT.0.AND.bin_y.GT.0.AND.bin_z.GT.0,cp_failure_level,routineP,failure)
+      CPPostcondition(bin_x.LE.SIZE(ana_env%density_3d%sum_density(:,1,1)),cp_failure_level,routineP,failure)
+      CPPostcondition(bin_y.LE.SIZE(ana_env%density_3d%sum_density(1,:,1)),cp_failure_level,routineP,failure)
+      CPPostcondition(bin_z.LE.SIZE(ana_env%density_3d%sum_density(1,1,:)),cp_failure_level,routineP,failure)
 
       ! sum mass in [g] (in bins and total)
       mass_bin(bin_x,bin_y,bin_z) = mass_bin(bin_x,bin_y,bin_z) + &
@@ -890,7 +863,7 @@ CONTAINS
     END DO
     ! check total cell density
     r_tmp = mass_total/vol_cell - SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:))
-    CPPostcondition(ABS(r_tmp).LT.1E-5,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ABS(r_tmp).LT.1E-5,cp_failure_level,routineP,failure)
 
     ! calculate density (mass per volume) and sum up for average value
     ana_env%density_3d%sum_density(:,:,:) = ana_env%density_3d%sum_density(:,:,:) +&
@@ -906,9 +879,9 @@ CONTAINS
     IF(ana_env%density_3d%print_dens) THEN
       file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
                         tmc_default_trajectory_file_name, &
-                        ana_env%temperature, error)
+                        ana_env%temperature)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
-                       "dens",error))
+                       "dens"))
       INQUIRE(FILE=file_name, EXIST=flag)
       CALL open_file(file_name=file_name, file_status="UNKNOWN", &
                      file_action="WRITE", file_position="APPEND", &
@@ -953,14 +926,11 @@ CONTAINS
 !> \brief print the density in rectantangulares 
 !>        defined by the number of bins in each direction
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE print_density_3d(ana_env, error)
+  SUBROUTINE print_density_3d(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', &
       plabel = "TMC_ANA", routineN = 'print_density_3d', &
@@ -973,10 +943,10 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_size, interval_size
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_density),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_dens2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%density_3d),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_density),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_dens2),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -995,7 +965,7 @@ CONTAINS
 
     file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
                   tmc_ana_density_file_name, &
-                  ana_env%temperature, error)
+                  ana_env%temperature)
     CALL open_file(file_name=file_name, file_status="REPLACE", &
                    file_action="WRITE", file_position="APPEND", &
                    unit_number=file_ptr_dens)
@@ -1006,8 +976,8 @@ CONTAINS
 
     file_name_vari = expand_file_name_temp(expand_file_name_char(&
                        TRIM(ana_env%out_file_prefix)//&
-                       tmc_ana_density_file_name,"vari",error),&
-                       ana_env%temperature, error)
+                       tmc_ana_density_file_name,"vari"),&
+                       ana_env%temperature)
     CALL open_file(file_name=file_name_vari, file_status="REPLACE", &
                    file_action="WRITE", file_position="APPEND", &
                    unit_number=file_ptr_vari)
@@ -1070,17 +1040,14 @@ CONTAINS
 !> \param ana_pair_correl ...
 !> \param atoms ...
 !> \param cell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE ana_pair_correl_init(ana_pair_correl, atoms, cell, error)
+  SUBROUTINE ana_pair_correl_init(ana_pair_correl, atoms, cell)
     TYPE(pair_correl_type), POINTER          :: ana_pair_correl
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ana_pair_correl_init', &
       routineP = moduleN//':'//routineN
@@ -1094,12 +1061,12 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_pair_correl),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl%g_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl%pairs),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(atoms).GT.1,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_pair_correl),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl%g_r),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl%pairs),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(atoms).GT.1,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1119,8 +1086,7 @@ CONTAINS
       DO s_n=f_n+1, SIZE(atoms)
         ! search if atom pair is already selected
         list_ind = search_pair_in_list(pair_list=pairs_tmp, n1=atoms(f_n)%name,&
-                                       n2=atoms(s_n)%name, list_end=counter-1,&
-                                       error=error)
+                                       n2=atoms(s_n)%name, list_end=counter-1)
         ! add to list
         IF(list_ind.LT.0) THEN
           pairs_tmp(counter)%f_n = atoms(f_n)%name
@@ -1153,18 +1119,15 @@ CONTAINS
 !> \param weight ...
 !> \param atoms ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE calc_paircorrelation(elem, weight, atoms, ana_env, error)
+  SUBROUTINE calc_paircorrelation(elem, weight, atoms, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: weight
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_paircorrelation', &
       routineP = moduleN//':'//routineN
@@ -1175,16 +1138,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ALL(elem%box_scale(:).GT.0.0_dp),cp_failure_level,routineP,error,failure)
-    CPPrecondition(weight.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl%g_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl%pairs),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ALL(elem%box_scale(:).GT.0.0_dp),cp_failure_level,routineP,failure)
+    CPPrecondition(weight.GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%cell),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%pair_correl),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%pair_correl%g_r),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%pair_correl%pairs),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1195,15 +1158,13 @@ CONTAINS
       second_elem_loop:DO j=i+3, SIZE(elem%pos), ana_env%dim_per_elem
         dist = nearest_distance(x1=elem%pos(i:i+ana_env%dim_per_elem-1), &
                                 x2=elem%pos(j:j+ana_env%dim_per_elem-1), &
-                                cell=ana_env%cell, box_scale=elem%box_scale, &
-                                error=error)
+                                cell=ana_env%cell, box_scale=elem%box_scale)
         ind = CEILING(dist/ana_env%pair_correl%step_lenght)
         IF(ind.LE.ana_env%pair_correl%nr_bins)THEN
           pair_ind = search_pair_in_list(pair_list=ana_env%pair_correl%pairs, &
                        n1=atoms(INT(i/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name, &
-                       n2=atoms(INT(j/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name, &
-                       error=error)
-          CPPostcondition(pair_ind.GT.0,cp_failure_level,routineP,error,failure)
+                       n2=atoms(INT(j/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name)
+          CPPostcondition(pair_ind.GT.0,cp_failure_level,routineP,failure)
           ana_env%pair_correl%g_r(pair_ind,ind) = &
             ana_env%pair_correl%g_r(pair_ind,ind) + weight
         END IF
@@ -1220,14 +1181,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief print the radial distribution function for each pair of atoms 
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE print_paircorrelation(ana_env, error)
+  SUBROUTINE print_paircorrelation(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_paircorrelation', &
       routineP = moduleN//':'//routineN
@@ -1240,8 +1198,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%pair_correl),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1255,11 +1213,11 @@ CONTAINS
     DO pair=1, SIZE(ana_env%pair_correl%pairs)
       file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
                     tmc_ana_pair_correl_file_name, &
-                    ana_env%temperature, error)
+                    ana_env%temperature)
       CALL open_file(file_name=expand_file_name_char(&
                                 expand_file_name_char(file_name,&
-                                 ana_env%pair_correl%pairs(pair)%f_n,error),&
-                                 ana_env%pair_correl%pairs(pair)%s_n, error),&
+                                 ana_env%pair_correl%pairs(pair)%f_n),&
+                                 ana_env%pair_correl%pairs(pair)%s_n),&
                      file_status="REPLACE", &
                      file_action="WRITE", file_position="APPEND", &
                      unit_number=file_ptr)
@@ -1299,16 +1257,13 @@ CONTAINS
 !> \brief init radial distribution function structures
 !> \param ana_dip_mom ...
 !> \param atoms ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE ana_dipole_moment_init(ana_dip_mom, atoms, error)
+  SUBROUTINE ana_dipole_moment_init(ana_dip_mom, atoms)
     TYPE(dipole_moment_type), POINTER        :: ana_dip_mom
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ana_dipole_moment_init', &
       routineP = moduleN//':'//routineN
@@ -1318,9 +1273,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_dip_mom),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_dip_mom%charges_inp),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_dip_mom),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_dip_mom%charges_inp),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1347,16 +1302,13 @@ CONTAINS
 !> \param elem ...
 !> \param weight ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE calc_dipole_moment(elem, weight, ana_env, error)
+  SUBROUTINE calc_dipole_moment(elem, weight, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: weight
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_dipole_moment', &
       routineP = moduleN//':'//routineN
@@ -1366,11 +1318,11 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dip_cl
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_mom),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_mom%charges),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%dip_mom),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%dip_mom%charges),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1391,10 +1343,10 @@ CONTAINS
 
     IF(ana_env%dip_mom%print_cl_dip) THEN
       file_name = expand_file_name_temp(tmc_default_trajectory_file_name, &
-                    ana_env%temperature, error)
+                    ana_env%temperature)
       CALL write_dipoles_in_file(file_name=file_name, &
              conf_nr=ana_env%dip_mom%conf_counter+1, dip=dip_cl, &
-             file_ext="dip_cl", error=error)
+             file_ext="dip_cl")
     END IF
     ana_env%dip_mom%conf_counter = ana_env%dip_mom%conf_counter + weight
     ana_env%dip_mom%last_dip_cl(:)  = dip_cl
@@ -1408,14 +1360,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prints final values for classical cell dipole moment calculation
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE print_dipole_moment(ana_env, error)
+  SUBROUTINE print_dipole_moment(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_dipole_moment', &
       routineP = moduleN//':'//routineN
@@ -1430,16 +1379,13 @@ CONTAINS
 !> \param elem ...
 !> \param weight ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE calc_dipole_analysis(elem, weight, ana_env, error)
+  SUBROUTINE calc_dipole_analysis(elem, weight, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: weight
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_dipole_analysis', &
       routineP = moduleN//':'//routineN
@@ -1451,10 +1397,10 @@ CONTAINS
 
     NULLIFY(scaled_cell)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%dipole),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_ana),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%dipole),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%dip_ana),cp_failure_level,routineP,failure)
 
     weight_act = weight
     IF(ana_env%dip_ana%ana_type .EQ. ana_type_sym_xyz) &
@@ -1463,7 +1409,7 @@ CONTAINS
     ! get the volume
     ALLOCATE(scaled_cell)
     CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, vol=vol,&
-                         scaled_cell=scaled_cell, error=error)
+                         scaled_cell=scaled_cell)
 
     ! fold exact dipole moments using the classical ones
     IF(ASSOCIATED(ana_env%dip_mom)) THEN
@@ -1505,15 +1451,12 @@ CONTAINS
 !> \brief prints the actual dipole moment analysis (trajectories)
 !> \param elem ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE print_act_dipole_analysis(elem, ana_env, error)
+  SUBROUTINE print_act_dipole_analysis(elem, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_act_dipole_analysis', &
       routineP = moduleN//':'//routineN
@@ -1534,33 +1477,33 @@ CONTAINS
 
     file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
                     tmc_default_trajectory_file_name, &
-                    ana_env%temperature, error)
+                    ana_env%temperature)
     CALL write_dipoles_in_file(file_name=file_name, &
            conf_nr=INT(ana_env%dip_ana%conf_counter)+1, dip=elem%dipole, &
-           file_ext="dip_folded", error=error)
+           file_ext="dip_folded")
 
     ! set ouput file name
     file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
                         tmc_default_trajectory_file_name, &
-                        ana_env%temperature, error)
+                        ana_env%temperature)
 
     SELECT CASE (ana_env%dip_ana%ana_type)
     CASE (ana_type_default)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
-                         "diel_const",error))
+                         "diel_const"))
       file_name_tmp = TRIM(expand_file_name_char(file_name_tmp,&
-                         "diel_const_tensor",error))
+                         "diel_const_tensor"))
     CASE (ana_type_sym_xyz)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
-                         "diel_const_sym",error))
+                         "diel_const_sym"))
       file_name_tmp = TRIM(expand_file_name_char(file_name_tmp,&
-                         "diel_const_tensor_sym",error))
+                         "diel_const_tensor_sym"))
     CASE DEFAULT
       CALL cp_assert(.FALSE.,&
              cp_warning_level,cp_assertion_failed,routineP,&
              'unknown analysis type "'//cp_to_string(ana_env%dip_ana%ana_type)//&
              '" used. ',&
-             error, failure=flag, only_ionode=.TRUE.)
+             failure=flag, only_ionode=.TRUE.)
     END SELECT
 
     ! calc the dielectric constant
@@ -1613,14 +1556,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prints the dipole moment analysis
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE print_dipole_analysis(ana_env, error)
+  SUBROUTINE print_dipole_analysis(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', &
       plabel = "TMC_ANA", routineN = 'print_dipole_analysis', &
@@ -1634,8 +1574,8 @@ CONTAINS
 
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_ana),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%dip_ana),cp_failure_level,routineP,failure)
 
     tmp_dip(:,:)      = 0.0_dp
     diel_const(:,:)   = 0.0_dp
@@ -1707,15 +1647,12 @@ CONTAINS
 !> \brief calculates the mean square displacement
 !> \param elem ...
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE calc_displacement(elem, ana_env, error)
+  SUBROUTINE calc_displacement(elem, ana_env)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_displacement', &
       routineP = moduleN//':'//routineN
@@ -1729,11 +1666,11 @@ CONTAINS
     failure = .FALSE.
     disp = 0.0_dp
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%displace),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%displace),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1742,7 +1679,7 @@ CONTAINS
       ! fold into box
       atom_disp(:) = elem%pos(ind:ind+2)-ana_env%last_elem%pos(ind:ind+2)
       CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
-                           vec=atom_disp, error=error)
+                           vec=atom_disp)
       disp = disp + SUM((atom_disp(:)*au2a)**2)
     END DO
     ana_env%displace%disp = ana_env%displace%disp + disp
@@ -1751,9 +1688,9 @@ CONTAINS
    IF(ana_env%displace%print_disp) THEN
       file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
                         tmc_default_trajectory_file_name, &
-                        ana_env%temperature, error)
+                        ana_env%temperature)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
-                          "devi",error))
+                          "devi"))
       INQUIRE(FILE=file_name, EXIST=flag)
       CALL open_file(file_name=file_name, file_status="UNKNOWN", &
                      file_action="WRITE", file_position="APPEND", &
@@ -1772,14 +1709,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prints final values for the displacement calculations
 !> \param ana_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
-  SUBROUTINE print_average_displacement(ana_env, error)
+  SUBROUTINE print_average_displacement(ana_env)
     TYPE(tmc_analysis_env), POINTER          :: ana_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', &
       plabel = "TMC_ANA", routineN = 'print_average_displacement', &

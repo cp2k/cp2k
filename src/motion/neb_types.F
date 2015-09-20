@@ -72,15 +72,13 @@ CONTAINS
 !> \param neb_var ...
 !> \param neb_env ...
 !> \param full_allocation ...
-!> \param error ...
 !> \date   05.2007
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE neb_var_create(neb_var, neb_env, full_allocation, error)
+  SUBROUTINE neb_var_create(neb_var, neb_env, full_allocation)
     TYPE(neb_var_type), POINTER              :: neb_var
     TYPE(neb_type), POINTER                  :: neb_env
     LOGICAL, INTENT(IN), OPTIONAL            :: full_allocation
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_var_create', &
       routineP = moduleN//':'//routineN
@@ -89,30 +87,30 @@ CONTAINS
     LOGICAL                                  :: allocate_all, failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(neb_var),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(neb_var),cp_failure_level,routineP,failure)
     allocate_all = .FALSE.
     IF (PRESENT(full_allocation)) allocate_all = full_allocation
     neb_nr_replica = neb_env%number_of_replica
     ALLOCATE(neb_var, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY(neb_var%xyz, neb_var%int, neb_var%wrk, neb_var%Mmatrix)
     IF (allocate_all) THEN
        ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        neb_var%xyz = 0.0_dp
     END IF
     IF (neb_env%use_colvar) THEN
        neb_var%in_use = do_band_collective
-       CPPostcondition(neb_env%nsize_int>0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(neb_env%nsize_int>0,cp_failure_level,routineP,failure)
        ALLOCATE(neb_var%int(neb_env%nsize_int, neb_nr_replica),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        neb_var%int = 0.0_dp
        neb_var%wrk => neb_var%int
     ELSE
        neb_var%in_use = do_band_cartesian
        IF (.NOT.allocate_all) THEN
           ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           neb_var%xyz = 0.0_dp
        END IF
        neb_var%wrk => neb_var%xyz
@@ -125,13 +123,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases a variable type for BAND calculation
 !> \param neb_var ...
-!> \param error ...
 !> \date   05.2007
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE neb_var_release(neb_var, error)
+  SUBROUTINE neb_var_release(neb_var)
     TYPE(neb_var_type), POINTER              :: neb_var
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_var_release', &
       routineP = moduleN//':'//routineN
@@ -140,18 +136,18 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(neb_var),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(neb_var),cp_failure_level,routineP,failure)
     IF (ASSOCIATED(neb_var%xyz)) THEN
        DEALLOCATE(neb_var%xyz,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF (neb_var%in_use==do_band_collective) THEN
        DEALLOCATE(neb_var%int,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     NULLIFY(neb_var%wrk)
     DEALLOCATE(neb_var, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE neb_var_release
 

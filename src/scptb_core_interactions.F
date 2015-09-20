@@ -54,14 +54,12 @@ CONTAINS
 !> \brief Evaluates the repulsive core interactions for SCPTB methods
 !> \param qs_env ...
 !> \param calculate_forces ...
-!> \param error ...
 !> \date 12.2011 [jhu]
 !> \author Juerg Hutter [jhu] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE scptb_core_interaction(qs_env, calculate_forces, error)
+  SUBROUTINE scptb_core_interaction(qs_env, calculate_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scptb_core_interaction', &
       routineP = moduleN//':'//routineN
@@ -102,9 +100,9 @@ CONTAINS
     NULLIFY(atprop)
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,dft_control=dft_control,&
-                    cell=cell,virial=virial,energy=energy,atprop=atprop,error=error)
+                    cell=cell,virial=virial,energy=energy,atprop=atprop)
 
     ! Parameters
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -112,28 +110,28 @@ CONTAINS
     ! atomic energy decomposition
     atener = atprop%energy
     IF (atener) THEN
-      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
       natom = SIZE (particle_set)
-      CALL atprop_array_init(atprop%atecc,natom,error)
+      CALL atprop_array_init(atprop%atecc,natom)
     END IF
 
     CALL get_qs_env(qs_env=qs_env,sab_core=sab_core, atomic_kind_set=atomic_kind_set,&
-                   qs_kind_set=qs_kind_set,error=error)
+                   qs_kind_set=qs_kind_set)
 
     nkind = SIZE(atomic_kind_set)
     ! Possibly compute forces
     IF(calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force,error=error)
+       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force)
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
     ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ikind=1,nkind
-       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a, error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a)
        scptb_kind_param(ikind)%scptb_param => scptb_kind_a
        CALL get_scptb_parameter(scptb_kind_a,defined=defined)
        scptb_defined(ikind)=defined
@@ -150,7 +148,7 @@ CONTAINS
        IF ( dr1 > 0.00001_dp ) THEN
           ! Core-Core energy and derivatives
           IF(calculate_forces) THEN
-             CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,denuc=force_ab,error=error)
+             CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,denuc=force_ab)
 
              atom_a = atom_of_kind(iatom)
              atom_b = atom_of_kind(jatom)
@@ -166,11 +164,11 @@ CONTAINS
              force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
 
              IF (use_virial) THEN
-                CALL virial_pair_force ( virial%pv_virial, -1._dp, force_ab, rij, error)
+                CALL virial_pair_force ( virial%pv_virial, -1._dp, force_ab, rij)
              END IF
 
           ELSE
-             CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,error=error)
+             CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc)
           END IF
           enucij = enucij + enuc
        END IF
@@ -183,11 +181,11 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (scptb_kind_param,scptb_defined,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL mp_sum(enuclear,para_env%group)
@@ -204,15 +202,13 @@ CONTAINS
 !> \param rij ...
 !> \param enuc ...
 !> \param denuc ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE corecore (sepi,sepj,rij,enuc,denuc,error)
+  SUBROUTINE corecore (sepi,sepj,rij,enuc,denuc)
     TYPE(scptb_parameter_type), POINTER      :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), INTENT(OUT)                    :: enuc
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: denuc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore', &
       routineP = moduleN//':'//routineN

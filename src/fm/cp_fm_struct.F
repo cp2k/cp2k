@@ -115,15 +115,13 @@ CONTAINS
 !> \param template_fmstruct a matrix structure where to take the default values
 !> \param square_blocks ...
 !> \param force_block ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
-     local_leading_dimension, template_fmstruct, square_blocks, force_block, error)
+     local_leading_dimension, template_fmstruct, square_blocks, force_block)
 
   TYPE(cp_fm_struct_type), POINTER             :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
@@ -136,7 +134,6 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
   LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
   LOGICAL, OPTIONAL, INTENT(in)                :: force_block
-  TYPE(cp_error_type), INTENT(inout)           :: error
 
   CHARACTER(LEN=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
@@ -155,20 +152,19 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 #if defined(__parallel) && ! defined(__SCALAPACK)
   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
        routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef,&
-       error)
+CPSourceFileRef)
 #endif
 
   ALLOCATE(fmstruct,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   fmstruct%nrow_block=optimal_blacs_row_block_size
   fmstruct%ncol_block=optimal_blacs_col_block_size
 
   IF (.NOT.PRESENT(template_fmstruct)) THEN
-     CPPrecondition(PRESENT(context),cp_failure_level,routineP,error,failure)
-     CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,error,failure)
-     CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,error,failure)
+     CPPrecondition(PRESENT(context),cp_failure_level,routineP,failure)
+     CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,failure)
+     CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,failure)
      fmstruct %local_leading_dimension = 1
   ELSE
      fmstruct%context => template_fmstruct%context
@@ -191,8 +187,8 @@ CPSourceFileRef,&
      fmstruct%para_env => context%para_env
   END IF
   IF (PRESENT(para_env)) fmstruct%para_env => para_env
-  CALL cp_blacs_env_retain(fmstruct%context,error=error)
-  CALL cp_para_env_retain(fmstruct%para_env,error=error)
+  CALL cp_blacs_env_retain(fmstruct%context)
+  CALL cp_para_env_retain(fmstruct%para_env)
 
   IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
   IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
@@ -225,7 +221,7 @@ CPSourceFileRef,&
 
   ALLOCATE(fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1)-1)),&
        fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   IF (.NOT.PRESENT(template_fmstruct)) &
        fmstruct%first_p_pos=(/0,0/)
   IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
@@ -249,7 +245,7 @@ CPSourceFileRef,&
   IF (SUM(fmstruct%ncol_locals).NE.fmstruct%ncol_global .OR. SUM(fmstruct%nrow_locals).NE.fmstruct%nrow_global) THEN
      ! try to collect some output if this is going to happen again
      ! this seems to trigger on blanc, but should really never happen
-     logger => cp_error_get_logger(error)
+     logger => cp_get_default_logger()
      iunit=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
      WRITE(iunit,*) "mepos",fmstruct%context%mepos(1:2),"numpe",fmstruct%context%num_pe(1:2)
      WRITE(iunit,*) "ncol_global",fmstruct%ncol_global
@@ -262,13 +258,11 @@ CPSourceFileRef,&
   CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "sum of local cols not equal global cols"//&
-CPSourceFileRef,&
-       error)
+CPSourceFileRef)
   CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "sum of local row not equal global rows"//&
-CPSourceFileRef,&
-       error)
+CPSourceFileRef)
 #else
   ! block = full matrix
   fmstruct%nrow_block=fmstruct%nrow_global
@@ -286,7 +280,7 @@ CPSourceFileRef,&
           cp_to_string(local_leading_dimension)//"<"//&
           cp_to_string(fmstruct%local_leading_dimension)//")"//&
 CPSourceFileRef,&
-          error=error,failure=failure)
+          failure=failure)
      fmstruct%local_leading_dimension=local_leading_dimension
   END IF
 
@@ -306,7 +300,7 @@ CPSourceFileRef,&
           fmstruct%ncol_block,fmstruct%first_p_pos(1),&
           fmstruct%first_p_pos(2),fmstruct%context%group,&
           fmstruct%local_leading_dimension,stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 #endif
   END IF
 END SUBROUTINE cp_fm_struct_create
@@ -314,15 +308,12 @@ END SUBROUTINE cp_fm_struct_create
 ! *****************************************************************************
 !> \brief retains a full matrix structure
 !> \param fmstruct the structure to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_fm_struct_retain(fmstruct,error)
+SUBROUTINE cp_fm_struct_retain(fmstruct)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_retain', &
       routineP = moduleN//':'//routineN
@@ -331,23 +322,20 @@ SUBROUTINE cp_fm_struct_retain(fmstruct,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
-  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,failure)
+  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,failure)
   fmstruct%ref_count=fmstruct%ref_count+1
 END SUBROUTINE cp_fm_struct_retain
 
 ! *****************************************************************************
 !> \brief releases a full matrix structure
 !> \param fmstruct the structure to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_fm_struct_release(fmstruct,error)
+SUBROUTINE cp_fm_struct_release(fmstruct)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release', &
       routineP = moduleN//':'//routineN
@@ -358,29 +346,29 @@ SUBROUTINE cp_fm_struct_release(fmstruct,error)
   failure=.FALSE.
 
   IF (ASSOCIATED(fmstruct)) THEN
-     CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,failure)
      fmstruct%ref_count=fmstruct%ref_count-1
      IF (fmstruct%ref_count<1) THEN
-        CALL cp_blacs_env_release(fmstruct%context,error=error)
-        CALL cp_para_env_release(fmstruct%para_env,error=error)
+        CALL cp_blacs_env_release(fmstruct%context)
+        CALL cp_para_env_release(fmstruct%para_env)
         IF (ASSOCIATED(fmstruct%row_indices)) THEN
            DEALLOCATE(fmstruct%row_indices,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
         ENDIF
         IF (ASSOCIATED(fmstruct%col_indices)) THEN
            DEALLOCATE(fmstruct%col_indices,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
         END IF
         IF (ASSOCIATED(fmstruct%nrow_locals)) THEN
            DEALLOCATE(fmstruct%nrow_locals,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
         END IF
         IF (ASSOCIATED(fmstruct%ncol_locals)) THEN
            DEALLOCATE(fmstruct%ncol_locals,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
         END IF
         DEALLOCATE(fmstruct, stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
      END IF
   END IF
   NULLIFY(fmstruct)
@@ -391,16 +379,13 @@ END SUBROUTINE cp_fm_struct_release
 !>      otherwise.
 !> \param fmstruct1 one of the full matrix structures to compare
 !> \param fmstruct2 the second of the full matrix structures to compare
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
+FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2) RESULT(res)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_equivalent', &
@@ -411,10 +396,10 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,error,failure)
-  CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,failure)
+  CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,failure)
+  CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,failure)
+  CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,failure)
   IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
      res=.TRUE.
   ELSE
@@ -434,17 +419,14 @@ END FUNCTION cp_fm_struct_equivalent
 !> \param fmstruct the structure to print
 !> \param unit_nr the number of the unit where to write the description
 !> \param long_description ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
+SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_write', &
       routineP = moduleN//':'//routineN
@@ -460,7 +442,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
      WRITE (unit=unit_nr,&
           fmt="('<cp_fm_struct>:{ id_nr=',i10,', ref_count=',i10,',')",&
           iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
-     CPPostcondition(iostat==0,cp_warning_level,routineP,error,failure)
+     CPPostcondition(iostat==0,cp_warning_level,routineP,failure)
      WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
      WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
@@ -516,7 +498,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
      IF (ASSOCIATED(fmstruct%context)) THEN
         IF (l_desc) THEN
            WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " context="
-           CALL cp_blacs_env_write(fmstruct%context,unit_nr,error=error)
+           CALL cp_blacs_env_write(fmstruct%context,unit_nr)
         ELSE
            WRITE (unit=unit_nr,fmt="(a,i10)",iostat=iostat) " context%group=",&
                 fmstruct%context%group
@@ -527,7 +509,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
      IF (ASSOCIATED(fmstruct%para_env)) THEN
         IF (l_desc) THEN
            WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env="
-           CALL cp_para_env_write(fmstruct%para_env,unit_nr,error=error)
+           CALL cp_para_env_write(fmstruct%para_env,unit_nr)
         ELSE
            WRITE (unit=unit_nr,fmt="(a,i10)",iostat=iostat) &
                 " para_env%group=",fmstruct%para_env%group
@@ -562,9 +544,6 @@ END SUBROUTINE cp_fm_struct_write
 !> \param nrow_locals ...
 !> \param ncol_locals ...
 !> \param local_leading_dimension ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>      see cp_fm_struct_type attributes for the other arguments
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -573,7 +552,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      descriptor, ncol_block, nrow_block, nrow_global,&
      ncol_global, id_nr, ref_count, first_p_pos, row_indices,&
      col_indices, nrow_local, ncol_local, nrow_locals, ncol_locals,&
-     local_leading_dimension, error)
+     local_leading_dimension)
   TYPE(cp_fm_struct_type), POINTER :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
@@ -584,7 +563,6 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
        nrow_locals, ncol_locals
-  TYPE(cp_error_type), INTENT(inout)  :: error
 
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&
@@ -596,8 +574,8 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
-  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,failure)
+  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,failure)
   IF (PRESENT(para_env)) para_env => fmstruct%para_env
   IF (PRESENT(context)) context => fmstruct%context
   IF (PRESENT(descriptor)) descriptor = fmstruct%descriptor
@@ -627,7 +605,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
        ! the max should go away
        ALLOCATE(fmstruct%row_indices &
             (MAX(fmstruct%nrow_locals(myprow),1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        row_indices => fmstruct%row_indices
 #ifdef __SCALAPACK
        DO i=1,SIZE(row_indices)
@@ -649,7 +627,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
     IF (.NOT.ASSOCIATED(col_indices)) THEN
        ALLOCATE(fmstruct%col_indices &
             (MAX(fmstruct%ncol_locals(mypcol),1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        col_indices => fmstruct%col_indices
 #ifdef __SCALAPACK
        DO i=1,SIZE(col_indices)
@@ -677,17 +655,14 @@ END SUBROUTINE cp_fm_struct_get
 !> \param context ...
 !> \param col in which direction the matrix should be enlarged
 !> \param row in which direction the matrix should be enlarged
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2009 created [fschiff]
 !> \author Florian Schiffmann
 ! *****************************************************************************
-SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
+SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct, struct
     TYPE(cp_blacs_env_type), POINTER         :: context
     LOGICAL                                  :: col, row
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_double', &
       routineP = moduleN//':'//routineN
@@ -698,7 +673,7 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
 
     CALL cp_fm_struct_get(struct, nrow_global=nrow_global,&
           ncol_global=ncol_global, nrow_block=nrow_block, &
-          ncol_block=ncol_block, error=error)
+          ncol_block=ncol_block)
     newdim_row=nrow_global
     newdim_col=ncol_global
     nprocs_row=context%num_pe(1)
@@ -735,8 +710,7 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
          nrow_global=newdim_row,&
          ncol_global=newdim_col,&
          ncol_block=ncol_block,&
-         nrow_block=nrow_block,&
-         error=error)
+         nrow_block=nrow_block)
 
   END SUBROUTINE cp_fm_struct_double
 ! *****************************************************************************

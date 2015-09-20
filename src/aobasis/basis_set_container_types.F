@@ -54,12 +54,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE remove_basis_set_container(basis,error)
+  SUBROUTINE remove_basis_set_container(basis)
     TYPE(basis_set_container_type), &
       DIMENSION(:), INTENT(inout)            :: basis
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'remove_basis_set_container', &
       routineP = moduleN//':'//routineN
@@ -70,7 +68,7 @@ CONTAINS
        basis(i)%basis_type = ""
        basis(i)%basis_type_nr = 0
        IF(ASSOCIATED(basis(i)%basis_set)) THEN
-          CALL deallocate_gto_basis_set(basis(i)%basis_set,error)
+          CALL deallocate_gto_basis_set(basis(i)%basis_set)
        END IF
     END DO
 
@@ -79,17 +77,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param basis ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_basis_set_container(basis,error)
+  SUBROUTINE init_basis_set_container(basis)
     TYPE(basis_set_container_type), &
       DIMENSION(:), INTENT(inout)            :: basis
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_basis_set_container', &
       routineP = moduleN//':'//routineN
 
-    CALL remove_basis_set_container(basis,error) 
+    CALL remove_basis_set_container(basis) 
 
   END SUBROUTINE init_basis_set_container
 
@@ -158,14 +154,12 @@ CONTAINS
 !> \param container ...
 !> \param basis_set ...
 !> \param basis_set_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE add_basis_set_to_container(container,basis_set,basis_set_type,error)
+  SUBROUTINE add_basis_set_to_container(container,basis_set,basis_set_type)
     TYPE(basis_set_container_type), &
       DIMENSION(:), INTENT(inout)            :: container
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     CHARACTER(len=*)                         :: basis_set_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_basis_set_to_container', &
       routineP = moduleN//':'//routineN
@@ -183,7 +177,7 @@ CONTAINS
           EXIT
        END IF
     END DO
-    CPPostcondition(success,cp_failure_level,routineP,error,failure)
+    CPPostcondition(success,cp_failure_level,routineP,failure)
 
   END SUBROUTINE add_basis_set_to_container
 
@@ -192,14 +186,12 @@ CONTAINS
 !> \param container ...
 !> \param inum ...
 !> \param basis_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE remove_basis_from_container(container,inum,basis_type,error)
+  SUBROUTINE remove_basis_from_container(container,inum,basis_type)
     TYPE(basis_set_container_type), &
       DIMENSION(:), INTENT(inout)            :: container
     INTEGER, INTENT(IN), OPTIONAL            :: inum
     CHARACTER(len=*), OPTIONAL               :: basis_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'remove_basis_from_container', &
       routineP = moduleN//':'//routineN
@@ -208,8 +200,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     IF(PRESENT(inum)) THEN
-       CPPrecondition(inum <= SIZE(container),cp_failure_level,routineP,error,failure)
-       CPPrecondition(inum >= 1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(inum <= SIZE(container),cp_failure_level,routineP,failure)
+       CPPrecondition(inum >= 1,cp_failure_level,routineP,failure)
        ibas = inum
     ELSE IF(PRESENT(basis_type)) THEN
        basis_nr = get_basis_type(basis_type)
@@ -221,14 +213,14 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
     !
     IF(ibas /= 0) THEN
        container(ibas)%basis_type = ""
        container(ibas)%basis_type_nr = 0
        IF(ASSOCIATED(container(ibas)%basis_set)) THEN
-          CALL deallocate_gto_basis_set(container(ibas)%basis_set,error)
+          CALL deallocate_gto_basis_set(container(ibas)%basis_set)
        END IF
     END IF
     ! shift other basis sets
@@ -247,15 +239,13 @@ CONTAINS
 !> \param basis_set ...
 !> \param inumbas ...
 !> \param basis_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_basis_from_container(container,basis_set,inumbas,basis_type,error)
+  SUBROUTINE get_basis_from_container(container,basis_set,inumbas,basis_type)
     TYPE(basis_set_container_type), &
       DIMENSION(:), INTENT(inout)            :: container
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     INTEGER, OPTIONAL                        :: inumbas
     CHARACTER(len=*), OPTIONAL               :: basis_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_basis_from_container', &
       routineP = moduleN//':'//routineN
@@ -264,8 +254,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     IF(PRESENT(inumbas)) THEN
-       CPPrecondition(inumbas <= SIZE(container),cp_failure_level,routineP,error,failure)
-       CPPrecondition(inumbas >= 1,cp_failure_level,routineP,error,failure)
+       CPPrecondition(inumbas <= SIZE(container),cp_failure_level,routineP,failure)
+       CPPrecondition(inumbas >= 1,cp_failure_level,routineP,failure)
        basis_set => container(inumbas)%basis_set
        IF(PRESENT(basis_type)) THEN
           basis_type = container(inumbas)%basis_type
@@ -280,7 +270,7 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE get_basis_from_container

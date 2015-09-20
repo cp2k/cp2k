@@ -50,25 +50,22 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv the highest derivative available
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE tpss_lda_info(tpss_params,reference,shortform, needs, max_deriv, error)
+  SUBROUTINE tpss_lda_info(tpss_params,reference,shortform, needs, max_deriv)
     TYPE(section_vals_type), POINTER         :: tpss_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_info', &
       routineP = moduleN//':'//routineN
 
     REAL(kind=dp)                            :: sc, sx
 
-    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=sc,error=error)
-    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=sx,error=error)
+    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=sc)
+    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=sx)
 
     IF ( PRESENT ( reference ) ) THEN
        IF (sx==1._dp.AND.sc==1._dp) THEN
@@ -105,25 +102,22 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv the highest derivative available
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE tpss_lsd_info(tpss_params,reference,shortform, needs, max_deriv, error)
+  SUBROUTINE tpss_lsd_info(tpss_params,reference,shortform, needs, max_deriv)
     TYPE(section_vals_type), POINTER         :: tpss_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_info', &
       routineP = moduleN//':'//routineN
 
     REAL(kind=dp)                            :: sc, sx
 
-    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=sc,error=error)
-    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=sx,error=error)
+    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=sc)
+    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=sx)
 
     IF ( PRESENT ( reference ) ) THEN
        IF (sx==1._dp.AND.sc==1._dp) THEN
@@ -162,16 +156,13 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param tpss_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE tpss_lda_eval(rho_set,deriv_set,grad_deriv,tpss_params,error)
+  SUBROUTINE tpss_lda_eval(rho_set,deriv_set,grad_deriv,tpss_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: tpss_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -194,21 +185,20 @@ CONTAINS
 
     CALL cite_reference(tao2003)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         tau=tau,tau_cutoff=epsilon_tau,&
-         error=error)
+         tau=tau,tau_cutoff=epsilon_tau)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        dummy=> rho
     END IF
@@ -220,44 +210,44 @@ CONTAINS
 
     IF (grad_deriv>=0) THEN
        deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
        deriv => xc_dset_get_derivative(deriv_set,"(tau)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_tau,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_tau)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 1 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     non_coer = 0
-    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=scale_ec,error=error)
-    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=scale_ex,error=error)
+    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=scale_ec)
+    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=scale_ex)
 
     !$omp parallel default(none) &
     !$omp          shared(rho, tau, norm_drho, e_0, e_rho, e_ndrho, e_tau) &
     !$omp          shared(epsilon_rho, epsilon_tau, npoints, grad_deriv) &
-    !$omp          shared(scale_ec, scale_ex, error) &
+    !$omp          shared(scale_ec, scale_ex) &
     !$omp          reduction(+: non_coer)
 
     CALL tpss_lda_calc(rho=rho, norm_drho=norm_drho,&
          tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_tau=e_tau,&
          grad_deriv=grad_deriv, npoints=npoints,epsilon_rho=epsilon_rho,&
-         epsilon_tau=epsilon_tau,scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer,error=error)
+         epsilon_tau=epsilon_tau,scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer)
 
     !$omp end parallel
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF (cp_debug) THEN
        unit_nr=cp_logger_get_default_io_unit(logger)
@@ -272,7 +262,7 @@ CONTAINS
 
     IF (cp_debug) THEN
        DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -288,16 +278,13 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param tpss_params ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE tpss_lsd_eval(rho_set,deriv_set,grad_deriv,tpss_params,error)
+  SUBROUTINE tpss_lsd_eval(rho_set,deriv_set,grad_deriv,tpss_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: tpss_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -320,20 +307,20 @@ CONTAINS
 
     CALL cite_reference(tao2003)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,norm_drhoa=norm_drhoa,&
          norm_drhob=norm_drhob,norm_drho=norm_drho,tau_a=tau_a,tau_b=tau_b,&
-         local_bounds=bo,rho_cutoff=epsilon_rho,tau_cutoff=epsilon_tau,error=error)
+         local_bounds=bo,rho_cutoff=epsilon_rho,tau_cutoff=epsilon_tau)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        dummy=> rhoa
     END IF
@@ -349,48 +336,48 @@ CONTAINS
 
     IF (grad_deriv>=0) THEN
        deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_0)
     END IF
     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhoa)
        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhob)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa)
        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhob)
        deriv => xc_dset_get_derivative(deriv_set,"(tau_a)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_tau_a,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_tau_a)
        deriv => xc_dset_get_derivative(deriv_set,"(tau_b)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_tau_b,error=error)
+            allocate_deriv=.TRUE.)
+       CALL xc_derivative_get(deriv,deriv_data=e_tau_b)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 1 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     non_coer = 0
-    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=scale_ec,error=error)
-    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=scale_ex,error=error)
+    CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=scale_ec)
+    CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=scale_ex)
 
     !$omp parallel default(none) &
     !$omp          shared(rhoa, rhob,norm_drhoa, norm_drhob, norm_drho) &
     !$omp          shared(tau_a, tau_b, e_0, e_rhoa, e_rhob, e_ndrhoa) &
     !$omp          shared(e_ndrhob, e_ndrho, e_tau_a, e_tau_b, npoints) &
     !$omp          shared(grad_deriv, epsilon_rho) &
-    !$omp          shared(epsilon_tau, scale_ec, scale_ex, error) &
+    !$omp          shared(epsilon_tau, scale_ec, scale_ex) &
     !$omp          reduction(+: non_coer)
 
     CALL tpss_lsd_calc(rhoa=rhoa,rhob=rhob, norm_drhoa=norm_drhoa, &
@@ -400,11 +387,11 @@ CONTAINS
          e_tau_a=e_tau_a,e_tau_b=e_tau_b,&
          grad_deriv=grad_deriv, npoints=npoints,epsilon_rho=epsilon_rho,&
          epsilon_tau=epsilon_tau,&
-         scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer,error=error)
+         scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer)
 
     !$omp end parallel
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF (cp_debug) THEN
        unit_nr=cp_logger_get_default_io_unit(logger)
@@ -419,7 +406,7 @@ CONTAINS
 
     IF (cp_debug) THEN
        DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -442,8 +429,6 @@ CONTAINS
 !> \param scale_ec ...
 !> \param scale_ex ...
 !> \param non_coer ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      maple is nice, but if you want the uman readable version of the code
@@ -451,7 +436,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE tpss_lda_calc(rho,norm_drho,tau,e_0,e_rho,e_ndrho,e_tau,&
        npoints,grad_deriv,epsilon_rho,epsilon_tau,&
-       scale_ec,scale_ex,non_coer,error)
+       scale_ec,scale_ex,non_coer)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho, norm_drho, tau
     REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_rho, e_ndrho, e_tau
@@ -459,7 +444,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     INTEGER, INTENT(inout)                   :: non_coer
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -994,8 +978,6 @@ CONTAINS
 !> \param scale_ec ...
 !> \param scale_ex ...
 !> \param non_coer ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      maple is nice, but if you want the uman readable version of the code
@@ -1004,7 +986,7 @@ CONTAINS
   SUBROUTINE tpss_lsd_calc(rhoa, rhob, norm_drhoa, norm_drhob, norm_drho,&
        tau_a,tau_b,e_0,e_rhoa,e_rhob,e_ndrhoa,e_ndrhob,e_ndrho,e_tau_a,e_tau_b,&
        npoints,grad_deriv,epsilon_rho,epsilon_tau,&
-       scale_ec,scale_ex,non_coer,error)
+       scale_ec,scale_ex,non_coer)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drhoa, &
                                                 norm_drhob, norm_drho, tau_a, &
                                                 tau_b
@@ -1016,7 +998,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     INTEGER, INTENT(inout)                   :: non_coer
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_calc', &
       routineP = moduleN//':'//routineN

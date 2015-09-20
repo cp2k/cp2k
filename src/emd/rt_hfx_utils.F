@@ -43,12 +43,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief rebuilds the structures of P and KS (imaginary) in case S changed
 !> \param qs_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE rtp_hfx_rebuild(qs_env,error)
+  SUBROUTINE rtp_hfx_rebuild(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_hfx_rebuild', &
       routineP = moduleN//':'//routineN
@@ -75,27 +73,25 @@ CONTAINS
                     matrix_s=matrix_s,&
                     rho=rho,&
                     matrix_ks_im=matrix_ks_im,&
-                    sab_orb=sab_orb,&
-                    error=error)
+                    sab_orb=sab_orb)
 
-    CALL qs_rho_get(rho, rho_ao_im=rho_ao_im, error=error)
+    CALL qs_rho_get(rho, rho_ao_im=rho_ao_im)
     CALL rebuild_matrices(rho_ao_im, matrix_ks_im, sab_orb, matrix_s,&
-                          dft_control%nspins, error)
-    CALL set_ks_env(ks_env, matrix_ks_im=matrix_ks_im, error=error)
-    CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
+                          dft_control%nspins)
+    CALL set_ks_env(ks_env, matrix_ks_im=matrix_ks_im)
+    CALL qs_rho_set(rho, rho_ao_im=rho_ao_im)
 
     IF(dft_control%do_admm)THEN
        CALL get_qs_env(qs_env,&
                        matrix_s_aux_fit=matrix_s_aux,&
                        sab_aux_fit=sab_aux,&
                        rho_aux_fit=rho_aux,&
-                       matrix_ks_aux_fit_im=matrix_ks_aux_im,&
-                       error=error)
-       CALL qs_rho_get(rho_aux, rho_ao_im=rho_aux_ao_im, error=error)
+                       matrix_ks_aux_fit_im=matrix_ks_aux_im)
+       CALL qs_rho_get(rho_aux, rho_ao_im=rho_aux_ao_im)
        CALL rebuild_matrices(rho_aux_ao_im, matrix_ks_aux_im, sab_aux, matrix_s_aux,&
-                             dft_control%nspins,error)
-       CALL set_ks_env(ks_env, matrix_ks_aux_fit_im=matrix_ks_aux_im, error=error)
-       CALL qs_rho_set(rho_aux, rho_ao_im=rho_aux_ao_im, error=error)
+                             dft_control%nspins)
+       CALL set_ks_env(ks_env, matrix_ks_aux_fit_im=matrix_ks_aux_im)
+       CALL qs_rho_set(rho_aux, rho_ao_im=rho_aux_ao_im)
     END IF
 
   END SUBROUTINE rtp_hfx_rebuild
@@ -107,11 +103,10 @@ CONTAINS
 !> \param sab_orb ...
 !> \param matrix_s ...
 !> \param nspins ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE rebuild_matrices(matrix_p,matrix_ks,sab_orb,matrix_s,nspins,error)
+  SUBROUTINE rebuild_matrices(matrix_p,matrix_ks,sab_orb,matrix_s,nspins)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_ks
     TYPE(neighbor_list_set_p_type), &
@@ -119,7 +114,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     INTEGER, INTENT(in)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &
       routineP = moduleN//':'//routineN
@@ -128,41 +122,41 @@ CONTAINS
     INTEGER                                  :: i
 
     IF (ASSOCIATED(matrix_p)) THEN
-       CALL cp_dbcsr_deallocate_matrix_set(matrix_p,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(matrix_p)
     END IF
     ! Create a new density matrix set
-    CALL cp_dbcsr_allocate_matrix_set(matrix_p,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_p,nspins)
     DO i=1,nspins
        headline = "Imaginary density matrix"
        ALLOCATE(matrix_p(i)%matrix)
-       CALL cp_dbcsr_init(matrix_p(i)%matrix, error=error)
+       CALL cp_dbcsr_init(matrix_p(i)%matrix)
        CALL cp_dbcsr_create(matrix=matrix_p(i)%matrix,&
             name=TRIM(headline),&
             dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric,&
             row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
             col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-            nze=0, error=error)
-       CALL cp_dbcsr_alloc_block_from_nbl(matrix_p(i)%matrix,sab_orb,error=error)
-       CALL cp_dbcsr_set(matrix_p(i)%matrix,0.0_dp,error=error)
+            nze=0)
+       CALL cp_dbcsr_alloc_block_from_nbl(matrix_p(i)%matrix,sab_orb)
+       CALL cp_dbcsr_set(matrix_p(i)%matrix,0.0_dp)
     END DO
 
     IF (ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks)
     END IF
     ! Create a new density matrix set
-    CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspins)
     DO i=1,nspins
        headline = "Imaginary Kohn-Sham matrix"
        ALLOCATE(matrix_ks(i)%matrix)
-       CALL cp_dbcsr_init(matrix_ks(i)%matrix, error=error)
+       CALL cp_dbcsr_init(matrix_ks(i)%matrix)
        CALL cp_dbcsr_create(matrix=matrix_ks(i)%matrix,&
             name=TRIM(headline),&
             dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric,&
             row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
             col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-            nze=0, error=error)
-       CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(i)%matrix,sab_orb,error=error)
-       CALL cp_dbcsr_set(matrix_ks(i)%matrix,0.0_dp,error=error)
+            nze=0)
+       CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(i)%matrix,sab_orb)
+       CALL cp_dbcsr_set(matrix_ks(i)%matrix,0.0_dp)
     END DO
 
 

@@ -120,15 +120,13 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param qs_env ...
 !> \param oe_corr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE add_saop_pot(ks_matrix, qs_env, oe_corr, error)
+  SUBROUTINE add_saop_pot(ks_matrix, qs_env, oe_corr)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_saop_pot', &
       routineP = moduleN//':'//routineN
@@ -183,7 +181,7 @@ CONTAINS
     NULLIFY(vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
     NULLIFY(mo_eigenvalues, deriv_set, deriv, rho_struct_r, rho_struct_ao)
     NULLIFY(orbital_density_matrix, dummy,xc_section_tmp,xc_fun_section_tmp)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     ionode = (logger%para_env%mepos==logger%para_env%source)
     output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -195,25 +193,25 @@ CONTAINS
                     pw_env=pw_env,&
                     input=input,&
                     virial=virial,&
-                    mos=molecular_orbitals,error=error)
+                    mos=molecular_orbitals)
     compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
-    CALL section_vals_val_get(input,"DFT%QS%METHOD",i_val=dft_method_id,error=error)
+    CALL section_vals_val_get(input,"DFT%QS%METHOD",i_val=dft_method_id)
     gapw = (dft_method_id==do_method_gapw)
 
-    xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-    CALL section_vals_retain(xc_section_orig,error=error)
-    CALL section_vals_duplicate(xc_section_orig,xc_section_tmp,error=error)
+    xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC")
+    CALL section_vals_retain(xc_section_orig)
+    CALL section_vals_duplicate(xc_section_orig,xc_section_tmp)
 
     CALL section_vals_val_get(xc_section_orig,"DENSITY_CUTOFF",&
-         r_val=density_cut,error=error)
+         r_val=density_cut)
     CALL section_vals_val_get(xc_section_orig,"GRADIENT_CUTOFF",&
-         r_val=gradient_cut,error=error)
+         r_val=gradient_cut)
     CALL section_vals_val_get(xc_section_orig,"TAU_CUTOFF",&
-         r_val=tau_cut,error=error)
+         r_val=tau_cut)
 
-    CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
 
-    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd,error=error)
+    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd)
     IF (lsd) THEN
        nspins=2
     ELSE
@@ -221,15 +219,15 @@ CONTAINS
     END IF
 
     ALLOCATE(rho_r(nspins), single_mo_coeff(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins,error=error)
-    CALL qs_rho_get(rho_struct, rho_r=rho_struct_r, rho_ao=rho_struct_ao, error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
+    CALL qs_rho_get(rho_struct, rho_r=rho_struct_r, rho_ao=rho_struct_ao)
     DO ispin=1,nspins
        rho_r(ispin)%pw => rho_struct_r(ispin)%pw
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
-       CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix, error=error)
+       CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix)
        CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
-            rho_struct_ao(ispin)%matrix,"orbital density",error=error)
+            rho_struct_ao(ispin)%matrix,"orbital density")
     END DO
     bo = rho_r(1)%pw%pw_grid%bounds_local
 
@@ -239,53 +237,50 @@ CONTAINS
     CALL xc_rho_set_create(rho_set, bo, &
                            density_cut, &
                            gradient_cut, &
-                           tau_cut, &
-                           error=error)
-    CALL xc_rho_cflags_setall(needs,.FALSE.,error)
+                           tau_cut)
+    CALL xc_rho_cflags_setall(needs,.FALSE.)
     IF (lsd) THEN
-       CALL xb88_lsd_info(needs=needs,error=error)
+       CALL xb88_lsd_info(needs=needs)
        needs%norm_drho = .TRUE.
     ELSE
-       CALL xb88_lda_info(needs=needs,error=error)
+       CALL xb88_lda_info(needs=needs)
     END IF
     CALL section_vals_val_get(xc_section_orig,"XC_GRID%XC_DERIV",&
-         i_val=xc_deriv_method_id,error=error)
+         i_val=xc_deriv_method_id)
     CALL section_vals_val_get(xc_section_orig,"XC_GRID%XC_SMOOTH_RHO",&
-         i_val=xc_rho_smooth_id,error=error)
+         i_val=xc_rho_smooth_id)
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                            xc_deriv_method_id,&
                            xc_rho_smooth_id,&
-                           auxbas_pw_pool, error)
+                           auxbas_pw_pool)
 
     !----------------------------------------!
     ! Construct the LB94 potential in vxc_LB !
     !----------------------------------------!
     xc_fun_section_orig => section_vals_get_subs_vals(xc_section_orig,&
-         "XC_FUNCTIONAL",error=error)
-    CALL section_vals_create(xc_fun_section_tmp,xc_fun_section_orig%section,&
-         error=error)
+         "XC_FUNCTIONAL")
+    CALL section_vals_create(xc_fun_section_tmp,xc_fun_section_orig%section)
     CALL section_vals_val_set(xc_fun_section_tmp,"_SECTION_PARAMETERS_",&
-         i_val=xc_funct_no_shortcut,error=error)
+         i_val=xc_funct_no_shortcut)
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
-         l_val=.TRUE.,error=error)
+         l_val=.TRUE.)
     CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",&
-         xc_fun_section_tmp,error=error)
+         xc_fun_section_tmp)
 
-    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           xc_section_tmp, auxbas_pw_pool,  &
-                          error,compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
+                          compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
 
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
-         l_val=.FALSE.,error=error)
+         l_val=.FALSE.)
     CALL section_vals_val_set(xc_fun_section_tmp,"PZ81%_SECTION_PARAMETERS_",&
-         l_val=.TRUE.,error=error)
+         l_val=.TRUE.)
 
-    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           xc_section_tmp, auxbas_pw_pool, &
-                          compute_virial=.FALSE.,virial_xc=virial_xc_tmp,&
-                          error=error)
+                          compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
 
     DO ispin=1, nspins
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
@@ -293,7 +288,7 @@ CONTAINS
 
     DO ispin=1, nspins
        dummy => vxc_tmp(ispin)%pw%cr3d
-       CALL add_lb_pot(dummy, rho_set, lsd, ispin, error)
+       CALL add_lb_pot(dummy, rho_set, lsd, ispin)
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d - vxc_tmp(ispin)%pw%cr3d
     END DO
     NULLIFY(dummy)
@@ -301,22 +296,21 @@ CONTAINS
     !-----------------------------------------------------------------------------------!
     ! Construct 2 times PBE one particle density from the PZ correlation energy density !
     !-----------------------------------------------------------------------------------!
-    CALL xc_dset_create(deriv_set, local_bounds=bo, error=error)
+    CALL xc_dset_create(deriv_set, local_bounds=bo)
     CALL xc_functionals_eval(xc_fun_section_tmp, &
          lsd=lsd,&
          rho_set=rho_set, &
          deriv_set=deriv_set,&
-         deriv_order=0, &
-         error=error)
+         deriv_order=0)
 
-    deriv => xc_dset_get_derivative(deriv_set, "", error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_uniform,error=error)
+    deriv => xc_dset_get_derivative(deriv_set, "")
+    CALL xc_derivative_get(deriv,deriv_data=e_uniform)
 
     ALLOCATE(vxc_GLLB(nspins))
     DO ispin=1, nspins
        CALL pw_pool_create_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw,&
                               use_data = REALDATA3D,&
-                              in_space = REALSPACE, error=error)
+                              in_space = REALSPACE)
     END DO
 
     DO ispin=1, nspins
@@ -325,14 +319,14 @@ CONTAINS
     END DO
     NULLIFY(dummy)
 
-    CALL xc_dset_release(deriv_set, error=error)
+    CALL xc_dset_release(deriv_set)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,orbital%pw,&
                             use_data = REALDATA3D,&
-                            in_space = REALSPACE, error=error)
+                            in_space = REALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,orbital_g%pw,&
                             use_data = COMPLEXDATA1D,&
-                            in_space = RECIPROCALSPACE, error=error)
+                            in_space = RECIPROCALSPACE)
 
     DO ispin=1, nspins
 
@@ -342,35 +336,35 @@ CONTAINS
                        homo=homo)
        CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
                          mo_coeff%matrix_struct, &
-                         "orbital density matrix", error=error)
+                         "orbital density matrix")
 
        CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
-            nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
+            nrow_global=nrow(ispin), ncol_global=ncol(ispin))
        ALLOCATE(coeff_col(nrow(ispin),1))
 
-       CALL pw_zero(vxc_tmp(ispin)%pw,error=error)
+       CALL pw_zero(vxc_tmp(ispin)%pw)
 
        DO orb=1, homo-1
 
           efac = K_rho*SQRT(mo_eigenvalues(homo)-mo_eigenvalues(orb))
           IF (.NOT.lsd) efac = 2.0_dp * efac
 
-          CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp,error=error)
+          CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
           CALL cp_fm_get_submatrix(mo_coeff, coeff_col, &
-                                   1, orb, nrow(ispin), 1, error=error)
+                                   1, orb, nrow(ispin), 1)
           CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
-                                   1, orb, error=error)
-          CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+                                   1, orb)
+          CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp)
           CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                   matrix_v=single_mo_coeff(ispin)%matrix,&
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
                                   ncol=ncol(ispin), &
-                                  alpha=1.0_dp,error=error)
-          CALL pw_zero(orbital%pw,error=error)
-          CALL pw_zero(orbital_g%pw,error=error)
+                                  alpha=1.0_dp)
+          CALL pw_zero(orbital%pw)
+          CALL pw_zero(orbital_g%pw)
           CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
                                   rho=orbital, rho_gspace=orbital_g, &
-                                  total_rho=tot_rho_psi, ks_env=ks_env, error=error)
+                                  total_rho=tot_rho_psi, ks_env=ks_env)
 
           vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                efac * orbital%pw%cr3d
@@ -399,7 +393,7 @@ CONTAINS
     ! Assemble SAOP !
     !---------------!
     ALLOCATE(vxc_SAOP(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO ispin=1, nspins
 
@@ -408,9 +402,8 @@ CONTAINS
                        eigenvalues=mo_eigenvalues,&
                        homo=homo)
        CALL pw_pool_create_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw, &
-                               use_data=REALDATA3D, in_space=REALSPACE, &
-                               error=error)
-       CALL pw_zero(vxc_SAOP(ispin)%pw,error=error)
+                               use_data=REALDATA3D, in_space=REALSPACE)
+       CALL pw_zero(vxc_SAOP(ispin)%pw)
 
        ALLOCATE(coeff_col(nrow(ispin),1))
 
@@ -426,24 +419,24 @@ CONTAINS
           vxc_tmp(ispin)%pw%cr3d = we_LB*vxc_LB(ispin)%pw%cr3d + &
                                    we_GLLB*vxc_GLLB(ispin)%pw%cr3d
 
-          CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp,error=error)
+          CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
           CALL cp_fm_get_submatrix(mo_coeff, coeff_col, &
-                                   1, orb, nrow(ispin), 1, error=error)
+                                   1, orb, nrow(ispin), 1)
           CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
-                                   1, orb, error=error)
-          CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+                                   1, orb)
+          CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp)
           CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                   matrix_v=single_mo_coeff(ispin)%matrix,&
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
                                   ncol=ncol(ispin), &
-                                  alpha=1.0_dp,error=error)
-          CALL pw_zero(orbital%pw,error=error)
-          CALL pw_zero(orbital_g%pw,error=error)
+                                  alpha=1.0_dp)
+          CALL pw_zero(orbital%pw)
+          CALL pw_zero(orbital_g%pw)
           CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
                                   rho=orbital, rho_gspace=orbital_g, &
-                                  total_rho=tot_rho_psi, ks_env=ks_env, error=error)
+                                  total_rho=tot_rho_psi, ks_env=ks_env)
 
-!TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env,error)
+!TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
 
           vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d + &
@@ -451,8 +444,8 @@ CONTAINS
 
        END DO
 
-       CALL cp_fm_release(single_mo_coeff(ispin)%matrix, error=error)
-       CALL cp_dbcsr_deallocate_matrix(orbital_density_matrix(ispin)%matrix,error=error)
+       CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
+       CALL cp_dbcsr_deallocate_matrix(orbital_density_matrix(ispin)%matrix)
 
        DEALLOCATE(coeff_col)
 
@@ -471,9 +464,9 @@ CONTAINS
 
     END DO
 
-    CALL xc_rho_set_release(rho_set, auxbas_pw_pool, error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital%pw, error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g%pw, error=error)
+    CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g%pw)
 
     !--------------------!
     ! Do the integration !
@@ -490,31 +483,31 @@ CONTAINS
        CALL integrate_v_rspace(v_rspace=vxc_SAOP(ispin), pmat=rho_struct_ao(ispin), &
                                hmat=ks_matrix(ispin), qs_env=qs_env, &
                                calculate_forces=.FALSE.,&
-                               gapw=gapw, error=error)
+                               gapw=gapw)
 
     END DO
 
     DO ispin=1, nspins
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw, error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw, error=error)
-       CALL pw_release(vxc_LB(ispin)%pw,error=error)
-       CALL pw_release(vxc_tmp(ispin)%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw)
+       CALL pw_release(vxc_LB(ispin)%pw)
+       CALL pw_release(vxc_tmp(ispin)%pw)
     END DO
     DEALLOCATE(vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix, single_mo_coeff, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(rho_r, vxc_SAOP, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL section_vals_release(xc_fun_section_tmp,error=error)
-    CALL section_vals_release(xc_section_tmp,error=error)
-    CALL section_vals_release(xc_section_orig,error=error)
+    CALL section_vals_release(xc_fun_section_tmp)
+    CALL section_vals_release(xc_section_tmp)
+    CALL section_vals_release(xc_section_orig)
 
     !-----------------------!
     ! Call the GAPW routine !
     !-----------------------!
     IF (gapw) THEN
-       CALL gapw_add_atomic_saop_pot(qs_env, oe_corr, error)
+       CALL gapw_add_atomic_saop_pot(qs_env, oe_corr)
     END IF
 
   END SUBROUTINE add_saop_pot
@@ -523,13 +516,11 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param oe_corr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE gapw_add_atomic_saop_pot(qs_env, oe_corr, error)
+  SUBROUTINE gapw_add_atomic_saop_pot(qs_env, oe_corr)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gapw_add_atomic_saop_pot', &
       routineP = moduleN//':'//routineN
@@ -611,16 +602,15 @@ CONTAINS
                             qs_kind_set=qs_kind_set, &
                             rho_atom_set=rho_atom_set,&
                             matrix_ks=matrix_ks,&
-                            para_env=para_env,&
-                            error=error)
+                            para_env=para_env)
 
-    CALL qs_rho_get(rho_structure, rho_ao=rho_struct_ao, error=error)
+    CALL qs_rho_get(rho_structure, rho_ao=rho_struct_ao)
 
-    xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-    CALL section_vals_retain(xc_section_orig,error=error)
-    CALL section_vals_duplicate(xc_section_orig,xc_section_tmp,error=error)
+    xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC")
+    CALL section_vals_retain(xc_section_orig)
+    CALL section_vals_duplicate(xc_section_orig,xc_section_tmp)
 
-    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd,error=error)
+    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd)
     IF (lsd) THEN
        nspins=2
     ELSE
@@ -628,24 +618,24 @@ CONTAINS
     END IF
 
     CALL section_vals_val_get(xc_section_orig,"DENSITY_CUTOFF",&
-         r_val=density_cut,error=error)
+         r_val=density_cut)
     CALL section_vals_val_get(xc_section_orig,"GRADIENT_CUTOFF",&
-         r_val=gradient_cut,error=error)
+         r_val=gradient_cut)
     CALL section_vals_val_get(xc_section_orig,"TAU_CUTOFF",&
-         r_val=tau_cut,error=error)
+         r_val=tau_cut)
 
     ! remap pointer 
     ns = SIZE(rho_struct_ao)
     psmat(1:ns,1:1) => rho_struct_ao(1:ns)
-    CALL calculate_rho_atom_coeff(qs_env,psmat,error=error)
-    CALL prepare_gapw_den(qs_env, error=error)
+    CALL calculate_rho_atom_coeff(qs_env,psmat)
+    CALL prepare_gapw_den(qs_env)
 
     ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
              mo_eigenvalues(nspins),&
              stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
 
     DO ispin=1, nspins
        CALL get_mo_set(molecular_orbitals(ispin)%mo_set, &
@@ -654,23 +644,23 @@ CONTAINS
                        homo=homo(ispin))
        CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
                          mo_coeff(ispin)%matrix%matrix_struct, &
-                         "orbital density matrix", error=error)
+                         "orbital density matrix")
        CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
-                           nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
+                           nrow_global=nrow(ispin), ncol_global=ncol(ispin))
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
-       CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix, error=error)
+       CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix)
        CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
             rho_struct_ao(ispin)%matrix, &
-            "orbital density", error=error)
+            "orbital density")
     END DO
-    CALL local_rho_set_create(local_rho_set, error=error)
-    CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set,error=error)
+    CALL local_rho_set_create(local_rho_set)
+    CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set)
 
     DO ikind=1, SIZE(atomic_kind_set)
        CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
 
        CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
-                            harmonics=harmonics, grid_atom=atomic_grid, error=error)
+                            harmonics=harmonics, grid_atom=atomic_grid)
        IF(.NOT. paw_atom) CYCLE
 
        nr = atomic_grid%nr
@@ -679,50 +669,46 @@ CONTAINS
        bounds(2,1)     = na
        bounds(2,2)     = nr
 
-       CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
+       CALL xc_dset_create(deriv_set, local_bounds=bounds)
 
        CALL xc_rho_set_create(rho_set_h, bounds, density_cut,&
-                              gradient_cut, tau_cut,&
-                              error=error)
+                              gradient_cut, tau_cut)
        CALL xc_rho_set_create(rho_set_s, bounds, density_cut,&
-                              gradient_cut, tau_cut,&
-                              error=error)
+                              gradient_cut, tau_cut)
        CALL xc_rho_set_create(orb_rho_set_h, bounds, density_cut,&
-                              gradient_cut, tau_cut,&
-                              error=error)
+                              gradient_cut, tau_cut)
        CALL xc_rho_set_create(orb_rho_set_s, bounds, density_cut,&
-                              gradient_cut, tau_cut,&
-                              error=error)
+                              gradient_cut, tau_cut)
 
-       CALL xc_rho_cflags_setall(needs, .FALSE., error=error)
+       CALL xc_rho_cflags_setall(needs, .FALSE.)
        IF (lsd) THEN
-          CALL xb88_lsd_info(needs=needs,error=error)
+          CALL xb88_lsd_info(needs=needs)
           needs%norm_drho = .TRUE.
        ELSE
-          CALL xb88_lda_info(needs=needs,error=error)
+          CALL xb88_lda_info(needs=needs)
        END IF
        CALL xc_rho_set_atom_update(rho_set_h, needs, nspins, bounds)
        CALL xc_rho_set_atom_update(rho_set_s, needs, nspins, bounds)
-       CALL xc_rho_cflags_setall(needs_orbs, .FALSE., error=error)
+       CALL xc_rho_cflags_setall(needs_orbs, .FALSE.)
        needs_orbs%rho = .TRUE.
        IF (lsd) needs_orbs%rho_spin = .TRUE.
        CALL xc_rho_set_atom_update(orb_rho_set_h, needs, nspins, bounds)
        CALL xc_rho_set_atom_update(orb_rho_set_s, needs, nspins, bounds)
 
        ALLOCATE(rho_h(1:na,1:nspins), rho_s(1:na,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(weight(1:na,1:nr), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(vxc_LB_h(1:na,1:nr,1:nspins), vxc_LB_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(vxc_GLLB_h(1:na,1:nr,1:nspins), vxc_GLLB_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(vxc_tmp_h(1:na,1:nr,1:nspins), vxc_tmp_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(vxc_SAOP_h(1:na,1:nr,1:nspins), vxc_SAOP_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho_s(1:4,1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 !      Distribute the atoms of this kind
        num_pe = para_env%num_pe
@@ -744,9 +730,9 @@ CONTAINS
           DO ir=1, nr
              CALL calc_rho_angular(atomic_grid, harmonics, nspins, .TRUE., &
                                    ir, r_h, r_s, rho_h, rho_s, &
-                                   dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
-             CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,tau,na,ir,error)
-             CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,tau,na,ir,error)
+                                   dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s)
+             CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,tau,na,ir)
+             CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,tau,na,ir)
              DO ia=1, na
                 weight(ia,ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
              END DO
@@ -756,52 +742,51 @@ CONTAINS
           ! 1. Slater exchange for LB94 !
           !-----------------------------!
     xc_fun_section_orig => section_vals_get_subs_vals(xc_section_orig,&
-         "XC_FUNCTIONAL",error=error)
-    CALL section_vals_create(xc_fun_section_tmp,xc_fun_section_orig%section,&
-         error=error)
+         "XC_FUNCTIONAL")
+    CALL section_vals_create(xc_fun_section_tmp,xc_fun_section_orig%section)
     CALL section_vals_val_set(xc_fun_section_tmp,"_SECTION_PARAMETERS_",&
-         i_val=xc_funct_no_shortcut,error=error)
+         i_val=xc_funct_no_shortcut)
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
-         l_val=.TRUE.,error=error)
+         l_val=.TRUE.)
     CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",&
-         xc_fun_section_tmp,error=error)
+         xc_fun_section_tmp)
 
           !---------------------!
           ! Both: hard and soft !
           !---------------------!
-          CALL xc_dset_zero_all(deriv_set, error)
+          CALL xc_dset_zero_all(deriv_set)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_h, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_tmp_h, vxg, vtau, error=error)
-          CALL xc_dset_zero_all(deriv_set, error)
+                            weight, lsd, na, nr, exc, vxc_tmp_h, vxg, vtau)
+          CALL xc_dset_zero_all(deriv_set)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_tmp_s, vxg, vtau, error=error)
+                            weight, lsd, na, nr, exc, vxc_tmp_s, vxg, vtau)
 
           !-------------------------------------------!
           ! 2. PZ correlation for LB94 and ec_uniform !
           !-------------------------------------------!
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
-         l_val=.FALSE.,error=error)
+         l_val=.FALSE.)
     CALL section_vals_val_set(xc_fun_section_tmp,"PZ81%_SECTION_PARAMETERS_",&
-         l_val=.TRUE.,error=error)
+         l_val=.TRUE.)
 
           !------!
           ! Hard !
           !------!
-          CALL xc_dset_zero_all(deriv_set, error)
+          CALL xc_dset_zero_all(deriv_set)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_h, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_LB_h, vxg, vtau, error=error)
+                            weight, lsd, na, nr, exc, vxc_LB_h, vxg, vtau)
           vxc_LB_h = vxc_LB_h + alpha*vxc_tmp_h
           DO ispin=1, nspins
              dummy => vxc_tmp_h(:,:,ispin:ispin)
-             CALL add_lb_pot(dummy, rho_set_h, lsd, ispin, error)
+             CALL add_lb_pot(dummy, rho_set_h, lsd, ispin)
              vxc_LB_h(:,:,ispin) = vxc_LB_h(:,:,ispin) - weight(:,:)*vxc_tmp_h(:,:,ispin)
           END DO
           NULLIFY(dummy)
 
           vxc_GLLB_h = 0.0_dp
-          deriv => xc_dset_get_derivative(deriv_set, "", error=error)
-          CPPostcondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
-          CALL xc_derivative_get(deriv,deriv_data=e_uniform,error=error)
+          deriv => xc_dset_get_derivative(deriv_set, "")
+          CPPostcondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
+          CALL xc_derivative_get(deriv,deriv_data=e_uniform)
           DO ispin=1, nspins
              dummy => vxc_GLLB_h(:,:,ispin:ispin)
              CALL calc_2excpbe(dummy, rho_set_h, e_uniform, lsd)
@@ -812,22 +797,22 @@ CONTAINS
           !------!
           ! Soft !
           !------!
-          CALL xc_dset_zero_all(deriv_set, error)
+          CALL xc_dset_zero_all(deriv_set)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_LB_s, vxg, vtau, error=error)
+                            weight, lsd, na, nr, exc, vxc_LB_s, vxg, vtau)
 
           vxc_LB_s = vxc_LB_s + alpha*vxc_tmp_s
           DO ispin=1, nspins
              dummy => vxc_tmp_s(:,:,ispin:ispin)
-             CALL add_lb_pot(dummy, rho_set_s, lsd, ispin, error)
+             CALL add_lb_pot(dummy, rho_set_s, lsd, ispin)
              vxc_LB_s(:,:,ispin) = vxc_LB_s(:,:,ispin) - weight(:,:)*vxc_tmp_s(:,:,ispin)
           END DO
           NULLIFY(dummy)
 
           vxc_GLLB_s = 0.0_dp
-          deriv => xc_dset_get_derivative(deriv_set, "", error=error)
-          CPPostcondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
-          CALL xc_derivative_get(deriv,deriv_data=e_uniform,error=error)
+          deriv => xc_dset_get_derivative(deriv_set, "")
+          CPPostcondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
+          CALL xc_derivative_get(deriv,deriv_data=e_uniform)
           DO ispin=1, nspins
              dummy => vxc_GLLB_s(:,:,ispin:ispin)
              CALL calc_2excpbe(dummy, rho_set_s, e_uniform, lsd)
@@ -845,26 +830,26 @@ CONTAINS
              DO orb=1, homo(ispin)-1
 
                 ALLOCATE(coeff_col(nrow(ispin),1), stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
                 efac = K_rho * SQRT(mo_eigenvalues(ispin)%array(homo(ispin)) - &
                                     mo_eigenvalues(ispin)%array(orb))
                 IF (.not.lsd) efac = 2.0_dp * efac
 
-                CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp,error=error)
+                CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
                 CALL cp_fm_get_submatrix(mo_coeff(ispin)%matrix, coeff_col, &
-                                         1, orb, nrow(ispin), 1, error=error)
+                                         1, orb, nrow(ispin), 1)
                 CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
-                                         1, orb, error=error)
-                CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+                                         1, orb)
+                CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp)
                 CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                         matrix_v=single_mo_coeff(ispin)%matrix,&
                                         matrix_g=single_mo_coeff(ispin)%matrix,&
                                         ncol=ncol(ispin), &
-                                        alpha=1.0_dp,error=error)
+                                        alpha=1.0_dp)
 
                 DEALLOCATE(coeff_col, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -873,8 +858,8 @@ CONTAINS
                 ns = SIZE(orbital_density_matrix)
                 psmat(1:ns,1:1) => orbital_density_matrix(1:ns)
                 CALL calculate_rho_atom_coeff(qs_env,psmat, &
-                                              local_rho_set%rho_atom_set,error=error)
-                CALL prepare_gapw_den(qs_env,local_rho_set,.FALSE.,error)
+                                              local_rho_set%rho_atom_set)
+                CALL prepare_gapw_den(qs_env,local_rho_set,.FALSE.)
 
                 rho_atom => local_rho_set%rho_atom_set(iatom)
                 NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
@@ -883,9 +868,9 @@ CONTAINS
                 DO ir=1, nr
                    CALL calc_rho_angular(atomic_grid, harmonics, nspins, .FALSE., &
                                          ir, r_h, r_s, rho_h, rho_s, &
-                                         dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
-                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,tau,na,ir,error=error)
-                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,tau,na,ir,error=error)
+                                         dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s)
+                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,tau,na,ir)
+                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,tau,na,ir)
                 END DO
 
                 IF (lsd) THEN
@@ -942,7 +927,7 @@ CONTAINS
              DO orb=1, homo(ispin)
 
                 ALLOCATE(coeff_col(nrow(ispin),1), stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
                 we_LB   = EXP(-2.0_dp*(mo_eigenvalues(ispin)%array(homo(ispin)) - &
                                        mo_eigenvalues(ispin)%array(orb))**2)
@@ -957,20 +942,20 @@ CONTAINS
                 vxc_tmp_s(:,:,ispin) = we_LB*vxc_LB_s(:,:,ispin) + &
                                        we_GLLB*vxc_GLLB_s(:,:,ispin)
 
-                CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp,error=error)
+                CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
                 CALL cp_fm_get_submatrix(mo_coeff(ispin)%matrix, coeff_col, &
-                                         1, orb, nrow(ispin), 1, error=error)
+                                         1, orb, nrow(ispin), 1)
                 CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
-                                         1, orb, error=error)
-                CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+                                         1, orb)
+                CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp)
                 CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                         matrix_v=single_mo_coeff(ispin)%matrix,&
                                         matrix_g=single_mo_coeff(ispin)%matrix,&
                                         ncol=ncol(ispin), &
-                                        alpha=1.0_dp,error=error)
+                                        alpha=1.0_dp)
 
                 DEALLOCATE(coeff_col, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -979,8 +964,8 @@ CONTAINS
                 ns = SIZE(orbital_density_matrix)
                 psmat(1:ns,1:1) => orbital_density_matrix(1:ns)
                 CALL calculate_rho_atom_coeff(qs_env,psmat, &
-                                              local_rho_set%rho_atom_set,error=error)
-                CALL prepare_gapw_den(qs_env,local_rho_set,.FALSE.,error)
+                                              local_rho_set%rho_atom_set)
+                CALL prepare_gapw_den(qs_env,local_rho_set,.FALSE.)
 
                 rho_atom => local_rho_set%rho_atom_set(iatom)
                 NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
@@ -989,9 +974,9 @@ CONTAINS
                 DO ir=1, nr
                    CALL calc_rho_angular(atomic_grid, harmonics, nspins, .FALSE., &
                                          ir, r_h, r_s, rho_h, rho_s, &
-                                         dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
-                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,tau,na,ir,error=error)
-                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,tau,na,ir,error=error)
+                                         dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s)
+                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,tau,na,ir)
+                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,tau,na,ir)
                 END DO
 
                 IF (lsd) THEN
@@ -1056,35 +1041,35 @@ CONTAINS
           rho_atom => rho_atom_set(iatom)
           SELECT CASE (oe_corr)
           CASE(oe_lb)
-             CALL gaVxcgb_noGC(vxc_LB_h,vxc_LB_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_LB_h,vxc_LB_s,qs_kind_set(ikind),rho_atom,nspins)
           CASE (oe_gllb)
-             CALL gaVxcgb_noGC(vxc_GLLB_h,vxc_GLLB_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_GLLB_h,vxc_GLLB_s,qs_kind_set(ikind),rho_atom,nspins)
           CASE (oe_saop)
-             CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,qs_kind_set(ikind),rho_atom,nspins)
           CASE default
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
           END SELECT
 
        END DO
 
        DEALLOCATE(rho_h, rho_s, weight, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(vxc_LB_h, vxc_LB_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(vxc_GLLB_h, vxc_GLLB_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(vxc_tmp_h, vxc_tmp_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(vxc_SAOP_h, vxc_SAOP_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(drho_h, drho_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-       CALL xc_dset_release(deriv_set, error=error)
-       CALL xc_rho_set_release(rho_set_h, error=error)
-       CALL xc_rho_set_release(rho_set_s, error=error)
-       CALL xc_rho_set_release(orb_rho_set_h, error=error)
-       CALL xc_rho_set_release(orb_rho_set_s, error=error)
+       CALL xc_dset_release(deriv_set)
+       CALL xc_rho_set_release(rho_set_h)
+       CALL xc_rho_set_release(rho_set_s)
+       CALL xc_rho_set_release(orb_rho_set_h)
+       CALL xc_rho_set_release(orb_rho_set_s)
 
     END DO
 
@@ -1094,22 +1079,22 @@ CONTAINS
     ns = SIZE(rho_struct_ao)
     psmat(1:ns,1:1) => rho_struct_ao(1:ns)
 
-    CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,error=error)
+    CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.)
 
     !---------!
     ! Cleanup !
     !---------!
-    CALL section_vals_release(xc_fun_section_tmp,error=error)
-    CALL section_vals_release(xc_section_tmp,error=error)
-    CALL section_vals_release(xc_section_orig,error=error)
+    CALL section_vals_release(xc_fun_section_tmp)
+    CALL section_vals_release(xc_section_tmp)
+    CALL section_vals_release(xc_section_orig)
 
-    CALL local_rho_set_release(local_rho_set,error)
+    CALL local_rho_set_release(local_rho_set)
     DO ispin=1, nspins
-       CALL cp_fm_release(single_mo_coeff(ispin)%matrix, error=error)
+       CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
     END DO
     DEALLOCATE(mo_coeff, single_mo_coeff, mo_eigenvalues, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_deallocate_matrix_set(orbital_density_matrix,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_dbcsr_deallocate_matrix_set(orbital_density_matrix)
 
   END SUBROUTINE gapw_add_atomic_saop_pot
 
@@ -1119,16 +1104,14 @@ CONTAINS
 !> \param rho_set ...
 !> \param lsd ...
 !> \param spin ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE add_lb_pot(pot, rho_set, lsd, spin, error)
+  SUBROUTINE add_lb_pot(pot, rho_set, lsd, spin)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pot
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
     INTEGER, INTENT(IN)                      :: spin
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: ob3 = 1.0_dp/3.0_dp
 

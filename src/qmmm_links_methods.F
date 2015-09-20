@@ -36,18 +36,15 @@ CONTAINS
 !> \param qmmm_links ...
 !> \param particles ...
 !> \param qm_atom_index ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE  qmmm_link_Imomm_coord( qmmm_links, particles, qm_atom_index, error)
+  SUBROUTINE  qmmm_link_Imomm_coord( qmmm_links, particles, qm_atom_index)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_link_Imomm_coord', &
       routineP = moduleN//':'//routineN
@@ -60,7 +57,7 @@ CONTAINS
 
     failure = .FALSE.
     n_imomm = SIZE(qmmm_links%imomm)
-    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,failure)
     DO ilink = 1, n_imomm
        my_link => qmmm_links%imomm(ilink)%link
        qm_index = my_link%qm_index
@@ -94,18 +91,15 @@ CPSourceFileRef,&
 !> \param qmmm_links ...
 !> \param particles_qm ...
 !> \param qm_atom_index ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE  qmmm_link_Imomm_forces(qmmm_links, particles_qm, qm_atom_index, error)
+  SUBROUTINE  qmmm_link_Imomm_forces(qmmm_links, particles_qm, qm_atom_index)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_link_Imomm_forces', &
       routineP = moduleN//':'//routineN
@@ -118,7 +112,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     n_imomm = SIZE(qmmm_links%imomm)
-    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,failure)
     DO ilink = 1, n_imomm
        my_link => qmmm_links%imomm(ilink)%link
        qm_index = my_link%qm_index
@@ -152,17 +146,14 @@ CPSourceFileRef,&
 !> \brief correct the position for added charges in qm/mm link scheme
 !> \param qmmm_env ...
 !> \param particles ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_added_chrg_coord(qmmm_env, particles, error)
+  SUBROUTINE qmmm_added_chrg_coord(qmmm_env, particles)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_added_chrg_coord', &
       routineP = moduleN//':'//routineN
@@ -188,17 +179,14 @@ CPSourceFileRef,&
 !> \brief correct the forces due to the  added charges in qm/mm link scheme
 !> \param qmmm_env ...
 !> \param particles ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_added_chrg_forces(qmmm_env, particles, error)
+  SUBROUTINE qmmm_added_chrg_forces(qmmm_env, particles)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_added_chrg_forces', &
       routineP = moduleN//':'//routineN

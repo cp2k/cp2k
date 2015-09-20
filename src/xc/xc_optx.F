@@ -38,16 +38,13 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv implemented derivative of the xc functional 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE optx_lda_info(reference,shortform, needs, max_deriv, error)
+  SUBROUTINE optx_lda_info(reference,shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_info', &
       routineP = moduleN//':'//routineN
@@ -72,16 +69,13 @@ CONTAINS
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
 !> \param max_deriv implemented derivative of the xc functional
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE optx_lsd_info(reference,shortform, needs, max_deriv, error)
+  SUBROUTINE optx_lsd_info(reference,shortform, needs, max_deriv)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -108,18 +102,15 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param optx_params input parameter (scaling)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE optx_lda_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
+  SUBROUTINE optx_lda_eval(rho_set,deriv_set,grad_deriv,optx_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: optx_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -136,36 +127,36 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(bo,e_0, e_ndrho, e_rho, norm_drho, rho)
 
-    CALL section_vals_val_get(optx_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(optx_params,"scale_x",r_val=sx)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-         drho_cutoff=epsilon_drho,error=error)
+         drho_cutoff=epsilon_drho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     deriv => xc_dset_get_derivative(deriv_set,"",&
-         allocate_deriv=.TRUE., error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_0)
     deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-         allocate_deriv=.TRUE.,error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_rho)
     deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-         allocate_deriv=.TRUE.,error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 1 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     CALL optx_lda_calc(rho=rho, norm_drho=norm_drho,&
             e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
             npoints=npoints,epsilon_rho=epsilon_rho,&
-            epsilon_drho=epsilon_drho,sx=sx,error=error)
+            epsilon_drho=epsilon_drho,sx=sx)
   END SUBROUTINE optx_lda_eval
 
 ! *****************************************************************************
@@ -177,18 +168,15 @@ CONTAINS
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param optx_params input parameter (scaling)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE optx_lsd_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
+  SUBROUTINE optx_lsd_eval(rho_set,deriv_set,grad_deriv,optx_params)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: optx_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -211,45 +199,45 @@ CONTAINS
        NULLIFY(ndrho(ispin)%array)
     ENDDO
 
-    CALL section_vals_val_get(optx_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(optx_params,"scale_x",r_val=sx)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
     CALL xc_rho_set_get(rho_set,rhoa=rho(1)%array,rhob=rho(2)%array,&
                         norm_drhoa=ndrho(1)%array, &
                         norm_drhob=ndrho(2)%array,rho_cutoff=epsilon_rho,&
-                        drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+                        drho_cutoff=epsilon_drho, local_bounds=bo)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
     deriv => xc_dset_get_derivative(deriv_set,"",&
-         allocate_deriv=.TRUE., error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_0)
     deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-         allocate_deriv=.TRUE.,error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array)
     deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-         allocate_deriv=.TRUE.,error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array)
 
     deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-         allocate_deriv=.TRUE.,error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array)
     deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-         allocate_deriv=.TRUE.,error=error)
-    CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
+         allocate_deriv=.TRUE.)
+    CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array)
 
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="derivatives bigger than 1 not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
     DO ispin=1,2
        CALL optx_lsd_calc(rho=rho(ispin)%array, norm_drho=ndrho(ispin)%array,&
                    e_0=e_0,e_rho=e_rho(ispin)%array,e_ndrho=e_ndrho(ispin)%array,&
                    npoints=npoints,epsilon_rho=epsilon_rho,&
-                   epsilon_drho=epsilon_drho,sx=sx,error=error)
+                   epsilon_drho=epsilon_drho,sx=sx)
     ENDDO
   END SUBROUTINE optx_lsd_eval
 
@@ -264,21 +252,18 @@ CONTAINS
 !> \param epsilon_drho ...
 !> \param npoints ...
 !> \param sx scaling-parameter for exchange
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE optx_lda_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,sx,error)
+       epsilon_rho,epsilon_drho,npoints,sx)
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(in)                      :: npoints
     REAL(kind=dp), INTENT(in)                :: sx
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
       a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp
@@ -327,21 +312,18 @@ CONTAINS
 !> \param epsilon_drho ...
 !> \param npoints ...
 !> \param sx scaling parameter for exchange
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE optx_lsd_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,sx,error)
+       epsilon_rho,epsilon_drho,npoints,sx)
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(in)                      :: npoints
     REAL(kind=dp), INTENT(in)                :: sx
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
       a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp

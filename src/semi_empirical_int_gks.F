@@ -53,15 +53,13 @@ CONTAINS
 !> \param e1b ...
 !> \param e2a ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rotnuc_gks (sepi,sepj,rij,e1b,e2a,se_int_control,error)
+  SUBROUTINE rotnuc_gks (sepi,sepj,rij,e1b,e2a,se_int_control)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_gks', &
       routineP = moduleN//':'//routineN
@@ -74,12 +72,12 @@ CONTAINS
 
     IF(se_int_control%do_ewald_gks) THEN
        IF ( DOT_PRODUCT(rij,rij) > rij_threshold) THEN
-         CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control,error)
+         CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control)
        ELSE
-         CALL makeCoulE0(sepi,Coul,se_int_control,error)
+         CALL makeCoulE0(sepi,Coul,se_int_control)
        END IF
     ELSE
-       CALL makeCoul(rab,sepi,sepj,Coul,se_int_control,error)
+       CALL makeCoul(rab,sepi,sepj,Coul,se_int_control)
     END IF
 
     i = 0
@@ -107,15 +105,13 @@ CONTAINS
 !> \param rij ...
 !> \param w ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rotint_gks (sepi,sepj,rij,w,se_int_control,error)
+  SUBROUTINE rotint_gks (sepi,sepj,rij,w,se_int_control)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(2025), INTENT(OUT), &
       OPTIONAL                               :: w
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint_gks', &
       routineP = moduleN//':'//routineN
@@ -129,12 +125,12 @@ CONTAINS
 
     IF(se_int_control%do_ewald_gks) THEN
        IF ( DOT_PRODUCT(rij,rij) > rij_threshold) THEN
-         CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control,error)
+         CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control)
        ELSE
-         CALL makeCoulE0(sepi,Coul,se_int_control,error)
+         CALL makeCoulE0(sepi,Coul,se_int_control)
        END IF
     ELSE
-       CALL makeCoul(rab,sepi,sepj,Coul,se_int_control,error)
+       CALL makeCoul(rab,sepi,sepj,Coul,se_int_control)
     END IF
 
     i    = 0
@@ -163,15 +159,13 @@ CONTAINS
 !> \param de1b ...
 !> \param de2a ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE drotnuc_gks(sepi,sepj,rij,de1b,de2a,se_int_control,error)
+  SUBROUTINE drotnuc_gks(sepi,sepj,rij,de1b,de2a,se_int_control)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_gks', &
       routineP = moduleN//':'//routineN
@@ -183,9 +177,9 @@ CONTAINS
     rab= -rij
 
     IF(se_int_control%do_ewald_gks) THEN
-       CALL makedCoulE(rab,sepi,sepj,dCoul,se_int_control,error)
+       CALL makedCoulE(rab,sepi,sepj,dCoul,se_int_control)
     ELSE
-       CALL makedCoul(rab,sepi,sepj,dCoul,se_int_control,error)
+       CALL makedCoul(rab,sepi,sepj,dCoul,se_int_control)
     END IF
 
     i = 0
@@ -217,15 +211,13 @@ CONTAINS
 !> \param rij ...
 !> \param dw ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE drotint_gks(sepi,sepj,rij,dw,se_int_control,error)
+  SUBROUTINE drotint_gks(sepi,sepj,rij,dw,se_int_control)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT)                            :: dw
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint_gks', &
       routineP = moduleN//':'//routineN
@@ -238,9 +230,9 @@ CONTAINS
     rab= -rij
 
     IF(se_int_control%do_ewald_gks) THEN
-       CALL makedCoulE(rab,sepi,sepj,dCoul,se_int_control,error)
+       CALL makedCoulE(rab,sepi,sepj,dCoul,se_int_control)
     ELSE
-       CALL makedCoul(rab,sepi,sepj,dCoul,se_int_control,error)
+       CALL makedCoul(rab,sepi,sepj,dCoul,se_int_control)
     END IF
 
     i    = 0
@@ -270,15 +262,13 @@ CONTAINS
 !> \param sepj ...
 !> \param Coul ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE makeCoul(RAB,sepi,sepj,Coul,se_int_control,error)
+  SUBROUTINE makeCoul(RAB,sepi,sepj,Coul,se_int_control)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(kind=dp), DIMENSION(45, 45), &
       INTENT(OUT)                            :: Coul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'makeCoul', &
       routineP = moduleN//':'//routineN
@@ -383,15 +373,13 @@ CONTAINS
 !> \param sepj ...
 !> \param dCoul ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE makedCoul(RAB,sepi,sepj,dCoul,se_int_control,error)
+  SUBROUTINE makedCoul(RAB,sepi,sepj,dCoul,se_int_control)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(kind=dp), DIMENSION(3, 45, 45), &
       INTENT(OUT)                            :: dCoul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'makedCoul', &
       routineP = moduleN//':'//routineN
@@ -514,16 +502,14 @@ CONTAINS
 !> \param enuc ...
 !> \param denuc ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE corecore_gks (sepi,sepj,rijv,enuc,denuc,se_int_control,error)
+  SUBROUTINE corecore_gks (sepi,sepj,rijv,enuc,denuc,se_int_control)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: denuc
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_gks', &
       routineP = moduleN//':'//routineN
@@ -549,19 +535,19 @@ CONTAINS
           CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
                do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening,&
                max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
-          CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control_off,error)
-          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off,error)
+          CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control_off)
+          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off)
           IF (se_int_control%do_ewald_gks) THEN
-             CALL makeCoulE(rijv,sepi,sepj,CoulE,se_int_control,error)
-             IF (l_denuc) CALL makedCoulE(rijv,sepi,sepj,dCoulE,se_int_control,error)
+             CALL makeCoulE(rijv,sepi,sepj,CoulE,se_int_control)
+             IF (l_denuc) CALL makedCoulE(rijv,sepi,sepj,dCoulE,se_int_control)
           ELSE
-             CALL makeCoul(rijv,sepi,sepj,CoulE,se_int_control,error)
-             IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoulE,se_int_control,error)
+             CALL makeCoul(rijv,sepi,sepj,CoulE,se_int_control)
+             IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoulE,se_int_control)
           END IF
        ELSE
-          CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control,error)
+          CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control)
           CoulE = Coul
-          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control,error)
+          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control)
           IF (l_denuc) dCoulE = dCoul
        END IF
 
@@ -585,7 +571,7 @@ CONTAINS
 
        IF (se_int_control%do_ewald_gks) THEN
          zz = sepi%zeff*sepi%zeff
-         CALL makeCoulE0(sepi,CoulE,se_int_control,error)
+         CALL makeCoulE0(sepi,CoulE,se_int_control)
          IF (l_enuc) THEN
            enuc=zz*CoulE(1,1)
          END IF
@@ -604,15 +590,13 @@ CONTAINS
 !> \param sepj ...
 !> \param Coul ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE makeCoulE(RAB,sepi,sepj,Coul,se_int_control,error)
+  SUBROUTINE makeCoulE(RAB,sepi,sepj,Coul,se_int_control)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(OUT)                            :: Coul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE', &
       routineP = moduleN//':'//routineN
@@ -830,15 +814,13 @@ CONTAINS
 !> \param sepj ...
 !> \param dCoul ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE makedCoulE(RAB,sepi,sepj,dCoul,se_int_control,error)
+  SUBROUTINE makedCoulE(RAB,sepi,sepj,dCoul,se_int_control)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3, 45, 45), &
       INTENT(OUT)                            :: dCoul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'makedCoulE', &
       routineP = moduleN//':'//routineN
@@ -1212,14 +1194,12 @@ CONTAINS
 !> \param sepi ...
 !> \param Coul ...
 !> \param se_int_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE makeCoulE0(sepi,Coul,se_int_control,error)
+  SUBROUTINE makeCoulE0(sepi,Coul,se_int_control)
     TYPE(semi_empirical_type), POINTER       :: sepi
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(OUT)                            :: Coul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE0', &
       routineP = moduleN//':'//routineN

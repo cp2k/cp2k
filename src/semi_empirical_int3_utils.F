@@ -43,18 +43,15 @@ CONTAINS
 !> \param ic ...
 !> \param itype ...
 !> \param eval ...
-!> \param error ...
 !> \retval res ...
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, itype, eval, error) RESULT(res)
+  FUNCTION ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, itype, eval) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic, &
                                                 itype
-    REAL(KIND=dp)                            :: eval
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: res
+    REAL(KIND=dp)                            :: eval, res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_low_3', &
       routineP = moduleN//':'//routineN
@@ -104,7 +101,7 @@ CONTAINS
        END IF
        ccc = clm_d(ij, l1, 0) * clm_d(kl, l2, 0)
        IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-          chrg = eval(l1, l2, add, error)
+          chrg = eval(l1, l2, add)
           sum  = chrg
        END IF
     END IF
@@ -123,16 +120,14 @@ CONTAINS
 !> \param l1 ...
 !> \param l2 ...
 !> \param add ...
-!> \param error ...
 !> \retval charg ...
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION charg_int_3(r, l1, l2, add, error) RESULT(charg)
+  FUNCTION charg_int_3(r, l1, l2, add) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1, l2
     REAL(KIND=dp), INTENT(in)                :: add
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
     CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_3', &
@@ -149,7 +144,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
   END FUNCTION charg_int_3
 
 ! *****************************************************************************
@@ -162,15 +157,13 @@ CONTAINS
 !> \param l1 ...
 !> \param l2 ...
 !> \param add ...
-!> \param error ...
 !> \retval coeff ...
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION coeff_int_3(l1, l2, add, error) RESULT(coeff)
+  FUNCTION coeff_int_3(l1, l2, add) RESULT(coeff)
     INTEGER, INTENT(in)                      :: l1, l2
     REAL(KIND=dp), INTENT(in)                :: add
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: coeff
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_int_3', &
@@ -187,7 +180,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
   END FUNCTION coeff_int_3
 
 ! *****************************************************************************
@@ -202,16 +195,14 @@ CONTAINS
 !> \param l1 ...
 !> \param l2 ...
 !> \param add ...
-!> \param error ...
 !> \retval charg ...
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION dcharg_int_3(r, l1, l2, add, error) RESULT(charg)
+  FUNCTION dcharg_int_3(r, l1, l2, add) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1, l2
     REAL(KIND=dp), INTENT(in)                :: add
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_3', &
@@ -228,7 +219,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
   END FUNCTION dcharg_int_3
 
 END MODULE semi_empirical_int3_utils

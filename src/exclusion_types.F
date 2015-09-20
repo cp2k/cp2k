@@ -32,15 +32,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Release exclusion type
 !> \param exclusions ...
-!> \param error ...
 !> \par History
 !>      12.2010 created [Teodoro Laino] - teodoro.laino@gmail.com
 !> \author teo
 ! *****************************************************************************
- SUBROUTINE exclusion_release(exclusions, error)
+ SUBROUTINE exclusion_release(exclusions)
     TYPE(exclusion_type), DIMENSION(:), &
       POINTER                                :: exclusions
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exclusion_release', &
       routineP = moduleN//':'//routineN
@@ -54,24 +52,24 @@ CONTAINS
          IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw,&
               exclusions(iatom)%list_exclude_ei)) THEN
             DEALLOCATE(exclusions(iatom)%list_exclude_vdw,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
          ELSE
             IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw)) THEN
                DEALLOCATE(exclusions(iatom)%list_exclude_vdw,STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
             END IF
             IF (ASSOCIATED(exclusions(iatom)%list_exclude_ei)) THEN
                DEALLOCATE(exclusions(iatom)%list_exclude_ei,STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
             END IF
          ENDIF
          IF (ASSOCIATED(exclusions(iatom)%list_onfo)) THEN
            DEALLOCATE(exclusions(iatom)%list_onfo,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
          ENDIF
       ENDDO
       DEALLOCATE(exclusions,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
    ENDIF
  END SUBROUTINE exclusion_release
 

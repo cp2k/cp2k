@@ -105,7 +105,6 @@ CONTAINS
 !>      total pressure tensor from the potentials
 !> \param fist_env ...
 !> \param debug ...
-!> \param error ...
 !> \par History
 !>      Harald Forbert(Dec-2000): Changes for multiple linked lists
 !>      cjm, 20-Feb-2001: box_ref used to initialize ewald.  Now
@@ -116,11 +115,10 @@ CONTAINS
 !>      cjm, 28-Feb-2006: box_change is gone
 !> \author CJM & JGH
 ! *****************************************************************************
-  SUBROUTINE fist_calc_energy_force(fist_env, debug, error)
+  SUBROUTINE fist_calc_energy_force(fist_env, debug)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_calc_energy_force', &
       routineP = moduleN//':'//routineN
@@ -176,18 +174,16 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     NULLIFY(subsys,virial,atprop_env,para_env,force_env_section)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL fist_env_get(fist_env,&
                       subsys=subsys,&
                       para_env=para_env,&
-                      input=force_env_section,&
-                      error=error)
+                      input=force_env_section)
 
     CALL cp_subsys_get(subsys,&
                        virial=virial,&
-                       atprop=atprop_env,&
-                       error=error)
+                       atprop=atprop_env)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
@@ -196,11 +192,11 @@ CONTAINS
          shell, shell_particle_set, core_particle_set, thermo, multipoles,&
          e_coulomb, pv_coulomb)
 
-    mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
+    mm_section => section_vals_get_subs_vals(force_env_section,"MM")
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%DERIVATIVES",&
-         extension=".mmLog",error=error)
+         extension=".mmLog")
     iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%EWALD_INFO",&
-         extension=".mmLog",error=error)
+         extension=".mmLog")
 
     CALL fist_env_get(fist_env, ewald_pw=ewald_pw, ewald_env=ewald_env, &
          local_particles=local_particles, particle_set=particle_set, &
@@ -208,14 +204,14 @@ CONTAINS
          local_molecules=local_molecules, thermo=thermo, &
          molecule_kind_set=molecule_kind_set, fist_nonbond_env=fist_nonbond_env,&
          cell=cell, shell_model=shell_present, shell_model_ad=shell_model_ad, &
-         multipoles=multipoles, exclusions=exclusions, error=error)
+         multipoles=multipoles, exclusions=exclusions)
 
     CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
-         do_ipol=do_ipol,error=error)
+         do_ipol=do_ipol)
 
     ! Initialize ewald grids
     CALL init_cell(cell)
-    CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
+    CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
 
     natoms = SIZE(particle_set)
     nlocal_particles = 0
@@ -225,19 +221,19 @@ CONTAINS
     ENDDO
 
     ALLOCATE(f_nonbond(3,natoms), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     nshell = 0
     IF(shell_present)THEN
        CALL fist_env_get(fist_env, shell_particle_set=shell_particle_set,  &
-            core_particle_set=core_particle_set, error=error)
-       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
+            core_particle_set=core_particle_set)
+       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,failure)
+       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
        nshell = SIZE(shell_particle_set)
        ALLOCATE(fshell_nonbond(3, nshell), STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(fcore_nonbond(3, nshell), STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        NULLIFY(shell_particle_set,core_particle_set)
     END IF
@@ -247,11 +243,11 @@ CONTAINS
        IF (ASSOCIATED(exclusions)) THEN
           CALL list_control(atomic_kind_set, particle_set, local_particles, &
                cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
-               core_particle_set, exclusions=exclusions, error=error)
+               core_particle_set, exclusions=exclusions)
        ELSE
           CALL list_control(atomic_kind_set, particle_set, local_particles, &
                cell, fist_nonbond_env,para_env, mm_section, shell_particle_set,&
-               core_particle_set, error=error)
+               core_particle_set)
        END IF
     END IF
 
@@ -306,11 +302,11 @@ CONTAINS
 
     IF(fist_nonbond_env%do_nonbonded)THEN
        ! Compute density for EAM
-       CALL density_nonbond(fist_nonbond_env, particle_set, cell, para_env ,error=error)
+       CALL density_nonbond(fist_nonbond_env, particle_set, cell, para_env)
 
        ! Compute embedding function and manybody energy
        CALL energy_manybody(fist_nonbond_env, atomic_kind_set, local_particles, particle_set,&
-            cell, pot_manybody, para_env , mm_section, error=error)
+            cell, pot_manybody, para_env , mm_section)
 
        ! Nonbond contribution + Manybody Forces
        IF(shell_present)THEN
@@ -318,15 +314,13 @@ CONTAINS
                pot_nonbond, f_nonbond, pv_nonbond, &
                fshell_nonbond=fshell_nonbond, fcore_nonbond=fcore_nonbond, &
                atprop_env=atprop_env,&
-               atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
-               error=error)
+               atomic_kind_set=atomic_kind_set, use_virial=use_virial)
        ELSE
           CALL force_nonbond(fist_nonbond_env, ewald_env, particle_set, cell, &
                pot_nonbond, f_nonbond, pv_nonbond, atprop_env=atprop_env,&
-               atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
-               error=error)
+               atomic_kind_set=atomic_kind_set, use_virial=use_virial)
           CALL force_nonbond_manybody(fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond,&
-               use_virial=use_virial, error=error)
+               use_virial=use_virial)
        END IF
     ELSE
        f_nonbond  = 0.0_dp
@@ -361,29 +355,29 @@ CONTAINS
        END SELECT
        ! Allocate and zeroing arrays
        ALLOCATE(fg_coulomb(3, fg_coulomb_size), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        fg_coulomb = 0.0_dp
        IF(shell_present)THEN
           ALLOCATE(fgshell_coulomb(3, nshell), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(fgcore_coulomb(3, nshell), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           fgshell_coulomb = 0.0_dp
           fgcore_coulomb  = 0.0_dp
        END IF
        IF(shell_present.AND.do_multipoles)THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Multipoles and Core-Shell model not implemented.",&
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END IF
        ! If not multipole: Compute self-interaction and neutralizing background
        ! for multipoles is handled separately..
        IF(.NOT.do_multipoles)THEN
           CALL ewald_self(ewald_env, cell, atomic_kind_set, local_particles, &
-               thermo%e_self, thermo%e_neut, fist_nonbond_env%charges, error=error)
+               thermo%e_self, thermo%e_neut, fist_nonbond_env%charges)
           IF(atprop_env%energy) THEN
             CALL ewald_self_atom(ewald_env, atomic_kind_set, local_particles, &
-               atprop_env%atener, fist_nonbond_env%charges, error=error)
+               atprop_env%atener, fist_nonbond_env%charges)
             atprop_env%atener = atprop_env%atener + thermo%e_neut/SIZE(atprop_env%atener)
           END IF
        END IF
@@ -394,14 +388,13 @@ CONTAINS
           IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Polarizable force field and array charges not implemented!", &
-                  error=error, error_level=cp_fatal_level)
+                  error_level=cp_fatal_level)
           END IF
           ! Converge the dipoles self-consistently
           CALL fist_pol_evaluate(atomic_kind_set, multipoles, ewald_env, &
                ewald_pw, fist_nonbond_env, cell, particle_set, &
                local_particles, thermo, vg_coulomb, pot_nonbond, f_nonbond, &
-               fg_coulomb, use_virial, pv_g, pv_nonbond, mm_section, do_ipol, &
-               error)
+               fg_coulomb, use_virial, pv_g, pv_nonbond, mm_section, do_ipol)
        ELSE
           ! Non-Polarizable force-field
           SELECT CASE(ewald_type)
@@ -412,16 +405,16 @@ CONTAINS
                 IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Core-Shell and array charges not implemented!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 END IF
                 IF(do_multipoles)THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Multipole Ewald and CORE-SHELL not yet implemented within Ewald sum!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 ELSE
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Core-Shell model not yet implemented within Ewald sums.", &
-                        error=error, error_level=cp_failure_level)
+                        error_level=cp_failure_level)
                 END IF
              ELSE
                 IF(do_multipoles)THEN
@@ -429,7 +422,7 @@ CONTAINS
                    IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
                       CALL cp_unimplemented_error(fromWhere=routineP, &
                            message="Multipole Ewald and array charges not implemented!", &
-                           error=error, error_level=cp_fatal_level)
+                           error_level=cp_fatal_level)
                    END IF
                    CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
                         particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
@@ -438,21 +431,20 @@ CONTAINS
                         charges=multipoles%charges, dipoles=multipoles%dipoles,&
                         quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,&
                         forces_glob=f_nonbond, pv_local=pv_g, pv_glob=pv_nonbond,iw=iw2,&
-                        do_debug=.TRUE.,atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
-                        error=error)
+                        do_debug=.TRUE.,atomic_kind_set=atomic_kind_set, mm_section=mm_section)
                 ELSE
                    IF(atprop_env%energy) THEN
                       ALLOCATE(e_coulomb(fg_coulomb_size), STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                    END IF
                    IF(atprop_env%stress) THEN
                       ALLOCATE(pv_coulomb(3,3,fg_coulomb_size), STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                    END IF
                    CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
                         local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
                         charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, &
-                        pv_coulomb=pv_coulomb, error=error)
+                        pv_coulomb=pv_coulomb)
                 END IF
              END IF
           CASE(do_ewald_pme)
@@ -462,17 +454,17 @@ CONTAINS
                 IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Core-Shell and array charges not implemented!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 END IF
                 IF(do_multipoles)THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Multipole Ewald and CORE-SHELL not yet implemented within a PME scheme!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 ELSE
                    CALL pme_evaluate(ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
                         pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
                         fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb, use_virial=use_virial,&
-                        atprop=atprop_env, error=error)
+                        atprop=atprop_env)
                    CALL mp_sum(fgshell_coulomb, para_env%group)
                    CALL mp_sum(fgcore_coulomb, para_env%group)
                 END IF
@@ -480,11 +472,11 @@ CONTAINS
                 IF(do_multipoles)THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Multipole Ewald not yet implemented within a PME scheme!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 ELSE
                    CALL pme_evaluate(ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
                         pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, &
-                        atprop=atprop_env, error=error)
+                        atprop=atprop_env)
                 END IF
              END IF
              CALL mp_sum(fg_coulomb, para_env%group)
@@ -495,17 +487,17 @@ CONTAINS
                 IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Core-Shell and array charges not implemented!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 END IF
                 IF(do_multipoles)THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Multipole Ewald and CORE-SHELL not yet implemented within a SPME scheme!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 ELSE
                    CALL spme_evaluate(ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
                         pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
                         fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,use_virial=use_virial,&
-                        atprop=atprop_env, error=error)
+                        atprop=atprop_env)
                    CALL mp_sum(fgshell_coulomb, para_env%group)
                    CALL mp_sum(fgcore_coulomb, para_env%group)
                 END IF
@@ -513,11 +505,11 @@ CONTAINS
                 IF(do_multipoles)THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Multipole Ewald not yet implemented within a SPME scheme!", &
-                        error=error, error_level=cp_fatal_level)
+                        error_level=cp_fatal_level)
                 ELSE
                    CALL spme_evaluate(ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
                         pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, &
-                        atprop=atprop_env, error=error)
+                        atprop=atprop_env)
                 END IF
              END IF
              CALL mp_sum(fg_coulomb, para_env%group)
@@ -534,13 +526,13 @@ CONTAINS
                   local_particles, particle_set, ewald_env, thermo%e_bonded, &
                   pv_bc, shell_particle_set=shell_particle_set, &
                   core_particle_set=core_particle_set, atprop_env=atprop_env, cell=cell, &
-                  use_virial=use_virial, error=error)
+                  use_virial=use_virial)
           ELSE
              IF(.NOT. do_multipoles)THEN
                 CALL bonded_correct_gaussian(fist_nonbond_env, &
                      atomic_kind_set, local_particles, particle_set, &
                      ewald_env, thermo%e_bonded, pv_bc=pv_bc, atprop_env=atprop_env, cell=cell, &
-                     use_virial=use_virial, error=error)
+                     use_virial=use_virial)
              END IF
           END IF
        END IF
@@ -579,8 +571,7 @@ CONTAINS
             pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
             pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
             debug%f_bond, debug%f_bend, debug%f_torsion, debug%f_ub, &
-            debug%f_imptors, debug%f_opbend, cell, use_virial, atprop_env, &
-            error)
+            debug%f_imptors, debug%f_opbend, cell, use_virial, atprop_env)
 
     ELSE
        CALL force_intra_control(molecule_set, molecule_kind_set, &
@@ -588,20 +579,20 @@ CONTAINS
             core_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
             pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
             pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
-            cell=cell, use_virial=use_virial, atprop_env=atprop_env, error=error)
+            cell=cell, use_virial=use_virial, atprop_env=atprop_env)
     ENDIF
 
     IF(iw>0)THEN
-       xdum1 = cp_unit_from_cp2k(pot_bond,"kcalmol",error=error)
-       xdum2 = cp_unit_from_cp2k(pot_bend,"kcalmol",error=error)
-       xdum3 = cp_unit_from_cp2k(pot_urey_bradley,"kcalmol",error=error)
+       xdum1 = cp_unit_from_cp2k(pot_bond,"kcalmol")
+       xdum2 = cp_unit_from_cp2k(pot_bend,"kcalmol")
+       xdum3 = cp_unit_from_cp2k(pot_urey_bradley,"kcalmol")
        WRITE(iw,'(A)')" FIST energy contributions in kcal/mol:"
        WRITE(iw,'(1x,"BOND    = ",f13.4,'//&
                  '2x,"ANGLE   = ",f13.4,'//&
                  '2x,"UBRAD   = ",f13.4)')xdum1, xdum2, xdum3
-       xdum1 = cp_unit_from_cp2k(pot_torsion,"kcalmol",error=error)
-       xdum2 = cp_unit_from_cp2k(pot_imptors,"kcalmol",error=error)
-       xdum3 = cp_unit_from_cp2k(pot_opbend,"kcalmol",error=error)
+       xdum1 = cp_unit_from_cp2k(pot_torsion,"kcalmol")
+       xdum2 = cp_unit_from_cp2k(pot_imptors,"kcalmol")
+       xdum3 = cp_unit_from_cp2k(pot_opbend,"kcalmol")
        WRITE(iw,'(1x,"TORSION = ",f13.4,'//&
                  '2x,"IMPTORS = ",f13.4,'//&
                  '2x,"OPBEND  = ",f13.4)')xdum1, xdum2, xdum3
@@ -643,7 +634,7 @@ CONTAINS
     ! We first sum the forces in f_nonbond, this allows for a more efficient
     ! global sum in the parallel code and in the end copy them back to part
     ALLOCATE(f_total(3,natoms), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     f_total = 0.0_dp
     DO i = 1, natoms
        f_total(1, i)= particle_set(i)%f(1)+ f_nonbond(1, i)
@@ -652,9 +643,9 @@ CONTAINS
     END DO
     IF(shell_present)THEN
        ALLOCATE(fshell_total(3,nshell), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(fcore_total(3,nshell), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, nshell
           fshell_total(1, i)= shell_particle_set(i)%f(1)+ fshell_nonbond(1, i)
           fshell_total(2, i)= shell_particle_set(i)%f(2)+ fshell_nonbond(2, i)
@@ -703,11 +694,11 @@ CONTAINS
        END DO
        IF(atprop_env%energy) THEN
          DEALLOCATE(e_coulomb, STAT = stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF(atprop_env%stress) THEN
          DEALLOCATE(pv_coulomb, STAT = stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
 
@@ -785,7 +776,7 @@ CONTAINS
        ELSEIF(shell_present .AND. .NOT. shell_model_ad)THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Non adiabatic shell-model not implemented.",&
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        ELSE
           DO i = 1, natoms
              particle_set(i)%f(1)= f_total(1, i)+ fg_coulomb(1, i)
@@ -826,7 +817,7 @@ CONTAINS
        ELSEIF(shell_present .AND. .NOT. shell_model_ad)THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Non adiabatic shell-model not implemented.",&
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        ELSE
           DO i = 1, natoms
              particle_set(i)%f(1)= f_total(1, i)
@@ -899,32 +890,32 @@ CONTAINS
     END IF
 
     ! print properties if requested
-    print_section => section_vals_get_subs_vals(mm_section,"PRINT",error=error)
-    CALL print_fist(fist_env, print_section, atomic_kind_set, particle_set, cell, error)
+    print_section => section_vals_get_subs_vals(mm_section,"PRINT")
+    CALL print_fist(fist_env, print_section, atomic_kind_set, particle_set, cell)
 
     ! deallocating all local variables
     IF(ALLOCATED(fg_coulomb))THEN
        DEALLOCATE(fg_coulomb, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(ALLOCATED(f_total))THEN
        DEALLOCATE(f_total, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE(f_nonbond, STAT = stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(shell_present)THEN
        DEALLOCATE(fshell_total, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        IF(ewald_type /= do_ewald_none)THEN
           DEALLOCATE(fgshell_coulomb, STAT = stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE(fshell_nonbond, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%DERIVATIVES",error=error)
-    CALL cp_print_key_finished_output(iw2,logger,mm_section,"PRINT%EWALD_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%DERIVATIVES")
+    CALL cp_print_key_finished_output(iw2,logger,mm_section,"PRINT%EWALD_INFO")
     CALL timestop(handle)
 
 END SUBROUTINE fist_calc_energy_force
@@ -936,12 +927,11 @@ END SUBROUTINE fist_calc_energy_force
 !> \param atomic_kind_set ...
 !> \param particle_set ...
 !> \param cell ...
-!> \param error ...
 !> \par History
 !>      [01.2006] created
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE print_fist(fist_env, print_section, atomic_kind_set, particle_set, cell, error)
+  SUBROUTINE print_fist(fist_env, print_section, atomic_kind_set, particle_set, cell)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -949,7 +939,6 @@ END SUBROUTINE fist_calc_energy_force
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
@@ -957,16 +946,16 @@ END SUBROUTINE fist_calc_energy_force
     TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(logger,print_key,fist_nonbond_env)
-    logger => cp_error_get_logger(error)
-    print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)
-    CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env, error=error)
-    IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+    logger => cp_get_default_logger()
+    print_key => section_vals_get_subs_vals(print_section,"dipole")
+    CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env)
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key),&
          cp_p_file))THEN
        unit_nr=cp_print_key_unit_nr(logger,print_section,"dipole",&
-            extension=".data",middle_name="MM_DIPOLE",log_filename=.FALSE.,error=error)
+            extension=".data",middle_name="MM_DIPOLE",log_filename=.FALSE.)
        CALL fist_dipole(fist_env, print_section, atomic_kind_set, particle_set,&
-            cell, unit_nr, fist_nonbond_env%charges, error)
-       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+            cell, unit_nr, fist_nonbond_env%charges)
+       CALL cp_print_key_finished_output(unit_nr,logger,print_key)
     END IF
 
   END SUBROUTINE print_fist
@@ -981,14 +970,13 @@ END SUBROUTINE fist_calc_energy_force
 !> \param cell ...
 !> \param unit_nr ...
 !> \param charges ...
-!> \param error ...
 !> \par History
 !>      [01.2006] created
 !>      [12.2007] tlaino - University of Zurich - debug and extended
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_dipole(fist_env, print_section, atomic_kind_set, particle_set,&
-             cell, unit_nr, charges, error)
+             cell, unit_nr, charges)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -999,7 +987,6 @@ END SUBROUTINE fist_calc_energy_force
     INTEGER, INTENT(IN)                      :: unit_nr
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=default_string_length)     :: description, dipole_type
     COMPLEX(KIND=dp)                         :: dzeta, dzphase(3), zeta, &
@@ -1018,13 +1005,13 @@ END SUBROUTINE fist_calc_energy_force
 
     NULLIFY(atomic_kind)
     ! Reference point
-    reference = section_get_ival(print_section,keyword_name="DIPOLE%REFERENCE",error=error)
+    reference = section_get_ival(print_section,keyword_name="DIPOLE%REFERENCE")
     NULLIFY(ref_point)
     description='[DIPOLE]'
-    CALL section_vals_val_get(print_section,"DIPOLE%REF_POINT",r_vals=ref_point,error=error)
-    CALL section_vals_val_get(print_section,"DIPOLE%PERIODIC",l_val=do_berry,error=error)
+    CALL section_vals_val_get(print_section,"DIPOLE%REF_POINT",r_vals=ref_point)
+    CALL section_vals_val_get(print_section,"DIPOLE%PERIODIC",l_val=do_berry)
 
-    CALL get_reference_point(rcc,drcc,fist_env=fist_env,reference=reference,ref_point=ref_point,error=error)
+    CALL get_reference_point(rcc,drcc,fist_env=fist_env,reference=reference,ref_point=ref_point)
 
     ! Dipole deriv will be the derivative of the Dipole(dM/dt=\sum e_j v_j)
     dipole_deriv = 0.0_dp
@@ -1081,9 +1068,9 @@ END SUBROUTINE fist_calc_energy_force
           dipole       = MATMUL(cell%hmat, ci)/twopi
           dipole_deriv = MATMUL(cell%hmat, dci)/twopi
        END IF
-       CALL fist_env_get(fist_env=fist_env,results=results,error=error)
-       CALL cp_results_erase(results,description,error=error)
-       CALL put_results(results,description,dipole,error=error)
+       CALL fist_env_get(fist_env=fist_env,results=results)
+       CALL cp_results_erase(results,description)
+       CALL put_results(results,description,dipole)
     ELSE
        dipole_type="[Non Periodic]"
        DO i = 1, SIZE(particle_set)
@@ -1094,9 +1081,9 @@ END SUBROUTINE fist_calc_energy_force
           dipole = dipole - q *(ria-rcc)
           dipole_deriv(:)= dipole_deriv(:)- q *(particle_set(i)%v(:)- drcc)
        END DO
-       CALL fist_env_get(fist_env=fist_env,results=results,error=error)
-       CALL cp_results_erase(results,description,error=error)
-       CALL put_results(results,description,dipole,error=error)
+       CALL fist_env_get(fist_env=fist_env,results=results)
+       CALL cp_results_erase(results,description)
+       CALL put_results(results,description,dipole)
     END IF
     IF(unit_nr>0)THEN
        WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole

@@ -139,14 +139,12 @@ CONTAINS
 !> \brief Retains an fb_atomic_halo object
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be NULL or UNDEFINED
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_retain(atomic_halo, error)
+  SUBROUTINE fb_atomic_halo_retain(atomic_halo)
     ! note INTENT(IN) is okay because the obj pointer contained in the
     ! obj type will not be changed
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
       routineP = moduleN//':'//routineN
@@ -154,8 +152,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
-    CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP,failure)
+    CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP)
     atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
   END SUBROUTINE fb_atomic_halo_retain
 
@@ -165,12 +163,10 @@ CONTAINS
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be UNDEFINED, and the subroutine does nothing
 !>                     if the content points to NULL
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_release(atomic_halo, error)
+  SUBROUTINE fb_atomic_halo_release(atomic_halo)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
       routineP = moduleN//':'//routineN
@@ -180,7 +176,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atomic_halo%obj)) THEN
-       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP)
        atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
        IF (atomic_halo%obj%ref_count == 0) THEN
           atomic_halo%obj%ref_count = 1
@@ -190,11 +186,11 @@ CONTAINS
              ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
              ! after the following DEALLOCATE
              DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
           atomic_halo%obj%ref_count = 0
           DEALLOCATE(atomic_halo%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
     ELSE
        NULLIFY(atomic_halo%obj)
@@ -259,12 +255,10 @@ CONTAINS
 !> \brief Creates and initialises an empty fb_atomic_halo object
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     be NULL and cannot be UNDEFINED
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_create(atomic_halo, error)
+  SUBROUTINE fb_atomic_halo_create(atomic_halo)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
       routineP = moduleN//':'//routineN
@@ -273,9 +267,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP,failure)
     ALLOCATE(atomic_halo%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     atomic_halo%obj%owner_atom = 0
     atomic_halo%obj%owner_id_in_halo = 0
     atomic_halo%obj%natoms = 0
@@ -293,12 +287,10 @@ CONTAINS
 !> \brief Initialises an fb_atomic_halo object, and makes it empty
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be NULL or UNDEFINED
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_init(atomic_halo, error)
+  SUBROUTINE fb_atomic_halo_init(atomic_halo)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
       routineP = moduleN//':'//routineN
@@ -307,11 +299,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP,failure)
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
        DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        NULLIFY(atomic_halo%obj%halo_atoms)
     END IF
     atomic_halo%obj%owner_atom = 0
@@ -337,7 +329,6 @@ CONTAINS
 !>                               atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
 !> \param cost [OPTIONAL]: if present, outputs atomic_halo%obj%cost
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_get(atomic_halo, &
@@ -347,15 +338,13 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
-                                cost, &
-                                error)
+                                cost)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(OUT), OPTIONAL           :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(OUT), OPTIONAL           :: sorted
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cost
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
       routineP = moduleN//':'//routineN
@@ -363,7 +352,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP,failure)
     IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
     IF (PRESENT(owner_id_in_halo)) owner_id_in_halo = atomic_halo%obj%owner_id_in_halo
     IF (PRESENT(natoms)) natoms = atomic_halo%obj%natoms
@@ -390,7 +379,6 @@ CONTAINS
 !>                               contents of halo_atoms to atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
 !> \param cost [OPTIONAL]: if present, sets atomic_halo%obj%cost = cost
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_set(atomic_halo, &
@@ -400,15 +388,13 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
-                                cost, &
-                                error)
+                                cost)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
     INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(IN), OPTIONAL            :: sorted
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cost
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
       routineP = moduleN//':'//routineN
@@ -417,7 +403,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP,failure)
     IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
     IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
     IF (PRESENT(natoms)) atomic_halo%obj%natoms = natoms
@@ -425,7 +411,7 @@ CONTAINS
     IF (PRESENT(halo_atoms)) THEN
        IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
           DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
        atomic_halo%obj%halo_atoms => halo_atoms
     END IF
@@ -439,12 +425,10 @@ CONTAINS
 !> \brief Sort the list of atomic indices in the halo in accending order.
 !>        The atomic_halo must not be empty
 !> \param atomic_halo  the atomic_halo object
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_sort(atomic_halo, error)
+  SUBROUTINE fb_atomic_halo_sort(atomic_halo)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
       routineP = moduleN//':'//routineN
@@ -454,12 +438,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(SIZE(atomic_halo%obj%halo_atoms) > 0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(SIZE(atomic_halo%obj%halo_atoms) > 0, cp_failure_level, routineP,failure)
     ALLOCATE(tmp_index(atomic_halo%obj%natoms), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     CALL sort(atomic_halo%obj%halo_atoms, atomic_halo%obj%natoms, tmp_index)
     DEALLOCATE(tmp_index, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     atomic_halo%obj%sorted = .TRUE.
   END SUBROUTINE fb_atomic_halo_sort
 
@@ -473,19 +457,16 @@ CONTAINS
 !> \param iatom_halo  the atomic index inside the halo
 !> \param found  returns true if given atom is in the halo, otherwise
 !>                false
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_atom_global2halo(atomic_halo, &
                                              iatom_global, &
                                              iatom_halo, &
-                                             found, &
-                                             error)
+                                             found)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(IN)                      :: iatom_global
     INTEGER, INTENT(OUT)                     :: iatom_halo
     LOGICAL, INTENT(OUT)                     :: found
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'fb_atomic_halo_atom_global2halo', &
@@ -497,7 +478,7 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
-    CPPrecondition(atomic_halo%obj%sorted, cp_failure_level, routineP, error, failure)
+    CPPrecondition(atomic_halo%obj%sorted, cp_failure_level, routineP,failure)
     iatom_halo = locate(atomic_halo%obj%halo_atoms, iatom_global)
     IF (iatom_halo == 0) THEN
        found = .FALSE.
@@ -560,21 +541,19 @@ CONTAINS
 !> \param qs_kind_set  : cp2k qs_kind objects, provides information on the
 !>                       number of contracted gaussian functions each kind
 !>                       has
-!> \param error ...
 !> \retval cost        : computation cost w.r.t. the filter matrix
 !>                       calculation for this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_atomic_halo_cost(atomic_halo, &
                                particle_set, &
-                               qs_kind_set,error) &
+                               qs_kind_set) &
     RESULT(cost)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       INTENT(IN)                             :: qs_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: cost
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
@@ -588,7 +567,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                             kind_number=ikind)
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
-                        ncgf=ncgf,error=error)
+                        ncgf=ncgf)
        cost = cost + REAL(ncgf, dp)
     END DO
     ! diagonalisation is N**3 process, so cost must reflect that
@@ -608,7 +587,6 @@ CONTAINS
 !>                       array of halo atoms corresponding to the owner atom
 !> \param nhalo_atoms  : outputs number of halo atoms
 !> \param owner_id_in_halo : the index of the owner atom in the halo_atoms list
-!> \param error        : CP2K error handler container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_build_halo_atoms(owner_atom, &
@@ -617,8 +595,7 @@ CONTAINS
                                              pair_radii, &
                                              halo_atoms, &
                                              nhalo_atoms, &
-                                             owner_id_in_halo, &
-                                             error)
+                                             owner_id_in_halo)
     INTEGER, INTENT(IN)                      :: owner_atom
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
@@ -627,7 +604,6 @@ CONTAINS
       INTENT(IN)                             :: pair_radii
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
     INTEGER, INTENT(OUT)                     :: nhalo_atoms, owner_id_in_halo
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'fb_atomic_halo_build_halo_atoms', &
@@ -642,7 +618,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = .NOT. ASSOCIATED(halo_atoms)
-    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
 
     NULLIFY(atomic_kind)
 
@@ -652,7 +628,7 @@ CONTAINS
                          kind_number=ikind)
     natoms_global = SIZE(particle_set)
     ALLOCATE(halo_atoms(natoms_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     owner_id_in_halo = 0
     nhalo_atoms = 0
     DO jatom = 1, natoms_global
@@ -684,13 +660,11 @@ CONTAINS
 !> \brief Retains an fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be NULL or UNDEFINED
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_retain(atomic_halos, error)
+  SUBROUTINE fb_atomic_halo_list_retain(atomic_halos)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
       routineP = moduleN//':'//routineN
@@ -698,8 +672,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
-    CPPreconditionNoFail(atomic_halos%obj%ref_count>0, cp_failure_level, routineP, error)
+    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP,failure)
+    CPPreconditionNoFail(atomic_halos%obj%ref_count>0, cp_failure_level, routineP)
     atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
   END SUBROUTINE fb_atomic_halo_list_retain
 
@@ -708,13 +682,11 @@ CONTAINS
 !> \brief Releases an fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be UNDEFINED, and does nothing if it is NULL
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_release(atomic_halos, error)
+  SUBROUTINE fb_atomic_halo_list_release(atomic_halos)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(INOUT)                          :: atomic_halos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release', &
       routineP = moduleN//':'//routineN
@@ -724,20 +696,20 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atomic_halos%obj)) THEN
-       CPPreconditionNoFail(atomic_halos%obj%ref_count>0, cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halos%obj%ref_count>0, cp_failure_level, routineP)
        atomic_halos%obj%ref_count = atomic_halos%obj%ref_count - 1
        IF (atomic_halos%obj%ref_count == 0) THEN
           atomic_halos%obj%ref_count = 1
           IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
              DO ii = 1, SIZE(atomic_halos%obj%halos)
-                CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii), error=error)
+                CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
              END DO
              DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
           END IF
           atomic_halos%obj%ref_count = 0
           DEALLOCATE(atomic_halos%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
     ELSE
        NULLIFY(atomic_halos%obj)
@@ -807,13 +779,11 @@ CONTAINS
 !> \brief Creates and initialises an empty fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be NULL or UNDEFINED
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_create(atomic_halos, error)
+  SUBROUTINE fb_atomic_halo_list_create(atomic_halos)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(INOUT)                          :: atomic_halos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
       routineP = moduleN//':'//routineN
@@ -822,9 +792,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP,failure)
     ALLOCATE(atomic_halos%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     atomic_halos%obj%nhalos = 0
     atomic_halos%obj%max_nhalos = 0
     NULLIFY(atomic_halos%obj%halos)
@@ -838,13 +808,11 @@ CONTAINS
 !> \brief Initialises an fb_atomic_halo_list object and make it empty
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be NULL or UNDEFINED
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_init(atomic_halos, error)
+  SUBROUTINE fb_atomic_halo_list_init(atomic_halos)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(INOUT)                          :: atomic_halos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init', &
       routineP = moduleN//':'//routineN
@@ -853,14 +821,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP,failure)
     ! if the arrays are associated, then deallocate and de-associate
     IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
        DO ii = 1, SIZE(atomic_halos%obj%halos)
-          CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii), error)
+          CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
        END DO
        DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        NULLIFY(atomic_halos%obj%halos)
     END IF
     atomic_halos%obj%nhalos = 0
@@ -877,16 +845,14 @@ CONTAINS
 !> \param nhalos [OPTIONAL]: if present, gives nhalos = atomic_halos%obj%nhalos
 !> \param max_nhalos [OPTIONAL]: if present, gives max_nhalos = atomic_halos%obj%max_nhalos
 !> \param halos [OPTIONAL]: if present, gives halos => atomic_halos%obj%halos
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos, error)
+  SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
     INTEGER, INTENT(OUT), OPTIONAL           :: nhalos, max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       OPTIONAL, POINTER                      :: halos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
       routineP = moduleN//':'//routineN
@@ -894,7 +860,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP,failure)
     IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
     IF (PRESENT(max_nhalos)) max_nhalos = atomic_halos%obj%max_nhalos
     IF (PRESENT(halos)) halos => atomic_halos%obj%halos
@@ -911,16 +877,14 @@ CONTAINS
 !> \param max_nhalos [OPTIONAL]: if present, sets atomic_halos%obj%max_nhalos = max_nhalos
 !> \param halos [OPTIONAL]: if present, reallocates atomic_halos%obj%halos
 !>                          to the size of halos
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, max_nhalos, halos, error)
+  SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, max_nhalos, halos)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(INOUT)                          :: atomic_halos
     INTEGER, INTENT(IN), OPTIONAL            :: nhalos, max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       OPTIONAL, POINTER                      :: halos
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set', &
       routineP = moduleN//':'//routineN
@@ -929,16 +893,16 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP,failure)
     IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
     IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
     IF (PRESENT(halos)) THEN
        IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
           DO ihalo = 1, SIZE(atomic_halos%obj%halos)
-             CALL fb_atomic_halo_release(atomic_halos%obj%halos(ihalo), error)
+             CALL fb_atomic_halo_release(atomic_halos%obj%halos(ihalo))
           END DO
           DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END IF
        atomic_halos%obj%halos => halos
     END IF
@@ -951,15 +915,13 @@ CONTAINS
 !> \param atomic_halos the fb_atomic_halo object
 !> \param para_env pointer to a para_env_type object containing MPI info
 !> \param fb_section pointer to the input section to filtered basis method
-!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_write(atomic_halos, para_env, fb_section, error)
+  SUBROUTINE fb_atomic_halo_list_write(atomic_halos, para_env, fb_section)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: fb_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write', &
       routineP = moduleN//':'//routineN
@@ -976,10 +938,10 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, fb_section, &
-                                         "PRINT%ATOMIC_HALOS", error=error), &
+                                         "PRINT%ATOMIC_HALOS"), &
               cp_p_file)) THEN
        print_unit = cp_print_key_unit_nr(logger=logger, &
                                          basis_section=fb_section, &
@@ -989,8 +951,7 @@ CONTAINS
                                          log_filename=.FALSE., &
                                          file_position="REWIND", &
                                          file_action="WRITE", &
-                                         is_new_file=new_file, &
-                                         error=error)
+                                         is_new_file=new_file)
        mype = para_env%mepos
        ! print headline
        string = ""
@@ -1005,14 +966,12 @@ CONTAINS
        ! print content
        CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                     nhalos=nhalos, &
-                                    halos=halos, &
-                                    error=error)
+                                    halos=halos)
        DO ihalo = 1, nhalos
           CALL fb_atomic_halo_get(halos(ihalo), &
                                   owner_atom=owner_atom, &
                                   natoms=nhalo_atoms, &
-                                  halo_atoms=halo_atoms, &
-                                  error=error)
+                                  halo_atoms=halo_atoms)
           WRITE (UNIT=print_unit, FMT="(2X,I6,A)", ADVANCE="no") &
                 owner_atom, " : "
           DO jatom = 1, nhalo_atoms
@@ -1023,7 +982,7 @@ CONTAINS
        END DO
        ! finish
        CALL cp_print_key_finished_output(print_unit, logger, fb_section, &
-                                         "PRINT%ATOMIC_HALOS", error=error)
+                                         "PRINT%ATOMIC_HALOS")
     END IF
   END SUBROUTINE fb_atomic_halo_list_write
 
@@ -1034,15 +993,13 @@ CONTAINS
 !> \param atomic_halos : the fb_atomic_halo object
 !> \param para_env     : pointer to a para_env_type object containing MPI info
 !> \param scf_section  : pointer to the scf input section
-!> \param error        : CP2K data container for error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_write_info(atomic_halos, para_env, scf_section, error)
+  SUBROUTINE fb_atomic_halo_list_write_info(atomic_halos, para_env, scf_section)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'fb_atomic_halo_list_write_info', &
@@ -1058,25 +1015,22 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger, halos)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     unit_nr = cp_print_key_unit_nr(logger, scf_section, &
                                    "PRINT%FILTER_MATRIX", &
-                                   extension="", &
-                                   error=error)
+                                   extension="")
 
     ! obtain data
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
          halos=halos, &
-         nhalos=nhalos, &
-         error=error)
+         nhalos=nhalos)
     max_natoms = 0
     min_natoms = HUGE(0)
     total_n_halo_atoms = 0
     total_n_halos = nhalos
     DO ihalo = 1, nhalos
        CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
-            natoms=nhalo_atoms, &
-            error=error)
+            natoms=nhalo_atoms)
        total_n_halo_atoms = total_n_halo_atoms + nhalo_atoms
        max_natoms = MAX(max_natoms, nhalo_atoms)
        min_natoms = MIN(min_natoms, nhalo_atoms)
@@ -1103,7 +1057,7 @@ CONTAINS
     END IF
     ! finish
     CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
-                                      "PRINT%FILTER_MATRIX", error=error)
+                                      "PRINT%FILTER_MATRIX")
   END SUBROUTINE fb_atomic_halo_list_write_info
 
 

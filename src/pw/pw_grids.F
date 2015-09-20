@@ -107,17 +107,15 @@ CONTAINS
 !> \param pw_grid ...
 !> \param pe_group ...
 !> \param local ...
-!> \param error ...
 !> \par History
 !>      JGH (21-Feb-2003) : initialize pw_grid%reference
 !> \author JGH (7-Feb-2001) & fawzi
 ! *****************************************************************************
-  SUBROUTINE pw_grid_create ( pw_grid, pe_group, local, error )
+  SUBROUTINE pw_grid_create ( pw_grid, pe_group, local)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in)                      :: pe_group
     LOGICAL, INTENT(IN), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create', &
       routineP = moduleN//':'//routineN
@@ -128,9 +126,9 @@ CONTAINS
     failure =.FALSE.
     my_local=.FALSE.
     IF (PRESENT(local)) my_local = local
-    CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
     ALLOCATE(pw_grid,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
     pw_grid % bounds = 0
     pw_grid % cutoff = 0.0_dp
     pw_grid % grid_span = FULLSPACE
@@ -217,13 +215,12 @@ CONTAINS
 !> \param orthorhombic ...
 !> \param gvectors ...
 !> \param gsquare ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (17-Nov-2007)
 ! *****************************************************************************
   SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, vol, dvol,  npts, ngpts,&
-       ngpts_cut,dr, cutoff, orthorhombic, gvectors,gsquare,error)
+       ngpts_cut,dr, cutoff, orthorhombic, gvectors,gsquare)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, mode
@@ -239,7 +236,6 @@ CONTAINS
       POINTER                                :: gvectors
     REAL(dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: gsquare
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pw_grid_info', &
       routineP = moduleN//':'//routineN
@@ -247,7 +243,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
     IF ( PRESENT(mode) ) mode = pw_grid%para%mode
@@ -272,13 +268,11 @@ CONTAINS
 !> \param bounds ...
 !> \param cutoff ...
 !> \param spherical ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (19-Nov-2007)
 ! *****************************************************************************
-  SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical,&
-       error)
+  SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: grid_span
@@ -288,7 +282,6 @@ CONTAINS
       OPTIONAL                               :: bounds
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: spherical
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_pw_grid_info', &
       routineP = moduleN//':'//routineN
@@ -296,7 +289,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( PRESENT(grid_span) ) THEN
        pw_grid%grid_span = grid_span
@@ -304,13 +297,13 @@ CONTAINS
     IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
        pw_grid%bounds = bounds
        pw_grid%npts = npts
-       CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,failure)
     ELSE IF ( PRESENT(bounds) ) THEN
        pw_grid%bounds = bounds
        pw_grid%npts = bounds(2,:)-bounds(1,:)+1
     ELSE IF ( PRESENT(npts) ) THEN
        pw_grid%npts = npts
-       pw_grid%bounds = pw_grid_bounds_from_n(npts,error)
+       pw_grid%bounds = pw_grid_bounds_from_n(npts)
     END IF
     IF ( PRESENT(cutoff) ) THEN
        pw_grid%cutoff = cutoff
@@ -341,15 +334,13 @@ CONTAINS
 !> \param ref_grid ...
 !> \param rs_dims ...
 !> \param iounit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author JGH (21-Dec-2007)
 !> \note
 !>      this is the function that should be used in the future
 ! *****************************************************************************
   SUBROUTINE pw_grid_setup (cell_hmat, pw_grid, grid_span, cutoff, bounds, bounds_local, npts, &
        spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid,&
-       rs_dims, iounit, error )
+       rs_dims, iounit)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: cell_hmat
@@ -367,7 +358,6 @@ CONTAINS
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(in), OPTIONAL            :: iounit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup', &
       routineP = moduleN//':'//routineN
@@ -392,7 +382,7 @@ CONTAINS
 
 
     IF ( PRESENT(grid_span) ) THEN
-       CALL set_pw_grid_info ( pw_grid, grid_span=grid_span, error=error)
+       CALL set_pw_grid_info ( pw_grid, grid_span=grid_span)
     END IF
 
     IF ( PRESENT(spherical) ) THEN
@@ -428,47 +418,47 @@ CONTAINS
     IF ( PRESENT(bounds) ) THEN
        IF ( PRESENT(cutoff) ) THEN
           CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=cutoff, &
-               spherical=my_spherical, error=error)
+               spherical=my_spherical)
        ELSE
           n = bounds(2,:) - bounds(1,:) + 1
-          my_cutoff = pw_find_cutoff ( n, cell_h_inv, error=error)
+          my_cutoff = pw_find_cutoff ( n, cell_h_inv)
           my_cutoff = 0.5_dp * my_cutoff * my_cutoff
           CALL set_pw_grid_info ( pw_grid, bounds=bounds, cutoff=my_cutoff, &
-               spherical=my_spherical, error=error)
+               spherical=my_spherical)
        END IF
     ELSE IF ( PRESENT(npts) ) THEN
        n = npts
        IF ( PRESENT(cutoff) ) THEN
           my_cutoff=cutoff
        ELSE
-          my_cutoff = pw_find_cutoff ( npts, cell_h_inv, error=error)
+          my_cutoff = pw_find_cutoff ( npts, cell_h_inv)
           my_cutoff = 0.5_dp * my_cutoff * my_cutoff
        END IF
        IF ( my_fft_usage ) THEN
           n  = pw_grid_init_setup(cell_hmat, cutoff=my_cutoff,&
                spherical=my_spherical, odd=my_odd, fft_usage=my_fft_usage,&
                ncommensurate=my_ncommensurate, icommensurate=my_icommensurate,&
-               ref_grid=ref_grid, n_orig=n, error=error)
+               ref_grid=ref_grid, n_orig=n)
        END IF
        CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=my_cutoff, &
-            spherical=my_spherical, error=error)
+            spherical=my_spherical)
     ELSE IF ( PRESENT(cutoff) ) THEN
        n = pw_grid_init_setup(cell_hmat,cutoff=cutoff,&
             spherical=my_spherical,odd=my_odd,fft_usage=my_fft_usage,&
             ncommensurate=my_ncommensurate,icommensurate=my_icommensurate,&
-            ref_grid=ref_grid,error=error)
+            ref_grid=ref_grid)
        CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=cutoff, &
-            spherical=my_spherical, error=error)
+            spherical=my_spherical)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "BOUNDS, NPTS or CUTOFF have to be specified")
     END IF
 
     CALL pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local=bounds_local, &
-                                 blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit, error=error )
+                                 blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit)
 
 #if defined ( __PW_CUDA )
-    CALL pw_grid_create_ghatmap ( pw_grid, error )
+    CALL pw_grid_create_ghatmap ( pw_grid)
 #endif
 
     CALL timestop(handle)
@@ -478,14 +468,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief sets up a combined index for CUDA gather and scatter
 !> \param pw_grid ...
-!> \param error ...
 !> \author Gloess Andreas (xx-Dec-2012)
 ! *****************************************************************************
-  SUBROUTINE pw_grid_create_ghatmap ( pw_grid, error )
+  SUBROUTINE pw_grid_create_ghatmap ( pw_grid)
 
     TYPE(pw_grid_type), INTENT(INOUT), &
       POINTER                                :: pw_grid
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap', &
       routineP = moduleN//':'//routineN
@@ -501,8 +489,8 @@ CONTAINS
 
     ! some checks
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pw_grid), cp_failure_level, routineP, error, failure)
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP, error,failure)
+    CPPrecondition(ASSOCIATED(pw_grid), cp_failure_level, routineP,failure)
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
 
     ! mapping of map_x( g_hat(i,j)) to g_hatmap
     ! the second index is for switching from gather(1) to scatter(2)
@@ -579,8 +567,6 @@ CONTAINS
 !> \param ref_grid ...
 !> \param rs_dims ...
 !> \param iounit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      JGH (20-Dec-2000) : Adapted for parallel use
 !>      JGH (28-Feb-2001) : New optional argument fft_usage
@@ -596,7 +582,7 @@ CONTAINS
 !>      this is the function that should be used in the future
 ! *****************************************************************************
   SUBROUTINE pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local, &
-                                     blocked, ref_grid, rs_dims, iounit, error )
+                                     blocked, ref_grid, rs_dims, iounit)
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: cell_hmat, cell_h_inv
     REAL(KIND=dp), INTENT(IN)                :: cell_deth
@@ -608,7 +594,6 @@ CONTAINS
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     INTEGER, INTENT(in), OPTIONAL            :: iounit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal', &
       routineP = moduleN//':'//routineN
@@ -623,8 +608,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
+    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
 
 
     ! set pointer to possible reference grid
@@ -645,38 +630,38 @@ CONTAINS
     ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
     ! these are not mapped indices !
     ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
-    CPPrecondition(allocstat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat==0,cp_failure_level,routineP,failure)
     CALL pw_grid_count ( cell_h_inv, pw_grid, ecut, yz_mask )
 
     ! Check if reference grid is compatible
     IF ( PRESENT ( ref_grid ) ) THEN
-       CPPrecondition(pw_grid % para % mode == ref_grid % para % mode,cp_failure_level,routineP,error,failure)
+       CPPrecondition(pw_grid % para % mode == ref_grid % para % mode,cp_failure_level,routineP,failure)
        IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
           CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
-          CPPrecondition(ires <= 3,cp_failure_level,routineP,error,failure) !FM make it >3 ?
+          CPPrecondition(ires <= 3,cp_failure_level,routineP,failure) !FM make it >3 ?
        END IF
-       CPPrecondition(pw_grid % grid_span == ref_grid % grid_span,cp_failure_level,routineP,error,failure)
-       CPPrecondition(pw_grid % spherical .EQV. ref_grid % spherical,cp_failure_level,routineP,error,failure)
+       CPPrecondition(pw_grid % grid_span == ref_grid % grid_span,cp_failure_level,routineP,failure)
+       CPPrecondition(pw_grid % spherical .EQV. ref_grid % spherical,cp_failure_level,routineP,failure)
     END IF
 
     ! Distribute grid
     CALL pw_grid_distribute ( pw_grid, yz_mask, bounds_local=bounds_local, ref_grid=ref_grid, blocked=blocked, &
-         rs_dims=rs_dims ,error=error)
+         rs_dims=rs_dims)
 
     ! Allocate the grid fields
     CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
-         pw_grid % bounds, error )
+         pw_grid % bounds)
 
     ! Fill in the grid structure
-    CALL pw_grid_assign ( cell_h_inv, pw_grid, ecut, error )
+    CALL pw_grid_assign ( cell_h_inv, pw_grid, ecut)
 
     ! Sort g vector wrt length (only local for each processor)
-    CALL pw_grid_sort ( pw_grid, ref_grid, error )
+    CALL pw_grid_sort ( pw_grid, ref_grid)
 
-    CALL pw_grid_remap ( pw_grid, yz_mask, error )
+    CALL pw_grid_remap ( pw_grid, yz_mask)
 
     DEALLOCATE ( yz_mask , STAT=allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     CALL cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
     !
@@ -684,7 +669,7 @@ CONTAINS
     !
 
     IF(PRESENT(iounit)) THEN
-       CALL pw_grid_print ( pw_grid, iounit, error )
+       CALL pw_grid_print ( pw_grid, iounit)
     END IF
 
     CALL timestop(handle)
@@ -735,14 +720,12 @@ CONTAINS
 !> \brief Output of information on pw_grid
 !> \param pw_grid ...
 !> \param info ...
-!> \param error ...
 !> \author JGH[18-05-2007] from earlier versions
 ! *****************************************************************************
-  SUBROUTINE pw_grid_print ( pw_grid, info, error )
+  SUBROUTINE pw_grid_print ( pw_grid, info)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(IN)                      :: info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_print', &
       routineP = moduleN//':'//routineN
@@ -855,14 +838,13 @@ CONTAINS
 !> \param ref_grid ...
 !> \param blocked ...
 !> \param rs_dims ...
-!> \param error ...
 !> \par History
 !>      JGH (01-Mar-2001) optional reference grid
 !>      JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
 !>      JGH (09-Sep-2003) reduce scaling for distribution
 !> \author JGH (22-12-2000)
 ! *****************************************************************************
-  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, bounds_local, ref_grid, blocked, rs_dims, error)
+  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, bounds_local, ref_grid, blocked, rs_dims)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
@@ -872,7 +854,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: blocked
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute', &
       routineP = moduleN//':'//routineN
@@ -894,7 +875,7 @@ CONTAINS
     lbz = pw_grid % bounds ( 1, 3 )
 
     pw_grid % ngpts = PRODUCT ( INT(pw_grid % npts,KIND=int_8) )
-    CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,failure)
     IF (PRESENT(rs_dims)) THEN
        pw_grid%para%rs_dims=rs_dims
     END IF
@@ -915,9 +896,9 @@ CONTAINS
 
        pw_grid % bounds_local = pw_grid % bounds
        pw_grid % npts_local = pw_grid % npts
-CPPrecondition(pw_grid%ngpts_cut<HUGE(pw_grid%ngpts_cut_local),cp_failure_level,routineP,error,failure)
+CPPrecondition(pw_grid%ngpts_cut<HUGE(pw_grid%ngpts_cut_local),cp_failure_level,routineP,failure)
        pw_grid % ngpts_cut_local = INT(pw_grid % ngpts_cut)
-CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP,error,failure)
+CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP,failure)
        pw_grid % ngpts_local = INT(pw_grid % ngpts)
        pw_grid % para % rs_dims=1
        CALL mp_cart_create ( MPI_COMM_SELF, 2, &
@@ -929,7 +910,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
             pw_grid % para % rs_mpo )
        pw_grid%para%group_size = 1
        ALLOCATE (pw_grid%para%bo(2,3,0:0,3),STAT=ierr)
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
        DO i=1,3
           pw_grid%para%bo(1,1:3,0,i) = 1
           pw_grid%para%bo(2,1:3,0,i) = pw_grid%npts(1:3)
@@ -1005,7 +986,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
             blocking=.TRUE.
          ENDIF
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
 
        !..create group for real space distribution
@@ -1034,7 +1015,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 
        !..the third distribution is needed for the second step in the FFT
        ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
        rsd = pw_grid % para % rs_dims
 
        IF (PRESENT(bounds_local)) THEN
@@ -1087,10 +1068,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        pw_grid % ngpts_cut_local = 0
 
        ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ), STAT = ierr )
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
 
        ALLOCATE ( pw_grid % para % yzq ( ny, nz ), STAT = ierr )
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
 
        IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
             .OR. .NOT. blocking ) THEN
@@ -1110,8 +1091,8 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           i1 = SIZE ( yz_mask, 1 )
           i2 = SIZE ( yz_mask, 2 )
           ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-          CALL order_mask ( yz_mask, yz_index, error )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CALL order_mask ( yz_mask, yz_index)
           DO i = 1, i1*i2
              lo(1) = yz_index(1,i)
              lo(2) = yz_index(2,i)
@@ -1134,7 +1115,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           END DO
 
           DEALLOCATE ( yz_index, STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
 
           ! Count the total number of rays on each processor
           pw_grid % para % nyzray = 0
@@ -1149,7 +1130,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           ! Allocate mapping array (y:z, nray, nproc)
           ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
           ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
 
           ! Fill mapping array, recalculate nyzray for convenience
           pw_grid % para % nyzray = 0
@@ -1217,11 +1198,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           ! Allocate mapping array (y:z, nray, nproc)
           ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
           ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
           pw_grid % para % yzp = 0
 
           ALLOCATE ( pemap(0:np-1), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
           pemap = 0
           pemap(pw_grid % para % my_pos) = pw_grid % para % rs_mpo
           CALL mp_sum(pemap,pw_grid % para % group)
@@ -1240,11 +1221,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
                    pw_grid % para % yzp ( 2, ns, ip ) = i
                 END DO
              END DO
-             CPPrecondition(ns == pw_grid%para%nyzray(ip),cp_failure_level,routineP,error,failure)
+             CPPrecondition(ns == pw_grid%para%nyzray(ip),cp_failure_level,routineP,failure)
           END DO
 
           DEALLOCATE ( pemap, STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
 
        END IF
 
@@ -1341,13 +1322,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \brief ...
 !> \param yz_mask ...
 !> \param yz_index ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE order_mask ( yz_mask, yz_index, error )
+  SUBROUTINE order_mask ( yz_mask, yz_index)
 
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: yz_mask
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'order_mask', &
       routineP = moduleN//':'//routineN
@@ -1556,18 +1535,16 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \param h_inv ...
 !> \param pw_grid ...
 !> \param cutoff ...
-!> \param error ...
 !> \par History
 !>      JGH (29-12-2000) : Adapted for parallel use
 !> \author apsi
 !>      Christopher Mundy
 ! *****************************************************************************
-  SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff, error )
+  SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff)
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
     TYPE(pw_grid_type), POINTER              :: pw_grid
     REAL(KIND=dp), INTENT(IN)                :: cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_assign', &
       routineP = moduleN//':'//routineN
@@ -1702,11 +1679,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     END IF
 
     ! Check the number of g-vectors for grid
-    CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,failure)
     IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
        gpt_global = gpt
        CALL mp_sum ( gpt_global, pw_grid % para % group )
-       CPPrecondition(pw_grid % ngpts_cut == gpt_global,cp_failure_level,routineP,error,failure)
+       CPPrecondition(pw_grid % ngpts_cut == gpt_global,cp_failure_level,routineP,failure)
     ENDIF
 
     pw_grid % have_g0 = .FALSE.
@@ -1803,7 +1780,6 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \param pw_grid ...
 !> \param ng ...
 !> \param bounds ...
-!> \param error ...
 !> \par History
 !>      JGH (20-12-2000) : Added status variable
 !>                         Bounds of arrays now from calling routine, this
@@ -1811,13 +1787,12 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \author apsi
 !>      Christopher Mundy
 ! *****************************************************************************
-  SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
+  SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds)
 
     ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     INTEGER, INTENT(IN)                      :: ng
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate', &
       routineP = moduleN//':'//routineN
@@ -1837,11 +1812,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     failure = .FALSE.
 
     ALLOCATE ( pw_grid % g ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     ALLOCATE ( pw_grid % gsq ( ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     nmaps = 1
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
@@ -1854,35 +1829,35 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 #else
     ALLOCATE(pw_grid%g_hatmap(1, 1), STAT = allocstat)
 #endif
-    CPPrecondition(allocstat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(allocstat==0, cp_failure_level, routineP,failure)
 
     IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
       ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
                  pw_grid%para%nyzray(pw_grid%para%my_pos) ), &
                  STAT = allocstat )
-      CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     END IF
 
     ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -1892,7 +1867,6 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \brief Sort g-vectors according to length
 !> \param pw_grid ...
 !> \param ref_grid ...
-!> \param error ...
 !> \par History
 !>      JGH (20-12-2000) : allocate idx, ng = SIZE ( pw_grid % gsq ) the
 !>                         sorting is local and independent from parallelisation
@@ -1908,12 +1882,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \author apsi
 !>      Christopher Mundy
 ! *****************************************************************************
-  SUBROUTINE pw_grid_sort ( pw_grid, ref_grid, error )
+  SUBROUTINE pw_grid_sort ( pw_grid, ref_grid)
 
     ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_sort', &
       routineP = moduleN//':'//routineN
@@ -1933,15 +1906,15 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 
     ng = SIZE ( pw_grid % gsq  )
     ALLOCATE ( idx ( ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     ! grids are (locally) ordered by length of G-vectors
     CALL sort ( pw_grid % gsq, ng, idx )
     ! within shells order wrt x,y,z
-    CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx, error )
+    CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx)
 
     ALLOCATE ( real_tmp ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     DO i=1,ng
        real_tmp(1,i)= pw_grid % g (1,idx (i))
        real_tmp(2,i)= pw_grid % g (2,idx (i))
@@ -1953,10 +1926,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        pw_grid % g (3,i)=real_tmp(3,i)
     ENDDO
     DEALLOCATE ( real_tmp, STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     ALLOCATE ( int_tmp ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
     DO i=1,ng
        int_tmp(1,i)= pw_grid % g_hat (1,idx (i))
        int_tmp(2,i)= pw_grid % g_hat (2,idx (i))
@@ -1968,10 +1941,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        pw_grid % g_hat (3,i)=int_tmp(3,i)
     ENDDO
     DEALLOCATE ( int_tmp, STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     DEALLOCATE ( idx, STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
 
     ! check if ordering is compatible to reference grid
     IF ( PRESENT ( ref_grid ) ) THEN
@@ -1985,7 +1958,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           END IF
        ELSE
           ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
-          CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
           pw_grid%gidx = 0
           ! first try as many trivial associations as possible
           it = 0
@@ -2101,15 +2074,13 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \param gsq ...
 !> \param g_hat ...
 !> \param idx ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE sort_shells ( gsq, g_hat, idx, error )
+  SUBROUTINE sort_shells ( gsq, g_hat, idx)
 
     ! Argument
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gsq
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sort_shells', &
       routineP = moduleN//':'//routineN
@@ -2135,13 +2106,13 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        IF ( ABS ( gsq ( ig ) - s_begin ) < small ) THEN
           s2 = ig
        ELSE
-          CALL redist ( g_hat, idx, s1, s2, error)
+          CALL redist ( g_hat, idx, s1, s2)
           s_begin = gsq ( ig )
           s1 = ig
           s2 = ig
        END IF
     END DO
-    CALL redist ( g_hat, idx, s1, s2, error )
+    CALL redist ( g_hat, idx, s1, s2)
 
     CALL timestop(handle)
 
@@ -2153,15 +2124,13 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \param idx ...
 !> \param s1 ...
 !> \param s2 ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE redist ( g_hat, idx, s1, s2, error )
+  SUBROUTINE redist ( g_hat, idx, s1, s2)
 
     ! Argument
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
     INTEGER, INTENT(IN)                      :: s1, s2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'redist', &
       routineP = moduleN//':'//routineN
@@ -2176,9 +2145,9 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     IF ( s2 <= s1 ) RETURN
     ns = s2 - s1 + 1
     ALLOCATE ( indl ( ns ), STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
     ALLOCATE ( slen ( ns ), STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
 
     DO i = s1, s2
        ii = idx ( i )
@@ -2196,9 +2165,9 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     idx ( s1:s2 ) = indl ( 1:ns )
 
     DEALLOCATE ( indl, STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
     DEALLOCATE ( slen, STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE redist
 
@@ -2206,17 +2175,15 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !> \brief Reorder yzq and yzp arrays for parallel FFT according to FFT mapping
 !> \param pw_grid ...
 !> \param yz ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (17-Jan-2001)
 ! *****************************************************************************
-  SUBROUTINE pw_grid_remap ( pw_grid, yz, error )
+  SUBROUTINE pw_grid_remap ( pw_grid, yz)
 
     ! Argument
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_remap', &
       routineP = moduleN//':'//routineN
@@ -2270,7 +2237,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        END DO
     END DO
 
-    CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,error,failure)
+    CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,failure)
     CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
 
     CALL timestop(handle)
@@ -2337,17 +2304,14 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 ! *****************************************************************************
 !> \brief retains the given pw grid
 !> \param pw_grid the pw grid to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE pw_grid_retain(pw_grid, error)
+  SUBROUTINE pw_grid_retain(pw_grid)
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_retain', &
       routineP = moduleN//':'//routineN
@@ -2356,26 +2320,23 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP)
     pw_grid%ref_count=pw_grid%ref_count+1
   END SUBROUTINE pw_grid_retain
 
 ! *****************************************************************************
 !> \brief releases the given pw grid
 !> \param pw_grid the pw grid to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE pw_grid_release(pw_grid, error)
+  SUBROUTINE pw_grid_release(pw_grid)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
       routineP = moduleN//':'//routineN
@@ -2390,24 +2351,24 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     failure=.FALSE.
 
     IF (ASSOCIATED(pw_grid)) THEN
-       CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP)
        pw_grid%ref_count=pw_grid%ref_count-1
        IF (pw_grid%ref_count==0) THEN
           IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
              DEALLOCATE ( pw_grid % gidx, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % g ) ) THEN
              DEALLOCATE ( pw_grid % g, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
              DEALLOCATE ( pw_grid % gsq, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
              DEALLOCATE ( pw_grid % g_hat, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hatmap ) ) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2416,52 +2377,52 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 #else
              DEALLOCATE ( pw_grid % g_hatmap, STAT = stat )
 #endif
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % grays ) ) THEN
              DEALLOCATE ( pw_grid % grays, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
              DEALLOCATE ( pw_grid % mapl % pos, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
              DEALLOCATE ( pw_grid % mapm % pos, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
              DEALLOCATE ( pw_grid % mapn % pos, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
              DEALLOCATE ( pw_grid % mapl % neg, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
              DEALLOCATE ( pw_grid % mapm % neg, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
              DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
              DEALLOCATE ( pw_grid % para % bo, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
              IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
                 DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
                 DEALLOCATE ( pw_grid % para % yzq, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
              IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
                 DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END IF
           ! also release groups
@@ -2470,12 +2431,12 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
                CALL mp_comm_free ( pw_grid % para % rs_group )
           IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
              DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
 
           IF(ASSOCIATED(pw_grid)) THEN
              DEALLOCATE(pw_grid, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
        END IF
     END IF

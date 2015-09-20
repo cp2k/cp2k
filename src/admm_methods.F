@@ -100,11 +100,9 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE admm_mo_calc_rho_aux(qs_env, error)
+  SUBROUTINE admm_mo_calc_rho_aux(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'admm_mo_calc_rho_aux', &
       routineP = moduleN//':'//routineN
@@ -143,27 +141,25 @@ MODULE admm_methods
                     para_env=para_env,&
                     s_mstruct_changed=s_mstruct_changed,&
                     rho=rho,&
-                    rho_aux_fit=rho_aux_fit,&
-                    error=error)
+                    rho_aux_fit=rho_aux_fit)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
     CALL qs_rho_get(rho_aux_fit,&
                     rho_ao=rho_ao_aux,&
                     rho_g=rho_g_aux,&
                     rho_r=rho_r_aux,&
-                    tot_rho_r=tot_rho_r_aux,&
-                    error=error)
+                    tot_rho_r=tot_rho_r_aux)
 
     ! convert mos from full to dbcsr matrices
     DO ispin=1, dft_control%nspins
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN
-          CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)
+          CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff)
        ENDIF
     ENDDO
 
     ! fit mo coeffcients
     CALL admm_fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
-                            mos, mos_aux_fit, s_mstruct_changed, error=error)
+                            mos, mos_aux_fit, s_mstruct_changed)
 
     DO ispin=1,dft_control%nspins
        IF(admm_env%block_dm) THEN
@@ -171,8 +167,7 @@ MODULE admm_methods
                                        density_matrix=rho_ao(ispin)%matrix,&
                                        density_matrix_aux=rho_ao_aux(ispin)%matrix,&
                                        ispin=ispin,&
-                                       nspins=dft_control%nspins,&
-                                       error=error)
+                                       nspins=dft_control%nspins)
     
        ELSE
 
@@ -183,8 +178,7 @@ MODULE admm_methods
                                        density_matrix=rho_ao_aux(ispin)%matrix,&
                                        overlap_matrix_large=matrix_s(1)%matrix,&
                                        density_matrix_large=rho_ao(ispin)%matrix,&
-                                       ispin=ispin,&
-                                       error=error)
+                                       ispin=ispin)
 
 
        ENDIF
@@ -195,8 +189,7 @@ MODULE admm_methods
                                mo_set=mos_aux_fit(ispin)%mo_set,&
                                density_matrix=rho_ao_aux(ispin)%matrix,&
                                ispin=ispin,&
-                               blocked=admm_env%block_dm,&
-                               error=error)
+                               blocked=admm_env%block_dm)
 
        CALL calculate_rho_elec(ks_env=ks_env,&
                                matrix_p=rho_ao_aux(ispin)%matrix,&
@@ -204,8 +197,7 @@ MODULE admm_methods
                                rho_gspace=rho_g_aux(ispin),&
                                total_rho=tot_rho_r_aux(ispin),&
                                soft_valid=.FALSE.,&
-                               basis_type="AUX_FIT",&
-                               error=error)
+                               basis_type="AUX_FIT")
     END DO
 
     IF(dft_control%nspins==1 ) THEN
@@ -214,7 +206,7 @@ MODULE admm_methods
       admm_env%gsi(3) = (admm_env%gsi(1)+admm_env%gsi(2))/2.0_dp
     END IF
  
-    CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
+    CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
     CALL timestop(handle)
 
@@ -223,11 +215,9 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE admm_mo_merge_ks_matrix(qs_env, error)
+  SUBROUTINE admm_mo_merge_ks_matrix(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_ks_matrix', &
       routineP = moduleN//':'//routineN
@@ -238,17 +228,17 @@ MODULE admm_methods
     CALL timeset(routineN,handle)
     NULLIFY(admm_env)
 
-    CALL get_qs_env(qs_env, admm_env=admm_env, error=error)
+    CALL get_qs_env(qs_env, admm_env=admm_env)
 
     SELECT CASE(admm_env%purification_method)
       CASE(do_admm_purify_cauchy)
-        CALL merge_ks_matrix_cauchy(qs_env, error)
+        CALL merge_ks_matrix_cauchy(qs_env)
 
       CASE(do_admm_purify_cauchy_subspace)
-        CALL merge_ks_matrix_cauchy_subspace(qs_env, error)
+        CALL merge_ks_matrix_cauchy_subspace(qs_env)
 
       CASE(do_admm_purify_none)
-         CALL merge_ks_matrix_none(qs_env, error)
+         CALL merge_ks_matrix_none(qs_env)
 
       CASE(do_admm_purify_mo_diag, do_admm_purify_mo_no_diag)
          !do nothing
@@ -270,10 +260,9 @@ MODULE admm_methods
 !> \param mo_derivs ...
 !> \param mo_derivs_aux_fit ...
 !> \param matrix_ks_aux_fit ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE admm_mo_merge_derivs(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                                  mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+                                  mo_derivs_aux_fit, matrix_ks_aux_fit)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -282,7 +271,6 @@ MODULE admm_methods
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_derivs', &
       routineP = moduleN//':'//routineN
@@ -294,10 +282,10 @@ MODULE admm_methods
     SELECT CASE(admm_env%purification_method)
       CASE(do_admm_purify_mo_diag)
         CALL merge_mo_derivs_diag(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit,&
-                                  mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+                                  mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit)
 
       CASE(do_admm_purify_mo_no_diag)
-        CALL merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit, error)
+        CALL merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit)
 
       CASE(do_admm_purify_none, do_admm_purify_cauchy,do_admm_purify_cauchy_subspace)
           !do nothing
@@ -318,10 +306,9 @@ MODULE admm_methods
 !> \param mos ...
 !> \param mos_aux_fit ...
 !> \param geometry_did_change ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE admm_fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                mos, mos_aux_fit, geometry_did_change, error)
+                                mos, mos_aux_fit, geometry_did_change)
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -330,7 +317,6 @@ MODULE admm_methods
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     LOGICAL, INTENT(IN)                      :: geometry_did_change
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_fit_mo_coeffs', &
       routineP = moduleN//':'//routineN
@@ -341,17 +327,17 @@ MODULE admm_methods
 
     CALL fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
                                  mos, geometry_did_change,&
-                                 blocked=admm_env%block_fit, error=error)
+                                 blocked=admm_env%block_fit)
 
     SELECT CASE(admm_env%purification_method)
        CASE(do_admm_purify_mo_no_diag, do_admm_purify_cauchy_subspace)
-         CALL purify_mo_cholesky(admm_env, mos, mos_aux_fit, error)
+         CALL purify_mo_cholesky(admm_env, mos, mos_aux_fit)
 
        CASE(do_admm_purify_mo_diag)
-         CALL purify_mo_diag(admm_env, mos, mos_aux_fit, error)
+         CALL purify_mo_diag(admm_env, mos, mos_aux_fit)
 
        CASE DEFAULT
-         CALL purify_mo_none(admm_env, mos, mos_aux_fit, error)
+         CALL purify_mo_none(admm_env, mos, mos_aux_fit)
     END SELECT
 
     CALL timestop(handle)
@@ -367,10 +353,9 @@ MODULE admm_methods
 !> \param mos ...
 !> \param geometry_did_change ...
 !> \param blocked ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                   mos,  geometry_did_change, blocked, error)
+                                   mos,  geometry_did_change, blocked)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
@@ -378,7 +363,6 @@ MODULE admm_methods
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     LOGICAL, INTENT(IN)                      :: geometry_did_change, blocked
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_mo_coeffs', &
       routineP = moduleN//':'//routineN
@@ -400,20 +384,19 @@ MODULE admm_methods
 
     IF( geometry_did_change ) THEN
       IF(.NOT. blocked) THEN
-         CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%S_inv,error)
+         CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%S_inv)
       ELSE
          NULLIFY(matrix_s_tilde)
          ALLOCATE(matrix_s_tilde)
-         CALL cp_dbcsr_init (matrix_s_tilde, error)
+         CALL cp_dbcsr_init (matrix_s_tilde)
          CALL cp_dbcsr_create(matrix_s_tilde, 'MATRIX s_tilde', &
               cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_symmetric, &
               cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
               cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
               cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
-              cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
-              error=error)
+              cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
 
-         CALL cp_dbcsr_copy(matrix_s_tilde, matrix_s_aux_fit(1)%matrix, error=error)
+         CALL cp_dbcsr_copy(matrix_s_tilde, matrix_s_aux_fit(1)%matrix)
 
          CALL cp_dbcsr_iterator_start(iter, matrix_s_tilde)
          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
@@ -423,34 +406,34 @@ MODULE admm_methods
            END IF
          END DO
          CALL cp_dbcsr_iterator_stop(iter)
-         CALL copy_dbcsr_to_fm(matrix_s_tilde,admm_env%S_inv,error)
-         CALL cp_dbcsr_deallocate_matrix(matrix_s_tilde,error)
+         CALL copy_dbcsr_to_fm(matrix_s_tilde,admm_env%S_inv)
+         CALL cp_dbcsr_deallocate_matrix(matrix_s_tilde)
       ENDIF
 
-      CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
-      CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S, error=error)
+      CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux)
+      CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S)
 
-      CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,admm_env%Q,error)
+      CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,admm_env%Q)
 
       !! Calculate S'_inverse
-      CALL cp_fm_cholesky_decompose(admm_env%S_inv,error=error)
-      CALL cp_fm_cholesky_invert(admm_env%S_inv,error=error)
+      CALL cp_fm_cholesky_decompose(admm_env%S_inv)
+      CALL cp_fm_cholesky_invert(admm_env%S_inv)
       !! Symmetrize the guy
-      CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
+      CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux)
 
       !! Calculate A=S'^(-1)*Q
       IF(blocked) THEN
-        CALL cp_fm_set_all(admm_env%A, 0.0_dp, 1.0_dp, error)
+        CALL cp_fm_set_all(admm_env%A, 0.0_dp, 1.0_dp)
       ELSE
         CALL cp_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
                       1.0_dp,admm_env%S_inv,admm_env%Q,0.0_dp,&
-                      admm_env%A,error)
+                      admm_env%A)
 
          ! this multiplication is apparent not need for purify_none
          !! B=Q^(T)*A
          CALL cp_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
                          1.0_dp,admm_env%Q,admm_env%A,0.0_dp,&
-                         admm_env%B,error)
+                         admm_env%B)
       ENDIF
     END IF
 
@@ -466,17 +449,15 @@ MODULE admm_methods
 !> \param admm_env The ADMM env
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
-!> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE purify_mo_cholesky(admm_env, mos, mos_aux_fit, error)
+  SUBROUTINE purify_mo_cholesky(admm_env, mos, mos_aux_fit)
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_cholesky', &
       routineP = moduleN//':'//routineN
@@ -500,26 +481,26 @@ MODULE admm_methods
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
       CALL cp_gemm('N','N',nao_orb,nmo,nao_orb,&
                       1.0_dp,admm_env%B,mo_coeff,0.0_dp,&
-                      admm_env%work_orb_nmo(ispin)%matrix,error)
+                      admm_env%work_orb_nmo(ispin)%matrix)
       CALL cp_gemm('T','N',nmo,nmo,nao_orb,&
                       1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                      admm_env%lambda(ispin)%matrix,error)
-      CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
+                      admm_env%lambda(ispin)%matrix)
+      CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
 
 
 
-      CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin)%matrix,error=error)
-      CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin)%matrix,error=error)
+      CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin)%matrix)
+      CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin)%matrix)
       !! Symmetrize the guy
-      CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix,error=error)
-      CALL cp_fm_to_fm(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix,error=error)
+      CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix)
+      CALL cp_fm_to_fm(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix)
 
 
       !! ** C_hat = AC
       CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nao_orb,&
                       1.0_dp,admm_env%A,mo_coeff,0.0_dp,&
-                      admm_env%C_hat(ispin)%matrix,error)
-      CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, mo_coeff_aux_fit, error=error)
+                      admm_env%C_hat(ispin)%matrix)
+      CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, mo_coeff_aux_fit)
 
     END DO
 
@@ -535,17 +516,15 @@ MODULE admm_methods
 !> \param admm_env The ADMM env
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
-!> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE purify_mo_diag(admm_env, mos, mos_aux_fit, error)
+  SUBROUTINE purify_mo_diag(admm_env, mos, mos_aux_fit)
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_diag', &
       routineP = moduleN//':'//routineN
@@ -571,33 +550,33 @@ MODULE admm_methods
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
       CALL cp_gemm('N','N',nao_orb,nmo,nao_orb,&
                       1.0_dp,admm_env%B,mo_coeff,0.0_dp,&
-                      admm_env%work_orb_nmo(ispin)%matrix,error)
+                      admm_env%work_orb_nmo(ispin)%matrix)
       CALL cp_gemm('T','N',nmo,nmo,nao_orb,&
                       1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                      admm_env%lambda(ispin)%matrix,error)
-      CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
+                      admm_env%lambda(ispin)%matrix)
+      CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
 
 
       CALL cp_fm_syevd(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%R(ispin)%matrix,&
-                       admm_env%eigvals_lambda(ispin)%eigvals%data,error=error)
+                       admm_env%eigvals_lambda(ispin)%eigvals%data)
       ALLOCATE(eig_work(nmo))
       DO i=1,nmo
         eig_work(i) = 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(i))
       END DO
-      CALL cp_fm_to_fm(admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
+      CALL cp_fm_to_fm(admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
       CALL cp_fm_column_scale(admm_env%work_nmo_nmo1(ispin)%matrix,eig_work)
       CALL cp_gemm('N','T',nmo,nmo,nmo,&
                       1.0_dp,admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%R(ispin)%matrix,0.0_dp,&
-                      admm_env%lambda_inv_sqrt(ispin)%matrix,error)
+                      admm_env%lambda_inv_sqrt(ispin)%matrix)
       CALL cp_gemm('N','N',nao_orb,nmo,nmo,&
                       1.0_dp,mo_coeff,admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
-                      admm_env%work_orb_nmo(ispin)%matrix,error)
+                      admm_env%work_orb_nmo(ispin)%matrix)
       CALL cp_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
                       1.0_dp,admm_env%A,admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp,&
-                      mo_coeff_aux_fit,error)
+                      mo_coeff_aux_fit)
 
-      CALL cp_fm_to_fm(mo_coeff_aux_fit, admm_env%C_hat(ispin)%matrix, error=error)
-      CALL cp_fm_set_all(admm_env%lambda_inv(ispin)%matrix,0.0_dp,1.0_dp,error)
+      CALL cp_fm_to_fm(mo_coeff_aux_fit, admm_env%C_hat(ispin)%matrix)
+      CALL cp_fm_set_all(admm_env%lambda_inv(ispin)%matrix,0.0_dp,1.0_dp)
       DEALLOCATE(eig_work)
     END DO
 
@@ -611,13 +590,11 @@ MODULE admm_methods
 !> \param admm_env ...
 !> \param mos ...
 !> \param mos_aux_fit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE purify_mo_none(admm_env, mos, mos_aux_fit, error)
+  SUBROUTINE purify_mo_none(admm_env, mos, mos_aux_fit)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_none', &
       routineP = moduleN//':'//routineN
@@ -641,14 +618,14 @@ MODULE admm_methods
 
       CALL cp_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
                       1.0_dp,admm_env%A,mo_coeff,0.0_dp,&
-                      mo_coeff_aux_fit,error)
-      CALL cp_fm_to_fm(mo_coeff_aux_fit, admm_env%C_hat(ispin)%matrix, error=error)
+                      mo_coeff_aux_fit)
+      CALL cp_fm_to_fm(mo_coeff_aux_fit, admm_env%C_hat(ispin)%matrix)
 
       occ_num_aux(1:nmo) = occ_num(1:nmo)
       ! XXXX should only be done first time XXXX
-      CALL cp_fm_set_all(admm_env%lambda(ispin)%matrix,0.0_dp,1.0_dp,error)
-      CALL cp_fm_set_all(admm_env%lambda_inv(ispin)%matrix,0.0_dp,1.0_dp,error)
-      CALL cp_fm_set_all(admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,1.0_dp,error)
+      CALL cp_fm_set_all(admm_env%lambda(ispin)%matrix,0.0_dp,1.0_dp)
+      CALL cp_fm_set_all(admm_env%lambda_inv(ispin)%matrix,0.0_dp,1.0_dp)
+      CALL cp_fm_set_all(admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,1.0_dp)
     END DO
 
     CALL timestop(handle)
@@ -663,16 +640,14 @@ MODULE admm_methods
 !> \param density_matrix ...
 !> \param ispin ...
 !> \param blocked ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE purify_dm_cauchy(admm_env,mo_set,density_matrix,ispin,blocked,error)
+  SUBROUTINE purify_dm_cauchy(admm_env,mo_set,density_matrix,ispin,blocked)
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix
     INTEGER                                  :: ispin
     LOGICAL, INTENT(IN)                      :: blocked
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'purify_dm_cauchy', &
       routineP = moduleN//':'//routineN
@@ -698,53 +673,53 @@ MODULE admm_methods
     IF(.NOT. blocked) THEN
        CALL cp_gemm('N','T',nao_aux_fit,nao_aux_fit,nmo,&
                      1.0_dp,mo_coeff_aux_fit,mo_coeff_aux_fit,0.0_dp,&
-                     admm_env%P_to_be_purified(ispin)%matrix,error)
+                     admm_env%P_to_be_purified(ispin)%matrix)
     ENDIF
 
-    CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux, error=error)
-    CALL cp_fm_to_fm(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_aux_aux2, error=error)
+    CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux)
+    CALL cp_fm_to_fm(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_aux_aux2)
 
-    CALL cp_fm_cholesky_decompose(admm_env%work_aux_aux,error=error)
+    CALL cp_fm_cholesky_decompose(admm_env%work_aux_aux)
 
-    CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
+    CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3)
 
     CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
+                     admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data)
 
     CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
-                                admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)
+                                admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T")
 
-    CALL cp_fm_to_fm(admm_env%work_aux_aux3, admm_env%R_purify(ispin)%matrix, error=error)
+    CALL cp_fm_to_fm(admm_env%work_aux_aux3, admm_env%R_purify(ispin)%matrix)
 
     ! *** Construct Matrix M for Hadamard Product
-    CALL cp_fm_set_all(admm_env%M_purify(ispin)%matrix,0.0_dp,error=error)
+    CALL cp_fm_set_all(admm_env%M_purify(ispin)%matrix,0.0_dp)
     pole = 0.0_dp
     DO i=1,nao_aux_fit
       pole = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-0.5_dp)
-      CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix,i,i,pole,error)
+      CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix,i,i,pole)
     END DO
-    CALL cp_fm_upper_to_full(admm_env%M_purify(ispin)%matrix,admm_env%work_aux_aux,error=error)
+    CALL cp_fm_upper_to_full(admm_env%M_purify(ispin)%matrix,admm_env%work_aux_aux)
 
-    CALL copy_dbcsr_to_fm(density_matrix,admm_env%work_aux_aux3,error)
-    CALL cp_fm_upper_to_full(admm_env%work_aux_aux3,admm_env%work_aux_aux,error=error)
+    CALL copy_dbcsr_to_fm(density_matrix,admm_env%work_aux_aux3)
+    CALL cp_fm_upper_to_full(admm_env%work_aux_aux3,admm_env%work_aux_aux)
 
     ! ** S^(-1)*R
     CALL cp_gemm('N','N',nao_aux_fit,nao_aux_fit,nao_aux_fit,&
                     1.0_dp,admm_env%S_inv,admm_env%R_purify(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_aux,error)
+                    admm_env%work_aux_aux)
     ! ** S^(-1)*R*M
     CALL cp_gemm('N','N',nao_aux_fit,nao_aux_fit,nao_aux_fit,&
                     1.0_dp,admm_env%work_aux_aux,admm_env%M_purify(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_aux2,error)
+                    admm_env%work_aux_aux2)
     ! ** S^(-1)*R*M*R^T*S^(-1)
     CALL cp_gemm('N','T',nao_aux_fit,nao_aux_fit,nao_aux_fit,&
                     1.0_dp,admm_env%work_aux_aux2,admm_env%work_aux_aux,0.0_dp,&
-                    admm_env%work_aux_aux3,error)
+                    admm_env%work_aux_aux3)
 
-    CALL copy_fm_to_dbcsr(admm_env%work_aux_aux3, density_matrix,keep_sparsity=.TRUE., error=error)
+    CALL copy_fm_to_dbcsr(admm_env%work_aux_aux3, density_matrix,keep_sparsity=.TRUE.)
 
     IF( nspins == 1 ) THEN
-      CALL cp_dbcsr_scale(density_matrix, 2.0_dp, error=error)
+      CALL cp_dbcsr_scale(density_matrix, 2.0_dp)
     END IF
 
     CALL timestop(handle)
@@ -755,11 +730,9 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE merge_ks_matrix_cauchy(qs_env, error)
+  SUBROUTINE merge_ks_matrix_cauchy(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy', &
       routineP = moduleN//':'//routineN
@@ -787,8 +760,7 @@ MODULE admm_methods
                     dft_control=dft_control,&
                     matrix_ks=matrix_ks,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
-                    mos=mos,&
-                    error=error)
+                    mos=mos)
 
     DO ispin=1, dft_control%nspins
        nao_aux_fit = admm_env%nao_aux_fit
@@ -800,33 +772,33 @@ MODULE admm_methods
           !** Get P from mo_coeffs, otherwise we have troubles with occupation numbers ...
           CALL cp_gemm('N', 'T',  nao_orb, nao_orb, nmo,&
                           1.0_dp, mo_coeff, mo_coeff, 0.0_dp,&
-                          admm_env%work_orb_orb,error)
+                          admm_env%work_orb_orb)
 
           !! A*P
           CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
                           1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp,&
-                          admm_env%work_aux_orb2,error)
+                          admm_env%work_aux_orb2)
           !! A*P*A^T
           CALL cp_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nao_orb,&
                           1.0_dp, admm_env%work_aux_orb2, admm_env%A, 0.0_dp,&
-                          admm_env%P_to_be_purified(ispin)%matrix,error)
+                          admm_env%P_to_be_purified(ispin)%matrix)
 
        ENDIF
 
-       CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux, error=error)
-       CALL cp_fm_to_fm(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_aux_aux2, error=error)
+       CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux)
+       CALL cp_fm_to_fm(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_aux_aux2)
 
-       CALL cp_fm_cholesky_decompose(admm_env%work_aux_aux,error=error)
+       CALL cp_fm_cholesky_decompose(admm_env%work_aux_aux)
 
-       CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3, error=error)
+       CALL cp_fm_cholesky_reduce(admm_env%work_aux_aux2, admm_env%work_aux_aux, itype=3)
 
        CALL cp_fm_syevd(admm_env%work_aux_aux2,admm_env%R_purify(ispin)%matrix,&
-                        admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,error=error)
+                        admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data)
 
        CALL cp_fm_cholesky_restore(admm_env%R_purify(ispin)%matrix, nao_aux_fit,admm_env%work_aux_aux, &
-                                   admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T", error=error)
+                                   admm_env%work_aux_aux3,op="MULTIPLY",pos="LEFT", transa="T")
 
-       CALL cp_fm_to_fm(admm_env%work_aux_aux3, admm_env%R_purify(ispin)%matrix, error=error)
+       CALL cp_fm_to_fm(admm_env%work_aux_aux3, admm_env%R_purify(ispin)%matrix)
 
        ! *** Construct Matrix M for Hadamard Product
        pole = 0.0_dp
@@ -837,68 +809,68 @@ MODULE admm_methods
            ! *** two eigenvalues could be the degenerated. In that case use 2nd order formula for the poles
            IF( ABS(eig_diff) == 0.0_dp ) THEN
              pole = delta(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-0.5_dp)
-             CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix,i,j,pole,error)
+             CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix,i,j,pole)
            ELSE
              pole = 1.0_dp/(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-&
                             admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(j))
              tmp = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i)-0.5_dp)
              tmp = tmp - Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(j)-0.5_dp)
              pole = tmp*pole
-             CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix,i,j,pole,error)
+             CALL cp_fm_set_element(admm_env%M_purify(ispin)%matrix,i,j,pole)
            END IF
          END DO
        END DO
-       CALL cp_fm_upper_to_full(admm_env%M_purify(ispin)%matrix,admm_env%work_aux_aux,error=error)
+       CALL cp_fm_upper_to_full(admm_env%M_purify(ispin)%matrix,admm_env%work_aux_aux)
 
-       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
-       CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix)
+       CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux)
 
        !! S^(-1)*R
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        1.0_dp,admm_env%S_inv,admm_env%R_purify(ispin)%matrix,0.0_dp,&
-                       admm_env%work_aux_aux,error)
+                       admm_env%work_aux_aux)
        !! K*S^(-1)*R
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        1.0_dp,admm_env%K(ispin)%matrix,admm_env%work_aux_aux,0.0_dp,&
-                       admm_env%work_aux_aux2,error)
+                       admm_env%work_aux_aux2)
        !! R^T*S^(-1)*K*S^(-1)*R
        CALL cp_gemm('T', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        1.0_dp,admm_env%work_aux_aux,admm_env%work_aux_aux2,0.0_dp,&
-                       admm_env%work_aux_aux3,error)
+                       admm_env%work_aux_aux3)
        !! R^T*S^(-1)*K*S^(-1)*R x M
        CALL cp_fm_schur_product(admm_env%work_aux_aux3, admm_env%M_purify(ispin)%matrix,&
-                                admm_env%work_aux_aux,error)
+                                admm_env%work_aux_aux)
 
        !! R^T*A
        CALL cp_gemm('T', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                        1.0_dp, admm_env%R_purify(ispin)%matrix, admm_env%A, 0.0_dp,&
-                       admm_env%work_aux_orb,error)
+                       admm_env%work_aux_orb)
 
        !! (R^T*S^(-1)*K*S^(-1)*R x M) * R^T*A
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                        1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_orb, 0.0_dp,&
-                       admm_env%work_aux_orb2,error)
+                       admm_env%work_aux_orb2)
        !! A^T*R*(R^T*S^(-1)*K*S^(-1)*R x M) * R^T*A
        CALL cp_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
                        1.0_dp, admm_env%work_aux_orb, admm_env%work_aux_orb2, 0.0_dp,&
-                       admm_env%work_orb_orb,error)
+                       admm_env%work_orb_orb)
 
        NULLIFY(matrix_k_tilde)
        ALLOCATE(matrix_k_tilde)
-       CALL cp_dbcsr_init (matrix_k_tilde, error)
+       CALL cp_dbcsr_init (matrix_k_tilde)
        CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
             cp_dbcsr_distribution(matrix_ks(ispin)%matrix), &
             dbcsr_type_symmetric,&
             cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
             cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix),&
             cp_dbcsr_get_data_size( matrix_ks(ispin)%matrix),&
-            cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
+            cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix))
 
-       CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error)
+       CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix)
 
-       CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
-       CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp, error)
-       CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE., error=error)
+       CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+       CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+       CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
        IF(admm_env%block_dm) THEN
           ! ** now loop through the list and nullify blocks
@@ -912,9 +884,9 @@ MODULE admm_methods
           CALL cp_dbcsr_iterator_stop(iter)
        ENDIF
 
-       CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)
+       CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-       CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde,error)
+       CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
 
     END DO !spin-loop
 
@@ -926,11 +898,9 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE merge_ks_matrix_cauchy_subspace(qs_env, error)
+  SUBROUTINE merge_ks_matrix_cauchy_subspace(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'merge_ks_matrix_cauchy_subspace', &
@@ -957,8 +927,7 @@ MODULE admm_methods
                     matrix_ks=matrix_ks,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     mos=mos,&
-                    mos_aux_fit=mos_aux_fit,&
-                    error=error)
+                    mos_aux_fit=mos_aux_fit)
 
     DO ispin=1, dft_control%nspins
        nao_aux_fit = admm_env%nao_aux_fit
@@ -968,106 +937,105 @@ MODULE admm_methods
        CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
 
        !! Calculate Lambda^{-2}
-       CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
-       CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin)%matrix,error=error)
-       CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin)%matrix,error=error)
+       CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
+       CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin)%matrix)
+       CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin)%matrix)
        !! Symmetrize the guy
-       CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv2(ispin)%matrix,error=error)
+       CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv2(ispin)%matrix)
        !! Take square
        CALL cp_gemm('N', 'T',  nmo, nmo, nmo,&
                        1.0_dp,admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
-                       admm_env%lambda_inv2(ispin)%matrix,error)
+                       admm_env%lambda_inv2(ispin)%matrix)
 
        !! ** C_hat = AC
        CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nao_orb,&
                        1.0_dp,admm_env%A,mo_coeff,0.0_dp,&
-                       admm_env%C_hat(ispin)%matrix,error)
+                       admm_env%C_hat(ispin)%matrix)
 
        !! calc P_tilde from C_hat
        CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nmo,&
                        1.0_dp,admm_env%C_hat(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix,0.0_dp,&
-                       admm_env%work_aux_nmo(ispin)%matrix,error)
+                       admm_env%work_aux_nmo(ispin)%matrix)
 
        CALL cp_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nmo,&
                        1.0_dp,admm_env%C_hat(ispin)%matrix,  admm_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
-                       admm_env%P_tilde(ispin)%matrix,error)
+                       admm_env%P_tilde(ispin)%matrix)
 
        !! ** C_hat*Lambda^{-2}
        CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nmo,&
                        1.0_dp,admm_env%C_hat(ispin)%matrix,admm_env%lambda_inv2(ispin)%matrix,0.0_dp,&
-                       admm_env%work_aux_nmo(ispin)%matrix,error)
+                       admm_env%work_aux_nmo(ispin)%matrix)
 
        !! ** C_hat*Lambda^{-2}*C_hat^T
        CALL cp_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nmo,&
                        1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%C_hat(ispin)%matrix,0.0_dp,&
-                       admm_env%work_aux_aux,error)
+                       admm_env%work_aux_aux)
 
        !! ** S*C_hat*Lambda^{-2}*C_hat^T
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        1.0_dp,admm_env%S,admm_env%work_aux_aux,0.0_dp,&
-                       admm_env%work_aux_aux2,error)
+                       admm_env%work_aux_aux2)
 
-       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
-       CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix)
+       CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux)
 
        !! ** S*C_hat*Lambda^{-2}*C_hat^T*H_tilde
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        1.0_dp,admm_env%work_aux_aux2,admm_env%K(ispin)%matrix,0.0_dp,&
-                       admm_env%work_aux_aux,error)
+                       admm_env%work_aux_aux)
 
        !! ** P_tilde*S
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        1.0_dp,admm_env%P_tilde(ispin)%matrix,admm_env%S,0.0_dp,&
-                       admm_env%work_aux_aux2,error)
+                       admm_env%work_aux_aux2)
 
        !! ** -S*C_hat*Lambda^{-2}*C_hat^T*H_tilde*P_tilde*S
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
                        -1.0_dp,admm_env%work_aux_aux,admm_env%work_aux_aux2,0.0_dp,&
-                       admm_env%work_aux_aux3,error)
+                       admm_env%work_aux_aux3)
 
        !! ** -S*C_hat*Lambda^{-2}*C_hat^T*H_tilde*P_tilde*S+S*C_hat*Lambda^{-2}*C_hat^T*H_tilde
-       CALL cp_fm_scale_and_add(1.0_dp,admm_env%work_aux_aux3,1.0_dp,admm_env%work_aux_aux,error)
+       CALL cp_fm_scale_and_add(1.0_dp,admm_env%work_aux_aux3,1.0_dp,admm_env%work_aux_aux)
 
        !! first_part*A
        CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                        1.0_dp,admm_env%work_aux_aux3,admm_env%A,0.0_dp,&
-                       admm_env%work_aux_orb,error)
+                       admm_env%work_aux_orb)
 
        !! + first_part^T*A
        CALL cp_gemm('T', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                        1.0_dp,admm_env%work_aux_aux3,admm_env%A,1.0_dp,&
-                       admm_env%work_aux_orb,error)
+                       admm_env%work_aux_orb)
 
        !! A^T*(first+seccond)=H
        CALL cp_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
                        1.0_dp,admm_env%A,admm_env%work_aux_orb,0.0_dp,&
-                       admm_env%work_orb_orb,error)
+                       admm_env%work_orb_orb)
 
        NULLIFY(matrix_k_tilde)
        ALLOCATE(matrix_k_tilde)
-       CALL cp_dbcsr_init (matrix_k_tilde, error)
+       CALL cp_dbcsr_init (matrix_k_tilde)
        CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
             cp_dbcsr_distribution(matrix_ks(ispin)%matrix),&
             dbcsr_type_symmetric,&
             cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
             cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
             cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
-            cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
+            cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix))
 
-       CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error)
+       CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix)
 
-       CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
-       CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp, error)
-       CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.,&
-            error=error)
+       CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+       CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+       CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
        CALL cp_gemm('N', 'N',  nao_orb, nmo, nao_orb,&
                        1.0_dp,admm_env%work_orb_orb,mo_coeff,0.0_dp,&
-                       admm_env%mo_derivs_tmp(ispin)%matrix,error)
+                       admm_env%mo_derivs_tmp(ispin)%matrix)
 
-       CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)
+       CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-       CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde,error)
+       CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
 
     ENDDO !spin loop
     CALL timestop(handle)
@@ -1089,14 +1057,12 @@ MODULE admm_methods
 !>        auxiliary basis set part
 !> \param mo_derivs_aux_fit ...
 !> \param matrix_ks_aux_fit the Kohn-Sham matrix from the auxiliary fitting basis set
-!> \param error ...
-!>
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE merge_mo_derivs_diag(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                                  mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+                                  mo_derivs_aux_fit, matrix_ks_aux_fit)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -1105,7 +1071,6 @@ MODULE admm_methods
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag', &
       routineP = moduleN//':'//routineN
@@ -1123,12 +1088,12 @@ MODULE admm_methods
     nao_orb = admm_env%nao_orb
     nmo = admm_env%nmo(ispin)
 
-    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
-    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix)
+    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux)
 
     CALL cp_gemm('N','N', nao_aux_fit, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%K(ispin)%matrix,mo_coeff_aux_fit,0.0_dp,&
-                    admm_env%H(ispin)%matrix,error)
+                    admm_env%H(ispin)%matrix)
 
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
@@ -1136,15 +1101,15 @@ MODULE admm_methods
 
     CALL cp_fm_column_scale(admm_env%H(ispin)%matrix,scaling_factor)
 
-    CALL cp_fm_to_fm(admm_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix, error=error)
+    CALL cp_fm_to_fm(admm_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix)
 
     ! *** Add first term
     CALL cp_gemm('N','T', nao_aux_fit, nmo, nmo,&
                     1.0_dp,admm_env%H(ispin)%matrix,admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_nmo(ispin)%matrix,error)
+                    admm_env%work_aux_nmo(ispin)%matrix)
     CALL cp_gemm('T','N', nao_orb, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%A,admm_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
-                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
+                    admm_env%mo_derivs_tmp(ispin)%matrix)
 
 
     ! *** Construct Matrix M for Hadamard Product
@@ -1161,17 +1126,17 @@ MODULE admm_methods
           tmp92 = tmp72/admm_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
 
           pole = -0.5_dp*tmp32 + 3.0_dp/8.0_dp*tmp52 - 5.0_dp/16.0_dp*tmp72 + 35.0_dp/128.0_dp*tmp92
-          CALL cp_fm_set_element(admm_env%M(ispin)%matrix,i,j,pole,error)
+          CALL cp_fm_set_element(admm_env%M(ispin)%matrix,i,j,pole)
         ELSE
           pole = 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(i))
           pole = pole - 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(j))
           pole = pole/(admm_env%eigvals_lambda(ispin)%eigvals%data(i)-&
                        admm_env%eigvals_lambda(ispin)%eigvals%data(j))
-          CALL cp_fm_set_element(admm_env%M(ispin)%matrix,i,j,pole,error)
+          CALL cp_fm_set_element(admm_env%M(ispin)%matrix,i,j,pole)
         END IF
       END DO
     END DO
-    CALL cp_fm_upper_to_full(admm_env%M(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,error=error)
+    CALL cp_fm_upper_to_full(admm_env%M(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix)
 
     ! *** 2nd term to be added to fm_H
 
@@ -1181,48 +1146,48 @@ MODULE admm_methods
     ! *** H'*R
     CALL cp_gemm('N','N', nao_aux_fit, nmo, nmo,&
                     1.0_dp,admm_env%H(ispin)%matrix,admm_env%R(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_nmo(ispin)%matrix,error)
+                    admm_env%work_aux_nmo(ispin)%matrix)
     ! *** A^(T)*H'*R
     CALL cp_gemm('T','N', nao_orb, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%A,admm_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
-                    admm_env%work_orb_nmo(ispin)%matrix,error)
+                    admm_env%work_orb_nmo(ispin)%matrix)
     ! *** c^(T)*A^(T)*H'*R
     CALL cp_gemm('T','N', nmo, nmo, nao_orb,&
                     1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                    admm_env%work_nmo_nmo1(ispin)%matrix,error)
+                    admm_env%work_nmo_nmo1(ispin)%matrix)
     ! *** R^(T)*c^(T)*A^(T)*H'*R
     CALL cp_gemm('T','N', nmo, nmo, nmo,&
                     1.0_dp,admm_env%R(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
-                    admm_env%work_nmo_nmo2(ispin)%matrix,error)
+                    admm_env%work_nmo_nmo2(ispin)%matrix)
     ! *** R^(T)*c^(T)*A^(T)*H'*R x M
     CALL cp_fm_schur_product(admm_env%work_nmo_nmo2(ispin)%matrix,&
-                             admm_env%M(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,error)
+                             admm_env%M(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix)
     ! *** R* (R^(T)*c^(T)*A^(T)*H'*R x M)
     CALL cp_gemm('N','N', nmo, nmo, nmo,&
                     1.0_dp,admm_env%R(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
-                    admm_env%work_nmo_nmo2(ispin)%matrix,error)
+                    admm_env%work_nmo_nmo2(ispin)%matrix)
 
     ! *** R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
     CALL cp_gemm('N','T', nmo, nmo, nmo,&
                     1.0_dp,admm_env%work_nmo_nmo2(ispin)%matrix,admm_env%R(ispin)%matrix,0.0_dp,&
-                    admm_env%R_schur_R_t(ispin)%matrix,error)
+                    admm_env%R_schur_R_t(ispin)%matrix)
 
     ! *** B^(T)*c
     CALL cp_gemm('T','N', nao_orb, nmo, nao_orb,&
                     1.0_dp,admm_env%B,mo_coeff,0.0_dp,&
-                    admm_env%work_orb_nmo(ispin)%matrix,error)
+                    admm_env%work_orb_nmo(ispin)%matrix)
 
     ! *** Add first term to fm_H
     ! *** B^(T)*c* R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
     CALL cp_gemm('N','N', nao_orb, nmo, nmo,&
                     1.0_dp,admm_env%work_orb_nmo(ispin)%matrix,admm_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
-                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
+                    admm_env%mo_derivs_tmp(ispin)%matrix)
 
     ! *** Add second term to fm_H
     ! *** B*C *[ R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)]^(T)
     CALL cp_gemm('N','T', nao_orb, nmo, nmo,&
                     1.0_dp,admm_env%work_orb_nmo(ispin)%matrix,admm_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
-                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
+                    admm_env%mo_derivs_tmp(ispin)%matrix)
 
     DO i = 1,SIZE(scaling_factor)
       scaling_factor(i) = 1.0_dp/scaling_factor(i)
@@ -1230,7 +1195,7 @@ MODULE admm_methods
 
     CALL cp_fm_column_scale(admm_env%mo_derivs_tmp(ispin)%matrix,scaling_factor)
 
-    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,admm_env%mo_derivs_tmp(ispin)%matrix,error)
+    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,admm_env%mo_derivs_tmp(ispin)%matrix)
 
     DEALLOCATE(scaling_factor)
 
@@ -1242,11 +1207,9 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE merge_ks_matrix_none(qs_env, error)
+  SUBROUTINE merge_ks_matrix_none(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_none', &
       routineP = moduleN//':'//routineN
@@ -1290,13 +1253,11 @@ MODULE admm_methods
                     matrix_s=matrix_s,&
                     matrix_s_aux_fit=matrix_s_aux_fit,&
                     energy=energy,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
     CALL qs_rho_get(rho_aux_fit,&
-                    rho_ao=rho_ao_aux,&
-                    error=error)
+                    rho_ao=rho_ao_aux)
 
 
     DO ispin=1, dft_control%nspins
@@ -1309,7 +1270,7 @@ MODULE admm_methods
             END IF
           END DO
           CALL cp_dbcsr_iterator_stop(iter)
-          CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, 1.0_dp, error)
+          CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, 1.0_dp)
 
        ELSE
 
@@ -1322,54 +1283,53 @@ MODULE admm_methods
               (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
               NULLIFY(matrix_ks_aux_fit_admms_tmp)
               ALLOCATE(matrix_ks_aux_fit_admms_tmp)
-              CALL cp_dbcsr_init (matrix_ks_aux_fit_admms_tmp, error)
+              CALL cp_dbcsr_init (matrix_ks_aux_fit_admms_tmp)
               CALL cp_dbcsr_create(matrix_ks_aux_fit_admms_tmp,template=matrix_ks_aux_fit(ispin)%matrix,&
-                                   name='matrix_ks_aux_fit_admms_tmp', matrix_type='s', error=error)
+                                   name='matrix_ks_aux_fit_admms_tmp', matrix_type='s')
               ! matrix_ks_aux_fit_admms_tmp = k(d_Q)
-              CALL cp_dbcsr_copy(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_hfx(ispin)%matrix, error=error)
+              CALL cp_dbcsr_copy(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_hfx(ispin)%matrix)
 
               ! matrix_ks_aux_fit_admms_tmp = k(d_Q) - gsi^2/3 x(d_Q)
               CALL cp_dbcsr_add(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_dft(ispin)%matrix, &
-                                1.0_dp, -(admm_env%gsi(ispin))**(2.0_dp/3.0_dp), error)    
-              CALL copy_dbcsr_to_fm(matrix_ks_aux_fit_admms_tmp,admm_env%K(ispin)%matrix,error)
-              CALL cp_dbcsr_deallocate_matrix(matrix_ks_aux_fit_admms_tmp,error)
+                                1.0_dp, -(admm_env%gsi(ispin))**(2.0_dp/3.0_dp))    
+              CALL copy_dbcsr_to_fm(matrix_ks_aux_fit_admms_tmp,admm_env%K(ispin)%matrix)
+              CALL cp_dbcsr_deallocate_matrix(matrix_ks_aux_fit_admms_tmp)
           ELSE 
-              CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
+              CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix)
           END IF
 
            
-          CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+          CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux)
 
           !! K*A
           CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                           1.0_dp,admm_env%K(ispin)%matrix,admm_env%A,0.0_dp,&
-                          admm_env%work_aux_orb,error)
+                          admm_env%work_aux_orb)
           !! A^T*K*A
           CALL cp_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
                           1.0_dp,admm_env%A,admm_env%work_aux_orb,0.0_dp,&
-                          admm_env%work_orb_orb,error)
+                          admm_env%work_orb_orb)
 
           NULLIFY(matrix_k_tilde)
           ALLOCATE(matrix_k_tilde)
-          CALL cp_dbcsr_init (matrix_k_tilde, error)
+          CALL cp_dbcsr_init (matrix_k_tilde)
           CALL cp_dbcsr_create(matrix_k_tilde,template=matrix_ks(ispin)%matrix,&
-                               name='MATRIX K_tilde', matrix_type='S', error=error)
-          CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
-          CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp, error)
-          CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.,&
-               error=error)
+                               name='MATRIX K_tilde', matrix_type='S')
+          CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+          CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+          CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
           ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces seperately
           ! Scale matrix_K_tilde by gsi for ADMMQ and ADMMS (Eqs. (27), (37) in Merlot, 2014)
           IF( admm_env%charge_constrain ) THEN
-              CALL cp_dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin), error=error)
+              CALL cp_dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin))
           END IF
 
           ! Scale matrix_K_tilde by gsi^2 for ADMMP (Eq. (35) in Merlot, 2014)
           IF( (.NOT. admm_env%charge_constrain) .AND. &
               (admm_env%scaling_model==do_admm_exch_scaling_merlot) ) THEN
               gsi_square = (admm_env%gsi(ispin))*(admm_env%gsi(ispin))
-              CALL cp_dbcsr_scale(matrix_k_tilde, gsi_square, error=error)
+              CALL cp_dbcsr_scale(matrix_k_tilde, gsi_square)
           END IF
 
           admm_env%lambda_merlot(ispin) = 0
@@ -1378,7 +1338,7 @@ MODULE admm_methods
           IF( admm_env%charge_constrain .AND. &
                (admm_env%scaling_model == do_admm_exch_scaling_none ) ) THEN
                CALL cp_dbcsr_trace(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, &
-                    trace_tmp, 'T', 'N', error=error) 
+                    trace_tmp, 'T', 'N') 
 
                ! Factor of 2 is missing compared to Eq. 28 in Merlot due to
                ! Tr(ds) = N in the code \neq 2N in Merlot
@@ -1388,7 +1348,7 @@ MODULE admm_methods
                     (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
               IF(dft_control%nspins==2) THEN
                  CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
-                                                  ener_x_ispin=ener_x(ispin), ispin=ispin, error=error)
+                                                  ener_x_ispin=ener_x(ispin), ispin=ispin)
                  admm_env%lambda_merlot(ispin) = 2.0_dp*(admm_env%gsi(ispin))**2* &
                                                  (ener_k(ispin)+ener_x(ispin))/(admm_env%n_large_basis(ispin))
 
@@ -1400,13 +1360,13 @@ MODULE admm_methods
           ELSE IF( admm_env%charge_constrain .AND. &
               (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
                CALL cp_dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, &
-                    trace_tmp, 'T', 'N', error=error)
+                    trace_tmp, 'T', 'N')
                CALL cp_dbcsr_trace(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, &
-                    trace_tmp_two, 'T', 'N', error=error)
+                    trace_tmp_two, 'T', 'N')
                ! For ADMMS open-shell case we need k and x (Merlot) separately since gsi(a)\=gsi(b) 
                IF(dft_control%nspins==2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
-                                                   ener_x_ispin=ener_x(ispin), ispin=ispin, error=error)
+                                                   ener_x_ispin=ener_x(ispin), ispin=ispin)
                   admm_env%lambda_merlot(ispin) = (trace_tmp+2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*ener_x(ispin)-&
                                            ((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*trace_tmp_two)/(admm_env%n_large_basis(ispin))
 
@@ -1425,28 +1385,27 @@ MODULE admm_methods
               (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
              
               !! T^T*s_aux*T in (27) Merlot (T=A), as calculating A^T*K*A few lines above
-              CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%work_aux_aux4,error)
-              CALL cp_fm_upper_to_full(admm_env%work_aux_aux4,admm_env%work_aux_aux5,error=error)
+              CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%work_aux_aux4)
+              CALL cp_fm_upper_to_full(admm_env%work_aux_aux4,admm_env%work_aux_aux5)
 
               ! s_aux*T
               CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
                           1.0_dp,admm_env%work_aux_aux4,admm_env%A,0.0_dp,&
-                          admm_env%work_aux_orb3,error)
+                          admm_env%work_aux_orb3)
               ! T^T*s_aux*T
               CALL cp_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
                           1.0_dp,admm_env%A,admm_env%work_aux_orb3,0.0_dp,&
-                          admm_env%work_orb_orb3,error)
+                          admm_env%work_orb_orb3)
 
 
               NULLIFY(matrix_TtsT)
               ALLOCATE(matrix_TtsT)
-              CALL cp_dbcsr_init (matrix_TtsT, error)
+              CALL cp_dbcsr_init (matrix_TtsT)
               CALL cp_dbcsr_create(matrix_TtsT,template=matrix_ks(ispin)%matrix,&
-                               name='MATRIX TtsT', matrix_type='S', error=error)
-              CALL cp_dbcsr_copy(matrix_TtsT, matrix_ks(ispin)%matrix, error=error)
-              CALL cp_dbcsr_set(matrix_TtsT, 0.0_dp, error)
-              CALL copy_fm_to_dbcsr(admm_env%work_orb_orb3, matrix_TtsT, keep_sparsity=.TRUE.,&
-                   error=error)
+                               name='MATRIX TtsT', matrix_type='S')
+              CALL cp_dbcsr_copy(matrix_TtsT, matrix_ks(ispin)%matrix)
+              CALL cp_dbcsr_set(matrix_TtsT, 0.0_dp)
+              CALL copy_fm_to_dbcsr(admm_env%work_orb_orb3, matrix_TtsT, keep_sparsity=.TRUE.)
  
 
               !Add -(gsi)*Lambda*TtsT and Lambda*S to the KS matrix according to Merlot2014
@@ -1454,19 +1413,19 @@ MODULE admm_methods
               IF( admm_env%scaling_model == do_admm_exch_scaling_merlot .OR. &
                        admm_env%charge_constrain) THEN
                   CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_TtsT, 1.0_dp, &
-                                    (-admm_env%lambda_merlot(ispin))*admm_env%gsi(ispin), error)
+                                    (-admm_env%lambda_merlot(ispin))*admm_env%gsi(ispin))
               END IF
 
-              CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, 1.0_dp, admm_env%lambda_merlot(ispin), error)
+              CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, 1.0_dp, admm_env%lambda_merlot(ispin))
 
-              CALL cp_dbcsr_deallocate_matrix(matrix_TtsT,error)
+              CALL cp_dbcsr_deallocate_matrix(matrix_TtsT)
 
  
           END IF    
 
-          CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)
+          CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-          CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde,error)
+          CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
 
        ENDIF
     ENDDO !spin loop
@@ -1515,16 +1474,14 @@ MODULE admm_methods
 !> \param ener_k_ispin exact ispin (Fock) exchange in auxiliary basis
 !> \param ener_x_ispin ispin DFT exchange in auxiliary basis
 !> \param ispin ...
-!> \param error ...
 !> \author Jan Wilhelm, 12/2014
 ! *****************************************************************************
   SUBROUTINE calc_spin_dep_aux_exch_ener(qs_env, admm_env, ener_k_ispin, ener_x_ispin, &
-                          ispin, error)
+                          ispin)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     REAL(dp), INTENT(INOUT)                  :: ener_k_ispin, ener_x_ispin
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_spin_dep_aux_exch_ener', &
       routineP = moduleN//':'//routineN
@@ -1558,27 +1515,24 @@ MODULE admm_methods
                     rho_aux_fit=rho_aux_fit,&
                     rho_aux_fit_buffer=rho_aux_fit_buffer,&
                     dft_control=dft_control,&
-                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx,&
-                    error=error)
+                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
 
     CALL qs_rho_get(rho_aux_fit,&
-                    rho_ao=rho_ao_aux,&
-                    error=error)
+                    rho_ao=rho_ao_aux)
 
 
     CALL qs_rho_get(rho_aux_fit_buffer,&
                     rho_ao=rho_ao_aux_buffer,&
                     rho_g=rho_g,&
                     rho_r=rho_r,&
-                    tot_rho_r=tot_rho_r,&
-                    error=error)
+                    tot_rho_r=tot_rho_r)
 
 
 !   Calculate rho_buffer = rho_aux(ispin) to get exchange of ispin electrons
-    CALL cp_dbcsr_set(rho_ao_aux_buffer(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_set(rho_ao_aux_buffer(2)%matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(rho_ao_aux_buffer(1)%matrix,0.0_dp)
+    CALL cp_dbcsr_set(rho_ao_aux_buffer(2)%matrix,0.0_dp)
     CALL cp_dbcsr_add(rho_ao_aux_buffer(ispin)%matrix, &
-                      rho_ao_aux(ispin)%matrix, 0.0_dp, 1.0_dp, error)
+                      rho_ao_aux(ispin)%matrix, 0.0_dp, 1.0_dp)
 
 
     ! integration for getting the spin dependent density has to done for both spins!
@@ -1589,13 +1543,12 @@ MODULE admm_methods
                               rho_gspace=rho_g(myspin),&
                               total_rho=tot_rho_r(myspin),&
                               soft_valid=.FALSE.,&
-                              basis_type="AUX_FIT",&
-                              error=error)
+                              basis_type="AUX_FIT")
 
     END DO
 
     ! Write changes in buffer density matrix
-    CALL qs_rho_set(rho_aux_fit_buffer, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
+    CALL qs_rho_set(rho_aux_fit_buffer, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
 
     xc_section_aux => admm_env%xc_section_aux
@@ -1604,13 +1557,13 @@ MODULE admm_methods
 
     CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux_fit_buffer, xc_section=xc_section_aux, &
          vxc_rho=v_rspace_dummy, vxc_tau=v_tau_rspace_dummy, exc=ener_x_ispin, &
-         just_energy=.TRUE., error=error)
+         just_energy=.TRUE.)
 
     ener_k_ispin = 0.0_dp
 
     !! ** Calculate the exchange energy
     CALL cp_dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux_buffer(ispin)%matrix, &
-                        ener_k_ispin, error=error)
+                        ener_k_ispin)
 
     ! Divide exchange for indivivual spin by two, since the ener_k_ispin originally is total
     ! exchange of alpha and beta
@@ -1625,15 +1578,13 @@ MODULE admm_methods
 !> \param qs_env ...
 !> \param rho_ao_orb ...
 !> \param scale_back ...
-!> \param error ...
 !> \author Jan Wilhelm, 12/2014
 ! *****************************************************************************
-  SUBROUTINE scale_dm(qs_env, rho_ao_orb, scale_back, error)
+  SUBROUTINE scale_dm(qs_env, rho_ao_orb, scale_back)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_orb
     LOGICAL, INTENT(IN)                      :: scale_back
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_dm', &
       routineP = moduleN//':'//routineN
@@ -1648,8 +1599,7 @@ MODULE admm_methods
 
     CALL get_qs_env(qs_env,&
                     admm_env=admm_env,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     ! only for ADMMP 
     IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
@@ -1657,9 +1607,9 @@ MODULE admm_methods
       DO ispin=1, dft_control%nspins
         DO img=1, dft_control%nimages
           IF(scale_back) THEN
-            CALL cp_dbcsr_scale(rho_ao_orb(ispin,img)%matrix, 1.0_dp/admm_env%gsi(ispin), error=error)     
+            CALL cp_dbcsr_scale(rho_ao_orb(ispin,img)%matrix, 1.0_dp/admm_env%gsi(ispin))     
           ELSE
-            CALL cp_dbcsr_scale(rho_ao_orb(ispin,img)%matrix, admm_env%gsi(ispin), error=error)
+            CALL cp_dbcsr_scale(rho_ao_orb(ispin,img)%matrix, admm_env%gsi(ispin))
           END IF
         END DO
       END DO
@@ -1677,17 +1627,15 @@ MODULE admm_methods
 !> \param mo_set ...
 !> \param mo_coeff_aux_fit ...
 !> \param matrix_ks_aux_fit ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calc_aux_mo_derivs_none(ispin, admm_env, mo_set, mo_coeff_aux_fit,  &
-                                  matrix_ks_aux_fit, error)
+                                  matrix_ks_aux_fit)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none', &
       routineP = moduleN//':'//routineN
@@ -1709,12 +1657,12 @@ MODULE admm_methods
     ! happens implicitly because the KS matrices have been already been merged
     ! and adding them here would be double counting.
 
-    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
-    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix)
+    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux)
 
     CALL cp_gemm('N','N', nao_aux_fit, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%K(ispin)%matrix,mo_coeff_aux_fit,0.0_dp,&
-                    admm_env%H(ispin)%matrix,error)
+                    admm_env%H(ispin)%matrix)
 
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
@@ -1737,9 +1685,8 @@ MODULE admm_methods
 !> \param mo_set ...
 !> \param mo_derivs ...
 !> \param matrix_ks_aux_fit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit, error)
+  SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -1747,7 +1694,6 @@ MODULE admm_methods
       POINTER                                :: mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_no_diag', &
       routineP = moduleN//':'//routineN
@@ -1763,8 +1709,8 @@ MODULE admm_methods
     nao_orb = admm_env%nao_orb
     nmo = admm_env%nmo(ispin)
 
-    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
-    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix)
+    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux)
 
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
@@ -1774,30 +1720,30 @@ MODULE admm_methods
     !! ** calculate first part
     CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nmo,&
                     1.0_dp,admm_env%C_hat(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_nmo(ispin)%matrix,error)
+                    admm_env%work_aux_nmo(ispin)%matrix)
     CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%K(ispin)%matrix,admm_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_nmo2(ispin)%matrix,error)
+                    admm_env%work_aux_nmo2(ispin)%matrix)
     CALL cp_gemm('T', 'N',  nao_orb, nmo, nao_aux_fit,&
                     2.0_dp,admm_env%A,admm_env%work_aux_nmo2(ispin)%matrix,0.0_dp,&
-                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
+                    admm_env%mo_derivs_tmp(ispin)%matrix)
     !! ** calculate second part
     CALL cp_gemm('T', 'N',  nmo, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%work_aux_nmo2(ispin)%matrix,0.0_dp,&
-                    admm_env%work_orb_orb,error)
+                    admm_env%work_orb_orb)
     CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nmo,&
                     1.0_dp,admm_env%C_hat(ispin)%matrix,admm_env%work_orb_orb,0.0_dp,&
-                    admm_env%work_aux_orb,error)
+                    admm_env%work_aux_orb)
     CALL cp_gemm('N', 'N',  nao_aux_fit, nmo, nao_aux_fit,&
                     1.0_dp,admm_env%S,admm_env%work_aux_orb,0.0_dp,&
-                    admm_env%work_aux_nmo(ispin)%matrix,error)
+                    admm_env%work_aux_nmo(ispin)%matrix)
     CALL cp_gemm('T', 'N',  nao_orb, nmo, nao_aux_fit,&
                     -2.0_dp,admm_env%A,admm_env%work_aux_nmo(ispin)%matrix,1.0_dp,&
-                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
+                    admm_env%mo_derivs_tmp(ispin)%matrix)
 
     CALL cp_fm_column_scale(admm_env%mo_derivs_tmp(ispin)%matrix,scaling_factor)
 
-    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,admm_env%mo_derivs_tmp(ispin)%matrix,error)
+    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,admm_env%mo_derivs_tmp(ispin)%matrix)
 
     DEALLOCATE(scaling_factor)
 
@@ -1829,15 +1775,13 @@ MODULE admm_methods
 !>        xx = schur product
 !>
 !> \param qs_env the QS environment
-!> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE calc_mixed_overlap_force(qs_env, error)
+  SUBROUTINE calc_mixed_overlap_force(qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force', &
       routineP = moduleN//':'//routineN
@@ -1896,47 +1840,44 @@ MODULE admm_methods
                     sab_aux_fit_asymm=sab_aux_fit_asymm,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     mos=mos,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
     CALL qs_rho_get(rho_aux_fit,&
-                    rho_ao=rho_ao_aux,&
-                    error=error)
+                    rho_ao=rho_ao_aux)
 
 
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! *** forces are only implemented for mo_diag or none and basis_projection ***
     IF (admm_env%block_dm) THEN
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (.NOT.(admm_env%purification_method==do_admm_purify_mo_diag .OR. &
                admm_env%purification_method==do_admm_purify_none)) THEN
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     ! *** Create sparse work matrices
 
     ALLOCATE(matrix_w_s)
-    CALL cp_dbcsr_init (matrix_w_s, error)
+    CALL cp_dbcsr_init (matrix_w_s)
     CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
          cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
          cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
          cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
-         cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,sab_aux_fit_asymm,error=error)
+         cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,sab_aux_fit_asymm)
 
     ALLOCATE(matrix_w_q)
-    CALL cp_dbcsr_init(matrix_w_q, error=error)
+    CALL cp_dbcsr_init(matrix_w_q)
     CALL cp_dbcsr_copy(matrix_w_q,matrix_s_aux_fit_vs_orb(1)%matrix,&
-                    "W MATRIX AUX Q",error=error)
+                    "W MATRIX AUX Q")
 
     DO ispin=1, dft_control%nspins
         nmo = admm_env%nmo(ispin)
@@ -1946,56 +1887,56 @@ MODULE admm_methods
         IF (.NOT. admm_env%purification_method==do_admm_purify_none) THEN
         CALL cp_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit,&
                         1.0_dp,admm_env%S_inv,qs_env%mo_derivs_aux_fit(ispin)%matrix,0.0_dp,&
-                        admm_env%work_aux_nmo(ispin)%matrix,error)
+                        admm_env%work_aux_nmo(ispin)%matrix)
         ELSE
 
         CALL cp_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit,&
                         1.0_dp,admm_env%S_inv,admm_env%H(ispin)%matrix,0.0_dp,&
-                        admm_env%work_aux_nmo(ispin)%matrix,error)
+                        admm_env%work_aux_nmo(ispin)%matrix)
         END IF
 
         ! *** S'^(-T)*H'*Lambda^(-T/2)
         CALL cp_gemm('N', 'T',  nao_aux_fit,nmo, nmo,&
                         1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
-                        admm_env%work_aux_nmo2(ispin)%matrix,error)
+                        admm_env%work_aux_nmo2(ispin)%matrix)
 
         ! *** C*Lambda^(-1/2)*H'^(T)*S'^(-1) minus sign due to force = -dE/dR
         CALL cp_gemm('N', 'T',  nao_aux_fit, nao_orb, nmo,&
                         -1.0_dp,admm_env%work_aux_nmo2(ispin)%matrix,mo_coeff,0.0_dp,&
-                        admm_env%work_aux_orb,error)
+                        admm_env%work_aux_orb)
 
         ! *** A*C*Lambda^(-1/2)*H'^(T)*S'^(-1), minus sign to recover from above
         CALL cp_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nao_orb,&
                         -1.0_dp,admm_env%work_aux_orb,admm_env%A,0.0_dp,&
-                        admm_env%work_aux_aux,error)
+                        admm_env%work_aux_aux)
 
 
         IF (.NOT. (admm_env%purification_method==do_admm_purify_none)) THEN
            ! *** C*Y
            CALL cp_gemm('N', 'N',  nao_orb, nmo, nmo,&
                         1.0_dp,mo_coeff,admm_env%R_schur_R_t(ispin)%matrix,0.0_dp,&
-                        admm_env%work_orb_nmo(ispin)%matrix,error)
+                        admm_env%work_orb_nmo(ispin)%matrix)
            ! *** C*Y^(T)*C^(T)
            CALL cp_gemm('N', 'T',  nao_orb, nao_orb, nmo,&
                         1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                        admm_env%work_orb_orb,error)
+                        admm_env%work_orb_orb)
            ! *** A*C*Y^(T)*C^(T) Add to work aux_orb, minus sign due to force = -dE/dR
            CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
                         -1.0_dp,admm_env%A,admm_env%work_orb_orb,1.0_dp,&
-                        admm_env%work_aux_orb,error)
+                        admm_env%work_aux_orb)
 
            ! *** C*Y^(T)
            CALL cp_gemm('N', 'T',  nao_orb, nmo, nmo,&
                         1.0_dp,mo_coeff,admm_env%R_schur_R_t(ispin)%matrix,0.0_dp,&
-                        admm_env%work_orb_nmo(ispin)%matrix,error)
+                        admm_env%work_orb_nmo(ispin)%matrix)
            ! *** C*Y*C^(T)
            CALL cp_gemm('N', 'T',  nao_orb, nao_orb, nmo,&
                         1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                        admm_env%work_orb_orb,error)
+                        admm_env%work_orb_orb)
            ! *** A*C*Y*C^(T) Add to work aux_orb, minus sign due to -dE/dR
            CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
                         -1.0_dp,admm_env%A,admm_env%work_orb_orb,1.0_dp,&
-                        admm_env%work_aux_orb,error)
+                        admm_env%work_aux_orb)
         END IF
 
         ! Add derivative contribution matrix*dQ/dR in additional last term in
@@ -2004,16 +1945,16 @@ MODULE admm_methods
         IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
              admm_env%charge_constrain  )  THEN
            ! *** scale admm_env%work_aux_orb by gsi due to inner derivative
-           CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb, error)
+           CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb)
            ! ***  as in ADMMP only with different sign
            CALL cp_gemm('N', 'T',  nao_orb, nao_orb, nmo, &
                    4.0_dp*( admm_env%gsi(ispin) )*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
-                   mo_coeff,mo_coeff,0.0_dp, admm_env%work_orb_orb2,error)
+                   mo_coeff,mo_coeff,0.0_dp, admm_env%work_orb_orb2)
 
            ! *** prefactor*A*C*C^(T) Add to work aux_orb
            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb,&
                         1.0_dp, admm_env%A, admm_env%work_orb_orb2,1.0_dp,&
-                        admm_env%work_aux_orb,error)
+                        admm_env%work_aux_orb)
 
 
         ! ADMMP  
@@ -2022,50 +1963,48 @@ MODULE admm_methods
            ! *** prefactor*C*C^(T), nspins since 2/n_spin*C*C^(T)=P 
            CALL cp_gemm('N', 'T',  nao_orb, nao_orb, nmo, &
                    -4.0_dp*( admm_env%gsi(ispin) )*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
-                   mo_coeff,mo_coeff,0.0_dp, admm_env%work_orb_orb2,error)
+                   mo_coeff,mo_coeff,0.0_dp, admm_env%work_orb_orb2)
 
            ! *** prefactor*A*C*C^(T) Add to work aux_orb
            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb,&
                         1.0_dp, admm_env%A, admm_env%work_orb_orb2,1.0_dp,&
-                        admm_env%work_aux_orb,error)          
+                        admm_env%work_aux_orb)          
   
 
         ! ADMMQ 
         ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_none .AND. &
                  admm_env%charge_constrain ) THEN
            ! *** scale admm_env%work_aux_orb by gsi due to inner derivative
-           CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb, error) 
+           CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb) 
            ! ***  as in ADMMP only with different sign
            CALL cp_gemm('N', 'T',  nao_orb, nao_orb, nmo, &
                    4.0_dp*( admm_env%gsi(ispin) )*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
-                   mo_coeff,mo_coeff,0.0_dp, admm_env%work_orb_orb2,error)
+                   mo_coeff,mo_coeff,0.0_dp, admm_env%work_orb_orb2)
 
            ! *** prefactor*A*C*C^(T) Add to work aux_orb
            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb,&
                         1.0_dp, admm_env%A, admm_env%work_orb_orb2,1.0_dp,&
-                        admm_env%work_aux_orb,error)
+                        admm_env%work_aux_orb)
         END IF
 
 
 
         ! *** copy to sparse matrix
-        CALL copy_fm_to_dbcsr(admm_env%work_aux_orb, matrix_w_q,keep_sparsity=.TRUE.,&
-             error=error)
+        CALL copy_fm_to_dbcsr(admm_env%work_aux_orb, matrix_w_q,keep_sparsity=.TRUE.)
 
         IF (.NOT. (admm_env%purification_method==do_admm_purify_none)) THEN
            ! *** A*C*Y^(T)*C^(T)
            CALL cp_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
                         1.0_dp,admm_env%A,admm_env%work_orb_orb,0.0_dp,&
-                        admm_env%work_aux_orb,error)
+                        admm_env%work_aux_orb)
            ! *** A*C*Y^(T)*C^(T)*A^(T) add to aux_aux, minus sign cancels
            CALL cp_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nao_orb,&
                         1.0_dp,admm_env%work_aux_orb,admm_env%A,1.0_dp,&
-                        admm_env%work_aux_aux,error)
+                        admm_env%work_aux_aux)
         END IF
 
         ! *** copy to sparse matrix
-        CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.,&
-             error=error)
+        CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.)
 
         ! Add derivative of Eq. (33) with respect to s_aux Merlot2014 to the force
         IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .OR. &
@@ -2074,25 +2013,24 @@ MODULE admm_methods
            !Create desymmetrized auxiliary density matrix           
            NULLIFY(matrix_rho_aux_desymm_tmp) 
            ALLOCATE(matrix_rho_aux_desymm_tmp)
-           CALL cp_dbcsr_init (matrix_rho_aux_desymm_tmp, error)
+           CALL cp_dbcsr_init (matrix_rho_aux_desymm_tmp)
            CALL cp_dbcsr_create(matrix_rho_aux_desymm_tmp, 'Rho_aux non-symm', &
                 cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
                 cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
                 cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
                 cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
-                cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
-                error=error)
+                cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
 
-           CALL cp_dbcsr_desymmetrize(rho_ao_aux(ispin)%matrix, matrix_rho_aux_desymm_tmp, error=error)
+           CALL cp_dbcsr_desymmetrize(rho_ao_aux(ispin)%matrix, matrix_rho_aux_desymm_tmp)
           
  
            ! ADMMS 1. scale original matrix_w_s by gsi due to inner deriv.
            !       2. add derivative of variational term with resp. to s
            IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
                 admm_env%charge_constrain ) THEN
-             CALL cp_dbcsr_scale(matrix_w_s, admm_env%gsi(ispin), error=error)
+             CALL cp_dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
              CALL cp_dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                                -admm_env%lambda_merlot(ispin), error)
+                                -admm_env%lambda_merlot(ispin))
            
           
            ! ADMMP add derivative of variational term with resp. to s
@@ -2100,20 +2038,20 @@ MODULE admm_methods
                      .NOT. admm_env%charge_constrain )  THEN
 
              CALL cp_dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                                (admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin), error)
+                                (admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin))
 
 
            ! ADMMQ 1. scale original matrix_w_s by gsi due to inner deriv.
            !       2. add derivative of variational term with resp. to s
            ELSE IF ( admm_env%scaling_model == do_admm_exch_scaling_none .AND.  &
                      admm_env%charge_constrain )  THEN
-             CALL cp_dbcsr_scale(matrix_w_s, admm_env%gsi(ispin), error=error)
+             CALL cp_dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
              CALL cp_dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                                -admm_env%lambda_merlot(ispin), error)
+                                -admm_env%lambda_merlot(ispin))
          
            END IF
 
-           CALL cp_dbcsr_deallocate_matrix(matrix_rho_aux_desymm_tmp,error)
+           CALL cp_dbcsr_deallocate_matrix(matrix_rho_aux_desymm_tmp)
 
 
         END IF
@@ -2121,41 +2059,41 @@ MODULE admm_methods
 
 
         ! allocate force vector
-        CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
+        CALL get_qs_env(qs_env=qs_env,natom=natom)
         ALLOCATE(admm_force(3,natom))
         admm_force = 0.0_dp
         CALL build_overlap_force(ks_env, admm_force,&
              basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
-             sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
+             sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s)
         CALL build_overlap_force(ks_env, admm_force,&
              basis_type_a="AUX_FIT", basis_type_b="ORB", &
-             sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
+             sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
 
         ! Add contribution of original basis set for ADMMQ
         IF ( .NOT. admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain )  THEN
-           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin),error=error)
+           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
            CALL build_overlap_force(ks_env, admm_force,&
                 basis_type_a="ORB", basis_type_b="ORB", &
-                sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix, error=error)
-           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin), error=error)
+                sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
+           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
        END IF
 
         ! Add contribution of original basis set for ADMMP
         IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. .NOT. admm_env%charge_constrain )  THEN
-           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, admm_env%lambda_merlot(ispin),error=error)
+           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, admm_env%lambda_merlot(ispin))
            CALL build_overlap_force(ks_env, admm_force,&
                 basis_type_a="ORB", basis_type_b="ORB", &
-                sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix, error=error)
-           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, 1.0_dp/admm_env%lambda_merlot(ispin), error=error)
+                sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
+           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, 1.0_dp/admm_env%lambda_merlot(ispin))
        END IF
 
         ! Add contribution of original basis set for ADMMS
         IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain )  THEN
-           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin),error=error)
+           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
            CALL build_overlap_force(ks_env, admm_force,&
                 basis_type_a="ORB", basis_type_b="ORB", &
-                sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix, error=error)
-           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin), error=error)
+                sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
+           CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
        END IF
 
 
@@ -2164,32 +2102,32 @@ MODULE admm_methods
 
         ! add forces
         CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                        force=force,error=error)
-        CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set, error)
+                        force=force)
+        CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
         DEALLOCATE(admm_force)
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-             qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
+             qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT"),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
-                extension=".Log",error=error)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_w_s,4,6,qs_env,para_env,output_unit=iw,error=error)
+                extension=".Log")
+           CALL cp_dbcsr_write_sparse_matrix(matrix_w_s,4,6,qs_env,para_env,output_unit=iw)
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT", error=error)
+                "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT")
         END IF
         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-             qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
+             qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT"),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
-                extension=".Log",error=error)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_w_q,4,6,qs_env,para_env,output_unit=iw,error=error)
+                extension=".Log")
+           CALL cp_dbcsr_write_sparse_matrix(matrix_w_q,4,6,qs_env,para_env,output_unit=iw)
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT", error=error)
+                "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT")
         END IF
 
     ENDDO !spin loop
 
     ! *** Deallocated weighted density matrices
-    CALL cp_dbcsr_deallocate_matrix(matrix_w_s,error)
-    CALL cp_dbcsr_deallocate_matrix(matrix_w_q,error)
+    CALL cp_dbcsr_deallocate_matrix(matrix_w_s)
+    CALL cp_dbcsr_deallocate_matrix(matrix_w_q)
 
     CALL timestop(handle)
 
@@ -2205,10 +2143,9 @@ MODULE admm_methods
 !> \param density_matrix_large DM of the original basis
 !> \param overlap_matrix_large overlap matrix of original basis
 !> \param ispin ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_dm_mo_no_diag(admm_env,mo_set,density_matrix,overlap_matrix,&
-             density_matrix_large,overlap_matrix_large,ispin,error)
+             density_matrix_large,overlap_matrix_large,ispin)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix, &
@@ -2216,7 +2153,6 @@ MODULE admm_methods
                                                 density_matrix_large, &
                                                 overlap_matrix_large
     INTEGER                                  :: ispin
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_mo_no_diag', &
       routineP = moduleN//':'//routineN
@@ -2228,15 +2164,15 @@ MODULE admm_methods
 
     CALL timeset(routineN,handle)
 
-    CALL cp_dbcsr_set(density_matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(density_matrix,0.0_dp)
     nao_aux_fit = admm_env%nao_aux_fit
     nmo = admm_env%nmo(ispin)
-    CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, error=error)
+    CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix)
     CALL cp_fm_column_scale(admm_env%work_aux_nmo(ispin)%matrix,mo_set%occupation_numbers(1:mo_set%homo))
 
     CALL cp_gemm('N','N',nao_aux_fit,nmo,nmo,&
                     1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%lambda_inv(ispin)%matrix,0.0_dp,&
-                    admm_env%work_aux_nmo2(ispin)%matrix,error)
+                    admm_env%work_aux_nmo2(ispin)%matrix)
 
     ! The following IF doesn't do anything unless !alpha=mo_set%maxocc is uncommented.
     IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
@@ -2245,7 +2181,7 @@ MODULE admm_methods
                               matrix_v=admm_env%C_hat(ispin)%matrix,&
                               matrix_g=admm_env%work_aux_nmo2(ispin)%matrix,&
                               ncol=mo_set%homo,&
-                              alpha=alpha,error=error)
+                              alpha=alpha)
     ELSE
       alpha=1.0_dp
       !alpha=mo_set%maxocc
@@ -2253,7 +2189,7 @@ MODULE admm_methods
                               matrix_v=admm_env%C_hat(ispin)%matrix,&
                               matrix_g=admm_env%work_aux_nmo2(ispin)%matrix,&
                               ncol=mo_set%homo,&
-                              alpha=alpha,error=error)
+                              alpha=alpha)
     ENDIF
 
 
@@ -2268,15 +2204,15 @@ MODULE admm_methods
 
         ! Calculate number of electrons in the original density matrix, transposing doesn't matter
         ! since both matrices are symmetric
-        CALL cp_dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin), 'T', 'N', error=error)
+        CALL cp_dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin), 'T', 'N')
         admm_env%n_large_basis(3) = admm_env%n_large_basis(3) + admm_env%n_large_basis(ispin)
         ! Calculate number of electrons in the auxiliary density matrix
-        CALL cp_dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux, 'T', 'N', error=error)
+        CALL cp_dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux, 'T', 'N')
         admm_env%gsi(ispin) = admm_env%n_large_basis(ispin)/nel_tmp_aux
 
         IF( admm_env%charge_constrain ) THEN
           ! multiply aux. DM with gsi to get the scaled DM (Merlot, Eq. 21)
-          CALL cp_dbcsr_scale(density_matrix, admm_env%gsi(ispin), error=error)
+          CALL cp_dbcsr_scale(density_matrix, admm_env%gsi(ispin))
         ENDIF
 
     ENDIF
@@ -2294,15 +2230,13 @@ MODULE admm_methods
 !> \param density_matrix_aux ...
 !> \param ispin ...
 !> \param nspins ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE blockify_density_matrix(admm_env,density_matrix, density_matrix_aux,&
-                                     ispin, nspins, error)
+                                     ispin, nspins)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix, &
                                                 density_matrix_aux
     INTEGER                                  :: ispin, nspins
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'blockify_density_matrix', &
       routineP = moduleN//':'//routineN
@@ -2315,7 +2249,7 @@ MODULE admm_methods
     CALL timeset(routineN,handle)
 
    ! ** set blocked density matrix to 0
-   CALL cp_dbcsr_set(density_matrix_aux, 0.0_dp, error)
+   CALL cp_dbcsr_set(density_matrix_aux, 0.0_dp)
 
    ! ** now loop through the list and copy corresponding blocks
    CALL cp_dbcsr_iterator_start(iter, density_matrix)
@@ -2332,11 +2266,11 @@ MODULE admm_methods
    END DO
    CALL cp_dbcsr_iterator_stop(iter)
 
-   CALL copy_dbcsr_to_fm(density_matrix_aux,admm_env%P_to_be_purified(ispin)%matrix,error)
-   CALL cp_fm_upper_to_full(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_orb_orb2,error=error)
+   CALL copy_dbcsr_to_fm(density_matrix_aux,admm_env%P_to_be_purified(ispin)%matrix)
+   CALL cp_fm_upper_to_full(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_orb_orb2)
 
    IF( nspins == 1 ) THEN
-     CALL cp_fm_scale(0.5_dp, admm_env%P_to_be_purified(ispin)%matrix, error)
+     CALL cp_fm_scale(0.5_dp, admm_env%P_to_be_purified(ispin)%matrix)
    END IF
 
    CALL timestop(handle)

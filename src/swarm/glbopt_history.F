@@ -61,21 +61,19 @@ MODULE glbopt_history
 !> \param history ...
 !> \param history_section ...
 !> \param iw ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE history_init(history, history_section, iw, error)
+ SUBROUTINE history_init(history, history_section, iw)
     TYPE(history_type), INTENT(INOUT)        :: history
     TYPE(section_vals_type), POINTER         :: history_section
     INTEGER                                  :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     ALLOCATE(history%entries(history_grow_unit))
     history%iw = iw
     CALL section_vals_val_get(history_section, "ENERGY_PRECISION",&
-                                  r_val=history%E_precision, error=error)
+                                  r_val=history%E_precision)
     CALL section_vals_val_get(history_section, "FINGERPRINT_PRECISION",&
-                                  r_val=history%FP_precision,error=error)
+                                  r_val=history%FP_precision)
 
     IF(iw>0) THEN
       WRITE (iw,'(A,T66,E15.3)')&

@@ -53,20 +53,18 @@ CONTAINS
 !> \param para_env ...
 !> \param force_env_section ...
 !> \param use_motion_section ...
-!> \param error ...
 !> \par Used By
 !>      mixed_main
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE mixed_init ( mixed_env, root_section,para_env, force_env_section,&
-       use_motion_section, error )
+       use_motion_section)
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_init', &
       routineP = moduleN//':'//routineN
@@ -84,27 +82,27 @@ CONTAINS
     NULLIFY (subsys, cell, cell_ref)
     NULLIFY ( cell_section)
 
-    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-    cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL")
 
-    CALL set_mixed_env(mixed_env,input=force_env_section,error=error)
+    CALL set_mixed_env(mixed_env,input=force_env_section)
     CALL cp_subsys_create(subsys, para_env, root_section,&
                          force_env_section=force_env_section,&
-                         use_motion_section=use_motion_section, error=error)
+                         use_motion_section=use_motion_section)
 
     CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, &
-         cell_section=cell_section, para_env=para_env, error=error)
+         cell_section=cell_section, para_env=para_env)
     CALL get_cell (cell, abc=abc)
 
     ! Print the cell parameters ***
-    CALL write_cell ( cell, subsys_section, cell_ref, error=error)
+    CALL write_cell ( cell, subsys_section, cell_ref)
 
     CALL mixed_init_subsys ( mixed_env, subsys, cell, cell_ref,  &
-         force_env_section, subsys_section, error )
+         force_env_section, subsys_section)
 
-    CALL cell_release(cell,error=error)
-    CALL cell_release(cell_ref,error=error)
-    CALL cp_subsys_release(subsys,error=error)
+    CALL cell_release(cell)
+    CALL cell_release(cell_ref)
+    CALL cp_subsys_release(subsys)
 
     CALL timestop(handle)
 
@@ -119,20 +117,18 @@ CONTAINS
 !> \param cell_ref ...
 !> \param force_env_section ...
 !> \param subsys_section ...
-!> \param error ...
 !> \date    11.06
 !> \author  fschiff
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE mixed_init_subsys ( mixed_env, subsys, cell, cell_ref,  &
-       force_env_section, subsys_section, error )
+       force_env_section, subsys_section)
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_init_subsys', &
       routineP = moduleN//':'//routineN
@@ -158,10 +154,10 @@ CONTAINS
     molecule_kind_set => subsys % molecule_kinds_new % els
 
     ! Create the mixed_energy_type
-    CALL allocate_mixed_energy( mixed_energy, error=error)
+    CALL allocate_mixed_energy( mixed_energy)
 
     ! Print the molecule kind set
-    CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
+    CALL write_molecule_kind_set(molecule_kind_set,subsys_section)
 
     ! Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d (atomic_kind_set=atomic_kind_set,&
@@ -170,21 +166,20 @@ CONTAINS
          molecule_kind_set=molecule_kind_set,&
          molecule_set=molecule_set,&
          local_molecules=local_molecules,&
-         force_env_section=force_env_section,&
-         error=error )
+         force_env_section=force_env_section)
 
-    CALL cp_subsys_set(subsys, cell=cell, error=error)
+    CALL cp_subsys_set(subsys, cell=cell)
 
     ! set the mixed_env
-    CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsys, error = error )
+    CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsys)
     CALL set_mixed_env ( mixed_env=mixed_env,&
          cell_ref=cell_ref, &
          local_molecules=local_molecules,&
          local_particles=local_particles,&
-         mixed_energy=mixed_energy ,error=error)
+         mixed_energy=mixed_energy)
 
-    CALL distribution_1d_release ( local_particles, error = error )
-    CALL distribution_1d_release ( local_molecules, error = error )
+    CALL distribution_1d_release ( local_particles)
+    CALL distribution_1d_release ( local_molecules)
 
     CALL timestop(handle)
 

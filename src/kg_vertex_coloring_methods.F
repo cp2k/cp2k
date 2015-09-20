@@ -261,12 +261,10 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param nnodes ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_heap_new(heap, nnodes, error)
+  SUBROUTINE kg_heap_new(heap, nnodes)
     TYPE(heap_t), INTENT(OUT)                :: heap
     INTEGER                                  :: nnodes
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_new', &
       routineP = moduleN//':'//routineN
@@ -277,7 +275,7 @@ CONTAINS
 
     CALL heap_new(heap, nnodes, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-         routineP, "Error creating heap.", error=error)
+         routineP, "Error creating heap.")
 
   END SUBROUTINE
 
@@ -304,13 +302,11 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param graph ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_heap_fill(heap, graph, error)
+  SUBROUTINE kg_heap_fill(heap, graph)
     TYPE(heap_t), INTENT(INOUT)              :: heap
     TYPE(vertex_p_type), DIMENSION(:), &
       INTENT(IN), POINTER                    :: graph
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_fill', &
       routineP = moduleN//':'//routineN
@@ -333,7 +329,7 @@ CONTAINS
     ! fill the heap
     CALL heap_fill (heap, values, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error initially filling heap.", error=error)
+         routineP, "Error initially filling heap.")
 
     DEALLOCATE (values)
 
@@ -342,11 +338,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param heap ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_heap_release(heap, error)
+  SUBROUTINE kg_heap_release(heap)
     TYPE(heap_t)                             :: heap
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_release', &
       routineP = moduleN//':'//routineN
@@ -357,7 +351,7 @@ CONTAINS
 
     CALL heap_release(heap, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error releasing heap.", error=error)
+         routineP, "Error releasing heap.")
 
   END SUBROUTINE
 
@@ -365,12 +359,10 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param key ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_heap_pop(heap, key, error)
+  SUBROUTINE kg_heap_pop(heap, key)
     TYPE(heap_t)                             :: heap
     INTEGER, INTENT(OUT)                     :: key
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_pop', &
       routineP = moduleN//':'//routineN
@@ -382,7 +374,7 @@ CONTAINS
 
     CALL heap_pop (heap, key, value, found, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error getting topmost heap element.", error=error)
+         routineP, "Error getting topmost heap element.")
 
   END SUBROUTINE
 
@@ -391,13 +383,11 @@ CONTAINS
 !> \param heap ...
 !> \param key ...
 !> \param value ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_heap_reset_node(heap, key, value, error)
+  SUBROUTINE kg_heap_reset_node(heap, key, value)
     TYPE(heap_t)                             :: heap
     INTEGER(KIND=keyt), INTENT(IN)           :: key
     INTEGER(KIND=valt), INTENT(IN)           :: value
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_reset_node', &
       routineP = moduleN//':'//routineN
@@ -406,7 +396,7 @@ CONTAINS
 
     CALL heap_reset_node (heap, key, value, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error changing value of heap element.", error=error)
+         routineP, "Error changing value of heap element.")
 
   END SUBROUTINE
 
@@ -414,12 +404,10 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param node ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_update_node(heap, node, error)
+  SUBROUTINE kg_update_node(heap, node)
     TYPE(heap_t)                             :: heap
     TYPE(vertex), INTENT(IN), POINTER        :: node
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_update_node', &
       routineP = moduleN//':'//routineN
@@ -437,7 +425,7 @@ CONTAINS
 
       value = kg_get_value(dsat, degree)
 
-      CALL kg_heap_reset_node(heap, id, value, error)
+      CALL kg_heap_reset_node(heap, id, value)
 
     END IF
 
@@ -449,14 +437,12 @@ CONTAINS
 !> \param kg_env ...
 !> \param graph ...
 !> \param ncolors ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_dsatur(kg_env, graph, ncolors, error)
+  SUBROUTINE kg_dsatur(kg_env, graph, ncolors)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
     INTEGER(KIND=int_4), INTENT(OUT)         :: ncolors
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_dsatur', &
       routineP = moduleN//':'//routineN
@@ -493,13 +479,13 @@ CONTAINS
     ELSE
 
       ! allocate and fill the heap
-      CALL kg_heap_new(heap, nnodes, error)
+      CALL kg_heap_new(heap, nnodes)
 
-      CALL kg_heap_fill(heap, graph, error)
+      CALL kg_heap_fill(heap, graph)
 
       DO WHILE (heap%n>0)
 
-        CALL kg_heap_pop(heap, key, error)
+        CALL kg_heap_pop(heap, key)
 
         this => graph(key)%vertex
 
@@ -526,7 +512,7 @@ CONTAINS
           neighbor%color_present(this%color)=.TRUE.
           neighbor%dsat = neighbor%dsat + 1
           IF(neighbor%color/=0) CYCLE
-          CALL kg_update_node(heap, neighbor, error)
+          CALL kg_update_node(heap, neighbor)
 
         END DO
 
@@ -551,7 +537,7 @@ CONTAINS
       END DO
 
       ! release the heap
-      CALL kg_heap_release(heap, error)
+      CALL kg_heap_release(heap)
 
     END IF
 
@@ -750,16 +736,14 @@ CONTAINS
 !> \param pairs ...
 !> \param ncolors ...
 !> \param color_of_node ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node, error)
+  SUBROUTINE kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node)
     TYPE(kg_environment_type), POINTER       :: kg_env
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :), INTENT(IN)            :: pairs
     INTEGER(KIND=int_4), INTENT(OUT)         :: ncolors
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:), INTENT(out)              :: color_of_node
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_vertex_coloring', &
       routineP = moduleN//':'//routineN
@@ -774,7 +758,7 @@ CONTAINS
     failure = .FALSE.
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -791,10 +775,10 @@ CONTAINS
        CALL color_graph_greedy(graph, kg_env%maxdegree, ncolors) 
     CASE(kg_color_dsatur)
        ! color with max degree of saturation
-       CALL kg_dsatur(kg_env, graph, ncolors, error)
+       CALL kg_dsatur(kg_env, graph, ncolors)
     CASE DEFAULT
        CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineP, "Coloring method not known.", error=error)
+            routineP, "Coloring method not known.")
     END SELECT
 
     CALL kg_pair_switching(graph,ncolors)
@@ -802,7 +786,7 @@ CONTAINS
     valid=.FALSE.
     CALL check_coloring(graph, valid)
     CALL cp_assert (valid, cp_fatal_level, cp_internal_error,&
-         routineP, "Coloring not valid.", error=error)
+         routineP, "Coloring not valid.")
 
     nnodes = SIZE(kg_env%molecule_set)
 

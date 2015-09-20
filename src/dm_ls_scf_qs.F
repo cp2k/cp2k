@@ -94,15 +94,13 @@ CONTAINS
 !> \param matrix_ls ...
 !> \param matrix_qs ...
 !> \param ls_mstruct ...
-!> \param error ...
 !> \par History
 !>       2011.03 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_ls_create(matrix_ls,matrix_qs,ls_mstruct,error)
+  SUBROUTINE matrix_ls_create(matrix_ls,matrix_qs,ls_mstruct)
     TYPE(cp_dbcsr_type)                      :: matrix_ls, matrix_qs
     TYPE(ls_mstruct_type), INTENT(IN)        :: ls_mstruct
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_create', &
       routineP = moduleN//':'//routineN
@@ -130,10 +128,9 @@ CONTAINS
     ! later, we might want to use our own format (e.g. clustered)
     SELECT CASE(ls_mstruct%cluster_type)
     CASE(ls_cluster_atomic)
-       CALL cp_dbcsr_init(matrix_ls,error=error)
+       CALL cp_dbcsr_init(matrix_ls)
        CALL cp_dbcsr_create(matrix_ls,template=matrix_qs, &
-                            data_type=data_type,&
-                            error=error)
+                            data_type=data_type)
     CASE(ls_cluster_molecular)
        ! create format of the clustered matrix
        natom=cp_dbcsr_nblkrows_total(matrix_qs)
@@ -204,16 +201,15 @@ CONTAINS
             reuse_arrays=.TRUE.)
 
        ! the matrix
-       CALL cp_dbcsr_init (matrix_ls, error=error)
+       CALL cp_dbcsr_init (matrix_ls)
        CALL cp_dbcsr_create (matrix_ls, cp_dbcsr_name (matrix_qs),&
             clustered_distribution,&
             dbcsr_type_symmetric,&
             clustered_blk_sizes, clustered_blk_sizes,&
-            data_type=data_type,&
-            error=error)
+            data_type=data_type)
        DEALLOCATE(clustered_blk_sizes)
        CALL dbcsr_distribution_release (clustered_distribution)
-       CALL cp_dbcsr_finalize (matrix_ls, error=error)
+       CALL cp_dbcsr_finalize (matrix_ls)
     CASE DEFAULT
        STOP " BUG cluster option"
     END SELECT
@@ -230,15 +226,13 @@ CONTAINS
 !> \param matrix_ls ...
 !> \param matrix_qs ...
 !> \param ls_mstruct ...
-!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_qs_to_ls(matrix_ls,matrix_qs,ls_mstruct,error)
+  SUBROUTINE matrix_qs_to_ls(matrix_ls,matrix_qs,ls_mstruct)
     TYPE(cp_dbcsr_type)                      :: matrix_ls, matrix_qs
     TYPE(ls_mstruct_type), INTENT(IN)        :: ls_mstruct
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_qs_to_ls', &
       routineP = moduleN//':'//routineN
@@ -251,31 +245,30 @@ CONTAINS
     SELECT CASE(ls_mstruct%cluster_type)
     CASE(ls_cluster_atomic)
        ! takes care of an eventual data_type conversion
-       CALL cp_dbcsr_copy(matrix_ls,matrix_qs,error=error)
+       CALL cp_dbcsr_copy(matrix_ls,matrix_qs)
     CASE(ls_cluster_molecular)
        ! desymmetrize the qs matrix
-       CALL cp_dbcsr_init (matrix_qs_nosym, error=error)
+       CALL cp_dbcsr_init (matrix_qs_nosym)
        CALL cp_dbcsr_create (matrix_qs_nosym, template=matrix_qs,&
-            matrix_type=dbcsr_type_no_symmetry, error=error)
-       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym,&
-            error=error)
+            matrix_type=dbcsr_type_no_symmetry)
+       CALL cp_dbcsr_desymmetrize (matrix_qs, matrix_qs_nosym)
 
        ! complete_redistribute does not zero blocks that might be present in the
        ! target but not in the source
-       CALL cp_dbcsr_set(matrix_ls,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_ls,0.0_dp)
 
        ! perform the magic complete redistribute copy
        IF (ls_mstruct%single_precision) THEN
-          CALL cp_dbcsr_init(matrix_tmp, error=error)
+          CALL cp_dbcsr_init(matrix_tmp)
           CALL cp_dbcsr_create(matrix_tmp,template=matrix_qs_nosym, &
-                               data_type=dbcsr_type_real_4, error=error)
-          CALL cp_dbcsr_copy(matrix_tmp,matrix_qs_nosym,error=error)
-          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_ls, error=error);
-          CALL cp_dbcsr_release(matrix_tmp, error=error)
+                               data_type=dbcsr_type_real_4)
+          CALL cp_dbcsr_copy(matrix_tmp,matrix_qs_nosym)
+          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_ls);
+          CALL cp_dbcsr_release(matrix_tmp)
        ELSE
-          CALL cp_dbcsr_complete_redistribute(matrix_qs_nosym, matrix_ls, error=error);
+          CALL cp_dbcsr_complete_redistribute(matrix_qs_nosym, matrix_ls);
        ENDIF
-       CALL cp_dbcsr_release (matrix_qs_nosym, error=error)
+       CALL cp_dbcsr_release (matrix_qs_nosym)
 
     CASE DEFAULT
        STOP
@@ -292,15 +285,13 @@ CONTAINS
 !> \param matrix_qs ...
 !> \param matrix_ls ...
 !> \param ls_mstruct ...
-!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_ls_to_qs(matrix_qs,matrix_ls,ls_mstruct,error)
+  SUBROUTINE matrix_ls_to_qs(matrix_qs,matrix_ls,ls_mstruct)
     TYPE(cp_dbcsr_type)                      :: matrix_qs, matrix_ls
     TYPE(ls_mstruct_type), INTENT(IN)        :: ls_mstruct
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_to_qs', &
       routineP = moduleN//':'//routineN
@@ -311,33 +302,33 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (ls_mstruct%single_precision) THEN
-       CALL cp_dbcsr_init (matrix_tmp, error=error)
+       CALL cp_dbcsr_init (matrix_tmp)
        CALL cp_dbcsr_create (matrix_tmp, template=matrix_ls,&
-            data_type=dbcsr_type_real_8, error=error)
-       CALL cp_dbcsr_copy (matrix_tmp, matrix_ls, error=error)
+            data_type=dbcsr_type_real_8)
+       CALL cp_dbcsr_copy (matrix_tmp, matrix_ls)
     ENDIF
 
 
     SELECT CASE(ls_mstruct%cluster_type)
     CASE(ls_cluster_atomic)
        IF (ls_mstruct%single_precision) THEN
-          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_tmp, error=error)
+          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_tmp)
        ELSE
-          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_ls, error=error)
+          CALL cp_dbcsr_copy_into_existing (matrix_qs, matrix_ls)
        ENDIF
     CASE(ls_cluster_molecular)
-       CALL cp_dbcsr_set(matrix_qs,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_qs,0.0_dp)
        IF (ls_mstruct%single_precision) THEN
-          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE., error=error)
+          CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE.)
        ELSE
-          CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE., error=error)
+          CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE.)
        ENDIF
     CASE DEFAULT
        STOP "BUG"
     END SELECT
 
     IF (ls_mstruct%single_precision) THEN
-       CALL cp_dbcsr_release(matrix_tmp,error=error)
+       CALL cp_dbcsr_release(matrix_tmp)
     ENDIF
 
     CALL timestop(handle)
@@ -348,14 +339,12 @@ CONTAINS
 !> \brief further required initialization of QS.
 !>        Might be factored-out since this seems common code with the other SCF.
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE ls_scf_init_qs(qs_env,error)
+  SUBROUTINE ls_scf_init_qs(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_qs', &
       routineP = moduleN//':'//routineN
@@ -373,7 +362,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -385,22 +374,21 @@ CONTAINS
                            matrix_s=matrix_s,&
                            matrix_ks=matrix_ks,&
                            ks_env=ks_env,&
-                           sab_orb=sab_orb,&
-                           error=error)
+                           sab_orb=sab_orb)
 
     nspin=dft_control%nspins
 
     ! we might have to create matrix_ks
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspin,error)
+       CALL cp_dbcsr_allocate_matrix_set(matrix_ks,nspin)
        DO ispin=1,nspin
           ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-          CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
-          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix)
+          CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,template=matrix_s(1)%matrix)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb)
+          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp)
        ENDDO
-       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks)
     ENDIF
 
     CALL timestop(handle)
@@ -411,15 +399,13 @@ CONTAINS
 !> \brief get an atomic initial guess
 !> \param qs_env ...
 !> \param energy ...
-!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE ls_scf_qs_atomic_guess(qs_env,energy,error)
+  SUBROUTINE ls_scf_qs_atomic_guess(qs_env,energy)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: energy
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_qs_atomic_guess', &
       routineP = moduleN//':'//routineN
@@ -446,7 +432,7 @@ CONTAINS
     NULLIFY(rho,rho_ao)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -465,32 +451,31 @@ CONTAINS
                            has_unit_metric=has_unit_metric,&
                            para_env=para_env,&
                            nelectron_spin=nelectron_spin,&
-                           rho=rho,&
-                           error=error)
+                           rho=rho)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     nspin=dft_control%nspins
 
     ! create an initial atomic guess
     DO ispin=1,nspin
-       CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp)
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
           CALL calculate_mopac_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
                                   dft_control,particle_set, atomic_kind_set, qs_kind_set,&
                                   nspin, nelectron_spin(ispin),&
-                                  para_env, error)
+                                  para_env)
        ELSE
           CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
                                          particle_set, atomic_kind_set, qs_kind_set, &
                                          ispin, nspin, nelectron_spin(ispin), &
-                                         unit_nr, error)
+                                         unit_nr)
        ENDIF
     ENDDO
 
-    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env)
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
 
     energy=qs_energy%total
 
@@ -504,18 +489,16 @@ CONTAINS
 !> \param ls_scf_env ...
 !> \param energy_new ...
 !> \param iscf ...
-!> \param error ...
 !> \par History
 !>       2011.04 created [Joost VandeVondele]
 !>       2015.02 added gspace density mixing [Patrick Seewald]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,iscf,error)
+  SUBROUTINE ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,iscf)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     REAL(KIND=dp)                            :: energy_new
     INTEGER, INTENT(IN)                      :: iscf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_dm_to_ks', &
       routineP = moduleN//':'//routineN
@@ -531,7 +514,7 @@ CONTAINS
     NULLIFY(energy, rho, rho_ao)
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -539,26 +522,26 @@ CONTAINS
     ENDIF
 
     nspin=ls_scf_env%nspins
-    CALL get_qs_env(qs_env, para_env=para_env, energy=energy, rho=rho, error=error) 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL get_qs_env(qs_env, para_env=para_env, energy=energy, rho=rho) 
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     ! set the new density matrix
     DO ispin=1,nspin
-         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
+         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct)
     END DO
 
     ! compute the corresponding KS matrix and new energy, mix density if requested
-    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env)
     IF(ls_scf_env%do_rho_mixing) THEN
       CALL cp_assert(ls_scf_env%density_mixing_method .NE. direct_mixing_nr, & 
                      cp_failure_level,cp_assertion_failed, routineP, &
                      "Direct P mixing not implemented in linear scaling SCF. ", &
-                     only_ionode=.TRUE., error=error) 
+                     only_ionode=.TRUE.) 
       IF (ls_scf_env%density_mixing_method>=gspace_mixing_nr) THEN
         IF(iscf .GT. MAX(ls_scf_env%mixing_store%nskip_mixing,1)) THEN
          CALL gspace_mixing(qs_env, ls_scf_env%density_mixing_method, &
                              ls_scf_env%mixing_store, rho, para_env, &
-                             iscf-1, error)
+                             iscf-1)
           IF(unit_nr>0) THEN
              WRITE(unit_nr,'(A57)') &
                    "*********************************************************"
@@ -575,9 +558,9 @@ CONTAINS
       ENDIF
     ENDIF
 
-    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
-                             just_energy=.FALSE., print_active=.TRUE., error=error)
+                             just_energy=.FALSE., print_active=.TRUE.)
     energy_new=energy%total
 
     CALL timestop(handle)
@@ -593,16 +576,14 @@ CONTAINS
 !> \param unit_nr ...
 !> \param title ...
 !> \param stride ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_matrix_to_cube(qs_env,ls_scf_env,matrix_p_ls,unit_nr,title,stride,error)
+  SUBROUTINE write_matrix_to_cube(qs_env,ls_scf_env,matrix_p_ls,unit_nr,title,stride)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_p_ls
     INTEGER, INTENT(IN)                      :: unit_nr
     CHARACTER(LEN=*), INTENT(IN)             :: title
     INTEGER, DIMENSION(:), POINTER           :: stride
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_to_cube', &
       routineP = moduleN//':'//routineN
@@ -629,50 +610,45 @@ CONTAINS
                     ks_env=ks_env,&
                     subsys=subsys,&
                     pw_env=pw_env,&
-                    matrix_ks=matrix_ks,&
-                    error=error)
+                    matrix_ks=matrix_ks)
 
-    CALL qs_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles)
 
     ! convert the density matrix (ls style) to QS style
     ALLOCATE(matrix_p_qs)
-    CALL cp_dbcsr_init(matrix_p_qs,error=error) !initialization
-    CALL cp_dbcsr_copy(matrix_p_qs,matrix_ks(1)%matrix,error=error)
-    CALL cp_dbcsr_set(matrix_p_qs,0.0_dp,error=error) !zero matrix creation   
-    CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct,error=error) 
+    CALL cp_dbcsr_init(matrix_p_qs) !initialization
+    CALL cp_dbcsr_copy(matrix_p_qs,matrix_ks(1)%matrix)
+    CALL cp_dbcsr_set(matrix_p_qs,0.0_dp) !zero matrix creation   
+    CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct) 
 
     ! Print total electronic density
     CALL pw_env_get(pw_env=pw_env,&
                     auxbas_pw_pool=auxbas_pw_pool,&
-                    pw_pools=pw_pools,&
-                    error=error)
+                    pw_pools=pw_pools)
     CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
                           pw=wf_r%pw,&
                           use_data=REALDATA3D,&
-                          in_space=REALSPACE,&
-                          error=error)
-    CALL pw_zero(wf_r%pw,error=error)
+                          in_space=REALSPACE)
+    CALL pw_zero(wf_r%pw)
     CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
                           pw=wf_g%pw,&
                           use_data=COMPLEXDATA1D,&
-                          in_space=RECIPROCALSPACE,&
-                          error=error)
-    CALL pw_zero(wf_g%pw,error=error)
+                          in_space=RECIPROCALSPACE)
+    CALL pw_zero(wf_g%pw)
     CALL calculate_rho_elec(matrix_p=matrix_p_qs,&
                             rho=wf_r,&
                             rho_gspace=wf_g,&
                             total_rho=tot_rho,&
-                            ks_env=ks_env, &
-                            error=error)
+                            ks_env=ks_env)
 
     ! write this to a cube
     CALL cp_pw_to_cube(wf_r%pw, unit_nr=unit_nr, title=title,&
-         particles=particles, stride=stride, error = error)
+         particles=particles, stride=stride)
 
     !free memory
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error) 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw,error=error)   
-    CALL cp_dbcsr_release(matrix_p_qs,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw) 
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)   
+    CALL cp_dbcsr_release(matrix_p_qs)
     DEALLOCATE(matrix_p_qs)
 
     CALL timestop(handle)
@@ -683,12 +659,10 @@ CONTAINS
 !> \brief Initialize g-space density mixing
 !> \param qs_env ...
 !> \param ls_scf_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rho_mixing_ls_init(qs_env, ls_scf_env, error)
+  SUBROUTINE rho_mixing_ls_init(qs_env, ls_scf_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type)                    :: ls_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rho_mixing_ls_init', &
       routineP = moduleN//':'//routineN
@@ -702,19 +676,18 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,dft_control=dft_control,&
-                           rho=rho,&
-                           error=error)
+                           rho=rho)
 
     CALL mixing_allocate(qs_env, ls_scf_env%density_mixing_method, nspins=ls_scf_env%nspins, &
-                         mixing_store=ls_scf_env%mixing_store,error=error)
+                         mixing_store=ls_scf_env%mixing_store)
     IF(ls_scf_env%density_mixing_method>=gspace_mixing_nr) THEN
       IF(dft_control%qs_control%gapw) THEN 
-        CALL get_qs_env(qs_env, rho_atom_set=rho_atom,error=error)
+        CALL get_qs_env(qs_env, rho_atom_set=rho_atom)
         CALL mixing_init(ls_scf_env%density_mixing_method, rho,ls_scf_env%mixing_store, &
-                         ls_scf_env%para_env, rho_atom=rho_atom,error=error)
+                         ls_scf_env%para_env, rho_atom=rho_atom)
       ELSE
         CALL mixing_init(ls_scf_env%density_mixing_method, rho,ls_scf_env%mixing_store, &
-                         ls_scf_env%para_env,error=error)
+                         ls_scf_env%para_env)
       ENDIF
     ENDIF
     CALL timestop(handle)

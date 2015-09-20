@@ -37,17 +37,15 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param se_control ...
 !> \param method_id ...
-!> \param error ...
 !> \date 12.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_expns3_setup(qs_kind_set, se_control, method_id, error)
+  SUBROUTINE semi_empirical_expns3_setup(qs_kind_set, se_control, method_id)
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     INTEGER, INTENT(IN)                      :: method_id
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_setup', &
       routineP = moduleN//':'//routineN
@@ -61,23 +59,23 @@ CONTAINS
        NULLIFY(sepi, sepj)
        nkinds  = SIZE(qs_kind_set)
        DO i = 1, nkinds
-          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi, error=error)
+          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
           check = .NOT.ASSOCIATED(sepi%expns3_int)
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
           ALLOCATE(sepi%expns3_int(nkinds),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO j = 1, nkinds
              NULLIFY(sepi%expns3_int(j)%expns3)
-             CALL semi_empirical_expns3_create(sepi%expns3_int(j)%expns3,error=error)
+             CALL semi_empirical_expns3_create(sepi%expns3_int(j)%expns3)
           END DO
        END DO
 
        itype = get_se_type(method_id)
        DO i = 1, nkinds
-          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi, error=error)
+          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
           DO j = 1, nkinds
-             CALL get_qs_kind(qs_kind_set(j), se_parameter=sepj, error=error)
-             CALL setup_c3_coeff(sepi, sepj, i, j, itype, error)
+             CALL get_qs_kind(qs_kind_set(j), se_parameter=sepj)
+             CALL setup_c3_coeff(sepi, sepj, i, j, itype)
           END DO
        END DO
     END IF
@@ -95,14 +93,12 @@ CONTAINS
 !> \param ikind ...
 !> \param jkind ...
 !> \param itype ...
-!> \param error ...
 !> \date 12.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE setup_c3_coeff(sepi, sepj, ikind, jkind, itype, error)
+  SUBROUTINE setup_c3_coeff(sepi, sepj, ikind, jkind, itype)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ikind, jkind, itype
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_c3_coeff', &
       routineP = moduleN//':'//routineN
@@ -120,69 +116,69 @@ CONTAINS
     ij  = indexa(1, 1)
     zi  = -sepi%zeff
     zj  = -sepj%zeff
-    core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, itype, coeff_int_3, error) * zi * zj
+    core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, itype, coeff_int_3) * zi * zj
 
     ! Electron(i)-Nuclei(j)   contribution
     kl = indexa(1, 1)
-    e1b(1) = ijkl_low_3 (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, itype, coeff_int_3, error) * zj
+    e1b(1) = ijkl_low_3 (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, itype, coeff_int_3) * zj
     IF (sepi%natorb > 1) THEN
        kl = indexa(2, 2)
-       e1b(2) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3, error) * zj
+       e1b(2) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3) * zj
        kl = indexa(3, 3)
-       e1b(3) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3, error) * zj
+       e1b(3) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3) * zj
        kl = indexa(4, 4)
-       e1b(4) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3, error) * zj
+       e1b(4) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3) * zj
        ! Consistency check
-       CPPostcondition(e1b(2)==e1b(3),cp_failure_level,routineP,error,failure)
-       CPPostcondition(e1b(3)==e1b(4),cp_failure_level,routineP,error,failure)
+       CPPostcondition(e1b(2)==e1b(3),cp_failure_level,routineP,failure)
+       CPPostcondition(e1b(3)==e1b(4),cp_failure_level,routineP,failure)
        IF (sepi%dorb) THEN
           kl = indexa(5, 5)
-          e1b(5) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
+          e1b(5) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
           kl = indexa(6, 6)
-          e1b(6) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
+          e1b(6) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
           kl = indexa(7, 7)
-          e1b(7) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
+          e1b(7) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
           kl = indexa(8, 8)
-          e1b(8) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
+          e1b(8) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
           kl = indexa(9, 9)
-          e1b(9) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
+          e1b(9) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
           ! Consistency check
-          CPPostcondition(e1b(5)==e1b(6),cp_failure_level,routineP,error,failure)
-          CPPostcondition(e1b(6)==e1b(7),cp_failure_level,routineP,error,failure)
-          CPPostcondition(e1b(7)==e1b(8),cp_failure_level,routineP,error,failure)
-          CPPostcondition(e1b(8)==e1b(9),cp_failure_level,routineP,error,failure)
+          CPPostcondition(e1b(5)==e1b(6),cp_failure_level,routineP,failure)
+          CPPostcondition(e1b(6)==e1b(7),cp_failure_level,routineP,failure)
+          CPPostcondition(e1b(7)==e1b(8),cp_failure_level,routineP,failure)
+          CPPostcondition(e1b(8)==e1b(9),cp_failure_level,routineP,failure)
        END IF
     END IF
 
     ! Electron(j)-Nuclei(i)   contribution
     kl = indexa(1, 1)
-    e2a(1) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, itype, coeff_int_3, error) * zi
+    e2a(1) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, itype, coeff_int_3) * zi
     IF (sepj%natorb > 1) THEN
        kl = indexa(2, 2)
-       e2a(2) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3, error) * zi
+       e2a(2) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3) * zi
        kl = indexa(3, 3)
-       e2a(3) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3, error) * zi
+       e2a(3) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3) * zi
        kl = indexa(4, 4)
-       e2a(4) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3, error) * zi
+       e2a(4) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3) * zi
        ! Consistency check
-       CPPostcondition(e2a(2)==e2a(3),cp_failure_level,routineP,error,failure)
-       CPPostcondition(e2a(3)==e2a(4),cp_failure_level,routineP,error,failure)
+       CPPostcondition(e2a(2)==e2a(3),cp_failure_level,routineP,failure)
+       CPPostcondition(e2a(3)==e2a(4),cp_failure_level,routineP,failure)
        IF (sepj%dorb) THEN
           kl = indexa(5, 5)
-          e2a(5) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
+          e2a(5) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
           kl = indexa(6, 6)
-          e2a(6) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
+          e2a(6) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
           kl = indexa(7, 7)
-          e2a(7) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
+          e2a(7) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
           kl = indexa(8, 8)
-          e2a(8) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
+          e2a(8) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
           kl = indexa(9, 9)
-          e2a(9) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
+          e2a(9) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
           ! Consistency check
-          CPPostcondition(e2a(5)==e2a(6),cp_failure_level,routineP,error,failure)
-          CPPostcondition(e2a(6)==e2a(7),cp_failure_level,routineP,error,failure)
-          CPPostcondition(e2a(7)==e2a(8),cp_failure_level,routineP,error,failure)
-          CPPostcondition(e2a(8)==e2a(9),cp_failure_level,routineP,error,failure)
+          CPPostcondition(e2a(5)==e2a(6),cp_failure_level,routineP,failure)
+          CPPostcondition(e2a(6)==e2a(7),cp_failure_level,routineP,failure)
+          CPPostcondition(e2a(7)==e2a(8),cp_failure_level,routineP,failure)
+          CPPostcondition(e2a(8)==e2a(9),cp_failure_level,routineP,failure)
        END IF
     END IF
 
@@ -205,7 +201,7 @@ CONTAINS
           kl = indexa(j,j)
           kr = kr + 1
           sepi%expns3_int(jkind)%expns3%w(kr) = &
-               ijkl_low_3 (sepi, sepj, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3, error)
+               ijkl_low_3 (sepi, sepj, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3)
        END DO
     END DO
 
@@ -219,7 +215,7 @@ CONTAINS
           kl = indexa(j,j)
           kr = kr + 1
           sepj%expns3_int(ikind)%expns3%w(kr) = &
-               ijkl_low_3 (sepj, sepi, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3, error)
+               ijkl_low_3 (sepj, sepi, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3)
        END DO
     END DO
 

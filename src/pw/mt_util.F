@@ -52,11 +52,10 @@ CONTAINS
 !> \param special_dimension ...
 !> \param slab_size ...
 !> \param super_ref_pw_grid ...
-!> \param error ...
 !> \author Teodoro Laino (16.06.2004)
 ! *****************************************************************************
   SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha,  &
-       special_dimension, slab_size, super_ref_pw_grid, error)
+       special_dimension, slab_size, super_ref_pw_grid)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN)                      :: method
@@ -64,7 +63,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: special_dimension
     REAL(KIND=dp), INTENT(in)                :: slab_size
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
       routineP = moduleN//':'//routineN
@@ -84,33 +82,29 @@ CONTAINS
     !
     CALL cite_reference(Martyna1999)
     IF (ASSOCIATED(super_ref_pw_grid)) THEN
-       CALL pw_pool_create ( pw_pool_aux, pw_grid = super_ref_pw_grid ,error=error)
+       CALL pw_pool_create ( pw_pool_aux, pw_grid = super_ref_pw_grid)
     END IF
     CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
-         in_space=RECIPROCALSPACE,error=error)
-    CALL pw_zero( screen_function, error=error)
+         in_space=RECIPROCALSPACE)
+    CALL pw_zero( screen_function)
     SELECT CASE( method )
     CASE(MT0D)
        IF (ASSOCIATED(pw_pool_aux)) THEN
-          CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
-               error=error)
-          CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
-               error=error)
+          CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
        ELSE
-          CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
-               error=error)
-          CALL pw_pool_create_pw(pw_pool, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
-               error=error)
+          CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_pool_create_pw(pw_pool, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
        END IF
        CALL mt0din( Vloc, alpha)
-       CALL pw_transfer ( Vloc,  Vlocg, error=error)
-       CALL pw_axpy(Vlocg, screen_function, error=error)
+       CALL pw_transfer ( Vloc,  Vlocg)
+       CALL pw_axpy(Vlocg, screen_function)
        IF (ASSOCIATED(pw_pool_aux)) THEN
-          CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
-          CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)
+          CALL pw_pool_give_back_pw(pw_pool_aux, Vloc)
+          CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg)
        ELSE
-          CALL pw_pool_give_back_pw(pw_pool, Vloc,  error=error)
-          CALL pw_pool_give_back_pw(pw_pool, Vlocg, error=error)
+          CALL pw_pool_give_back_pw(pw_pool, Vloc)
+          CALL pw_pool_give_back_pw(pw_pool, Vlocg)
        END IF
        !
        ! Get rid of the analytical FT of the erf(a*r)/r
@@ -136,10 +130,10 @@ CONTAINS
        IF ( screen_function% pw_grid % have_g0 )  screen_function%cc ( 1 ) = pi * zlength*zlength / 2.0_dp
     CASE(MT1D)
        iz = special_dimension ! iz is the direction with PBC
-       CALL mt1din(screen_function,error)
-       CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
+       CALL mt1din(screen_function)
+       CALL cp_unimplemented_error(routineP, "MT1D unimplemented",cp_failure_level)
     END SELECT
-    CALL pw_pool_release ( pw_pool_aux, error=error )
+    CALL pw_pool_release ( pw_pool_aux)
     CALL timestop(handle)
   END SUBROUTINE MTin_create_screen_fn
 
@@ -213,12 +207,10 @@ CONTAINS
 !>      according the scheme published on:
 !>      Martyna and Tuckerman, J. Chem. Phys. Vol. 121, No. 23, 11949
 !> \param screen_function ...
-!> \param error ...
 !> \author Teodoro Laino (11.2005)
 ! *****************************************************************************
-  SUBROUTINE mt1din(screen_function,error)
+  SUBROUTINE mt1din(screen_function)
     TYPE(pw_type), POINTER                   :: screen_function
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', &
       routineP = moduleN//':'//routineN

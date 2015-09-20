@@ -91,8 +91,6 @@ CONTAINS
 !> \param mm_section ...
 !> \param full_nl ...
 !> \param exclusions ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
@@ -100,7 +98,7 @@ CONTAINS
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set, particle_set, &
         local_particles, cell, r_max, r_minsq, ei_scale14, vdw_scale14, &
         nonbonded, para_env, build_from_scratch, geo_check, mm_section, &
-        full_nl, exclusions, error)
+        full_nl, exclusions)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -119,7 +117,6 @@ CONTAINS
       POINTER                                :: full_nl
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL                               :: exclusions
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
       routineP = moduleN//':'//routineN
@@ -143,11 +140,11 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger,mm_section,"PRINT%SUBCELL",&
-         extension=".Log",error=error)
+         extension=".Log")
     IF (output_unit > 0)  print_subcell_grid = .TRUE.
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -158,21 +155,21 @@ CONTAINS
     ! if exclusions matters local particles are present. Seems like only the exclusions
     ! for the local particles are needed, which would imply a huge memory savings for fist
     IF (PRESENT(exclusions)) THEN
-      CPPostcondition(present_local_particles,cp_failure_level,routineP,error,failure)
+      CPPostcondition(present_local_particles,cp_failure_level,routineP,failure)
     ENDIF
 
     ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
     ALLOCATE (atom(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (skip_kind(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! full_nl
     IF (PRESENT(full_nl)) THEN
        my_full_nl => full_nl
     ELSE
        ALLOCATE(my_full_nl(nkind,nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        my_full_nl = .FALSE.
     END IF
     ! Initialize the local data structures
@@ -191,7 +188,7 @@ CONTAINS
        END IF
        IF (natom_local_a > 0) THEN
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ! Build index vector for mapping
           DO iatom_local=1,natom_local_a
              IF (present_local_particles) THEN
@@ -207,7 +204,7 @@ CONTAINS
 
     IF (build_from_scratch) THEN
        IF (ASSOCIATED(nonbonded)) THEN
-          CALL fist_neighbor_deallocate(nonbonded,error)
+          CALL fist_neighbor_deallocate(nonbonded)
        END IF
     END IF
 
@@ -215,14 +212,14 @@ CONTAINS
     CALL build_neighbor_lists(nonbonded, particle_set, atom, cell, &
          print_subcell_grid, output_unit, r_max, r_minsq, &
          ei_scale14, vdw_scale14, geo_check,"NONBONDED", skip_kind, &
-         my_full_nl, exclusions, error)
+         my_full_nl, exclusions)
 
     ! Sort the list according kinds for each cell
-    CALL sort_neighbor_lists(nonbonded, nkind, error)
+    CALL sort_neighbor_lists(nonbonded, nkind)
 
     print_key_path = "PRINT%NEIGHBOR_LISTS"
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,mm_section,print_key_path,error=error),&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,mm_section,print_key_path),&
          cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger=logger,&
             basis_section=mm_section,&
@@ -231,17 +228,15 @@ CONTAINS
             middle_name="nonbonded_nl",&
             local=.TRUE.,&
             log_filename=.FALSE.,&
-            file_position="REWIND",&
-            error=error)
-       CALL section_vals_val_get(mm_section,TRIM(print_key_path)//"%UNIT",c_val=unit_str,error=error)
+            file_position="REWIND")
+       CALL section_vals_val_get(mm_section,TRIM(print_key_path)//"%UNIT",c_val=unit_str)
        CALL write_neighbor_lists(nonbonded,particle_set,cell,para_env,iw,&
-            "NONBONDED NEIGHBOR LISTS",unit_str,error)
+            "NONBONDED NEIGHBOR LISTS",unit_str)
        CALL cp_print_key_finished_output(unit_nr=iw,&
             logger=logger,&
             basis_section=mm_section,&
             print_key_path=print_key_path,&
-            local=.TRUE.,&
-            error=error)
+            local=.TRUE.)
     END IF
 
     ! Release work storage
@@ -249,26 +244,25 @@ CONTAINS
        NULLIFY (atom(ikind)%list)
        IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
           DEALLOCATE (atom(ikind)%list_local_a_index,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END DO
     IF (PRESENT(full_nl)) THEN
        NULLIFY(my_full_nl)
     ELSE
        DEALLOCATE(my_full_nl,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE (atom,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE (skip_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL cp_print_key_finished_output(unit_nr=output_unit,&
          logger=logger,&
          basis_section=mm_section,&
-         print_key_path="PRINT%SUBCELL",&
-         error=error)
+         print_key_path="PRINT%SUBCELL")
     CALL timestop(handle)
 
   END SUBROUTINE build_fist_neighbor_lists
@@ -290,15 +284,13 @@ CONTAINS
 !> \param skip_kind ...
 !> \param full_nl ...
 !> \param exclusions ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(nonbonded, particle_set, atom,cell, &
         print_subcell_grid, output_unit, r_max, r_minsq, &
-        ei_scale14, vdw_scale14, geo_check, name, skip_kind, full_nl, exclusions, error)
+        ei_scale14, vdw_scale14, geo_check, name, skip_kind, full_nl, exclusions)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -316,7 +308,6 @@ CONTAINS
     LOGICAL, DIMENSION(:, :), POINTER        :: full_nl
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL                               :: exclusions
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists', &
       routineP = moduleN//':'//routineN
@@ -381,7 +372,7 @@ CONTAINS
           isubcell=MAX(isubcell(:),CEILING(sab_max(:)*REAL(nsubcell(:),KIND=dp)))
        END DO
     END DO
-    CALL fist_neighbor_init(nonbonded, ncell, error)
+    CALL fist_neighbor_init(nonbonded, ncell)
     ! Print headline
     IF (print_subcell_grid) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)")&
@@ -391,12 +382,12 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(T4,A,10X,3I10)")" NUMBER OF INTERACTING SUBCELLS ::",isubcell
     END IF
     ! Allocate subcells
-    CALL allocate_subcell(subcell_a,nsubcell,cell=cell,error=error)
-    CALL allocate_subcell(subcell_b,nsubcell,cell=cell,error=error)
+    CALL allocate_subcell(subcell_a,nsubcell,cell=cell)
+    CALL allocate_subcell(subcell_b,nsubcell,cell=cell)
     ! Let's map the sequence of the periodic images
     ncellmax = MAXVAL(ncell)
     ALLOCATE(cellmap(-ncellmax:ncellmax,-ncellmax:ncellmax,-ncellmax:ncellmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     cellmap=-1
     imap=0
     nkind00 = nkind*(nkind+1)/2
@@ -407,7 +398,7 @@ CONTAINS
                 IF (cellmap(icell,jcell,kcell)==-1) THEN
                    imap=imap+1
                    cellmap(icell,jcell,kcell)=imap
-                   CPPostcondition(imap<=nonbonded%nlists,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(imap<=nonbonded%nlists,cp_failure_level,routineP,failure)
                    neighbor_kind_pair => nonbonded%neighbor_kind_pairs(imap)
 
                    neighbor_kind_pair%cell_vector(1) = icell
@@ -422,7 +413,7 @@ CONTAINS
     ALLOCATE(sphcub(-isubcell(1):isubcell(1),&
                     -isubcell(2):isubcell(2),&
                     -isubcell(3):isubcell(3)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     sphcub = .FALSE.
     IF (ALL(isubcell/=0)) THEN
        radius = REAL(isubcell(1),KIND=dp)**2+ REAL(isubcell(2),KIND=dp)**2+&
@@ -453,7 +444,7 @@ CONTAINS
     END IF
     ! Mapping locally all atoms in the zeroth cell
     ALLOCATE(coord(3,SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO atom_a = 1, SIZE(particle_set)
        coord(:,atom_a) = pbc(particle_set(atom_a)%r,cell)
     END DO
@@ -471,7 +462,7 @@ CONTAINS
        DO j = 1,nsubcell(2)
           DO i = 1,nsubcell(1)
              ALLOCATE(subcell_a(i,j,k)%atom_list(subcell_a(i,j,k)%natom),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              subcell_a(i,j,k)%natom   = 0
           END DO
        END DO
@@ -495,7 +486,7 @@ CONTAINS
        DO j = 1,nsubcell(2)
           DO i = 1,nsubcell(1)
              ALLOCATE(subcell_b(i,j,k)%atom_list(subcell_b(i,j,k)%natom),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              subcell_b(i,j,k)%natom   = 0
           END DO
        END DO
@@ -509,9 +500,9 @@ CONTAINS
     tmpdim = MAXVAL(subcell_a(:,:,:)%natom)
     tmpdim = MAX(tmpdim,MAXVAL(subcell_b(:,:,:)%natom))
     ALLOCATE(work(3*tmpdim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(kind_of(SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i = 1, SIZE(particle_set)
        kind_of(i) = particle_set(i)%atomic_kind%kind_number
     END DO
@@ -524,7 +515,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(work,kind_of,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     zdim  = nsubcell(3)
     ydim  = nsubcell(2)
     xdim  = nsubcell(1)
@@ -626,7 +617,7 @@ CONTAINS
                         check_spline=check_spline, id_kind=id_kind, &
                         skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                         cell=cell, ei_scale14=ei_scale14, &
-                        vdw_scale14=vdw_scale14, exclusions=exclusions, error=error)
+                        vdw_scale14=vdw_scale14, exclusions=exclusions)
                    ! This is to handle properly when interaction radius is larger than cell size
                    IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
                       invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
@@ -637,7 +628,7 @@ CONTAINS
                            check_spline=check_spline, id_kind=id_kind, &
                            skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                            cell=cell, ei_scale14=ei_scale14, &
-                           vdw_scale14=vdw_scale14, exclusions=exclusions, error=error)
+                           vdw_scale14=vdw_scale14, exclusions=exclusions)
                    END IF
                    ! Check for too close hits
                    IF (check_spline) THEN
@@ -667,13 +658,13 @@ CONTAINS
     END DO loop_a_j
     END DO loop_a_k
     DEALLOCATE(coord,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(cellmap,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(sphcub,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL deallocate_subcell(subcell_a,error=error)
-    CALL deallocate_subcell(subcell_b,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL deallocate_subcell(subcell_a)
+    CALL deallocate_subcell(subcell_b)
 
     CALL timestop(handle)
   END SUBROUTINE build_neighbor_lists
@@ -687,14 +678,12 @@ CONTAINS
 !> \param output_unit ...
 !> \param name ...
 !> \param unit_str ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE write_neighbor_lists(nonbonded,particle_set,cell,para_env,output_unit,&
-    name,unit_str,error)
+    name,unit_str)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -703,7 +692,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name, unit_str
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: atom_a, atom_b, iab, ilist, &
@@ -723,7 +711,7 @@ CONTAINS
 
     print_headline = .TRUE.
     nneighbor = 0
-    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
     DO iab=1,SIZE(nonbonded%neighbor_kind_pairs)
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
        CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
@@ -777,18 +765,15 @@ CONTAINS
 !> \brief Sort the generated neighbor list according the kind
 !> \param nonbonded ...
 !> \param nkinds ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [tlaino] University of Zurich - Reducing memory usage
 !>              for the FIST neighbor lists
 !> \author Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE sort_neighbor_lists(nonbonded, nkinds, error)
+  SUBROUTINE sort_neighbor_lists(nonbonded, nkinds)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     INTEGER, INTENT(IN)                      :: nkinds
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_neighbor_lists', &
       routineP = moduleN//':'//routineN
@@ -807,7 +792,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     ! define a lookup table to get jkind for a given id_kind
     ALLOCATE(indj(nkinds*(nkinds+1)/2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     id_kind = 0
     DO jkind = 1, nkinds
        DO ikind = jkind, nkinds
@@ -827,9 +812,9 @@ CONTAINS
              ! stay packed in the beginning. Sorting is skipped altogether when
              ! all pairs have scaled interactions.
              ALLOCATE(work(1:npairs-nscale),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ALLOCATE(list_copy(2,1:npairs-nscale),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              ! Copy of the pair list is required to perform the permutation below
              ! correctly.
              list_copy = neighbor_kind_pair%list(:,nscale+1:npairs)
@@ -842,7 +827,7 @@ CONTAINS
                 neighbor_kind_pair%list(2,ipair) = list_copy(2,tmp)
              END DO
              DEALLOCATE(work,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              DEALLOCATE(list_copy,stat=stat)
           END IF
           ! 2) determine the intervals (groups) in the pair list that correspond
@@ -854,25 +839,25 @@ CONTAINS
           ! present, and also provide storage for the pairs with exclusion
           ! flags, which are unsorted.
           max_alloc_size = nkinds*(nkinds+1)/2 + nscale
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_start,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           ALLOCATE(neighbor_kind_pair%grp_kind_start(max_alloc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_end)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_end,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           ALLOCATE(neighbor_kind_pair%grp_kind_end(max_alloc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           IF (ASSOCIATED(neighbor_kind_pair%ij_kind)) THEN
              DEALLOCATE(neighbor_kind_pair%ij_kind,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
           ALLOCATE(neighbor_kind_pair%ij_kind(2,max_alloc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ! Start the first interval.
           ipair = 1
           neighbor_kind_pair%ngrp_kind = 1
@@ -909,10 +894,10 @@ CONTAINS
        END IF
        ! Clean the memory..
        DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     DEALLOCATE(indj,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
   END SUBROUTINE sort_neighbor_lists
 

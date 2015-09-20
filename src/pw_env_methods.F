@@ -110,15 +110,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a pw_env, if qs_env is given calls pw_env_rebuild
 !> \param pw_env the pw_env that gets created
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_env_create(pw_env,error)
+SUBROUTINE pw_env_create(pw_env)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
       routineP = moduleN//':'//routineN
@@ -130,9 +127,9 @@ SUBROUTINE pw_env_create(pw_env,error)
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
     ALLOCATE(pw_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
          pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
          pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid, &
@@ -149,18 +146,15 @@ END SUBROUTINE pw_env_create
 !> \param pw_env the environment to rebuild
 !> \param qs_env the qs_env where to get the cell, cutoffs,...
 !> \param external_para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
+SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: external_para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
       routineP = moduleN//':'//routineN
@@ -226,38 +220,37 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                   cell=cell,&
                   para_env=para_env,&
                   input=input,&
-                  dispersion_env=dispersion_env,&
-                  error=error)
+                  dispersion_env=dispersion_env)
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  CALL pw_pool_release(pw_env%vdw_pw_pool,error=error)
-  CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
-  CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
+  CALL pw_pool_release(pw_env%vdw_pw_pool)
+  CALL pw_pool_release(pw_env%xc_pw_pool)
+  CALL pw_pools_dealloc(pw_env%pw_pools)
   IF (ASSOCIATED(pw_env%rs_descs)) THEN
     DO i=1, SIZE(pw_env%rs_descs)
-      CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc, error=error)
+      CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc)
     END DO
     DEALLOCATE(pw_env%rs_descs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END IF
   IF (ASSOCIATED(pw_env%rs_grids)) THEN
     DO i=1, SIZE(pw_env%rs_grids)
-      CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid, error=error)
+      CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
     END DO
     DEALLOCATE(pw_env%rs_grids,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END IF
-  CALL lgrid_release(pw_env%lgrid,error)
+  CALL lgrid_release(pw_env%lgrid)
   IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-     CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
+     CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
   ELSE
      ALLOCATE(pw_env%gridlevel_info,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END IF
   IF(dft_control%qs_control%gapw) THEN
-     CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
-     CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
+     CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+     CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,failure)
      CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
                       zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
   END IF
@@ -267,7 +260,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
         CALL destroy_cube_info(pw_env%cube_info(igrid_level))
      END DO
      DEALLOCATE(pw_env%cube_info,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
   END IF
   NULLIFY(pw_env%pw_pools, pw_env%cube_info)
 
@@ -279,12 +272,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
   IF (PRESENT(external_para_env)) THEN
      para_env=>external_para_env
-     CPPostcondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+     CPPostcondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
   ENDIF
   ! interpolation section
-  pw_env%interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
+  pw_env%interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR")
 
-  CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell ,error=error)
+  CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell)
   IF (use_ref_cell) THEN
     my_cell => cell_ref
   ELSE
@@ -293,20 +286,20 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   rel_cutoff = dft_control%qs_control%relative_cutoff
   cutoff => dft_control%qs_control%e_cutoff
   CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
-       l_val=uf_grid,error=error)
+       l_val=uf_grid)
   ngrid_level = SIZE(cutoff)
 
   ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
   !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
   !                     XXXXXXXXX same holds for radius
   print_section=>section_vals_get_subs_vals(input, &
-                     "PRINT%GRID_INFORMATION",error=error)
+                     "PRINT%GRID_INFORMATION")
   CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
        ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
-       print_section=print_section,error=error)
+       print_section=print_section)
   ! init pw_grids and pools
   ALLOCATE(pw_pools(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   IF (dft_control % qs_control % commensurate_mgrids) THEN
      ncommensurate=ngrid_level
@@ -331,14 +324,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
        xc_super_ref_grid, cutilev, grid_span, spherical, my_cell, para_env, &
        qs_env%input, ncommensurate, uf_grid=uf_grid,&
-       print_section=print_section,error=error)
+       print_section=print_section)
   old_pw_grid => super_ref_grid
   !
   ! Setup of the multi-grid pw_grid and pw_pools
   !
-  logger => cp_error_get_logger(error)
+  logger => cp_get_default_logger()
   iounit = cp_print_key_unit_nr(logger,print_section,'',&
-           extension='.Log',error=error)
+           extension='.Log')
 
   IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
      grid_span = HALFSPACE
@@ -359,10 +352,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
   ! methods that require smoothing or nearest neighbor have to use a plane distributed setup
   ! find the xc properties (FIXME this could miss other xc sections that operate on the grid ...)
-  CALL get_qs_env(qs_env=qs_env,input=input,error=error)
-  xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-  xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV",error)
-  xc_smooth_method_id=section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error)
+  CALL get_qs_env(qs_env=qs_env,input=input)
+  xc_section => section_vals_get_subs_vals(input,"DFT%XC")
+  xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV")
+  xc_smooth_method_id=section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO")
   smooth_required=.FALSE.
   SELECT CASE(xc_deriv_method_id)
   CASE(xc_deriv_pw,xc_deriv_collocate,xc_deriv_spline3,xc_deriv_spline2)
@@ -371,7 +364,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
        xc_deriv_spline3_smooth,xc_deriv_nn10_smooth,xc_deriv_nn50_smooth)
       smooth_required=smooth_required.OR..TRUE.
   CASE DEFAULT
-      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
   END SELECT
   SELECT CASE(xc_smooth_method_id)
   CASE(xc_rho_no_smooth)
@@ -379,28 +372,26 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   CASE(xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_rho_nn10,xc_rho_nn50)
       smooth_required=smooth_required.OR..TRUE.
   CASE DEFAULT
-      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
   END SELECT
   ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume
   ! it could be on and splines might be used (not quite sure if this is due to their use of splines or something else)
   linres_section => section_vals_get_subs_vals(section_vals=input,&
-                subsection_name="PROPERTIES%LINRES",&
-                error=error)
-  CALL section_vals_get(linres_section,explicit=linres_present,error=error)
+                subsection_name="PROPERTIES%LINRES")
+  CALL section_vals_get(linres_section,explicit=linres_present)
   IF (linres_present) THEN
      smooth_required=smooth_required.OR..TRUE.
   ENDIF
 
   efg_section => section_vals_get_subs_vals(section_vals=input,&
-                subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
-                error=error)
-  CALL section_vals_get(efg_section,explicit=efg_present,error=error)
+                subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT")
+  CALL section_vals_get(efg_section,explicit=efg_present)
   IF (efg_present) THEN
      smooth_required=smooth_required.OR..TRUE.
   ENDIF
 
   DO igrid_level=1,ngrid_level
-     CALL pw_grid_create(pw_grid,para_env%group,error=error)
+     CALL pw_grid_create(pw_grid,para_env%group)
 
      cutilev = cutoff(igrid_level)
 
@@ -431,7 +422,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                 blocked=do_pw_grid_blocked_false,&
                 ref_grid=old_pw_grid,&
                 rs_dims=distribution_layout,&
-                iounit=iounit,error=error)
+                iounit=iounit)
            old_pw_grid => pw_grid
         ELSE
            CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
@@ -440,7 +431,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
                 blocked=blocked_id,&
                 rs_dims=distribution_layout,&
-                iounit=iounit,error=error)
+                iounit=iounit)
            old_pw_grid => pw_grid
         END IF
      ELSE
@@ -451,20 +442,20 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
              blocked=do_pw_grid_blocked_false,&
              ref_grid=old_pw_grid,&
              rs_dims=distribution_layout,&
-             iounit=iounit,error=error)
+             iounit=iounit)
      END IF
 
    ! init pw_pools
      NULLIFY(pw_pools(igrid_level)%pool)
-     CALL pw_pool_create(pw_pools(igrid_level)%pool,pw_grid=pw_grid,error=error)
+     CALL pw_pool_create(pw_pools(igrid_level)%pool,pw_grid=pw_grid)
 
-     CALL pw_grid_release(pw_grid,error=error)
+     CALL pw_grid_release(pw_grid)
 
   END DO
 
   pw_env%pw_pools => pw_pools
 
-  CALL cp_print_key_finished_output(iounit,logger,print_section,'',error=error)
+  CALL cp_print_key_finished_output(iounit,logger,print_section,'')
 
   ! init auxbas_grid
   DO i=1,ngrid_level
@@ -474,11 +465,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   ! init xc_pool
   IF (ASSOCIATED(xc_super_ref_grid)) THEN
      CALL pw_pool_create(pw_env%xc_pw_pool,&
-          pw_grid=xc_super_ref_grid,error=error)
-     CALL pw_grid_release(xc_super_ref_grid,error=error)
+          pw_grid=xc_super_ref_grid)
+     CALL pw_grid_release(xc_super_ref_grid)
   ELSE
      pw_env%xc_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
-     CALL pw_pool_retain(pw_env%xc_pw_pool,error=error)
+     CALL pw_pool_retain(pw_env%xc_pw_pool)
   END IF
 
   ! init vdw_pool
@@ -489,8 +480,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      END IF
   END IF
   IF (set_vdw_pool) THEN
-     CPPrecondition(ASSOCIATED(old_pw_grid),cp_failure_level,routineP,error,failure)
-     CALL pw_grid_create(vdw_grid,para_env%group,error=error)
+     CPPrecondition(ASSOCIATED(old_pw_grid),cp_failure_level,routineP,failure)
+     CALL pw_grid_create(vdw_grid,para_env%group)
      CALL pw_grid_setup(my_cell%hmat,vdw_grid,grid_span=grid_span,&
           cutoff=dispersion_env%pw_cutoff,&
           spherical=spherical,odd=odd,fft_usage=.TRUE.,&
@@ -498,29 +489,28 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
           blocked=do_pw_grid_blocked_false,&
           ref_grid=old_pw_grid,&
           rs_dims=distribution_layout,&
-          iounit=iounit,error=error)
-     CALL pw_pool_create(pw_env%vdw_pw_pool,pw_grid=vdw_grid,error=error)
-     CALL pw_grid_release(vdw_grid,error=error)
+          iounit=iounit)
+     CALL pw_pool_create(pw_env%vdw_pw_pool,pw_grid=vdw_grid)
+     CALL pw_grid_release(vdw_grid)
   ELSE
      pw_env%vdw_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
-     CALL pw_pool_retain(pw_env%vdw_pw_pool,error=error)
+     CALL pw_pool_retain(pw_env%vdw_pw_pool)
   END IF
 
   ! complete init of the poisson_env
   IF (.NOT.ASSOCIATED(pw_env%poisson_env)) THEN
-     CALL pw_poisson_create(pw_env%poisson_env,error=error)
+     CALL pw_poisson_create(pw_env%poisson_env)
   END IF
-  poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",&
-       error=error)
+  poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON")
 
-  CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+  CALL pw_poisson_read_parameters(poisson_section, poisson_params)
   CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=my_cell%hmat,pw_pools=pw_env%pw_pools,&
        parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
        dct_pw_grid=dct_pw_grid, dct_aux_pw_grid=dct_aux_pw_grid,&
-       use_level=pw_env%auxbas_grid,error=error)
-  CALL pw_grid_release(mt_super_ref_grid,error=error)
-  CALL pw_grid_release(dct_pw_grid,error=error)
-  CALL pw_grid_release(dct_aux_pw_grid,error=error)
+       use_level=pw_env%auxbas_grid)
+  CALL pw_grid_release(mt_super_ref_grid)
+  CALL pw_grid_release(dct_pw_grid)
+  CALL pw_grid_release(dct_aux_pw_grid)
 !
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
 ! do not re-init the Gaussian grid level (fix the gridlevel on which the pgf should go.
@@ -530,11 +520,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
         CALL pw_grid_change ( cell%hmat, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
       IF (set_vdw_pool) CALL pw_grid_change( cell%hmat, pw_env%vdw_pw_pool%pw_grid )
-      CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+      CALL pw_poisson_read_parameters(poisson_section, poisson_params)
       CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=cell%hmat,pw_pools=pw_env%pw_pools,&
                           parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
                           dct_pw_grid=dct_pw_grid, dct_aux_pw_grid=dct_aux_pw_grid,&
-                          use_level=pw_env%auxbas_grid,error=error)
+                          use_level=pw_env%auxbas_grid)
   END IF
 
   ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
@@ -542,7 +532,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
       (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
      CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
                          my_cell%hmat, &
-                         pw_env%poisson_env%dct_pw_grid, pw_env%poisson_env%dct_aux_pw_grid, error)
+                         pw_env%poisson_env%dct_pw_grid, pw_env%poisson_env%dct_aux_pw_grid)
   END IF
   ! setup real space grid for finite difference derivatives of dielectric constant function
   IF ( poisson_params%has_dielectric .AND. &
@@ -551,8 +541,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
       (poisson_params%dielectric_params%derivative_method .EQ. derivative_cd7))) THEN
      CALL setup_diel_rs_grid(pw_env%poisson_env%diel_rs_grid, &
                          poisson_params%dielectric_params%derivative_method, input, &
-                         pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
-                         error)
+                         pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid)
   END IF
 
 !
@@ -563,9 +552,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
 
   ALLOCATE(radius(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-  CALL compute_max_radius(radius, pw_env, qs_env, error)
+  CALL compute_max_radius(radius, pw_env, qs_env)
 
 !
 !
@@ -573,13 +562,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
 !
   ALLOCATE(rs_descs(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   ALLOCATE(rs_grids(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   higher_grid_layout=(/-1,-1,-1/)
 
   DO igrid_level=1,ngrid_level
@@ -590,35 +579,35 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
           pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
           radius(igrid_level))
 
-     rs_grid_section=>section_vals_get_subs_vals(input,"DFT%MGRID%RS_GRID",error=error)
+     rs_grid_section=>section_vals_get_subs_vals(input,"DFT%MGRID%RS_GRID")
 
      CALL init_input_type(input_settings,nsmax=2*MAX(1,return_cube_max_iradius(pw_env%cube_info(igrid_level)))+1,&
                                rs_grid_section=rs_grid_section,ilevel=igrid_level,&
-                               higher_grid_layout=higher_grid_layout,error=error)
+                               higher_grid_layout=higher_grid_layout)
 
      NULLIFY(rs_descs(igrid_level)%rs_desc)
-     CALL rs_grid_create_descriptor(rs_descs(igrid_level)%rs_desc,pw_grid,input_settings, error=error)
+     CALL rs_grid_create_descriptor(rs_descs(igrid_level)%rs_desc,pw_grid,input_settings)
 
      IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout=rs_descs(igrid_level)%rs_desc%group_dim
 
      NULLIFY(rs_grids(igrid_level)%rs_grid)
-     CALL rs_grid_create(rs_grids(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+     CALL rs_grid_create(rs_grids(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
   END DO
   pw_env%rs_descs => rs_descs
   pw_env%rs_grids => rs_grids
 
   DEALLOCATE(radius,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   ! Initialise the lgrids which may be used by OpenMP threads in QS routines
   ! (but don't yet allocate the lgrid, in case we don't need it)
-  CALL lgrid_create(pw_env%lgrid, pw_env%rs_descs, error)
+  CALL lgrid_create(pw_env%lgrid, pw_env%rs_descs)
 
   ! Print grid information
 
-  logger => cp_error_get_logger(error)
+  logger => cp_get_default_logger()
   iounit = cp_print_key_unit_nr(logger,print_section,'',&
-                                extension='.Log',error=error)
+                                extension='.Log')
   IF (iounit > 0) THEN
     SELECT CASE (poisson_params%solver)
     CASE(pw_poisson_periodic)
@@ -717,13 +706,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
     END IF
   END IF
   should_output = BTEST(cp_print_key_should_output(logger%iter_info,&
-                        print_section,'',error=error),cp_p_file)
+                        print_section,''),cp_p_file)
   IF (should_output) THEN
     DO igrid_level=1,ngrid_level
-       CALL rs_grid_print(rs_grids(igrid_level)%rs_grid,iounit,error=error)
+       CALL rs_grid_print(rs_grids(igrid_level)%rs_grid,iounit)
     END DO
   END IF
-  CALL cp_print_key_finished_output(iounit,logger,print_section,"",error=error)
+  CALL cp_print_key_finished_output(iounit,logger,print_section,"")
 
 
   CALL timestop(handle)
@@ -735,16 +724,14 @@ END SUBROUTINE pw_env_rebuild
 !> \param radius ...
 !> \param pw_env ...
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !>      10.2010 refactored [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
+SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: radius
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius', &
       routineP = moduleN//':'//routineN
@@ -778,11 +765,11 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
     NULLIFY(dft_control, qs_kind_set, rho0_mpole)
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
-                    dft_control=dft_control, error=error)
+                    dft_control=dft_control)
 
     IF(dft_control%qs_control%gapw) THEN
-       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
-       CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
+       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+       CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,failure)
        CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
     END IF
 
@@ -826,7 +813,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              ! this should, at a give point be changed
              ! so that also for the core a multigrid is used
              CALL get_qs_kind(qs_kind_set(ikind),&
-                        alpha_core_charge=alpha,ccore_charge=core_charge,error=error)
+                        alpha_core_charge=alpha,ccore_charge=core_charge)
 
              IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
                maxradius=MAX(maxradius,exp_radius( 0, alpha, &
@@ -841,7 +828,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              !
              IF(basis_type=="LRI" .AND. dft_control%qs_control%lri_optbas) CYCLE
              CALL get_qs_kind(qs_kind=qs_kind,&
-                              basis_set=orb_basis_set,basis_type=basis_type,error=error)
+                              basis_set=orb_basis_set,basis_type=basis_type)
 
              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -852,7 +839,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                 qs_kind => qs_kind_set(jkind)
 
                 CALL get_qs_kind(qs_kind=qs_kind,&
-                                 basis_set=orb_basis_set,basis_type=basis_type,error=error)
+                                 basis_set=orb_basis_set,basis_type=basis_type)
 
                 IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
@@ -926,15 +913,13 @@ END SUBROUTINE compute_max_radius
 !> \param my_ncommensurate ...
 !> \param uf_grid ...
 !> \param print_section ...
-!> \param error ...
 !> \author 03-2005 Teodoro Laino [teo]
 !> \note
 !>      move somewere else?
 ! *****************************************************************************
   SUBROUTINE setup_super_ref_grid(super_ref_pw_grid,mt_super_ref_pw_grid,&
        xc_super_ref_pw_grid, cutilev, grid_span, spherical,&
-       cell_ref, para_env, input, my_ncommensurate, uf_grid,print_section, &
-       error)
+       cell_ref, para_env, input, my_ncommensurate, uf_grid,print_section)
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid, &
                                                 mt_super_ref_pw_grid, &
                                                 xc_super_ref_pw_grid
@@ -947,7 +932,6 @@ END SUBROUTINE compute_max_radius
     INTEGER, INTENT(IN)                      :: my_ncommensurate
     LOGICAL, INTENT(in)                      :: uf_grid
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
       routineP = moduleN//':'//routineN
@@ -960,60 +944,59 @@ END SUBROUTINE compute_max_radius
 
     failure = .FALSE.
     NULLIFY(poisson_section)
-    CPPrecondition(.NOT.ASSOCIATED(mt_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(xc_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)
-    CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
+    CPPrecondition(.NOT.ASSOCIATED(mt_super_ref_pw_grid),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(xc_super_ref_pw_grid),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(super_ref_pw_grid),cp_failure_level,routineP,failure)
+    poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON")
+    CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val)
     !
     ! Check if grids will be the same... In this case we don't use a super-reference grid
     !
     mt_s_grid=.FALSE.
     IF (my_val==pw_poisson_mt) THEN
        CALL section_vals_val_get(poisson_section,"MT%REL_CUTOFF",&
-            r_val=mt_rel_cutoff,error=error)
+            r_val=mt_rel_cutoff)
        IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
     END IF
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iounit = cp_print_key_unit_nr(logger,print_section,"",&
-         extension=".Log",error=error)
+         extension=".Log")
 
     IF (uf_grid) THEN
-       CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group,error=error)
+       CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group)
        CALL pw_grid_setup(cell_ref%hmat, xc_super_ref_pw_grid, grid_span=grid_span,&
             cutoff=4._dp*cutilev,spherical=spherical,odd=.FALSE., fft_usage=.TRUE., &
             ncommensurate=my_ncommensurate,icommensurate=1,&
             blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
-            iounit=iounit,error=error)
+            iounit=iounit)
        super_ref_pw_grid => xc_super_ref_pw_grid
     END IF
     IF (mt_s_grid) THEN
-       CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group,error=error)
+       CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group)
 
        IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
           CALL cp_unimplemented_error(routineP,&
-               "special grid for mt and fine xc grid not compatible",&
-               error=error)
+               "special grid for mt and fine xc grid not compatible")
        ELSE
           my_cutilev=cutilev*mt_rel_cutoff
 
           no = pw_grid_init_setup(cell_ref%hmat,cutoff=cutilev,spherical=spherical,&
-               odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1,error=error)
+               odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1)
           nn = pw_grid_init_setup(cell_ref%hmat,cutoff=my_cutilev,spherical=spherical,&
-               odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1,error=error)
+               odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1)
 
           ! bug appears for nn==no, also in old versions
-          CPPrecondition(ALL(nn>no),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(nn>no),cp_failure_level,routineP,failure)
           CALL pw_grid_setup(cell_ref%hmat, mt_super_ref_pw_grid, &
                cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
                blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
-               iounit=iounit,error=error)
+               iounit=iounit)
           super_ref_pw_grid => mt_super_ref_pw_grid
        END IF
     END IF
     CALL cp_print_key_finished_output(iounit,logger,print_section,&
-      "",error=error)
+      "")
   END SUBROUTINE setup_super_ref_grid
 
 ! *****************************************************************************
@@ -1023,18 +1006,16 @@ END SUBROUTINE compute_max_radius
 !> \param method preferred finite difference derivative method 
 !> \param input input file
 !> \param pw_grid plane-wave grid
-!> \param error cp2k error
 !> \par History
 !>       12.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE setup_diel_rs_grid(diel_rs_grid, method, input, pw_grid, error)
+  SUBROUTINE setup_diel_rs_grid(diel_rs_grid, method, input, pw_grid)
 
     TYPE(realspace_grid_type), POINTER       :: diel_rs_grid
     INTEGER, INTENT(IN)                      :: method
     TYPE(section_vals_type), POINTER         :: input
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_diel_rs_grid', &
       routineP = moduleN//':'//routineN
@@ -1047,7 +1028,7 @@ END SUBROUTINE compute_max_radius
     CALL timeset(routineN,handle)
 
     NULLIFY (rs_desc)
-    rs_grid_section => section_vals_get_subs_vals(input,"DFT%MGRID%RS_GRID",error=error)
+    rs_grid_section => section_vals_get_subs_vals(input,"DFT%MGRID%RS_GRID")
     SELECT CASE (method)
     CASE (derivative_cd3)
       border_points = 1
@@ -1057,11 +1038,11 @@ END SUBROUTINE compute_max_radius
       border_points = 3
     END SELECT
     CALL init_input_type(input_settings,2*border_points+1,rs_grid_section,&
-                         1,(/-1,-1,-1/),error)
+                         1,(/-1,-1,-1/))
     CALL rs_grid_create_descriptor(rs_desc,pw_grid,input_settings,&
-                                   border_points=border_points,error=error)
-    CALL rs_grid_create(diel_rs_grid,rs_desc,error=error) 
-    CALL rs_grid_release_descriptor(rs_desc,error=error)
+                                   border_points=border_points)
+    CALL rs_grid_create(diel_rs_grid,rs_desc) 
+    CALL rs_grid_release_descriptor(rs_desc)
 
     CALL timestop(handle)
 

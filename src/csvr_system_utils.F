@@ -73,17 +73,15 @@ CONTAINS
 !> \param ndeg ...
 !> \param taut ...
 !> \param rng_stream ...
-!> \param error ...
 !> \retval my_res ...
 !> \date 09.2007
 !> \author Giovanni Bussi - ETH Zurich, Lugano 10.2007
 ! *****************************************************************************
-  FUNCTION rescaling_factor(kk, sigma, ndeg, taut, rng_stream, error) RESULT(my_res)
+  FUNCTION rescaling_factor(kk, sigma, ndeg, taut, rng_stream) RESULT(my_res)
     REAL(KIND=dp), INTENT(IN)                :: kk, sigma
     INTEGER, INTENT(IN)                      :: ndeg
     REAL(KIND=dp), INTENT(IN)                :: taut
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: my_res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rescaling_factor', &
@@ -98,7 +96,7 @@ CONTAINS
        ELSE
           factor=0.0_dp
        END IF
-       rr = next_random_number(rng_stream,error=error)
+       rr = next_random_number(rng_stream)
        reverse=1.0_dp
        ! reverse of momentum is implemented to have the correct limit to Langevin dynamics for ndeg=1
        IF(rr<-SQRT(ndeg*kk*factor/(sigma*(1.0_dp-factor)))) reverse=-1.0_dp
@@ -106,7 +104,7 @@ CONTAINS
        ! in practice, it is better to skip it to avoid unnecessary slowing down of the dynamics in the small taut regime
        ! anyway, this should not affect the final ensemble
        IF(ndeg/=1) reverse=1.0_dp
-       resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream, error)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
+       resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
                      +  2.0_dp*rr*SQRT(kk*sigma/ndeg*(1.0_dp-factor)*factor)
 
        resample=MAX(0.0_dp,resample)
@@ -119,15 +117,13 @@ CONTAINS
 !>      (i.e. equivalent to summing the square of the return values of nn calls to gasdev)
 !> \param nn ...
 !> \param rng_stream ...
-!> \param error ...
 !> \retval sum_gauss ...
 !> \date 09.2007
 !> \author Teo - University of Zurich
 ! *****************************************************************************
-  FUNCTION sumnoises(nn, rng_stream, error) RESULT(sum_gauss)
+  FUNCTION sumnoises(nn, rng_stream) RESULT(sum_gauss)
     INTEGER, INTENT(IN)                      :: nn
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: sum_gauss
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sumnoises', &
@@ -137,7 +133,7 @@ CONTAINS
 
     sum_gauss = 0.0_dp
     DO i = 1, nn
-       sum_gauss = sum_gauss + next_random_number(rng_stream,error=error)**2
+       sum_gauss = sum_gauss + next_random_number(rng_stream)**2
     END DO
 
   END FUNCTION sumnoises

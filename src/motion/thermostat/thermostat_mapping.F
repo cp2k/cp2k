@@ -75,12 +75,11 @@ CONTAINS
 !> \param shell ...
 !> \param map_loc_thermo_gen ...
 !> \param sum_of_thermostats ...
-!> \param error ...
 !> \author CJM - PNNL
 ! *****************************************************************************
   SUBROUTINE adiabatic_mapping_region ( map_info, deg_of_freedom, massive_atom_list,&
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, simpar, &
-       number, region, gci, shell, map_loc_thermo_gen, sum_of_thermostats, error)
+       number, region, gci, shell, map_loc_thermo_gen, sum_of_thermostats)
 
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
@@ -97,7 +96,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
     INTEGER, INTENT(INOUT)                   :: sum_of_thermostats
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region', &
       routineP = moduleN//':'//routineN
@@ -113,13 +111,13 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
-    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,failure)
 
     nkind = SIZE(molecule_kind_set)
     CALL adiabatic_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
          const_mol, tot_const, point, local_molecules, molecule_kind_set, molecule_set,&
-         simpar, shell, error)
+         simpar, shell)
 
     ! Now we can allocate the target array s_kin and p_kin..
     SELECT CASE(region)
@@ -129,43 +127,42 @@ CONTAINS
        ! STOP PROGRAM
     END SELECT
     ALLOCATE (map_info%s_kin(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%v_scale(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 ! nullify thermostat pointers
     ! Allocate index array to 1
     ALLOCATE ( map_info%index(1), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
     ALLOCATE ( map_info%map_index(1), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
     ALLOCATE (deg_of_freedom(1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
-         local_molecules, para_env, massive_atom_list, region, shell,&
-         error)
+         local_molecules, para_env, massive_atom_list, region, shell)
 
     CALL adiabatic_mapping_region_low(region, map_info, nkind, point,&
          deg_of_freedom, local_molecules, const_mol, massive_atom_list,&
          tot_const, molecule_set, number_of_thermostats, shell, gci,&
-         map_loc_thermo_gen, error)
+         map_loc_thermo_gen)
 
      number = number_of_thermostats
      sum_of_thermostats=number
      CALL mp_sum ( sum_of_thermostats, para_env%group )
 
 !    check = (number==number_of_thermostats)
-!    CPPrecondition(check,cp_fatal_level,routineP,error,failure)
+!    CPPrecondition(check,cp_fatal_level,routineP,failure)
     DEALLOCATE (const_mol,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (tot_const,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (point, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -187,12 +184,11 @@ CONTAINS
 !> \param shell ...
 !> \param gci ...
 !> \param map_loc_thermo_gen ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
   SUBROUTINE adiabatic_mapping_region_low( region, map_info, nkind, point,&
        deg_of_freedom, local_molecules, const_mol, massive_atom_list, tot_const,&
-       molecule_set, ntherm, shell, gci, map_loc_thermo_gen,error)
+       molecule_set, ntherm, shell, gci, map_loc_thermo_gen)
 
     INTEGER, INTENT(IN)                      :: region
     TYPE(map_info_type), POINTER             :: map_info
@@ -207,7 +203,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell
     TYPE(global_constraint_type), POINTER    :: gci
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region_low', &
       routineP = moduleN//':'//routineN
@@ -234,7 +229,7 @@ CONTAINS
     IF ( region==do_region_global) THEN
        ! Global Region
        check = ( map_info%dis_type == do_thermo_communication )
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       CPPostcondition(check,cp_failure_level,routineP,failure)
        DO ikind = 1, nkind
           DO jj = point ( 1, ikind ), point ( 2, ikind )
              IF ( map_loc_thermo_gen ( jj ) /= HUGE ( 0 ) ) THEN
@@ -306,7 +301,7 @@ CONTAINS
        ELSE IF ( map_info%dis_type == do_thermo_communication ) THEN
           ! This case is quite rare and happens only when we have one molecular
           ! kind and one molecule..
-          CPPostcondition(nkind==1,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nkind==1,cp_failure_level,routineP,failure)
           number = number + 1
           ntherm = ntherm + 1
           map_info%index(ntherm)     = ntherm
@@ -326,7 +321,7 @@ CONTAINS
                END DO
           END DO
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
        IF (nglob_cns/=0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
@@ -335,7 +330,7 @@ CONTAINS
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
        check = ( map_info%dis_type == do_thermo_no_communication )
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       CPPostcondition(check,cp_failure_level,routineP,failure)
        DO ikind = 1, nkind
           nmol_local =  local_molecules % n_el ( ikind )
           DO imol_local = 1, nmol_local
@@ -414,11 +409,10 @@ CONTAINS
 !> \param molecule_set ...
 !> \param simpar ...
 !> \param shell ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE adiabatic_region_evaluate(dis_type, natoms_local, nmol_local, const_mol,&
-       tot_const, point, local_molecules, molecule_kind_set, molecule_set, simpar, shell, error)
+       tot_const, point, local_molecules, molecule_kind_set, molecule_set, simpar, shell)
     INTEGER, INTENT(IN)                      :: dis_type
     INTEGER, INTENT(OUT)                     :: natoms_local, nmol_local
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
@@ -428,7 +422,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set(:)
     TYPE(simpar_type), POINTER               :: simpar
     LOGICAL, INTENT(IN)                      :: shell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_region_evaluate', &
       routineP = moduleN//':'//routineN
@@ -464,16 +457,16 @@ CONTAINS
        END IF
     END DO
 
-    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,failure)
     IF ( dis_type == do_thermo_no_communication ) THEN
        ALLOCATE ( const_mol (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
        ALLOCATE ( tot_const (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
        ALLOCATE ( point (2, nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
 
        point (:,:)= 0
        atm_offset = 0
@@ -520,11 +513,11 @@ CONTAINS
        END DO
     ELSE IF ( dis_type == do_thermo_communication ) THEN
        ALLOCATE ( const_mol ( nkind ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE ( tot_const ( nkind ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE ( point ( 2, nkind ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        point ( :, : ) = 0
        atm_offset     = 0
        ! nc keeps track of all constraints but not fixed ones..
@@ -571,12 +564,11 @@ CONTAINS
 !> \param shell ...
 !> \param map_loc_thermo_gen ...
 !> \param sum_of_thermostats ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
   SUBROUTINE thermostat_mapping_region ( map_info, deg_of_freedom, massive_atom_list,&
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, simpar, &
-       number, region, gci, shell, map_loc_thermo_gen, sum_of_thermostats, error)
+       number, region, gci, shell, map_loc_thermo_gen, sum_of_thermostats)
 
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
@@ -592,7 +584,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
     INTEGER, INTENT(IN)                      :: sum_of_thermostats
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region', &
       routineP = moduleN//':'//routineN
@@ -608,13 +599,13 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
-    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,failure)
 
     nkind = SIZE(molecule_kind_set)
     CALL mapping_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
          const_mol, tot_const, point, local_molecules, molecule_kind_set, molecule_set,&
-         region, simpar, shell, map_loc_thermo_gen, sum_of_thermostats, para_env, error)
+         region, simpar, shell, map_loc_thermo_gen, sum_of_thermostats, para_env)
 
     ! Now we can allocate the target array s_kin and p_kin..
     SELECT CASE(region)
@@ -624,38 +615,37 @@ CONTAINS
        nsize = sum_of_thermostats
     END SELECT
     ALLOCATE (map_info%s_kin(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%v_scale(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Allocate index array
     ALLOCATE ( map_info%index(number), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
     ALLOCATE ( map_info%map_index(number), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
     ALLOCATE (deg_of_freedom(number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
-         local_molecules, para_env, massive_atom_list, region, shell,&
-         error)
+         local_molecules, para_env, massive_atom_list, region, shell)
 
     CALL  thermostat_mapping_region_low(region, map_info, nkind, point,&
          deg_of_freedom, local_molecules, const_mol, massive_atom_list,&
          tot_const, molecule_set, number_of_thermostats, shell, gci,&
-         map_loc_thermo_gen, error)
+         map_loc_thermo_gen)
 
     check = (number==number_of_thermostats)
-    CPPrecondition(check,cp_fatal_level,routineP,error,failure)
+    CPPrecondition(check,cp_fatal_level,routineP,failure)
     DEALLOCATE (const_mol,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (tot_const,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE (point, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -677,12 +667,11 @@ CONTAINS
 !> \param shell ...
 !> \param gci ...
 !> \param map_loc_thermo_gen ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
   SUBROUTINE  thermostat_mapping_region_low(region, map_info, nkind, point,&
        deg_of_freedom, local_molecules, const_mol, massive_atom_list, tot_const,&
-       molecule_set, number, shell, gci, map_loc_thermo_gen,error)
+       molecule_set, number, shell, gci, map_loc_thermo_gen)
 
     INTEGER, INTENT(IN)                      :: region
     TYPE(map_info_type), POINTER             :: map_info
@@ -697,7 +686,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell
     TYPE(global_constraint_type), POINTER    :: gci
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'thermostat_mapping_region_low', &
@@ -723,7 +711,7 @@ CONTAINS
     IF ( region==do_region_global) THEN
        ! Global Region
        check = ( map_info%dis_type == do_thermo_communication )
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       CPPostcondition(check,cp_failure_level,routineP,failure)
        DO ikind = 1, nkind
           DO jj = point ( 1, ikind ), point ( 2, ikind )
              DO ii = 1, 3
@@ -740,13 +728,13 @@ CONTAINS
     ELSE IF ( region==do_region_defined) THEN
        ! User defined Region to thermostat
        check = ( map_info%dis_type == do_thermo_communication )
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       CPPostcondition(check,cp_failure_level,routineP,failure)
        ! Lets' identify the matching of the local thermostat w.r.t. the global one
        itmp = SIZE(map_loc_thermo_gen)
        ALLOCATE(tmp(itmp),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(wrk(itmp),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        tmp(:) = map_loc_thermo_gen
        CALL sort(tmp, itmp, wrk)
        number = 1
@@ -762,9 +750,9 @@ CONTAINS
           END IF
        END DO
        DEALLOCATE(tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(wrk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO jj = 1, SIZE(map_loc_thermo_gen)
           DO ii = 1, 3
              imap = map_loc_thermo_gen(jj)
@@ -799,7 +787,7 @@ CONTAINS
        ELSE IF ( map_info%dis_type == do_thermo_communication ) THEN
           ! This case is quite rare and happens only when we have one molecular
           ! kind and one molecule..
-          CPPostcondition(nkind==1,cp_failure_level,routineP,error,failure)
+          CPPostcondition(nkind==1,cp_failure_level,routineP,failure)
           number = number + 1
           map_info%index(number)     = number
           map_info%map_index(number) = number
@@ -811,7 +799,7 @@ CONTAINS
              END DO
           END DO
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
        IF (nglob_cns/=0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
@@ -820,7 +808,7 @@ CONTAINS
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
        check = ( map_info%dis_type == do_thermo_no_communication )
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       CPPostcondition(check,cp_failure_level,routineP,failure)
        DO ikind = 1, nkind
           nmol_local =  local_molecules % n_el ( ikind )
           DO imol_local = 1, nmol_local
@@ -882,12 +870,11 @@ CONTAINS
 !> \param map_loc_thermo_gen ...
 !> \param sum_of_thermostats ...
 !> \param para_env ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE mapping_region_evaluate(dis_type, natoms_local, nmol_local, const_mol,&
        tot_const, point, local_molecules, molecule_kind_set, molecule_set, region,&
-       simpar, shell, map_loc_thermo_gen, sum_of_thermostats, para_env, error)
+       simpar, shell, map_loc_thermo_gen, sum_of_thermostats, para_env)
     INTEGER, INTENT(IN)                      :: dis_type
     INTEGER, INTENT(OUT)                     :: natoms_local, nmol_local
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
@@ -901,7 +888,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
     INTEGER, INTENT(IN)                      :: sum_of_thermostats
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mapping_region_evaluate', &
       routineP = moduleN//':'//routineN
@@ -943,16 +929,16 @@ CONTAINS
        END IF
     END DO
 
-    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,failure)
     IF ( dis_type == do_thermo_no_communication ) THEN
        ALLOCATE ( const_mol (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
        ALLOCATE ( tot_const (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
        ALLOCATE ( point (2, nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
 
        point (:,:)= 0
        atm_offset = 0
@@ -1001,11 +987,11 @@ CONTAINS
        IF (region==do_region_defined) THEN
           ! Setup of the arbitrary region
           ALLOCATE ( tot_const (sum_of_thermostats), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE ( point (2, 0), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE ( const_mol (0), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           atm_offset = 0
           tot_const  = 0
           const_mol  = 0
@@ -1133,11 +1119,11 @@ CONTAINS
           CALL mp_sum(tot_const, para_env%group)
        ELSE
           ALLOCATE ( const_mol ( nkind ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE ( tot_const ( nkind ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE ( point ( 2, nkind ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           point ( :, : ) = 0
           atm_offset     = 0
           ! nc keeps track of all constraints but not fixed ones..
@@ -1177,10 +1163,9 @@ CONTAINS
 !> \param massive_atom_list ...
 !> \param region ...
 !> \param shell ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
-       local_molecules, para_env, massive_atom_list, region, shell, error )
+       local_molecules, para_env, massive_atom_list, region, shell)
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -1189,7 +1174,6 @@ CONTAINS
     INTEGER, POINTER                         :: massive_atom_list( : )
     INTEGER, INTENT(IN)                      :: region
     LOGICAL, INTENT(IN)                      :: shell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'massive_list_generate', &
       routineP = moduleN//':'//routineN
@@ -1236,18 +1220,18 @@ CONTAINS
     END DO
 
     ALLOCATE(array_num_massive_atm(para_env%num_pe), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,para_env%group)
 
     num_massive_atm = SUM(array_num_massive_atm)
     ALLOCATE(massive_atom_list(num_massive_atm), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     offset = 0
     DO iproc=1,para_env%num_pe
        ncount = array_num_massive_atm(iproc)
        ALLOCATE(work(ncount), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        IF(para_env%mepos == (iproc-1)) THEN
           DO i=1,ncount
              work(i) = local_atm_list(i)
@@ -1260,7 +1244,7 @@ CONTAINS
           massive_atom_list(offset+i) = work(i)
        END DO
        DEALLOCATE(work, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        offset = offset + array_num_massive_atm(iproc)
     END DO
 
@@ -1273,9 +1257,9 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     DEALLOCATE(local_atm_list, STAT = stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(array_num_massive_atm, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -1286,14 +1270,12 @@ CONTAINS
 !> \param map_info ...
 !> \param ndeg ...
 !> \param num_thermo ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE init_baro_map_info(map_info, ndeg, num_thermo, error)
+  SUBROUTINE init_baro_map_info(map_info, ndeg, num_thermo)
 
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, INTENT(IN)                      :: ndeg, num_thermo
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_baro_map_info', &
       routineP = moduleN//':'//routineN
@@ -1304,18 +1286,18 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE (map_info%s_kin(num_thermo),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%v_scale(num_thermo),stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%p_kin(1,ndeg),stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%p_scale(1,ndeg),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Allocate the index array
     ALLOCATE (map_info%index(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (map_info%map_index(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! Begin the mapping loop
     DO i = 1, ndeg

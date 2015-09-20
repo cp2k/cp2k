@@ -59,16 +59,13 @@ CONTAINS
 !> \param desc the derivative description
 !> \param cr3d_ptr the data array (the ownership of it passes to the
 !>                      derivative type), the array is not zeroed
-!> \param error variable to control error logging, stopping,...
-!>                      see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr, error)
+  SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr)
 
     TYPE(xc_derivative_type), POINTER        :: derivative
     CHARACTER(len=*), INTENT(in)             :: desc
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_create', &
       routineP = moduleN//':'//routineN
@@ -81,13 +78,13 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(derivative, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     derivative%ref_count = 1
     derivative%id_nr     = derivative_id_nr
     derivative_id_nr     = derivative_id_nr + 1
-    CALL standardize_derivative_desc(desc,my_desc,error=error)
-    CALL create_split_derivative_desc(my_desc,derivative%split_desc,error=error)
+    CALL standardize_derivative_desc(desc,my_desc)
+    CALL create_split_derivative_desc(my_desc,derivative%split_desc)
     derivative%desc = my_desc
     derivative%deriv_data => cr3d_ptr
 
@@ -96,15 +93,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given derivative (see doc/ReferenceCounting.html)
 !> \param deriv the object you want to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE xc_derivative_retain(deriv,error)
+SUBROUTINE xc_derivative_retain(deriv)
     TYPE(xc_derivative_type), POINTER        :: deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_retain', &
       routineP = moduleN//':'//routineN
@@ -113,8 +107,8 @@ SUBROUTINE xc_derivative_retain(deriv,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
-  CPPreconditionNoFail(deriv%ref_count>0,cp_failure_level,routineP,error)
+  CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
+  CPPreconditionNoFail(deriv%ref_count>0,cp_failure_level,routineP)
   deriv%ref_count=deriv%ref_count+1
 END SUBROUTINE xc_derivative_retain
 
@@ -123,14 +117,11 @@ END SUBROUTINE xc_derivative_retain
 !> \param derivative the object to create
 !> \param pw_pool if given gives back the cr3d array %deriv_data back to it
 !>                      instead of deallocating it
-!> \param error variable to control error logging, stopping,...
-!>                      see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE xc_derivative_release(derivative, pw_pool, error)
+  SUBROUTINE xc_derivative_release(derivative, pw_pool)
 
     TYPE(xc_derivative_type), POINTER        :: derivative
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release', &
       routineP = moduleN//':'//routineN
@@ -140,26 +131,26 @@ END SUBROUTINE xc_derivative_retain
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(derivative),cp_failure_level,routineP,error,failure)
-    CPPrecondition(derivative%ref_count>=1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(derivative),cp_failure_level,routineP,failure)
+    CPPrecondition(derivative%ref_count>=1,cp_failure_level,routineP,failure)
 
     derivative%ref_count = derivative%ref_count - 1
     IF (derivative%ref_count == 0) THEN
        IF (PRESENT(pw_pool)) THEN
           IF (ASSOCIATED(pw_pool)) THEN
              CALL pw_pool_give_back_cr3d(pw_pool, derivative%deriv_data,&
-                  accept_non_compatible=.TRUE.,error=error)
+                  accept_non_compatible=.TRUE.)
           END IF
        END IF
        IF (ASSOCIATED(derivative%deriv_data)) THEN
           DEALLOCATE(derivative%deriv_data, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE(derivative%split_desc, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
        DEALLOCATE(derivative, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     NULLIFY(derivative)
 
@@ -177,11 +168,9 @@ END SUBROUTINE xc_derivative_retain
 !> \param order the order of the derivative
 !> \param deriv_data the 3d real array with the derivative
 !> \param accept_null_data if deriv_data can be unassociated (defaults to no)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
 SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
-     order,deriv_data,accept_null_data, error)
+     order,deriv_data,accept_null_data)
     TYPE(xc_derivative_type), POINTER        :: deriv
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH), &
@@ -192,7 +181,6 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
     REAL(kind=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: deriv_data
     LOGICAL, INTENT(in), OPTIONAL            :: accept_null_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_get', &
       routineP = moduleN//':'//routineN
@@ -203,14 +191,14 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
   my_accept_null_data=.FALSE.
   IF (PRESENT(accept_null_data)) my_accept_null_data=accept_null_data
 
-  CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
-  CPPrecondition(deriv%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
+  CPPrecondition(deriv%ref_count>0,cp_failure_level,routineP,failure)
   IF (PRESENT(desc)) desc = deriv%desc
   IF (PRESENT(split_desc)) split_desc => deriv%split_desc
   IF (PRESENT(deriv_data)) THEN
      deriv_data => deriv%deriv_data
      IF (.NOT.my_accept_null_data) THEN
-        CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,failure)
      END IF
   END IF
   IF (PRESENT(order)) order=SIZE(deriv%split_desc)

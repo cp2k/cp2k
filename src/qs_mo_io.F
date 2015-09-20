@@ -107,10 +107,9 @@ CONTAINS
 !> \param kpoints ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,&
-                                     kpoints,atomic_kind_set,qs_kind_set,error)
+                                     kpoints,atomic_kind_set,qs_kind_set)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -122,7 +121,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routineP = moduleN//':'//routineN
@@ -135,12 +133,12 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         dft_section,keys(1),error=error),cp_p_file) .OR.  &
+         dft_section,keys(1)),cp_p_file) .OR.  &
          BTEST(cp_print_key_should_output(logger%iter_info,&
-         dft_section,keys(2),error=error),cp_p_file) ) THEN
+         dft_section,keys(2)),cp_p_file) ) THEN
 
        IF(PRESENT(kpoints)) THEN
           write_kp = (kpoints%nkp > 0)
@@ -153,28 +151,28 @@ CONTAINS
           ! we copy it to the fm for anycase
           DO ispin=1,SIZE(mo_array)
              IF(.not.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
              CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b,&
-                  mo_array(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr
+                  mo_array(ispin)%mo_set%mo_coeff)!fm->dbcsr
           ENDDO
        ENDIF
 
        DO ikey=1,SIZE(keys)
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               dft_section,keys(ikey),error=error),cp_p_file)) THEN
+               dft_section,keys(ikey)),cp_p_file)) THEN
 
              ires = cp_print_key_unit_nr(logger,dft_section,keys(ikey),&
                   extension=".wfn", file_status="REPLACE", file_action="WRITE",&
-                  do_backup=.TRUE., file_form="UNFORMATTED", error=error)
+                  do_backup=.TRUE., file_form="UNFORMATTED")
 
              CALL write_mo_set_low(mo_array, particle_set=particle_set, &
-                                   qs_kind_set=qs_kind_set,ires=ires, error=error)
+                                   qs_kind_set=qs_kind_set,ires=ires)
 
-             IF(write_kp) CALL write_mos_kp(kpoints, ires=ires, error=error)
+             IF(write_kp) CALL write_mos_kp(kpoints, ires=ires)
 
-             CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
+             CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)))
           END IF
        END DO
     END IF
@@ -187,13 +185,11 @@ CONTAINS
 !> \brief ...
 !> \param kpoints ...
 !> \param ires ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_mos_kp(kpoints,ires,error)
+  SUBROUTINE write_mos_kp(kpoints,ires)
 
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     INTEGER, INTENT(IN)                      :: ires
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_kp', &
       routineP = moduleN//':'//routineN
@@ -250,7 +246,7 @@ CONTAINS
              DO ic=1,SIZE(mos,1)
                 IF (ires > 0) WRITE (ires) ic,is
                 mo_set => mos(ic,is)%mo_set
-                CALL write_mo_set_basic(mo_set, ires, error)
+                CALL write_mo_set_basic(mo_set, ires)
              END DO
           END DO
           ! this is for synchronization
@@ -273,7 +269,7 @@ CONTAINS
              NULLIFY(mop)
              mos => kpoints%kp_env(1)%kpoint_env%mos
              mo_set => mos(1,1)%mo_set
-             CALL duplicate_mo_set(mop,mo_set,error)
+             CALL duplicate_mo_set(mop,mo_set)
              moalloc = .TRUE.
           END IF
           mosource = 0
@@ -285,7 +281,7 @@ CONTAINS
                 CALL mp_irecv(mop%mo_coeff%local_data,mosource,para_env_inter_kp%group,request,tag)
                 CALL mp_wait(request)
                 IF (ires > 0) WRITE (ires) ic,is
-                CALL write_mo_set_basic(mop, ires, error)
+                CALL write_mo_set_basic(mop, ires)
              END DO
           END DO
        ELSE
@@ -296,7 +292,7 @@ CONTAINS
     END DO
 
     IF(moalloc) THEN
-       CALL deallocate_mo_set(mop,error)
+       CALL deallocate_mo_set(mop)
        moalloc = .FALSE.
     END IF
     
@@ -311,10 +307,9 @@ CONTAINS
 !> \param particle_set ...
 !> \param dft_section ...
 !> \param qs_kind_set ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_rt_mos_to_restart(mo_array,rt_mos,particle_set,dft_section,&
-                                     qs_kind_set,error)
+                                     qs_kind_set)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -325,7 +320,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_mos_to_restart', &
       routineP = moduleN//':'//routineN
@@ -339,25 +333,25 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         dft_section,keys(1),error=error),cp_p_file) .OR.  &
+         dft_section,keys(1)),cp_p_file) .OR.  &
          BTEST(cp_print_key_should_output(logger%iter_info,&
-         dft_section,keys(2),error=error),cp_p_file) ) THEN
+         dft_section,keys(2)),cp_p_file) ) THEN
 
        DO ikey=1,SIZE(keys)
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               dft_section,keys(ikey),error=error),cp_p_file)) THEN
+               dft_section,keys(ikey)),cp_p_file)) THEN
 
              ires = cp_print_key_unit_nr(logger,dft_section,keys(ikey),&
                   extension=".rtpwfn", file_status="REPLACE", file_action="WRITE",&
-                  do_backup=.TRUE., file_form="UNFORMATTED", error=error)
+                  do_backup=.TRUE., file_form="UNFORMATTED")
 
              CALL write_mo_set_low(mo_array, rt_mos=rt_mos, qs_kind_set=qs_kind_set,&
-                                   particle_set=particle_set, ires=ires, error=error)
-             CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
+                                   particle_set=particle_set, ires=ires)
+             CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)))
           END IF
        END DO
     END IF
@@ -373,9 +367,8 @@ CONTAINS
 !> \param particle_set ...
 !> \param ires ...
 !> \param rt_mos ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_low(mo_array, qs_kind_set, particle_set, ires, rt_mos, error)
+  SUBROUTINE write_mo_set_low(mo_array, qs_kind_set, particle_set, ires, rt_mos)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -386,7 +379,6 @@ CONTAINS
     INTEGER                                  :: ires
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rt_mos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
       routineP = moduleN//':'//routineN
@@ -414,7 +406,7 @@ CONTAINS
           NULLIFY(orb_basis_set,dftb_parameter)
           CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
           CALL get_qs_kind(qs_kind_set(ikind),&
-               basis_set=orb_basis_set,dftb_parameter=dftb_parameter,error=error)
+               basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
           IF (ASSOCIATED(orb_basis_set)) THEN
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   nset=nset,&
@@ -437,22 +429,22 @@ CPSourceFileRef,&
        END DO
 
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        nso_info(:,:,:) = 0
 
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        nshell_info(:,:) = 0
 
        ALLOCATE (nset_info(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        nset_info(:) = 0
 
        DO iatom=1,natom
           NULLIFY(orb_basis_set,dftb_parameter)
           CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
           CALL get_qs_kind(qs_kind_set(ikind),&
-               basis_set=orb_basis_set,dftb_parameter=dftb_parameter,error=error)
+               basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
           IF (ASSOCIATED(orb_basis_set)) THEN
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   nset=nset,&
@@ -488,17 +480,17 @@ CPSourceFileRef,&
        WRITE (ires) nso_info
 
        DEALLOCATE (nset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        DEALLOCATE (nshell_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
        DEALLOCATE (nso_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     ! use the scalapack block size as a default for buffering columns
-    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
+    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block)
 
     DO ispin=1,nspin
        nmo=mo_array(ispin)%mo_set%nmo
@@ -512,10 +504,10 @@ CPSourceFileRef,&
        END IF
        IF(PRESENT(rt_mos))THEN
           DO imat=2*ispin-1,2*ispin
-             CALL cp_fm_write_unformatted(rt_mos(imat)%matrix,ires,error)
+             CALL cp_fm_write_unformatted(rt_mos(imat)%matrix,ires)
           END DO
        ELSE
-          CALL cp_fm_write_unformatted(mo_array(ispin)%mo_set%mo_coeff,ires,error)
+          CALL cp_fm_write_unformatted(mo_array(ispin)%mo_set%mo_coeff,ires)
        END IF
     END DO
 
@@ -528,13 +520,11 @@ CPSourceFileRef,&
 !> \brief ...
 !> \param mo_set ...
 !> \param ires ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_basic(mo_set, ires, error)
+  SUBROUTINE write_mo_set_basic(mo_set, ires)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER                                  :: ires
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_basic', &
       routineP = moduleN//':'//routineN
@@ -550,7 +540,7 @@ CPSourceFileRef,&
        WRITE (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
        WRITE (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
     END IF
-    CALL cp_fm_write_unformatted(mo_set%mo_coeff,ires,error)
+    CALL cp_fm_write_unformatted(mo_set%mo_coeff,ires)
 
     CALL timestop(handle)
 
@@ -564,16 +554,14 @@ CPSourceFileRef,&
 !> \param logger ...
 !> \param xas ...
 !> \param rtp ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE wfn_restart_file_name(filename,exist,section,logger,xas,rtp,error)
+  SUBROUTINE wfn_restart_file_name(filename,exist,section,logger,xas,rtp)
     CHARACTER(LEN=default_path_length), &
       INTENT(OUT)                            :: filename
     LOGICAL, INTENT(OUT)                     :: exist
     TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL, INTENT(IN), OPTIONAL            :: xas, rtp
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_rep_val
     LOGICAL                                  :: my_rtp, my_xas
@@ -585,25 +573,25 @@ CPSourceFileRef,&
     IF(PRESENT(rtp)) my_rtp = rtp
 
     exist = .FALSE.
-    CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
+    CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val)
     IF (n_rep_val>0) THEN
-      CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
+      CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",c_val=filename)
     ELSE
       IF(my_xas) THEN
        ! try to read from the filename that is generated automatically from the printkey
-        print_key => section_vals_get_subs_vals(section,"PRINT%RESTART",error=error)
+        print_key => section_vals_get_subs_vals(section,"PRINT%RESTART")
         filename = cp_print_key_generate_filename(logger,print_key, &
-                    extension="",my_local=.FALSE., error=error)
+                    extension="",my_local=.FALSE.)
       ELSE IF (my_rtp)THEN
        ! try to read from the filename that is generated automatically from the printkey
-        print_key => section_vals_get_subs_vals(section,"REAL_TIME_PROPAGATION%PRINT%RESTART",error=error)
+        print_key => section_vals_get_subs_vals(section,"REAL_TIME_PROPAGATION%PRINT%RESTART")
         filename = cp_print_key_generate_filename(logger,print_key, &
-                    extension=".rtpwfn",my_local=.FALSE., error=error)
+                    extension=".rtpwfn",my_local=.FALSE.)
       ELSE
         ! try to read from the filename that is generated automatically from the printkey
-        print_key => section_vals_get_subs_vals(section,"SCF%PRINT%RESTART",error=error)
+        print_key => section_vals_get_subs_vals(section,"SCF%PRINT%RESTART")
         filename = cp_print_key_generate_filename(logger,print_key, &
-                    extension=".wfn", my_local=.FALSE., error=error)
+                    extension=".wfn", my_local=.FALSE.)
       END IF
     ENDIF
     IF(.NOT.my_xas) THEN
@@ -624,10 +612,9 @@ CPSourceFileRef,&
 !> \param dft_section ...
 !> \param natom_mismatch ...
 !> \param kpoints ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,qs_kind_set,particle_set,&
-       para_env,id_nr,multiplicity,dft_section,natom_mismatch,kpoints,error)
+       para_env,id_nr,multiplicity,dft_section,natom_mismatch,kpoints)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -642,7 +629,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: dft_section
     LOGICAL, INTENT(OUT), OPTIONAL           :: natom_mismatch
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routineP = moduleN//':'//routineN
@@ -654,7 +640,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     failure = .FALSE.
 
     nspin = SIZE(mo_array)
@@ -666,7 +652,7 @@ CPSourceFileRef,&
     IF (para_env%ionode) THEN
 
       natom = SIZE(particle_set,1)
-      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
+      CALL wfn_restart_file_name(file_name,exist,dft_section,logger)
       IF (id_nr/=0) THEN
          ! Is it one of the backup files?
          file_name = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(id_nr))
@@ -682,8 +668,7 @@ CPSourceFileRef,&
 
     CALL read_mos_restart_low (mo_array,para_env=para_env, qs_kind_set=qs_kind_set,&
          particle_set=particle_set, natom=natom,&
-         rst_unit=restart_unit, multiplicity=multiplicity, natom_mismatch=natom_mismatch, &
-         error=error)
+         rst_unit=restart_unit, multiplicity=multiplicity, natom_mismatch=natom_mismatch)
     IF (PRESENT(natom_mismatch)) THEN
        ! read_mos_restart_low only the io_node returns natom_mismatch, must broadcast it
        CALL mp_bcast(natom_mismatch,source,group)
@@ -696,7 +681,7 @@ CPSourceFileRef,&
 
     IF(PRESENT(kpoints)) THEN
        IF(kpoints%nkp > 0) THEN
-          CALL read_mos_kp(kpoints,restart_unit,error)
+          CALL read_mos_kp(kpoints,restart_unit)
        END IF
     END IF
 
@@ -705,7 +690,7 @@ CPSourceFileRef,&
 
     DO ispin = 1,nspin
       CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,qs_kind_set,&
-                        particle_set,4,dft_section,error=error)
+                        particle_set,4,dft_section)
     END DO
 
     CALL timestop(handle)
@@ -722,10 +707,9 @@ CPSourceFileRef,&
 !> \param id_nr ...
 !> \param multiplicity ...
 !> \param dft_section ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_rt_mos_from_restart(mo_array,rt_mos,atomic_kind_set,qs_kind_set, &
-                 particle_set,para_env,id_nr,multiplicity,dft_section,error)
+                 particle_set,para_env,id_nr,multiplicity,dft_section)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -740,7 +724,6 @@ CPSourceFileRef,&
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rt_mos_from_restart', &
       routineP = moduleN//':'//routineN
@@ -752,7 +735,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     failure = .FALSE.
 
     nspin = SIZE(mo_array)
@@ -764,7 +747,7 @@ CPSourceFileRef,&
     IF (para_env%ionode) THEN
 
       natom = SIZE(particle_set,1)
-      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,rtp=.TRUE.,error=error)
+      CALL wfn_restart_file_name(file_name,exist,dft_section,logger,rtp=.TRUE.)
       IF (id_nr/=0) THEN
          ! Is it one of the backup files?
          file_name = TRIM(file_name)//".bak-"//ADJUSTL(cp_to_string(id_nr))
@@ -780,14 +763,14 @@ CPSourceFileRef,&
 
     CALL read_mos_restart_low (mo_array, rt_mos=rt_mos,para_env= para_env,&
          particle_set=particle_set, qs_kind_set=qs_kind_set, natom=natom,&
-         rst_unit=restart_unit, multiplicity=multiplicity, error=error)
+         rst_unit=restart_unit, multiplicity=multiplicity)
 
     ! Close restart file
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     DO ispin = 1,nspin
       CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,qs_kind_set, &
-                        particle_set,4,dft_section,error=error)
+                        particle_set,4,dft_section)
     END DO
 
     CALL timestop(handle)
@@ -797,13 +780,11 @@ CPSourceFileRef,&
 !> \brief ...
 !> \param kpoints ...
 !> \param ires ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_mos_kp(kpoints,ires,error)
+  SUBROUTINE read_mos_kp(kpoints,ires)
 
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     INTEGER, INTENT(IN)                      :: ires
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_kp', &
       routineP = moduleN//':'//routineN
@@ -824,12 +805,12 @@ CPSourceFileRef,&
        READ (ires) 
        READ (ires) nkp
        CALL cp_assert(nkp==kpoints%nkp,cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Different number of kpoints",error,failure)
+                      "Different number of kpoints",failure)
        DO ik=1,kpoints%nkp
           READ (ires) wkp,xkp(1:3)
           dd = ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
           CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",error,failure)
+                         "Different order/position of kpoints",failure)
        END DO
     END IF
 
@@ -846,7 +827,7 @@ CPSourceFileRef,&
           dd = ABS(ik-jk)
           dd = dd + ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
           CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",error,failure)
+                         "Different order/position of kpoints",failure)
        END IF
        is_source = .FALSE.
        IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
@@ -862,30 +843,30 @@ CPSourceFileRef,&
                 IF (ires > 0) THEN
                    READ (ires) jc,js
                    CALL cp_assert((ic==jc .AND. is==js),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position/type of kpoints",error,failure)
+                         "Different order/position/type of kpoints",failure)
                 END IF
                 mo_set => mos(ic,is)%mo_set
-                CALL read_mo_set_basic(mo_set, ires, error)
+                CALL read_mo_set_basic(mo_set, ires)
              END DO
           END DO
        ELSE IF(is_source) THEN
           !  not yet implemented
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ELSE IF(kpoints%iogrp) THEN
           IF(.NOT.moalloc) THEN
              NULLIFY(mop)
              mos => kpoints%kp_env(1)%kpoint_env%mos
              mo_set => mos(1,1)%mo_set
-             CALL duplicate_mo_set(mop,mo_set,error)
+             CALL duplicate_mo_set(mop,mo_set)
              moalloc = .TRUE.
           END IF
           !  not yet implemented
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END IF
     END DO
 
     IF(moalloc) THEN
-       CALL deallocate_mo_set(mop,error)
+       CALL deallocate_mo_set(mop)
        moalloc = .FALSE.
     END IF
     
@@ -904,13 +885,12 @@ CPSourceFileRef,&
 !> \param multiplicity ...
 !> \param rt_mos ...
 !> \param natom_mismatch ...
-!> \param error ...
 !> \par History
 !>      12.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE read_mos_restart_low (mos,  para_env, qs_kind_set, particle_set, natom, rst_unit, &
-        multiplicity, rt_mos, natom_mismatch, error)
+        multiplicity, rt_mos, natom_mismatch)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -924,7 +904,6 @@ CPSourceFileRef,&
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rt_mos
     LOGICAL, INTENT(OUT), OPTIONAL           :: natom_mismatch
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
       routineP = moduleN//':'//routineN
@@ -945,7 +924,7 @@ CPSourceFileRef,&
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     nspin = SIZE(mos)
     nao = mos(1)%mo_set%nao
@@ -984,13 +963,13 @@ CPSourceFileRef,&
 
          ! Let's make it possible to change the basis set
          ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          ALLOCATE (nset_info(natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
          IF (nao_read /= nao) THEN
             WRITE(cp_logger_get_default_unit_nr(logger),*) &
@@ -1017,7 +996,7 @@ CPSourceFileRef,&
          END DO
 
          ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
       END IF ! natom_match
    END IF ! ionode
@@ -1042,7 +1021,7 @@ CPSourceFileRef,&
    CALL mp_bcast(nspin_read,source,group)
 
    ALLOCATE (vecbuffer(1,nao),STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
    DO ispin=1,nspin
 
@@ -1050,12 +1029,12 @@ CPSourceFileRef,&
       homo=mos(ispin)%mo_set%homo
       mos(ispin)%mo_set%eigenvalues(:) = 0.0_dp
       mos(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
-      CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
+      CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp)
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
          READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
          ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          eig_read = 0.0_dp
          occ_read = 0.0_dp
 
@@ -1075,7 +1054,7 @@ CPSourceFileRef,&
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
         mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
         DEALLOCATE(eig_read, occ_read, STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
         mos(ispin)%mo_set%homo = homo_read
         mos(ispin)%mo_set%lfomo = lfomo_read
@@ -1086,7 +1065,7 @@ CPSourceFileRef,&
                  "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!"//&
 CPSourceFileRef,&
                  only_ionode=.TRUE.)
-             CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
+             CALL set_mo_occupation(mo_set=mos(ispin)%mo_set)
           ELSE
               ! can not make this a warning i.e. homo must be smaller than nmo
               ! otherwise e.g. set_mo_occupation will go out of bounds
@@ -1114,7 +1093,7 @@ CPSourceFileRef,&
                END IF
                CALL mp_bcast(vecbuffer,source,group)
                CALL cp_fm_set_submatrix(rt_mos(imat)%matrix,&
-                    vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
+                    vecbuffer,1,i,nao,1,transpose=.TRUE.)
             END DO
          END DO
       ELSE
@@ -1128,7 +1107,7 @@ CPSourceFileRef,&
                   NULLIFY(orb_basis_set,dftb_parameter,l,nshell)
                   CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                   CALL get_qs_kind(qs_kind_set(ikind),&
-                       basis_set=orb_basis_set,dftb_parameter=dftb_parameter,error=error)
+                       basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
                   IF (ASSOCIATED(orb_basis_set)) THEN
                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                           nset=nset,&
@@ -1199,7 +1178,7 @@ CPSourceFileRef,&
 
             CALL mp_bcast(vecbuffer,source,group)
             CALL cp_fm_set_submatrix(mos(ispin)%mo_set%mo_coeff,&
-                 vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
+                 vecbuffer,1,i,nao,1,transpose=.TRUE.)
          END DO
       END IF
       ! Skip extra MOs if there any
@@ -1233,26 +1212,26 @@ CPSourceFileRef,&
           mos(ispin+1)%mo_set%eigenvalues = mos(ispin)%mo_set%eigenvalues
           mos(ispin)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers/2.0_dp
           mos(ispin+1)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers
-          CALL cp_fm_to_fm(mos(ispin)%mo_set%mo_coeff,mos(ispin+1)%mo_set%mo_coeff,error=error)
+          CALL cp_fm_to_fm(mos(ispin)%mo_set%mo_coeff,mos(ispin+1)%mo_set%mo_coeff)
           EXIT
        END IF
     END IF
  END DO   ! ispin
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     IF (para_env%ionode) THEN
        DEALLOCATE(vecbuffer_read,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(offset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(nso_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(nshell_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(nset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE read_mos_restart_low
@@ -1261,13 +1240,11 @@ CPSourceFileRef,&
 !> \brief ...
 !> \param mo_set ...
 !> \param ires ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_mo_set_basic (mo_set, ires, error)
+  SUBROUTINE read_mo_set_basic (mo_set, ires)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(in)                      :: ires
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_basic', &
       routineP = moduleN//':'//routineN
@@ -1281,12 +1258,12 @@ CPSourceFileRef,&
     IF ((ires>0).AND.(nmo > 0)) THEN
        READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
        CALL cp_assert(mao==nao,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different size of basis set",error,failure)
+                         "Different size of basis set",failure)
        CALL cp_assert(mmo==nmo,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different number of MOs",error,failure)
+                         "Different number of MOs",failure)
        READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
     END IF
-    CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires,error)
+    CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)
 
   END SUBROUTINE read_mo_set_basic
 
@@ -1301,7 +1278,6 @@ CPSourceFileRef,&
 !> \param dft_section ...
 !> \param spin ...
 !> \param last ...
-!> \param error ...
 !> \date    15.05.2001
 !> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005,MK)
@@ -1312,7 +1288,7 @@ CPSourceFileRef,&
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,qs_kind_set,particle_set,&
-       before,dft_section,spin,last,error)
+       before,dft_section,spin,last)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1325,7 +1301,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: dft_section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: spin
     LOGICAL, INTENT(IN), OPTIONAL            :: last
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit', &
       routineP = moduleN//':'//routineN
@@ -1361,18 +1336,18 @@ CPSourceFileRef,&
     NULLIFY (mo_index_range)
     NULLIFY (nshell)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
     failure = .FALSE.
-    CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval,error=error)
-    CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
-    CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
-    CALL section_vals_val_get(dft_section,"PRINT%MO%CARTESIAN",l_val=p_cart,error=error)
-    CALL section_vals_val_get(dft_section,"PRINT%MO%MO_INDEX_RANGE",i_vals=mo_index_range,error=error)
-    CALL section_vals_val_get(dft_section,"PRINT%MO%NDIGITS",i_val=after,error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%CARTESIAN",l_val=p_cart)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%MO_INDEX_RANGE",i_vals=mo_index_range)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%NDIGITS",i_val=after)
     after = MIN(MAX(after,1),16)
     should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-         "PRINT%MO",error=error),cp_p_file)
+         "PRINT%MO"),cp_p_file)
 
     IF ((.NOT.should_output).OR.(.NOT.(p_eval.OR.p_evec.OR.p_occ))) RETURN
 
@@ -1387,24 +1362,24 @@ CPSourceFileRef,&
     IF (p_evec) THEN
        CALL cp_fm_get_info(mo_set%mo_coeff,&
             nrow_global=nrow_global,&
-            ncol_global=ncol_global,error=error)
+            ncol_global=ncol_global)
        ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix,error=error)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
        IF (.NOT.ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%MO",&
          ignore_should_output=should_output,&
-         extension=".MOLog",error=error)
+         extension=".MOLog")
 
     IF (iw > 0) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf,error=error)
+       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
        ! Definition of the variable formats
 
@@ -1444,7 +1419,7 @@ CPSourceFileRef,&
              END IF
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
              cmatrix = 0.0_dp
 
@@ -1457,7 +1432,7 @@ CPSourceFileRef,&
                 CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                 CALL get_qs_kind(qs_kind_set(ikind),&
                      basis_set=orb_basis_set,&
-                     dftb_parameter=dftb_parameter,error=error)
+                     dftb_parameter=dftb_parameter)
                 IF (ASSOCIATED(orb_basis_set)) THEN
                    CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                         nset=nset,&
@@ -1566,7 +1541,7 @@ CPSourceFileRef,&
                           element_symbol=element_symbol, kind_number=ikind)
                 CALL get_qs_kind(qs_kind_set(ikind),&
                      basis_set=orb_basis_set,&
-                     dftb_parameter=dftb_parameter,error=error)
+                     dftb_parameter=dftb_parameter)
 
                 IF (p_cart) THEN
 
@@ -1666,10 +1641,10 @@ CPSourceFileRef,&
           ! Release work storage
 
           DEALLOCATE (smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           IF (p_cart) THEN
              DEALLOCATE (cmatrix,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           END IF
 
        ELSE IF (p_occ.OR.p_eval) THEN
@@ -1707,8 +1682,7 @@ CPSourceFileRef,&
     END IF ! iw
 
     CALL cp_print_key_finished_output(iw,logger,dft_section,"PRINT%MO",&
-         ignore_should_output=should_output,&
-         error=error)
+         ignore_should_output=should_output)
 
   END SUBROUTINE write_mo_set_to_output_unit
 

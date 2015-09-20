@@ -65,15 +65,12 @@ CONTAINS
 !> \brief Apply translation to the full system in order to center the QM
 !>      system into the QM box
 !> \param qmmmx_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2007 created [tlaino] - Zurich University
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE apply_qmmmx_translate(qmmmx_env,error)
+  SUBROUTINE apply_qmmmx_translate(qmmmx_env)
     TYPE(qmmmx_env_type), POINTER            :: qmmmx_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmmx_translate', &
       routineP = moduleN//':'//routineN
@@ -90,19 +87,19 @@ CONTAINS
     NULLIFY(particles_core, particles_extended)
 
     ! want to center extended, and make core consistent with that
-    CALL apply_qmmm_translate(qmmmx_env%ext,error)
+    CALL apply_qmmm_translate(qmmmx_env%ext)
 
     ! translate core fist particles
-    CALL qmmm_env_get(qmmmx_env%ext, subsys=subsys_extended, error=error)
-    CALL cp_subsys_get(subsys_extended, cell=cell_extended, error=error)
-    CALL qmmm_env_get(qmmmx_env%core, subsys=subsys_core, error=error)
-    CALL cp_subsys_get(subsys_core, cell=cell_core, error=error)
+    CALL qmmm_env_get(qmmmx_env%ext, subsys=subsys_extended)
+    CALL cp_subsys_get(subsys_extended, cell=cell_extended)
+    CALL qmmm_env_get(qmmmx_env%core, subsys=subsys_core)
+    CALL cp_subsys_get(subsys_core, cell=cell_core)
     particles_extended => subsys_extended%particles%els
     particles_core => subsys_core%particles%els
     DO ip=1,SIZE(particles_extended)
        particles_core(ip)%r = particles_extended(ip)%r
     END DO
-    CALL cell_copy(cell_extended, cell_core, error)
+    CALL cell_copy(cell_extended, cell_core)
 
     ! The core QM particles will be updated the regular call
     ! to apply_qmmm_translate() from within qmmm_calc_energy_force()
@@ -114,17 +111,14 @@ CONTAINS
 !> \param subsys ...
 !> \param qmmm_section ...
 !> \param labels_changed ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2012 created [noam]
 !> \author Noam Bernstein
 ! *****************************************************************************
-   SUBROUTINE update_force_mixing_labels(subsys, qmmm_section, labels_changed, error)
+   SUBROUTINE update_force_mixing_labels(subsys, qmmm_section, labels_changed)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, OPTIONAL                        :: labels_changed
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_force_mixing_labels', &
       routineP = moduleN//':'//routineN
@@ -157,29 +151,29 @@ CONTAINS
                                                 qm_kind_section, &
                                                 restart_section
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
     IF (debug_this_module.AND.output_unit>0) WRITE(output_unit,*) "BOB starting update_force_mixing_labels"
     ! get cur indices, labels
-    force_mixing_section => section_vals_get_subs_vals3(qmmm_section,"FORCE_MIXING",error=error)
-    CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels, error=error)
+    force_mixing_section => section_vals_get_subs_vals3(qmmm_section,"FORCE_MIXING")
+    CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels)
     IF (debug_this_module.AND.output_unit>0) WRITE(output_unit,*) "BOB got cur_indices ",SIZE(cur_indices)
     IF (debug_this_module.AND.output_unit>0) WRITE(output_unit,*) "BOB got cur_labels ",SIZE(cur_labels)
 
     ! read from input 
     ![NB] breakable bonds will come from here, too
     NULLIFY(r_core, r_qm, r_buf, adaptive_exclude_molecules,broken_bonds)
-    CALL section_vals_val_get(force_mixing_section,"R_CORE",r_vals=r_core,error=error)
-    CALL section_vals_val_get(force_mixing_section,"R_QM",r_vals=r_qm,error=error)
+    CALL section_vals_val_get(force_mixing_section,"R_CORE",r_vals=r_core)
+    CALL section_vals_val_get(force_mixing_section,"R_QM",r_vals=r_qm)
     CALL section_vals_val_get(force_mixing_section,"QM_EXTENDED_SEED_IS_ONLY_CORE_LIST",&
-      l_val=QM_extended_seed_is_core_list,error=error)
-    CALL section_vals_val_get(force_mixing_section,"R_BUF",r_vals=r_buf,error=error)
-    CALL section_vals_val_get(force_mixing_section,"MAX_N_QM",i_val=max_n_qm,error=error)
+      l_val=QM_extended_seed_is_core_list)
+    CALL section_vals_val_get(force_mixing_section,"R_BUF",r_vals=r_buf)
+    CALL section_vals_val_get(force_mixing_section,"MAX_N_QM",i_val=max_n_qm)
 
-    CALL section_vals_val_get(force_mixing_section,"ADAPTIVE_EXCLUDE_MOLECULES",n_rep_val=n_rep_exclude,error=error)
+    CALL section_vals_val_get(force_mixing_section,"ADAPTIVE_EXCLUDE_MOLECULES",n_rep_val=n_rep_exclude)
     IF (n_rep_exclude > 0) THEN
-       CALL section_vals_val_get(force_mixing_section,"ADAPTIVE_EXCLUDE_MOLECULES",c_vals=adaptive_exclude_molecules,error=error)
+       CALL section_vals_val_get(force_mixing_section,"ADAPTIVE_EXCLUDE_MOLECULES",c_vals=adaptive_exclude_molecules)
     ENDIF
     ![NB] need to read real list from input
     ! should be 2xN_bb integer arrays, with (1,:) indices of inside atoms, and (2,:) indices of outside atoms
@@ -188,7 +182,7 @@ CONTAINS
 
     ! get particles, molecules
     NULLIFY(particles,molecules)
-    CALL cp_subsys_get(subsys=subsys, particles=particles,molecules_new=molecules, error=error)
+    CALL cp_subsys_get(subsys=subsys, particles=particles,molecules_new=molecules)
     particle_set => particles%els
     molecule_set => molecules%els
 
@@ -205,20 +199,20 @@ CONTAINS
 
     ! neighbor list for various hysteretic distance calls
     NULLIFY(cell)
-    CALL cp_subsys_get(subsys, cell=cell, error=error)
+    CALL cp_subsys_get(subsys, cell=cell)
     NULLIFY(nlist)
-    CALL make_neighbor_list(force_mixing_section, subsys, cell, MAX(r_core(2), r_qm(2), r_buf(2)), nlist, error)
+    CALL make_neighbor_list(force_mixing_section, subsys, cell, MAX(r_core(2), r_qm(2), r_buf(2)), nlist)
 
     ! create labels for core_list from QM_KIND
     NULLIFY(mm_index_entry)
-    qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND",error=error)
-    CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section,error=error)
+    qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND")
+    CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section)
     n_new = 0
     DO i_rep_section=1,n_rep_section
-      CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val,error=error)
+      CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val)
       DO i_rep_val=1,n_rep_val
         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,i_rep_val=i_rep_val, &
-          i_vals=mm_index_entry, error=error)
+          i_vals=mm_index_entry)
         DO ip=1, SIZE(mm_index_entry)
           CALL add_new_label(mm_index_entry(ip), force_mixing_label_QM_core_list, n_new, new_indices, new_labels, &
                              new_full_labels, max_n_qm)
@@ -233,15 +227,15 @@ CONTAINS
 
     ! create labels for non adaptive QM and buffer regions from *_NON_ADAPTIVE&QM_KIND sections
     non_adaptive_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING%QM_NON_ADAPTIVE",&
-      can_return_null=.TRUE.,error=error)
+      can_return_null=.TRUE.)
     IF (ASSOCIATED(non_adaptive_section)) THEN
-       qm_kind_section => section_vals_get_subs_vals3(non_adaptive_section,"QM_KIND",error=error)
-       CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section,error=error)
+       qm_kind_section => section_vals_get_subs_vals3(non_adaptive_section,"QM_KIND")
+       CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section)
        DO i_rep_section=1,n_rep_section
-         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val,error=error)
+         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val)
          DO i_rep_val=1,n_rep_val
            CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,i_rep_val=i_rep_val, &
-             i_vals=mm_index_entry, error=error)
+             i_vals=mm_index_entry)
            DO ip=1, SIZE(mm_index_entry)
              CALL add_new_label(mm_index_entry(ip), force_mixing_label_QM_dynamics_list, n_new, new_indices, new_labels, &
                                 new_full_labels, max_n_qm)
@@ -254,15 +248,15 @@ CONTAINS
        WRITE(output_unit,*) "BOB core_list + non adaptive QM new_labels ",new_labels(1:n_new)
     ENDIF
     non_adaptive_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING%BUFFER_NON_ADAPTIVE",&
-      can_return_null=.TRUE.,error=error)
+      can_return_null=.TRUE.)
     IF (ASSOCIATED(non_adaptive_section)) THEN
-       qm_kind_section => section_vals_get_subs_vals3(non_adaptive_section,"QM_KIND",error=error)
-       CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section,error=error)
+       qm_kind_section => section_vals_get_subs_vals3(non_adaptive_section,"QM_KIND")
+       CALL section_vals_get(qm_kind_section,n_repetition=n_rep_section)
        DO i_rep_section=1,n_rep_section
-         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val,error=error)
+         CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,n_rep_val=n_rep_val)
          DO i_rep_val=1,n_rep_val
            CALL section_vals_val_get(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section,i_rep_val=i_rep_val, &
-             i_vals=mm_index_entry, error=error)
+             i_vals=mm_index_entry)
            DO ip=1, SIZE(mm_index_entry)
              CALL add_new_label(mm_index_entry(ip), force_mixing_label_buffer_list, n_new, new_indices, new_labels, &
                                 new_full_labels, max_n_qm)
@@ -347,17 +341,17 @@ CONTAINS
     CALL reallocate(new_labels,1,n_new)
 
     ! save info in input structure
-    restart_section => section_vals_get_subs_vals(qmmm_section, "FORCE_MIXING%RESTART_INFO", error=error)
-    CALL section_vals_get(restart_section,explicit=explicit,error=error)
-    IF (explicit) CALL section_vals_remove_values(restart_section,error)
-    CALL section_vals_val_set(restart_section,"INDICES",i_vals_ptr=new_indices,error=error)
-    CALL section_vals_val_set(restart_section,"LABELS",i_vals_ptr=new_labels,error=error)
+    restart_section => section_vals_get_subs_vals(qmmm_section, "FORCE_MIXING%RESTART_INFO")
+    CALL section_vals_get(restart_section,explicit=explicit)
+    IF (explicit) CALL section_vals_remove_values(restart_section)
+    CALL section_vals_val_set(restart_section,"INDICES",i_vals_ptr=new_indices)
+    CALL section_vals_val_set(restart_section,"LABELS",i_vals_ptr=new_labels)
 
     DEALLOCATE(cur_indices, cur_labels)
-    CALL fist_neighbor_deallocate(nlist,error)
+    CALL fist_neighbor_deallocate(nlist)
 
     ![NB] perhap be controlled by some &PRINT section?
-    CALL cp_subsys_get(subsys, para_env=para_env, error=error)
+    CALL cp_subsys_get(subsys, para_env=para_env)
     IF (para_env%ionode .AND. output_unit > 0) THEN
       WRITE(unit=output_unit, fmt='(A,A,I6,A,I5,A,I5,A,I5)') &
          "QMMM FORCE MIXING final count (not including links): ",&
@@ -543,15 +537,13 @@ CONTAINS
 !> \param cell ...
 !> \param r_max ...
 !> \param nlist ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE make_neighbor_list(force_mixing_section, subsys, cell, r_max, nlist, error)
+  SUBROUTINE make_neighbor_list(force_mixing_section, subsys, cell, r_max, nlist)
     TYPE(section_vals_type), POINTER         :: force_mixing_section
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp)                                 :: r_max
     TYPE(fist_neighbor_type), POINTER        :: nlist
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_neighbor_list', &
       routineP = moduleN//':'//routineN
@@ -593,7 +585,7 @@ CONTAINS
           cell=cell, r_max=r_max_a, r_minsq=r_minsq_a, &
           ei_scale14=1.0_dp, vdw_scale14=1.0_dp, nonbonded=nlist, &
           para_env=subsys%para_env, build_from_scratch=.TRUE., geo_check=.FALSE., &
-          mm_section=force_mixing_section, error=error)
+          mm_section=force_mixing_section)
 
       DEALLOCATE(r_max_a, r_minsq_a)
 
@@ -611,18 +603,15 @@ CONTAINS
 !> \param qmmm_section ...
 !> \param qmmm_core_section ...
 !> \param qmmm_extended_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2012 created [noam]
 !> \author Noam Bernstein
 ! *****************************************************************************
-  SUBROUTINE setup_force_mixing_qmmm_sections(subsys, qmmm_section, qmmm_core_section, qmmm_extended_section, error)
+  SUBROUTINE setup_force_mixing_qmmm_sections(subsys, qmmm_section, qmmm_core_section, qmmm_extended_section)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: qmmm_section, &
                                                 qmmm_core_section, &
                                                 qmmm_extended_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'setup_force_mixing_qmmm_sections', &
@@ -645,47 +634,46 @@ CONTAINS
     output_unit = cp_logger_get_default_unit_nr()
 
     ! create new qmmm sections for core and extended
-    CALL section_vals_duplicate(qmmm_section, qmmm_core_section, error=error)
-    CALL section_vals_duplicate(qmmm_section, qmmm_extended_section, error=error)
+    CALL section_vals_duplicate(qmmm_section, qmmm_core_section)
+    CALL section_vals_duplicate(qmmm_section, qmmm_extended_section)
 
     ! remove LINKs (specified by user for core) from extended
-    link_section => section_vals_get_subs_vals(qmmm_extended_section, "LINK", can_return_null=.TRUE., error=error)
+    link_section => section_vals_get_subs_vals(qmmm_extended_section, "LINK", can_return_null=.TRUE.)
     IF (ASSOCIATED(link_section)) THEN
-      CALL section_vals_remove_values(link_section,error)
+      CALL section_vals_remove_values(link_section)
     END IF
     ! for LINKs to be added to extended
     buffer_non_adaptive_section => section_vals_get_subs_vals(qmmm_extended_section, "FORCE_MIXING%BUFFER_NON_ADAPTIVE", &
-      can_return_null=.TRUE., error=error)
-    link_section => section_vals_get_subs_vals(buffer_non_adaptive_section, "LINK", can_return_null=.TRUE., error=error)
+      can_return_null=.TRUE.)
+    link_section => section_vals_get_subs_vals(buffer_non_adaptive_section, "LINK", can_return_null=.TRUE.)
     IF (ASSOCIATED(link_section)) THEN
        NULLIFY(dup_link_section)
-       CALL section_vals_duplicate(link_section, dup_link_section, error=error)
-       CALL section_vals_set_subs_vals(qmmm_extended_section, "LINK", dup_link_section, error=error)
-       CALL section_vals_release(dup_link_section, error=error)
+       CALL section_vals_duplicate(link_section, dup_link_section)
+       CALL section_vals_set_subs_vals(qmmm_extended_section, "LINK", dup_link_section)
+       CALL section_vals_release(dup_link_section)
     ENDIF
 
     IF (debug_this_module.AND.output_unit>0) THEN
-       link_section => section_vals_get_subs_vals(qmmm_core_section, "LINK", can_return_null=.TRUE., error=error)
+       link_section => section_vals_get_subs_vals(qmmm_core_section, "LINK", can_return_null=.TRUE.)
        WRITE(output_unit,*) "core section has LINKs ",ASSOCIATED(link_section)
-       CALL section_vals_write(link_section,unit_nr=6,error=error)
-       link_section => section_vals_get_subs_vals(qmmm_extended_section, "LINK", can_return_null=.TRUE., error=error)
+       CALL section_vals_write(link_section,unit_nr=6)
+       link_section => section_vals_get_subs_vals(qmmm_extended_section, "LINK", can_return_null=.TRUE.)
        WRITE(output_unit,*) "extended section has LINKs ",ASSOCIATED(link_section)
-       CALL section_vals_write(link_section,unit_nr=6,error=error)
+       CALL section_vals_write(link_section,unit_nr=6)
     ENDIF
 
-    force_mixing_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING",error=error)
+    force_mixing_section => section_vals_get_subs_vals(qmmm_section,"FORCE_MIXING")
 
     ! get QM_KIND_ELEMENT_MAPPING
-    CALL section_vals_val_get(force_mixing_section,"QM_KIND_ELEMENT_MAPPING",n_rep_val=n_elements,error=error)
+    CALL section_vals_val_get(force_mixing_section,"QM_KIND_ELEMENT_MAPPING",n_rep_val=n_elements)
     ALLOCATE(elem_mapping(2,n_elements))
     DO ielem=1,n_elements
-      CALL section_vals_val_get(force_mixing_section,"QM_KIND_ELEMENT_MAPPING",i_rep_val=ielem,c_vals=elem_mapping_entry,&
-        error=error)
+      CALL section_vals_val_get(force_mixing_section,"QM_KIND_ELEMENT_MAPPING",i_rep_val=ielem,c_vals=elem_mapping_entry)
       elem_mapping(1:2,ielem) = elem_mapping_entry(1:2)
     END DO
 
     ! get CUR_INDICES, CUR_LABELS
-    CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels, error=error)
+    CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels)
     CALL cp_assert(SIZE(cur_indices) > 0,cp_failure_level,cp_assertion_failed,routineP,&
          "cur_indices is empty, found no QM atoms"//CPSourceFileRef)
 
@@ -715,8 +703,8 @@ CONTAINS
     END DO
 
     ! pre-existing QM_KIND section specifies list of core atom
-    qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND",error=error)
-    CALL section_vals_get(qm_kind_section,n_repetition=i_rep_section_core,error=error)
+    qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND")
+    CALL section_vals_get(qm_kind_section,n_repetition=i_rep_section_core)
     CALL cp_assert(i_rep_section_core > 0,cp_failure_level,cp_assertion_failed,routineP,&
          "Force-mixing QM didn't find any QM_KIND sections, "//&
          "so no core specified!"//CPSourceFileRef)
@@ -733,52 +721,52 @@ CONTAINS
         IF (cur_labels(ip) > force_mixing_label_none .AND. &
             cur_labels(ip) /= force_mixing_label_QM_core_list .AND. &
             cur_labels(ip) /= force_mixing_label_termination) THEN
-            qm_kind_section => section_vals_get_subs_vals3(qmmm_extended_section,"QM_KIND",error=error)
+            qm_kind_section => section_vals_get_subs_vals3(qmmm_extended_section,"QM_KIND")
             IF (new_element_extended) THEN ! add new QM_KIND section for this element
               i_rep_section_extended = i_rep_section_extended + 1
-              CALL section_vals_add_values(qm_kind_section,error=error)
+              CALL section_vals_add_values(qm_kind_section)
               CALL section_vals_val_set(qm_kind_section,"_SECTION_PARAMETERS_",i_rep_section=i_rep_section_extended, &
-                c_val=elem_mapping(2,ielem),error=error)
+                c_val=elem_mapping(2,ielem))
               i_rep_val_extended = 0
               new_element_extended = .FALSE.
             ENDIF
             i_rep_val_extended = i_rep_val_extended + 1
             CALL section_vals_val_set(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section_extended, &
-              i_rep_val=i_rep_val_extended, i_val=cur_indices(ip),error=error)
+              i_rep_val=i_rep_val_extended, i_val=cur_indices(ip))
         ENDIF ! is a non-termination QM atom
 
         ! core
         ! if current particle is a core QM atom, and not in core list (those the user
         ! gave explicit QM_KIND sections for, need to make a QM_KIND section for it
         IF (cur_labels(ip) == force_mixing_label_QM_core) THEN
-            qm_kind_section => section_vals_get_subs_vals3(qmmm_core_section,"QM_KIND",error=error)
+            qm_kind_section => section_vals_get_subs_vals3(qmmm_core_section,"QM_KIND")
             IF (new_element_core) THEN ! add new QM_KIND section for this element
               i_rep_section_core = i_rep_section_core + 1
-              CALL section_vals_add_values(qm_kind_section,error=error)
+              CALL section_vals_add_values(qm_kind_section)
               CALL section_vals_val_set(qm_kind_section,"_SECTION_PARAMETERS_",i_rep_section=i_rep_section_core, &
-                c_val=elem_mapping(2,ielem),error=error)
+                c_val=elem_mapping(2,ielem))
               i_rep_val_core = 0
               new_element_core = .FALSE.
             ENDIF
             i_rep_val_core = i_rep_val_core + 1
             CALL section_vals_val_set(qm_kind_section,"MM_INDEX",i_rep_section=i_rep_section_core, &
-              i_rep_val=i_rep_val_core, i_val=cur_indices(ip),error=error)
+              i_rep_val=i_rep_val_core, i_val=cur_indices(ip))
         ENDIF ! is a non-termination QM atom
 
       END DO ! atom index ip
     END DO ! element index ielem
 
-    CALL section_vals_val_get(force_mixing_section,"EXTENDED_DELTA_CHARGE",i_val=delta_charge,error=error)
-    CALL section_vals_val_set(qmmm_extended_section,"DELTA_CHARGE",i_val=delta_charge,error=error)
+    CALL section_vals_val_get(force_mixing_section,"EXTENDED_DELTA_CHARGE",i_val=delta_charge)
+    CALL section_vals_val_set(qmmm_extended_section,"DELTA_CHARGE",i_val=delta_charge)
 
     ![NB] check
     DEALLOCATE(elem_mapping, cur_indices, cur_labels)
 
     IF (debug_this_module.AND.output_unit>0) THEN
        WRITE(output_unit,*) "qmmm_core_section"
-       CALL section_vals_write(qmmm_core_section,unit_nr=6,error=error)
+       CALL section_vals_write(qmmm_core_section,unit_nr=6)
        WRITE(output_unit,*) "qmmm_extended_section"
-       CALL section_vals_write(qmmm_extended_section,unit_nr=6,error=error)
+       CALL section_vals_write(qmmm_extended_section,unit_nr=6)
     ENDIF
 
   END SUBROUTINE setup_force_mixing_qmmm_sections
@@ -788,12 +776,10 @@ CONTAINS
 !> \param force_mixing_section ...
 !> \param indices ...
 !> \param labels ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_force_mixing_indices(force_mixing_section, indices, labels, error)
+  SUBROUTINE get_force_mixing_indices(force_mixing_section, indices, labels)
     TYPE(section_vals_type), POINTER         :: force_mixing_section
     INTEGER, POINTER                         :: indices(:), labels(:)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_force_mixing_indices', &
       routineP = moduleN//':'//routineN
@@ -806,8 +792,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: restart_section
 
     NULLIFY(indices, labels)
-    restart_section => section_vals_get_subs_vals(force_mixing_section, "RESTART_INFO", error=error)
-    CALL section_vals_get(restart_section,explicit=explicit,error=error)
+    restart_section => section_vals_get_subs_vals(force_mixing_section, "RESTART_INFO")
+    CALL section_vals_get(restart_section,explicit=explicit)
     IF (.NOT. explicit) THEN ! no old indices, labels, return empty arrays
       ALLOCATE(indices(0))
       ALLOCATE(labels(0))
@@ -815,34 +801,34 @@ CONTAINS
     ENDIF
 
     ![NB] maybe switch to reallocatable array
-    CALL section_vals_val_get(restart_section,"INDICES",n_rep_val=n_reps,error=error)
+    CALL section_vals_val_get(restart_section,"INDICES",n_rep_val=n_reps)
     n_indices=0
     DO i_rep_val = 1,n_reps
       CALL section_vals_val_get(restart_section,"INDICES",&
-        i_rep_val=i_rep_val,i_vals=indices_entry,error=error)
+        i_rep_val=i_rep_val,i_vals=indices_entry)
       n_indices = n_indices + SIZE(indices_entry)
     END DO
     ALLOCATE(indices(n_indices))
     n_indices=0
     DO i_rep_val = 1,n_reps
       CALL section_vals_val_get(restart_section,"INDICES",&
-        i_rep_val=i_rep_val,i_vals=indices_entry,error=error)
+        i_rep_val=i_rep_val,i_vals=indices_entry)
       indices(n_indices+1:n_indices+SIZE(indices_entry)) = indices_entry
       n_indices = n_indices + SIZE(indices_entry)
     END DO
 
-    CALL section_vals_val_get(restart_section,"LABELS",n_rep_val=n_reps,error=error)
+    CALL section_vals_val_get(restart_section,"LABELS",n_rep_val=n_reps)
     n_labels=0
     DO i_rep_val = 1,n_reps
       CALL section_vals_val_get(restart_section,"LABELS",&
-        i_rep_val=i_rep_val,i_vals=labels_entry,error=error)
+        i_rep_val=i_rep_val,i_vals=labels_entry)
       n_labels = n_labels + SIZE(labels_entry)
     END DO
     ALLOCATE(labels(n_labels))
     n_labels=0
     DO i_rep_val = 1,n_reps
       CALL section_vals_val_get(restart_section,"LABELS",&
-        i_rep_val=i_rep_val,i_vals=labels_entry,error=error)
+        i_rep_val=i_rep_val,i_vals=labels_entry)
       labels(n_labels+1:n_labels+SIZE(labels_entry)) = labels_entry
       n_labels = n_labels + SIZE(labels_entry)
     END DO

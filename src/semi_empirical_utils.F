@@ -54,16 +54,14 @@ CONTAINS
 !> \param se_section ...
 !> \param cell ...
 !> \param output_unit ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
-  SUBROUTINE se_cutoff_compatible(se_control, se_section, cell, output_unit, error)
+  SUBROUTINE se_cutoff_compatible(se_control, se_section, cell, output_unit)
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_cutoff_compatible', &
       routineP = moduleN//':'//routineN
@@ -73,8 +71,8 @@ CONTAINS
 
     failure = .FALSE.
     ! Coulomb Cutoff Taper
-    CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1,error=error)
-    CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2,error=error)
+    CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1)
+    CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2)
     IF ((.NOT.explicit1).AND.se_control%do_ewald_gks) THEN
        rc = MAX(0.5*plane_distance(1,0,0,cell),&
                 0.5*plane_distance(0,1,0,cell),&
@@ -123,8 +121,8 @@ CONTAINS
        WRITE(output_unit,*)
     END IF
     ! Exchange Cutoff Taper
-    CALL section_vals_val_get(se_section,"EXCHANGE%CUTOFF",explicit=explicit1,error=error)
-    CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",explicit=explicit2,error=error)
+    CALL section_vals_val_get(se_section,"EXCHANGE%CUTOFF",explicit=explicit1)
+    CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",explicit=explicit2)
     rc = se_control%cutoff_exc
     IF (.NOT.explicit1) THEN
        rc = MIN(rc,MAX(0.25_dp*plane_distance(1,0,0,cell),&
@@ -167,13 +165,11 @@ CONTAINS
 !> \param coulomb ...
 !> \param exchange ...
 !> \param lr_corr ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
-  SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, lr_corr, error)
+  SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, lr_corr)
     TYPE(se_taper_type), POINTER             :: se_taper
     LOGICAL, INTENT(IN), OPTIONAL            :: coulomb, exchange, lr_corr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper', &
       routineP = moduleN//':'//routineN
@@ -183,7 +179,7 @@ CONTAINS
 
     failure = .FALSE.
     check = .NOT.ASSOCIATED(se_taper%taper)
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    CPPrecondition(check,cp_failure_level,routineP,failure)
     l_coulomb  = .FALSE.
     l_exchange = .FALSE.
     l_lrc      = .FALSE.
@@ -192,17 +188,17 @@ CONTAINS
     IF (PRESENT(lr_corr))  l_lrc      = lr_corr
     IF (l_coulomb)  THEN
        check = (.NOT.l_exchange).AND.(.NOT.l_lrc)
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPPrecondition(check,cp_failure_level,routineP,failure)
        se_taper%taper => se_taper%taper_cou
     END IF
     IF (l_exchange) THEN
        check = (.NOT.l_coulomb).AND.(.NOT.l_lrc)
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPPrecondition(check,cp_failure_level,routineP,failure)
        se_taper%taper => se_taper%taper_exc
     END IF
     IF (l_lrc)      THEN
        check = (.NOT.l_coulomb).AND.(.NOT.l_exchange)
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPPrecondition(check,cp_failure_level,routineP,failure)
        se_taper%taper => se_taper%taper_lrc
     END IF
   END SUBROUTINE initialize_se_taper
@@ -210,12 +206,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Finalizes the semi-empirical taper for a chunk calculation
 !> \param se_taper ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
-  SUBROUTINE finalize_se_taper(se_taper, error)
+  SUBROUTINE finalize_se_taper(se_taper)
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_se_taper', &
       routineP = moduleN//':'//routineN
@@ -224,7 +218,7 @@ CONTAINS
 
     failure = .FALSE.
     check = ASSOCIATED(se_taper%taper)
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    CPPrecondition(check,cp_failure_level,routineP,failure)
     NULLIFY(se_taper%taper)
   END SUBROUTINE finalize_se_taper
 
@@ -233,13 +227,11 @@ CONTAINS
 !> \param sep ...
 !> \param orb_basis_set ...
 !> \param ngauss ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_se_param(sep,orb_basis_set,ngauss,error)
+  SUBROUTINE init_se_param(sep,orb_basis_set,ngauss)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     INTEGER, INTENT(IN)                      :: ngauss
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_se_param', &
       routineP = moduleN//':'//routineN
@@ -252,23 +244,23 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
-       CALL allocate_sto_basis_set (sep%basis,error)
+       CALL allocate_sto_basis_set (sep%basis)
        nshell = 0
        IF (sep%natorb ==  1) nshell=1
        IF (sep%natorb ==  4) nshell=2
        IF (sep%natorb ==  9) nshell=3
        ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
        ALLOCATE (symbol(0:3),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
        symbol=""
        nq=0
        lq=0
        zet=0._dp
        DO l=0,nshell-1
-          nq(l)=get_se_basis(sep,l,error)
+          nq(l)=get_se_basis(sep,l)
           lq(l)=l
           zet(l)=sep%sto_exponents(l)
           IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
@@ -280,17 +272,17 @@ CONTAINS
           sep%ngauss = ngauss
           CALL set_sto_basis_set(sep%basis,name=sep%name,nshell=nshell,symbol=symbol,&
                nq=nq,lq=lq,zet=zet)
-          CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,sep%ngauss,error=error)
+          CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,sep%ngauss)
        END IF
 
        DEALLOCATE (nq,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (lq,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (zet,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (symbol,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer sep is not associated")
@@ -303,13 +295,11 @@ CONTAINS
 !> \param sep ...
 !> \param z ...
 !> \param method ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE se_param_set_default(sep,z,method,error)
+  SUBROUTINE se_param_set_default(sep,z,method)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER, INTENT(IN)                      :: z, method
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
       routineP = moduleN//':'//routineN
@@ -324,23 +314,23 @@ CONTAINS
        END IF
        SELECT CASE (method)
        CASE (do_method_am1)
-          CALL am1_default_parameter(sep,z,error)
+          CALL am1_default_parameter(sep,z)
        CASE (do_method_rm1)
-          CALL rm1_default_parameter(sep,z,error)
+          CALL rm1_default_parameter(sep,z)
        CASE (do_method_pm3)
-          CALL pm3_default_parameter(sep,z,error)
+          CALL pm3_default_parameter(sep,z)
        CASE (do_method_pm6)
-          CALL pm6_default_parameter(sep,z,error)
+          CALL pm6_default_parameter(sep,z)
        CASE (do_method_pdg)
-          CALL pdg_default_parameter(sep,z,error)
+          CALL pdg_default_parameter(sep,z)
        CASE (do_method_mndo)
-          CALL mndo_default_parameter(sep,z,do_method_mndo, error)
+          CALL mndo_default_parameter(sep,z,do_method_mndo)
        CASE (do_method_mndod)
-          CALL mndo_default_parameter(sep,z,do_method_mndod,error)
+          CALL mndo_default_parameter(sep,z,do_method_mndod)
        CASE (do_method_pnnl)
-          CALL pnnl_default_parameter(sep,z,error)
+          CALL pnnl_default_parameter(sep,z)
        CASE (do_method_pchg)
-          CALL pcharge_default_parameter(sep,z,error)
+          CALL pcharge_default_parameter(sep,z)
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Semiempirical method unknown")
@@ -358,10 +348,10 @@ CPSourceFileRef,&
          only_ionode=.TRUE.)
 
     ! Fill 1 center - 2 electron integrals
-    CALL setup_1c_2el_int(sep, error)
+    CALL setup_1c_2el_int(sep)
 
     ! Fill multipolar expansion of atomic orbitals charge distributions
-    CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, method, error)
+    CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, method)
 
     ! Get the value of the size of CORE integral array
     sep%core_size = 0

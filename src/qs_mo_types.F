@@ -95,14 +95,12 @@ CONTAINS
 !> \brief allocate a new mo_set, and copy the old data
 !> \param mo_set_new ...
 !> \param mo_set_old ...
-!> \param error ...
 !> \date 2009-7-19
 !> \par History
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE duplicate_mo_set(mo_set_new,mo_set_old,error)
+  SUBROUTINE duplicate_mo_set(mo_set_new,mo_set_old)
     TYPE(mo_set_type), POINTER               :: mo_set_new, mo_set_old
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'duplicate_mo_set', &
       routineP = moduleN//':'//routineN
@@ -113,7 +111,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE (mo_set_new,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     mo_set_new%maxocc = mo_set_old%maxocc
     mo_set_new%nelectron = mo_set_old%nelectron
@@ -130,22 +128,22 @@ CONTAINS
     nmo = mo_set_new%nmo
 
     NULLIFY(mo_set_new%mo_coeff)
-    CALL cp_fm_create(mo_set_new%mo_coeff,mo_set_old%mo_coeff%matrix_struct,error=error)
-    CALL cp_fm_to_fm(mo_set_old%mo_coeff,mo_set_new%mo_coeff,error=error)
+    CALL cp_fm_create(mo_set_new%mo_coeff,mo_set_old%mo_coeff%matrix_struct)
+    CALL cp_fm_to_fm(mo_set_old%mo_coeff,mo_set_new%mo_coeff)
 
     NULLIFY(mo_set_new%mo_coeff_b)
     IF(ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
-       CALL cp_dbcsr_init_p(mo_set_new%mo_coeff_b,error=error)
-       CALL cp_dbcsr_copy(mo_set_new%mo_coeff_b,mo_set_old%mo_coeff_b,error=error)
+       CALL cp_dbcsr_init_p(mo_set_new%mo_coeff_b)
+       CALL cp_dbcsr_copy(mo_set_new%mo_coeff_b,mo_set_old%mo_coeff_b)
     ENDIF
     mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
     ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
     mo_set_new%eigenvalues = mo_set_old%eigenvalues
 
     ALLOCATE (mo_set_new%occupation_numbers(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
     mo_set_new%occupation_numbers = mo_set_old%occupation_numbers
 
   END SUBROUTINE duplicate_mo_set
@@ -161,21 +159,18 @@ CONTAINS
 !> \param n_el_f ...
 !> \param maxocc maximum occupation of an orbital (LDA: 2, LSD:1)
 !> \param flexible_electron_count the number of electrons can be changed
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \date 15.05.2001
 !> \par History
 !>      11.2002 splitted initialization in two phases [fawzi]
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,n_el_f,maxocc,&
-                             flexible_electron_count,error)
+                             flexible_electron_count)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
     REAL(KIND=dp), INTENT(IN)                :: n_el_f, maxocc, &
                                                 flexible_electron_count
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
       routineP = moduleN//':'//routineN
@@ -185,10 +180,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set,error)
+    IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
     ALLOCATE (mo_set,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
@@ -217,18 +212,15 @@ CONTAINS
 !> \param mo_set the mo_set to initialize
 !> \param fm_pool a pool out which you initialize the mo_set
 !> \param name ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2002 rewamped [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE init_mo_set(mo_set,fm_pool,name,error)
+  SUBROUTINE init_mo_set(mo_set,fm_pool,name)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     CHARACTER(LEN=*), INTENT(in)             :: name
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_mo_set', &
       routineP = moduleN//':'//routineN
@@ -238,23 +230,23 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(fm_pool),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(fm_pool),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,failure)
 
-    CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,name=name,error=error)
-    CALL cp_fm_get_info(mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
-    CPPostcondition((nao >= mo_set%nao),cp_failure_level,routineP,error,failure)
-    CPPostcondition((nmo >= mo_set%nmo),cp_failure_level,routineP,error,failure)
+    CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,name=name)
+    CALL cp_fm_get_info(mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo)
+    CPPostcondition((nao >= mo_set%nao),cp_failure_level,routineP,failure)
+    CPPostcondition((nmo >= mo_set%nmo),cp_failure_level,routineP,failure)
 
     ALLOCATE (mo_set%eigenvalues(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
     mo_set%eigenvalues(:) = 0.0_dp
 
     ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
     ! Initialize MO occupations
     mo_set%occupation_numbers(:) =  0.0_dp
     ! Quick return, if no electrons are available
@@ -272,8 +264,8 @@ CONTAINS
         mo_set%occupation_numbers(nomo) = mo_set%nelectron -(nomo-1)* mo_set%maxocc
     END IF
 
-    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,error,failure)
-    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
+    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,failure)
+    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,failure)
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
@@ -286,15 +278,13 @@ CONTAINS
 !>       effectively copying the orbital data
 !> \param mo_array ...
 !> \param convert_dbcsr ...
-!> \param error ...
 !> \par History
 !>      10.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE mo_set_restrict(mo_array,convert_dbcsr,error)
+  SUBROUTINE mo_set_restrict(mo_array,convert_dbcsr)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     LOGICAL, INTENT(in), OPTIONAL            :: convert_dbcsr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mo_set_restrict', &
       routineP = moduleN//':'//routineN
@@ -309,16 +299,16 @@ CONTAINS
     my_convert_dbcsr = .FALSE.
     IF(PRESENT(convert_dbcsr)) my_convert_dbcsr = convert_dbcsr
 
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineP,error,failure)
-    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineP,failure)
+    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineP,failure)
 
     ! first nmo_beta orbitals are copied from alpha to beta
     IF(my_convert_dbcsr) THEN!fm->dbcsr
        CALL cp_dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b,mo_array(1)%mo_set%mo_coeff_b,&!fm->dbcsr
             mo_array(2)%mo_set%nmo,1,1,&!fm->dbcsr
             para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env,&!fm->dbcsr
-            blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context,error=error)!fm->dbcsr
+            blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context)!fm->dbcsr
     ELSE!fm->dbcsr
        CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
     ENDIF
@@ -356,15 +346,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate a wavefunction data structure.
 !> \param mo_set ...
-!> \param error ...
 !> \date    15.05.2001
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_mo_set(mo_set,error)
+  SUBROUTINE deallocate_mo_set(mo_set)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
       routineP = moduleN//':'//routineN
@@ -377,16 +365,16 @@ CONTAINS
     IF (ASSOCIATED(mo_set)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
         DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
         DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
-      CALL cp_fm_release(mo_set%mo_coeff,error=error)
-      IF(ASSOCIATED(mo_set%mo_coeff_b)) CALL cp_dbcsr_release_p(mo_set%mo_coeff_b, error=error)
+      CALL cp_fm_release(mo_set%mo_coeff)
+      IF(ASSOCIATED(mo_set%mo_coeff_b)) CALL cp_dbcsr_release_p(mo_set%mo_coeff_b)
       DEALLOCATE (mo_set,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -467,14 +455,13 @@ CONTAINS
 !> \param kTS ...
 !> \param mu ...
 !> \param flexible_electron_count ...
-!> \param error ...
 !> \date    22.04.2002
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,n_el_f,nmo,&
                         eigenvalues,occupation_numbers,uniform_occupation,&
-                        kTS,mu,flexible_electron_count,error)
+                        kTS,mu,flexible_electron_count)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -487,7 +474,6 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS, mu, &
                                                 flexible_electron_count
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
       routineP = moduleN//':'//routineN
@@ -505,14 +491,14 @@ CONTAINS
     IF (PRESENT(eigenvalues)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
         DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
       mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
         DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
       mo_set%occupation_numbers => occupation_numbers
     END IF

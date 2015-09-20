@@ -88,14 +88,13 @@ CONTAINS
 !> \param energy_gap ...
 !> \param mixed_precision ...
 !> \param convert_precond_to_dbcsr ...
-!> \param error ...
 !> \par History
 !>      09.2014 removed some unused or unfinished methods
 !>              removed sparse preconditioners and the 
 !>              sparse approximate inverse at rev 14341 [Florian Schiffmann]
 ! *****************************************************************************
 SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-     matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr, error)
+     matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     INTEGER, INTENT(IN)                      :: precon_type, solver_type
@@ -105,7 +104,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     REAL(KIND=dp)                            :: energy_gap
     LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision, &
                                                 convert_precond_to_dbcsr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner', &
       routineP = moduleN//':'//routineN
@@ -125,7 +123,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
     use_mo_coeff_b = mo_set%use_mo_coeff_b
-    CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
+    CALL cp_fm_get_info(mo_coeff,ncol_global=k)
 
     ! Starting some matrix mess, check where to store the result in preconditioner_env, fm or dbcsr_matrix
     my_convert_precond_to_dbcsr = .FALSE.
@@ -149,7 +147,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     ! if it wasn't anyway   
     IF(preconditioner_env%solver==ot_precond_solver_update)&
        CALL transfer_fm_to_dbcsr(preconditioner_env%fm,preconditioner_env%dbcsr_matrix,&
-                                 matrix_h,my_mixed_precision,error)
+                                 matrix_h,my_mixed_precision)
 
     needs_full_spectrum=.FALSE.
     needs_homo=.FALSE.
@@ -159,7 +157,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        needs_full_spectrum=.TRUE.
        ! both of them need the coefficients as fm's, more matrix mess
        IF(use_mo_coeff_b) THEN
-          CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff,error=error)
+          CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff)
        ENDIF
     CASE (ot_precond_full_single)
        needs_homo=.TRUE.
@@ -176,7 +174,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     energy_homo=0.0_dp
     IF (needs_full_spectrum) THEN
        ALLOCATE(eigenvalues_ot(k),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
        !                  the case of non-equivalent MOs but also for the derivate
        ! we could already have all eigenvalues e.g. full_all and we could skip this
@@ -187,10 +185,10 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
           CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_h,&
                eigenvalues_ot, do_rotation = .FALSE.,&
                para_env=mo_coeff%matrix_struct%para_env,&
-               blacs_env=mo_coeff%matrix_struct%context,error=error)
+               blacs_env=mo_coeff%matrix_struct%context)
        ELSE
           CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
-               eigenvalues_ot, do_rotation = .FALSE.,error=error)
+               eigenvalues_ot, do_rotation = .FALSE.)
        ENDIF
        IF (k>0) energy_homo=eigenvalues_ot(k)
     ELSE
@@ -207,26 +205,26 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     preconditioner_env%in_use=precon_type
     CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff,&
                        energy_homo, eigenvalues_ot, energy_gap, &
-                       my_solver_type, error)
+                       my_solver_type)
 
-    CALL solve_preconditioner(my_solver_type,preconditioner_env,matrix_s,matrix_h,my_mixed_precision,error)
+    CALL solve_preconditioner(my_solver_type,preconditioner_env,matrix_s,matrix_h,my_mixed_precision)
   
     ! Here comes more matrix mess, make sure to output the correct matrix format, 
     ! A bit pointless to convert the cholesky factorized version as it doesn't work in
     ! dbcsr form and will crash later,...
     IF(my_convert_precond_to_dbcsr) THEN
        CALL transfer_fm_to_dbcsr(preconditioner_env%fm,preconditioner_env%dbcsr_matrix,&
-                                 matrix_h,my_mixed_precision,error)
+                                 matrix_h,my_mixed_precision)
     ELSE
        CALL transfer_dbcsr_to_fm(preconditioner_env%dbcsr_matrix,preconditioner_env%fm, &
                                  preconditioner_env%para_env, preconditioner_env%ctxt,&
-                                 my_mixed_precision,error)
+                                 my_mixed_precision)
     ENDIF
 
 
     IF (needs_full_spectrum) THEN
       DEALLOCATE(eigenvalues_ot,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ENDIF
 
     CALL timestop(handle)
@@ -240,15 +238,13 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 !> \param preconditioner ...
 !> \param prec_type ...
 !> \param nspins ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE restart_preconditioner(qs_env,preconditioner,prec_type,nspins,error)
+  SUBROUTINE restart_preconditioner(qs_env,preconditioner,prec_type,nspins)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(preconditioner_p_type), &
       DIMENSION(:), POINTER                  :: preconditioner
     INTEGER, INTENT(IN)                      :: prec_type, nspins
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_preconditioner', &
       routineP = moduleN//':'//routineN
@@ -259,21 +255,21 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(para_env, blacs_env)
-    CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env, error=error)
+    CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
 
     IF (ASSOCIATED(preconditioner)) THEN
        SELECT CASE(prec_type)
        CASE(ot_precond_full_all,ot_precond_full_single) ! these depend on the ks matrix
          DO ispin=1,SIZE(preconditioner)
-            CALL destroy_preconditioner(preconditioner(ispin)%preconditioner,error=error)
+            CALL destroy_preconditioner(preconditioner(ispin)%preconditioner)
             DEALLOCATE(preconditioner(ispin)%preconditioner)
          ENDDO
          DEALLOCATE(preconditioner,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_full_single_inverse) ! these are 'independent'
          ! do nothing
        CASE DEFAULT
-           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
     END IF
 
@@ -282,16 +278,16 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
          SELECT CASE(prec_type)
          CASE(ot_precond_full_all,ot_precond_full_single_inverse)
             ALLOCATE(preconditioner(nspins), stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
          CASE DEFAULT
             ALLOCATE(preconditioner(1), stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
          END SELECT
          DO ispin=1,SIZE(preconditioner)
             ALLOCATE(preconditioner(ispin)%preconditioner)
             CALL init_preconditioner(preconditioner(ispin)%preconditioner,&
                                      para_env=para_env,&
-                                     blacs_env=blacs_env,error=error)
+                                     blacs_env=blacs_env)
          ENDDO
     END IF
 
@@ -311,12 +307,11 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 !> \param has_unit_metric ...
 !> \param mixed_precision ...
 !> \param convert_to_dbcsr ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,&
                                     ot_preconditioner,prec_type,solver_type,&
                                     energy_gap,nspins,has_unit_metric,mixed_precision,&
-                                    convert_to_dbcsr,error)
+                                    convert_to_dbcsr)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -331,7 +326,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     LOGICAL, INTENT(IN), OPTIONAL            :: has_unit_metric, &
                                                 mixed_precision, &
                                                 convert_to_dbcsr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner', &
       routineP = moduleN//':'//routineN
@@ -361,18 +355,17 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
                     para_env=para_env,&
-                    blacs_env=blacs_env,&
-                    error=error)
+                    blacs_env=blacs_env)
 
     IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
       IF(prec_type==ot_precond_full_kinetic) THEN
           msg="Full_kinetic not available for semi-empirical methods"
-          CPErrorMessage(cp_failure_level,routineP,TRIM(msg),error)
+          CPErrorMessage(cp_failure_level,routineP,TRIM(msg))
       END IF
       matrix_t => matrix_s(1)%matrix
     ELSE
-      CPPrecondition(.NOT. my_has_unit_metric,cp_failure_level,routineP,error,failure)
-      CALL get_qs_env(qs_env, kinetic=kinetic, error=error)
+      CPPrecondition(.NOT. my_has_unit_metric,cp_failure_level,routineP,failure)
+      CALL get_qs_env(qs_env, kinetic=kinetic)
       matrix_t => kinetic(1)%matrix
     END IF
 
@@ -394,15 +387,15 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
                 do_rotation = .TRUE., &
                 co_rotate=qs_env%mo_derivs(ispin)%matrix,&
                 para_env=para_env,&
-                blacs_env=blacs_env,error=error)
+                blacs_env=blacs_env)
          ELSEIF(use_mo_coeff_b) THEN
            CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
                 do_rotation = .TRUE., &
                 para_env=para_env,&
-                blacs_env=blacs_env,error=error)
+                blacs_env=blacs_env)
          ELSE
            CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                do_rotation = .TRUE., error=error)
+                do_rotation = .TRUE.)
          END IF
        END DO
     CASE DEFAULT
@@ -424,8 +417,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
                         matrix_h=matrix_ks(icall)%matrix,&
                         mo_set=mos(icall)%mo_set,&
                         energy_gap=energy_gap,&
-                        convert_precond_to_dbcsr=my_convert_to_dbcsr,&
-                        error=error)
+                        convert_precond_to_dbcsr=my_convert_to_dbcsr)
              ELSE
                CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
                         prec_type, &
@@ -436,8 +428,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
                         mo_set=mos(icall)%mo_set,&
                         energy_gap=energy_gap,&
                         mixed_precision=my_mixed_precision,&
-                        convert_precond_to_dbcsr=my_convert_to_dbcsr,&
-                        error=error)
+                        convert_precond_to_dbcsr=my_convert_to_dbcsr)
              END IF
           END DO
     END SELECT

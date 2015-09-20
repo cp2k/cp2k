@@ -443,7 +443,6 @@ CONTAINS
 !> \param potential_changed ...
 !> \param forces_up_to_date ...
 !> \param mscfg_env ...
-!> \param error ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -472,8 +471,7 @@ CONTAINS
        se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
        lri_env,lri_density,dispersion_env, vee,rho_external,external_vxc,mask,&
        mp2_env,kg_env,WannierCentres,atprop,ls_scf_env,do_transport, transport_env,v_hartree_rspace,&
-       s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env,&
-       error)
+       s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -634,7 +632,6 @@ CONTAINS
                                                 forces_up_to_date
     TYPE(molecular_scf_guess_env_type), &
       OPTIONAL, POINTER                      :: mscfg_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -644,9 +641,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(rho0_m)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_env%ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(qs_env%ks_env),cp_failure_level,routineP,failure)
 
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
@@ -816,8 +813,7 @@ CONTAINS
                     blacs_env=blacs_env,&
                     nelectron_total=nelectron_total,&
                     nelectron_spin=nelectron_spin,&
-                    admm_dm=admm_dm,&
-                    error=error)
+                    admm_dm=admm_dm)
 
   END SUBROUTINE get_qs_env
 
@@ -825,16 +821,14 @@ CONTAINS
 !> \brief  Initialise the QUICKSTEP environment.
 !> \param qs_env ...
 !> \param globenv ...
-!> \param error ...
 !> \date    25.01.2002
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_qs_env(qs_env,globenv,error)
+  SUBROUTINE init_qs_env(qs_env,globenv)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (qs_env%ls_scf_env)
     NULLIFY (qs_env%transport_env)
@@ -890,8 +884,8 @@ CONTAINS
     qs_env%outer_scf_ihistory=0
     qs_env%broyden_adaptive_sigma=-1.0_dp
 
-    CALL local_rho_set_create(qs_env%local_rho_set, error=error)
-    CALL hartree_local_create(qs_env%hartree_local, error=error)
+    CALL local_rho_set_create(qs_env%local_rho_set)
+    CALL hartree_local_create(qs_env%hartree_local)
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -977,7 +971,6 @@ CONTAINS
 !> \param mp2_env ...
 !> \param kg_env ...
 !> \param WannierCentres ...
-!> \param error ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -995,7 +988,7 @@ CONTAINS
        outer_scf_history,outer_scf_ihistory,x_data,et_coupling,dftb_potential,&
        se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
        do_transport, transport_env,lri_env,lri_density,dispersion_env,mp2_env,kg_env,&
-       WannierCentres,error)
+       WannierCentres)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: super_cell
@@ -1082,7 +1075,6 @@ CONTAINS
       POINTER                                :: kg_env
     TYPE(wannier_centres_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: WannierCentres
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -1090,13 +1082,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
     IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
     IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
     IF (PRESENT(super_cell)) THEN
-       CALL cell_retain(super_cell, error=error)
-       CALL cell_release(qs_env%super_cell,error=error)
+       CALL cell_retain(super_cell)
+       CALL cell_release(qs_env%super_cell)
        qs_env%super_cell => super_cell
     END IF
     !
@@ -1122,103 +1114,103 @@ CONTAINS
     IF (PRESENT(efield)) qs_env%efield=>efield
 
     IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
-      CALL ewald_env_retain(ewald_env,error=error)
-      CALL ewald_env_release(qs_env%ewald_env,error=error)
+      CALL ewald_env_retain(ewald_env)
+      CALL ewald_env_release(qs_env%ewald_env)
       qs_env%ewald_env => ewald_env
     END IF
     IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
-      CALL ewald_pw_retain(ewald_pw,error=error)
-      CALL ewald_pw_release(qs_env%ewald_pw,error=error)
+      CALL ewald_pw_retain(ewald_pw)
+      CALL ewald_pw_release(qs_env%ewald_pw)
       qs_env%ewald_pw => ewald_pw
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
-       CALL scf_c_retain(scf_control,error=error)
-       CALL scf_c_release(qs_env%scf_control,error=error)
+       CALL scf_c_retain(scf_control)
+       CALL scf_c_release(qs_env%scf_control)
        qs_env%scf_control => scf_control
     END IF
     IF (PRESENT(rel_control)) THEN ! accept also null pointers?
-       CALL rel_c_retain(rel_control,error=error)
-       CALL rel_c_release(qs_env%rel_control,error=error)
+       CALL rel_c_retain(rel_control)
+       CALL rel_c_release(qs_env%rel_control)
        qs_env%rel_control => rel_control
     END IF
     IF (PRESENT(linres_control)) THEN ! accept also null pointers?
-       CALL linres_control_retain(linres_control,error=error)
-       CALL linres_control_release(qs_env%linres_control,error=error)
+       CALL linres_control_retain(linres_control)
+       CALL linres_control_release(qs_env%linres_control)
        qs_env%linres_control => linres_control
     END IF
     ! ZMP associating variables
     IF (PRESENT(rho_external)) THEN ! accepts also null pointers !
-       IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external,error=error)
-       CALL qs_rho_release(qs_env%rho_external,error=error)
+       IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external)
+       CALL qs_rho_release(qs_env%rho_external)
        qs_env%rho_external => rho_external
     END IF
     IF (PRESENT(external_vxc)) qs_env%external_vxc => external_vxc
     IF (PRESENT(mask)) qs_env%mask => mask
 
     IF (PRESENT(qs_charges)) THEN
-       CALL qs_charges_retain(qs_charges,error=error)
-       CALL qs_charges_release(qs_env%qs_charges,error=error)
+       CALL qs_charges_retain(qs_charges)
+       CALL qs_charges_release(qs_env%qs_charges)
        qs_env%qs_charges => qs_charges
     END IF
     IF (PRESENT(ks_qmmm_env)) THEN
-       CALL qs_ks_qmmm_retain(ks_qmmm_env, error=error)
-       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
+       CALL qs_ks_qmmm_retain(ks_qmmm_env)
+       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
        qs_env%ks_qmmm_env => ks_qmmm_env
     END IF
     IF (PRESENT(ks_env)) THEN ! accept also null pointers?
-       CALL qs_ks_retain(ks_env, error=error)
-       CALL qs_ks_release(qs_env%ks_env, error=error)
+       CALL qs_ks_retain(ks_env)
+       CALL qs_ks_release(qs_env%ks_env)
        qs_env%ks_env => ks_env
     END IF
     IF (PRESENT(wf_history)) THEN ! accept also null pointers ?
-       CALL wfi_retain(wf_history,error=error)
-       CALL wfi_release(qs_env%wf_history,error=error)
+       CALL wfi_retain(wf_history)
+       CALL wfi_release(qs_env%wf_history)
        qs_env%wf_history => wf_history
     END IF
     IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
-       CALL scf_env_retain(scf_env,error=error)
-       CALL scf_env_release(qs_env%scf_env, error=error)
+       CALL scf_env_retain(scf_env)
+       CALL scf_env_release(qs_env%scf_env)
        qs_env%scf_env => scf_env
     END IF
     IF (PRESENT(xas_env)) THEN ! accept also null pointers?
-       CALL xas_env_retain(xas_env, error=error)
-       CALL xas_env_release(qs_env%xas_env, error=error)
+       CALL xas_env_retain(xas_env)
+       CALL xas_env_release(qs_env%xas_env)
        qs_env%xas_env => xas_env
     END IF
     IF (PRESENT(mpools)) THEN
-       CALL mpools_retain(mpools,error=error)
-       CALL mpools_release(qs_env%mpools, error=error)
+       CALL mpools_retain(mpools)
+       CALL mpools_release(qs_env%mpools)
        qs_env%mpools => mpools
     END IF
     IF (PRESENT(mpools_aux_fit)) THEN
-       CALL mpools_retain(mpools_aux_fit,error=error)
-       CALL mpools_release(qs_env%mpools_aux_fit, error=error)
+       CALL mpools_retain(mpools_aux_fit)
+       CALL mpools_release(qs_env%mpools_aux_fit)
        qs_env%mpools_aux_fit => mpools_aux_fit
     END IF
     IF (PRESENT(rho_atom_set)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rho_atom_set=rho_atom_set,error=error)
+        CALL set_local_rho(qs_env%local_rho_set,rho_atom_set=rho_atom_set)
      END IF
     IF (PRESENT(rho0_atom_set)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rho0_atom_set=rho0_atom_set,error=error)
+        CALL set_local_rho(qs_env%local_rho_set,rho0_atom_set=rho0_atom_set)
     END IF
     IF (PRESENT(rho0_mpole)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole,error=error)
+        CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole)
     END IF
     IF (PRESENT(rhoz_set)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set,error=error)
+        CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set)
     END IF
     IF (PRESENT(rhoz_tot)) qs_env%local_rho_set%rhoz_tot = rhoz_tot
     IF (PRESENT(ecoul_1c)) THEN
         CALL set_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
     END IF
     IF (PRESENT(input)) THEN
-       CALL section_vals_retain(input,error=error)
-       CALL section_vals_release(qs_env%input,error=error)
+       CALL section_vals_retain(input)
+       CALL section_vals_release(qs_env%input)
        qs_env%input => input
     END IF
     IF (PRESENT(cp_ddapc_env)) THEN
-       CALL cp_ddapc_retain(cp_ddapc_env, error=error)
-       CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
+       CALL cp_ddapc_retain(cp_ddapc_env)
+       CALL cp_ddapc_release(qs_env%cp_ddapc_env)
        qs_env%cp_ddapc_env => cp_ddapc_env
     END IF
     IF (PRESENT(cp_ddapc_ewald)) THEN
@@ -1228,19 +1220,19 @@ CONTAINS
     IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
     IF (PRESENT(dftb_potential))qs_env%dftb_potential => dftb_potential
     IF (PRESENT(se_taper)) THEN
-       CALL se_taper_release(qs_env%se_taper,error=error)
+       CALL se_taper_release(qs_env%se_taper)
        qs_env%se_taper => se_taper
     END IF
     IF (PRESENT(se_store_int_env)) THEN
-       CALL semi_empirical_si_release(qs_env%se_store_int_env,error=error)
+       CALL semi_empirical_si_release(qs_env%se_store_int_env)
        qs_env%se_store_int_env => se_store_int_env
     END IF
     IF (PRESENT(se_nddo_mpole)) THEN
-       CALL nddo_mpole_release(qs_env%se_nddo_mpole,error=error)
+       CALL nddo_mpole_release(qs_env%se_nddo_mpole)
        qs_env%se_nddo_mpole => se_nddo_mpole
     END IF
     IF (PRESENT(se_nonbond_env)) THEN
-       CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
+       CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
        qs_env%se_nonbond_env => se_nonbond_env
     END IF
     IF( PRESENT(admm_env) ) qs_env%admm_env => admm_env
@@ -1254,16 +1246,13 @@ CONTAINS
 !> \brief allocates and intitializes a qs_env
 !> \param qs_env the object to create
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_env_create(qs_env,globenv,error)
+  SUBROUTINE qs_env_create(qs_env,globenv)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
       routineP = moduleN//':'//routineN
@@ -1274,22 +1263,19 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(qs_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL init_qs_env(qs_env, globenv=globenv, error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL init_qs_env(qs_env, globenv=globenv)
   END SUBROUTINE qs_env_create
 
 ! *****************************************************************************
 !> \brief retains the given qs_env (see doc/ReferenceCounting.html)
 !> \param qs_env the object to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_env_retain(qs_env,error)
+  SUBROUTINE qs_env_retain(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_retain', &
       routineP = moduleN//':'//routineN
@@ -1298,23 +1284,20 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
     qs_env%ref_count=qs_env%ref_count+1
   END SUBROUTINE qs_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given qs_env (see doc/ReferenceCounting.html)
 !> \param qs_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_env_release(qs_env,error)
+  SUBROUTINE qs_env_release(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_release', &
       routineP = moduleN//':'//routineN
@@ -1325,87 +1308,86 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qs_env)) THEN
-       CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
        qs_env%ref_count=qs_env%ref_count-1
        IF (qs_env%ref_count<1) THEN
-          CALL cell_release(qs_env%super_cell,error=error)
+          CALL cell_release(qs_env%super_cell)
           IF (ASSOCIATED(qs_env%mos)) THEN
              DO i=1,SIZE(qs_env%mos)
-                CALL deallocate_mo_set(qs_env%mos(i)%mo_set,error=error)
+                CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
              END DO
              DEALLOCATE(qs_env%mos, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
           IF (ASSOCIATED(qs_env%mos_aux_fit)) THEN
              DO i=1,SIZE(qs_env%mos_aux_fit)
-                CALL deallocate_mo_set(qs_env%mos_aux_fit(i)%mo_set,error=error)
+                CALL deallocate_mo_set(qs_env%mos_aux_fit(i)%mo_set)
              END DO
              DEALLOCATE(qs_env%mos_aux_fit, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           END IF
 
           IF (ASSOCIATED(qs_env%mo_derivs)) THEN
              DO I=1,SIZE(qs_env%mo_derivs)
-                CALL cp_dbcsr_release_p(qs_env%mo_derivs(I)%matrix, error=error)
+                CALL cp_dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           ENDIF
 
           IF (ASSOCIATED(qs_env%mo_derivs_aux_fit)) THEN
              DO I=1,SIZE(qs_env%mo_derivs_aux_fit)
-                CALL cp_fm_release(qs_env%mo_derivs_aux_fit(I)%matrix,error=error)
+                CALL cp_fm_release(qs_env%mo_derivs_aux_fit(I)%matrix)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs_aux_fit, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           ENDIF
 
           IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
              DO I=1,SIZE(qs_env%mo_loc_history)
-                CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix,error=error)
+                CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
              ENDDO
              DEALLOCATE(qs_env%mo_loc_history, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           ENDIF
           IF (ASSOCIATED(qs_env%rtp))THEN
-             CALL rt_prop_release(qs_env%rtp,error)
+             CALL rt_prop_release(qs_env%rtp)
              DEALLOCATE (qs_env%rtp)
           END IF
           IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
              DEALLOCATE(qs_env%outer_scf_history,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              qs_env%outer_scf_ihistory=0
           ENDIF
-          IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
+          IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
           IF (ASSOCIATED(qs_env%local_rho_set)) THEN
-             CALL local_rho_set_release(qs_env%local_rho_set,error=error)
+             CALL local_rho_set_release(qs_env%local_rho_set)
           END IF
           IF (ASSOCIATED(qs_env%hartree_local)) THEN
-             CALL hartree_local_release(qs_env%hartree_local,error=error)
+             CALL hartree_local_release(qs_env%hartree_local)
           END IF
-          CALL scf_c_release(qs_env%scf_control, error=error)
-          CALL rel_c_release(qs_env%rel_control, error=error)
+          CALL scf_c_release(qs_env%scf_control)
+          CALL rel_c_release(qs_env%rel_control)
 
           IF(ASSOCIATED(qs_env%linres_control)) THEN
-             CALL linres_control_release(qs_env%linres_control, error=error)
+             CALL linres_control_release(qs_env%linres_control)
           END IF
 
           IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
-             CALL ls_scf_release(qs_env%ls_scf_env,error)
+             CALL ls_scf_release(qs_env%ls_scf_env)
           ENDIF
-          CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env,&
-                  error=error)
+          CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
 
           IF (ASSOCIATED(qs_env%transport_env)) THEN
-             CALL transport_env_release(qs_env%transport_env,error)
+             CALL transport_env_release(qs_env%transport_env)
           ENDIF
 
           !Only if do_xas_calculation
           IF(ASSOCIATED(qs_env%xas_env)) THEN
-             CALL xas_env_release(qs_env%xas_env,error=error)
+             CALL xas_env_release(qs_env%xas_env)
           END IF
-          CALL ewald_env_release(qs_env%ewald_env, error=error)
-          CALL ewald_pw_release(qs_env%ewald_pw, error=error)
+          CALL ewald_env_release(qs_env%ewald_env)
+          CALL ewald_pw_release(qs_env%ewald_pw)
           IF (ASSOCIATED(qs_env%image_matrix)) THEN
              DEALLOCATE(qs_env%image_matrix)
           ENDIF
@@ -1417,81 +1399,81 @@ CONTAINS
           ENDIF
           ! ZMP
           IF(ASSOCIATED(qs_env%rho_external)) THEN
-             CALL qs_rho_release(qs_env%rho_external, error=error)
+             CALL qs_rho_release(qs_env%rho_external)
           END IF
           IF (ASSOCIATED(qs_env%external_vxc)) THEN
-             CALL pw_release(qs_env%external_vxc%pw,error=error)
+             CALL pw_release(qs_env%external_vxc%pw)
              DEALLOCATE(qs_env%external_vxc)
           ENDIF
           IF (ASSOCIATED(qs_env%mask)) THEN
-             CALL pw_release(qs_env%mask%pw,error=error)
+             CALL pw_release(qs_env%mask%pw)
              DEALLOCATE(qs_env%mask)
           ENDIF
 
-          CALL qs_charges_release(qs_env%qs_charges, error=error)
-          CALL qs_ks_release(qs_env%ks_env, error=error)
-          CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
-          CALL wfi_release(qs_env%wf_history,error=error)
-          CALL scf_env_release(qs_env%scf_env, error=error)
-          CALL mpools_release(qs_env%mpools,error=error)
-          CALL mpools_release(qs_env%mpools_aux_fit,error=error)
-          CALL section_vals_release(qs_env%input,error=error)
-          CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
-          CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
-          CALL efield_berry_release(qs_env%efield,error=error)
+          CALL qs_charges_release(qs_env%qs_charges)
+          CALL qs_ks_release(qs_env%ks_env)
+          CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env)
+          CALL wfi_release(qs_env%wf_history)
+          CALL scf_env_release(qs_env%scf_env)
+          CALL mpools_release(qs_env%mpools)
+          CALL mpools_release(qs_env%mpools_aux_fit)
+          CALL section_vals_release(qs_env%input)
+          CALL cp_ddapc_release(qs_env%cp_ddapc_env)
+          CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+          CALL efield_berry_release(qs_env%efield)
           IF(ASSOCIATED(qs_env%x_data)) THEN
-             CALL hfx_release(qs_env%x_data, error=error)
+             CALL hfx_release(qs_env%x_data)
           END IF
           IF(ASSOCIATED(qs_env%et_coupling)) THEN
-             CALL et_coupling_release(qs_env%et_coupling,error)
+             CALL et_coupling_release(qs_env%et_coupling)
           END IF
           IF (ASSOCIATED(qs_env%dftb_potential)) THEN
-             CALL qs_dftb_pairpot_release(qs_env%dftb_potential,error)
+             CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
           END IF
           IF (ASSOCIATED(qs_env%se_taper)) THEN
-             CALL se_taper_release(qs_env%se_taper, error)
+             CALL se_taper_release(qs_env%se_taper)
           END IF
           IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
-             CALL semi_empirical_si_release(qs_env%se_store_int_env, error)
+             CALL semi_empirical_si_release(qs_env%se_store_int_env)
           END IF
           IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
-             CALL nddo_mpole_release(qs_env%se_nddo_mpole, error)
+             CALL nddo_mpole_release(qs_env%se_nddo_mpole)
           END IF
           IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
-             CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
+             CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
           END IF
           IF (ASSOCIATED(qs_env%admm_env)) THEN
-            CALL admm_env_release(qs_env%admm_env, error)
+            CALL admm_env_release(qs_env%admm_env)
           END IF
           IF (ASSOCIATED(qs_env%lri_env)) THEN
-            CALL lri_env_release(qs_env%lri_env, error)
+            CALL lri_env_release(qs_env%lri_env)
           END IF
           IF (ASSOCIATED(qs_env%lri_density)) THEN
-             CALL lri_density_release(qs_env%lri_density, error)
+             CALL lri_density_release(qs_env%lri_density)
           END IF
           IF (ASSOCIATED(qs_env%mp2_env)) THEN
-            CALL mp2_env_release(qs_env%mp2_env, error)
+            CALL mp2_env_release(qs_env%mp2_env)
           END IF
           IF (ASSOCIATED(qs_env%kg_env)) THEN
-            CALL kg_env_release(qs_env%kg_env, error)
+            CALL kg_env_release(qs_env%kg_env)
           END IF
 
           ! dispersion
-          CALL qs_dispersion_release(qs_env%dispersion_env,error)
+          CALL qs_dispersion_release(qs_env%dispersion_env)
 
           IF( ASSOCIATED(qs_env%WannierCentres)) THEN
             DO i=1,SIZE(qs_env%WannierCentres)
               DEALLOCATE(qs_env%WannierCentres(i)%WannierHamDiag, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
               DEALLOCATE(qs_env%WannierCentres(i)%centres, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
             ENDDO
             DEALLOCATE(qs_env%WannierCentres, stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           ENDIF
           ! now we are ready to deallocate the full structure
           DEALLOCATE(qs_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY(qs_env)

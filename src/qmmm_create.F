@@ -95,15 +95,13 @@ CONTAINS
 !> \param use_motion_section ...
 !> \param prev_subsys ...
 !> \param ignore_outside_box ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qmmm_env_create(qmmm_env, root_section, para_env, globenv,&
        force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, &
-       ignore_outside_box, error)
+       ignore_outside_box)
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -113,7 +111,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_outside_box
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_create', &
       routineP = moduleN//':'//routineN
@@ -160,25 +157,24 @@ CONTAINS
     NULLIFY(fist_scale_charge_link, print_section, fist_nonbond_env)
     NULLIFY(print_gen, logger, mm_el_pot_radius_corr, super_cell, pw_env)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! citations
     CALL cite_reference(Laino2005)
 
     ! Input section...
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
-       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
-            error=error)
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
     END IF
-    qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC",error=error)
-    multipole_section => section_vals_get_subs_vals(qmmm_section,"PERIODIC%MULTIPOLE",error=error)
-    print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
-    print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
-    iw = cp_print_key_unit_nr(logger,print_gen,"", extension=".log",error=error)
+    qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC")
+    multipole_section => section_vals_get_subs_vals(qmmm_section,"PERIODIC%MULTIPOLE")
+    print_section => section_vals_get_subs_vals(qmmm_section,"PRINT")
+    print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO")
+    iw = cp_print_key_unit_nr(logger,print_gen,"", extension=".log")
 
     ! Create QM/MM Environments..
-    CALL qmmm_env_qm_create(qmmm_env_qm,error=error)
-    CALL qmmm_env_mm_create(qmmm_env_mm,error=error)
+    CALL qmmm_env_qm_create(qmmm_env_qm)
+    CALL qmmm_env_mm_create(qmmm_env_mm)
 
     ! Set up QM/MM Options
     CALL setup_qmmm_vars_mm(qmmm_section,&
@@ -188,8 +184,7 @@ CONTAINS
                             mm_link_scale_factor,&
                             fist_scale_charge_link,&
                             qmmm_coupl_type,&
-                            qmmm_link,&
-                            error=error)
+                            qmmm_link)
 
     qmmm_env_mm%qm_atom_index          => qm_atom_index
     qmmm_env_mm%mm_link_atoms          => mm_link_atoms
@@ -198,7 +193,7 @@ CONTAINS
     qmmm_env_mm%qmmm_coupl_type        =  qmmm_coupl_type
     qmmm_env_mm%qmmm_link              =  qmmm_link
     ! Center the qm subsys into the qm box
-    CALL section_vals_val_get(qmmm_section,"CENTER",i_val=center_i,error=error)
+    CALL section_vals_val_get(qmmm_section,"CENTER",i_val=center_i)
     IF (center_i == do_qmmm_center_never) THEN
        qmmm_env_qm%center_qm_subsys  = .FALSE.
        qmmm_env_qm%center_qm_subsys0  = .FALSE.
@@ -213,24 +208,24 @@ CONTAINS
             "Unknown type of CENTER! "//CPSourceFileRef, only_ionode=.TRUE.)
     ENDIF
 
-    CALL section_vals_val_get(qmmm_section,"CENTER_TYPE",i_val=center_i,error=error)
+    CALL section_vals_val_get(qmmm_section,"CENTER_TYPE",i_val=center_i)
     qmmm_env_qm%center_qm_subsys_pbc_aware = (center_i == do_qmmm_center_pbc_aware)
 
     ! Compatibility with the QM/MM in CPMD code
-    CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
+    CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility)
     qmmm_env_qm%compatibility = .NOT.nocompatibility
 
     ! Parallel scheme for the long range
     CALL section_vals_val_get(qmmm_section,"PARALLEL_SCHEME",&
-         i_val=qmmm_env_qm%par_scheme,error=error)
+         i_val=qmmm_env_qm%par_scheme)
 
     ! Periodic boundary condition calculation
-    CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
+    CALL section_vals_get(qmmm_periodic,explicit=explicit)
     qmmm_env_qm%periodic = explicit
     !multipole section is switched on by default; switched off only if explicitly stated
     IF(qmmm_env_qm%periodic) qmmm_env_qm%multipole = .TRUE.
-    CALL section_vals_get(multipole_section,explicit=explicit,error=error)
-    CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",i_val=use_multipole,error=error)
+    CALL section_vals_get(multipole_section,explicit=explicit)
+    CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",i_val=use_multipole)
     IF (explicit.and.use_multipole==do_multipole_section_off) qmmm_env_qm%multipole = .FALSE.
     IF (explicit.and.use_multipole==do_multipole_section_on) qmmm_env_qm%multipole = .TRUE.
     IF (qmmm_env_qm%periodic.and.qmmm_env_qm%multipole) CALL cite_reference(Laino2006)
@@ -244,12 +239,12 @@ CONTAINS
     END IF
 
     ! First Initialize Fist...
-    CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist,error=error)
-    CALL fist_env_create(fist_env, para_env=para_env, error=error)
-    CALL fist_env_set(fist_env, qmmm=.TRUE., qmmm_env=qmmm_env_mm, error=error)
+    CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist)
+    CALL fist_env_create(fist_env, para_env=para_env)
+    CALL fist_env_set(fist_env, qmmm=.TRUE., qmmm_env=qmmm_env_mm)
     CALL fist_init(fist_env, root_section, para_env, force_env_section,&
-         subsys_section, use_motion_section, prev_subsys=prev_subsys, error=error )
-    CALL fist_env_get(fist_env, subsys=subsys_mm, cell=mm_cell, error=error)
+         subsys_section, use_motion_section, prev_subsys=prev_subsys)
+    CALL fist_env_get(fist_env, subsys=subsys_mm, cell=mm_cell)
 
     ! Set up QM/MM Options
     CALL setup_qmmm_vars_qm (qmmm_section,&
@@ -262,8 +257,7 @@ CONTAINS
                              qmmm_coupl_type,&
                              eps_mm_rspace,&
                              qmmm_link,&
-                             para_env,&
-                             error)
+                             para_env)
 
     qmmm_env_qm%qm_atom_index   => qm_atom_index
     qmmm_env_qm%mm_atom_index   => mm_atom_index
@@ -281,7 +275,7 @@ CONTAINS
     IF (qmmm_link) THEN
        IF (ASSOCIATED(mm_link_atoms)) THEN
           ALLOCATE(qmmm_env_qm%mm_link_atoms(SIZE(mm_link_atoms)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           qmmm_env_qm%mm_link_atoms = mm_link_atoms
        END IF
     END IF
@@ -293,7 +287,7 @@ CONTAINS
                                             qmmm_env_qm%num_image_mm_atoms
        ENDIF
        WRITE(iw,'(A)')" QM cell ::"
-       CALL write_cell(qm_cell_small, subsys_section, error=error)
+       CALL write_cell(qm_cell_small, subsys_section)
     END IF
     CALL get_cell(qm_cell_small, abc=abc_qm)
     CALL get_cell(mm_cell, abc=abc_mm)
@@ -305,13 +299,13 @@ CONTAINS
     ENDIF
 
     ! Assign charges and mm_el_pot_radius from fist_topology
-    CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env, error=error)
+    CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env)
     ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(mm_el_pot_radius_corr(SIZE(mm_atom_index)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     mm_atom_chrg     = 0.0_dp
     mm_el_pot_radius = 0.0_dp
     mm_el_pot_radius_corr = 0.0_dp
@@ -323,8 +317,7 @@ CONTAINS
                                       mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
                                       mm_atom_index=mm_atom_index,&
                                       mm_link_atoms=mm_link_atoms,&
-                                      mm_link_scale_factor=mm_link_scale_factor,&
-                                      error=error)
+                                      mm_link_scale_factor=mm_link_scale_factor)
 
     qmmm_env_qm%mm_atom_chrg          => mm_atom_chrg
     qmmm_env_qm%mm_el_pot_radius      => mm_el_pot_radius
@@ -334,15 +327,15 @@ CONTAINS
     qmmm_link_Imomm = .FALSE.
     IF (qmmm_link) THEN
        CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, &
-            mm_el_pot_radius_corr, mm_atom_index, iw, error=error)
+            mm_el_pot_radius_corr, mm_atom_index, iw)
        qmmm_env_qm%qmmm_links    => qmmm_links
 
-       CALL print_qmmm_links(qmmm_section, qmmm_links, error)
+       CALL print_qmmm_links(qmmm_section, qmmm_links)
 
-       CALL add_set_release  (qmmm_env_qm%added_charges, error=error)
+       CALL add_set_release  (qmmm_env_qm%added_charges)
        CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                               mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                              added_charges, mm_atom_index, error)
+                              added_charges, mm_atom_index)
        qmmm_env_qm%move_mm_charges =  move_mm_charges
        qmmm_env_qm%add_mm_charges  =  add_mm_charges
        qmmm_env_qm%added_charges   => added_charges
@@ -351,47 +344,47 @@ CONTAINS
 
     CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
                             mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
-                            qmmm_section, nocompatibility, error)
+                            qmmm_section, nocompatibility)
     IF (qmmm_env_qm%image_charge) THEN
-       CALL print_image_charge_info(qmmm_env_qm, qmmm_section, error)
+       CALL print_image_charge_info(qmmm_env_qm, qmmm_section)
     ENDIF
 
-    CALL section_vals_val_get(qmmm_section,"DELTA_CHARGE",i_val=delta_charge,error=error)
-    CALL section_vals_val_get(force_env_section,"DFT%CHARGE",i_val=orig_charge,error=error)
-    CALL section_vals_val_set(force_env_section,"DFT%CHARGE",i_val=orig_charge+delta_charge,error=error)
+    CALL section_vals_val_get(qmmm_section,"DELTA_CHARGE",i_val=delta_charge)
+    CALL section_vals_val_get(force_env_section,"DFT%CHARGE",i_val=orig_charge)
+    CALL section_vals_val_set(force_env_section,"DFT%CHARGE",i_val=orig_charge+delta_charge)
 
-    CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs,error=error)
+    CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs)
     CALL create_small_subsys(subsys_qm,&
          big_subsys=subsys_mm,small_para_env=para_env,&
          small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
          sub_atom_kind_name=qm_atom_type, para_env=para_env, &
          force_env_section=force_env_section, subsys_section=subsys_section, &
-         ignore_outside_box=ignore_outside_box, error=error)
+         ignore_outside_box=ignore_outside_box)
     IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
-         qm_atom_index, error)
-    CALL qs_env_create(qs_env, globenv, error=error)
+         qm_atom_index)
+    CALL qs_env_create(qs_env, globenv)
     CALL qs_init(qs_env, para_env, globenv, root_section, cp_subsys=subsys_qm,&
          cell=qm_cell_small, qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm,&
          force_env_section=force_env_section, subsys_section=subsys_section,&
-         use_motion_section=use_motion_section, error=error)
-    CALL cp_subsys_release(subsys_qm,error=error)
+         use_motion_section=use_motion_section)
+    CALL cp_subsys_release(subsys_qm)
 
     IF (qmmm_env_qm%periodic) THEN
        IF (.NOT.ASSOCIATED(super_cell)) THEN
           ALLOCATE (super_cell,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
-       CALL cell_clone(mm_cell, super_cell,error=error)
-       CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic, error=error)
-       CALL cell_release(super_cell, error=error)
+       CALL cell_clone(mm_cell, super_cell)
+       CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic)
+       CALL cell_release(super_cell)
     END IF
-    CALL section_vals_val_set(force_env_section,"DFT%CHARGE",i_val=orig_charge,error=error)
-    CALL cp_print_key_finished_output(iw,logger,print_gen,"", error=error)
+    CALL section_vals_val_set(force_env_section,"DFT%CHARGE",i_val=orig_charge)
+    CALL cp_print_key_finished_output(iw,logger,print_gen,"")
     iw2 = cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_BANNER",&
-         extension=".qmmmLog",error=error)
+         extension=".qmmmLog")
     CALL qmmm_header(iw2)
     CALL cp_print_key_finished_output(iw2,logger,qmmm_section,&
-      "PRINT%PROGRAM_BANNER",error=error)
+      "PRINT%PROGRAM_BANNER")
     !
     ! Initialize MM Potential fitted with Gaussian
     !
@@ -401,23 +394,20 @@ CONTAINS
                                   mm_atom_chrg=mm_atom_chrg,&
                                   added_charges=qmmm_env_qm%added_charges,&
                                   print_section=print_section,&
-                                  qmmm_section=qmmm_section,&
-                                  error=error)
+                                  qmmm_section=qmmm_section)
     !
     ! Initialize the MM potential stored on vector
     !
     CALL qmmm_init_potential(qmmm_env_qm=qmmm_env_qm,&
                              mm_cell=mm_cell,&
                              added_charges=qmmm_env_qm%added_charges,&
-                             print_section=print_section,&
-                             error=error)
+                             print_section=print_section)
     !
     ! Initialize the qmmm_pw_grid
     !
-    CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
+    CALL get_qs_env(qs_env, pw_env=pw_env)
     CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
-                           pw_env=pw_env,&
-                           error=error)
+                           pw_env=pw_env)
     !
     ! Initialize the MM periodic potential
     !
@@ -429,16 +419,14 @@ CONTAINS
                              added_charges=qmmm_env_qm%added_charges,&
                              qmmm_periodic=qmmm_periodic,&
                              print_section=print_section,&
-                             mm_atom_chrg=mm_atom_chrg,&
-                             error=error)
+                             mm_atom_chrg=mm_atom_chrg)
     !
     ! Preparing for PBC...
     !
     CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, qm_cell_small,&
-         dr=pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid%dr,&
-         error=error)
+         dr=pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid%dr)
 
-    CALL cell_release(qm_cell_small, error)
+    CALL cell_release(qm_cell_small)
 
     ! assemble the actuall qmmm_env
     ALLOCATE(qmmm_env)
@@ -448,9 +436,9 @@ CONTAINS
 
     ! The qmmm_env inherits our ref_cout for qmmm_env_qm, fist_env, qs_env
     ! An expection is qmmm_env_mm, because it's buried in the fist_env
-    CALL qmmm_env_mm_release(qmmm_env_mm, error)
+    CALL qmmm_env_mm_release(qmmm_env_mm)
 
-    CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm,error=error)
+    CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm)
     DEALLOCATE(qm_atom_type)
 
     CALL timestop(handle)

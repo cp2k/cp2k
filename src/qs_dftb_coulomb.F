@@ -117,10 +117,9 @@ CONTAINS
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
-               calculate_forces,just_energy,error)
+               calculate_forces,just_energy)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -129,7 +128,6 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb', &
       routineP = moduleN//':'//routineN
@@ -190,7 +188,7 @@ CONTAINS
 
     natom = SIZE(mcharge)
     ALLOCATE(gmcharge(natom,nmat),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     gmcharge = 0._dp
 
     CALL get_qs_env(qs_env,&
@@ -199,25 +197,24 @@ CONTAINS
                     cell=cell,&
                     virial=virial,&
                     atprop=atprop,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     IF ( calculate_forces ) THEN
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
 
     ALLOCATE(mcin(natom,1),mcout(natom,1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     mcin(:,1) = mcharge(:)
 
     DO i=1,nmat
       mcout = 0._dp
-      CALL cp_dbcsr_multiply_local(gamma_matrix(i)%matrix,mcin,mcout,ncol=1,error=error)
+      CALL cp_dbcsr_multiply_local(gamma_matrix(i)%matrix,mcin,mcout,ncol=1)
       gmcharge(:,i) = mcout(:,1)
     END DO
 
     DEALLOCATE(mcin,mcout,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     IF ( calculate_forces .AND. use_virial ) THEN
        CALL cp_dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
@@ -232,19 +229,19 @@ CONTAINS
           END DO
           rij = particle_set(iatom)%r - particle_set(jatom)%r
           rij = pbc(rij,cell)
-          CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
+          CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij)
           IF (atprop%stress) THEN
-            CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij, error)
-            CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij, error)
+            CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij)
+            CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij)
           END IF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     END IF
 
     IF (atprop%energy) THEN
-      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
       natom = SIZE (particle_set)
-      CALL atprop_array_init(atprop%atecoul,natom,error)
+      CALL atprop_array_init(atprop%atecoul,natom)
     END IF
 
     ! 1/R contribution
@@ -253,33 +250,32 @@ CONTAINS
       ! Ewald sum
       NULLIFY(ewald_env,ewald_pw)
       CALL get_qs_env(qs_env=qs_env,&
-                      ewald_env=ewald_env,ewald_pw=ewald_pw,&
-                      error=error)
+                      ewald_env=ewald_env,ewald_pw=ewald_pw)
       CALL get_cell(cell=cell,periodic=periodic,deth=deth)
-      CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
-      CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
+      CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type)
+      CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list)
       CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
-                              virial,use_virial,atprop,error=error)
+                              virial,use_virial,atprop)
       SELECT CASE(ewald_type)
       CASE DEFAULT
-        CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
+        CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
       CASE(do_ewald_none)
-        CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB",error)
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB")
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
       CASE(do_ewald_ewald)
         CALL cp_unimplemented_error(routineP,&
-             "Standard Ewald not implemented in DFTB",error)
+             "Standard Ewald not implemented in DFTB")
       CASE(do_ewald_pme)
         CALL cp_unimplemented_error(routineP,&
-             "PME not implemented in DFTB",error)
+             "PME not implemented in DFTB")
       CASE(do_ewald_spme)
         CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
-          gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
+          gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)
       END SELECT
     ELSE
       ! direct sum
       CALL get_qs_env(qs_env=qs_env,&
-                      local_particles=local_particles,error=error)
+                      local_particles=local_particles)
       DO ikind=1,SIZE(local_particles%n_el)
         DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -296,13 +292,13 @@ CONTAINS
           END DO
         END DO
       END DO
-      CPPostcondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+      CPPostcondition(.NOT.use_virial,cp_failure_level,routineP,failure)
     END IF
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    force=force,para_env=para_env,error=error)
+                    force=force,para_env=para_env)
     CALL mp_sum(gmcharge(:,1),para_env%group)
 
     IF (do_ewald) THEN
@@ -316,9 +312,9 @@ CONTAINS
     energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
     IF(atprop%energy) THEN
       CALL get_qs_env(qs_env=qs_env,&
-                      local_particles=local_particles,error=error)
+                      local_particles=local_particles)
       DO ikind=1,SIZE(local_particles%n_el)
-        CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
+        CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
         CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
         DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -330,7 +326,7 @@ CONTAINS
 
     IF ( calculate_forces ) THEN
       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                kind_of=kind_of,&
@@ -349,26 +345,26 @@ CONTAINS
     END IF
 
     IF ( .NOT. just_energy ) THEN
-      CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s,error=error)
-      CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
+      CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s)
+      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
       nimg = dft_control%nimages
       NULLIFY(cell_to_index)
       IF (nimg>1) THEN
          NULLIFY(kpoints)
-         CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
-         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+         CALL get_qs_env(qs_env=qs_env,kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
       END IF
 
       IF ( calculate_forces .AND. SIZE(matrix_p,1) == 2) THEN
          DO img=1,nimg
             CALL cp_dbcsr_add(matrix_p(1,img)%matrix,matrix_p(2,img)%matrix,&
-                 alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+                 alpha_scalar=1.0_dp,beta_scalar=1.0_dp)
          END DO
       END IF
 
       NULLIFY(n_list)
-      CALL get_qs_env(qs_env=qs_env,sab_orb=n_list,error=error)
+      CALL get_qs_env(qs_env=qs_env,sab_orb=n_list)
       CALL neighbor_list_iterator_create(nl_iterator,n_list)
       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
@@ -381,7 +377,7 @@ CONTAINS
             ic = 1
          ELSE
             ic = cell_to_index(cellind(1),cellind(2),cellind(3))
-            CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
          END IF
 
          gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
@@ -389,12 +385,12 @@ CONTAINS
          NULLIFY(sblock)
          CALL cp_dbcsr_get_block_p(matrix=matrix_s(1,ic)%matrix,&
               row=irow,col=icol,block=sblock,found=found)
-         CPPostcondition(found,cp_failure_level,routineP,error,failure)
+         CPPostcondition(found,cp_failure_level,routineP,failure)
          DO is=1,SIZE(ks_matrix,1)
             NULLIFY(ksblock)
             CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is,ic)%matrix,&
                  row=irow,col=icol,block=ksblock,found=found)
-            CPPostcondition(found,cp_failure_level,routineP,error,failure)
+            CPPostcondition(found,cp_failure_level,routineP,failure)
             ksblock = ksblock - gmij*sblock
          END DO
 
@@ -407,22 +403,22 @@ CONTAINS
             NULLIFY(pblock)
             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,ic)%matrix,&
                  row=irow,col=icol,block=pblock,found=found)
-            CPPostcondition(found,cp_failure_level,routineP,error,failure)
+            CPPostcondition(found,cp_failure_level,routineP,failure)
             DO i=1,3
                NULLIFY(dsblock)
                CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i,ic)%matrix,&
                     row=irow,col=icol,block=dsblock,found=found)
-               CPPostcondition(found,cp_failure_level,routineP,error,failure)
+               CPPostcondition(found,cp_failure_level,routineP,failure)
                fi = -2.0_dp*gmij*SUM(pblock*dsblock)
                force(ikind)%rho_elec(i,atom_i) = force(ikind)%rho_elec(i,atom_i) + fi
                force(jkind)%rho_elec(i,atom_j) = force(jkind)%rho_elec(i,atom_j) - fi
                fij(i) = fi
             END DO
             IF (use_virial) THEN
-               CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
+               CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij)
                IF (atprop%stress) THEN
-                 CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij, error)
-                 CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij, error)
+                 CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij)
+                 CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij)
                END IF
             END IF
          END IF
@@ -433,7 +429,7 @@ CONTAINS
       IF ( calculate_forces .AND. SIZE(matrix_p,1) == 2) THEN
          DO img=1,nimg
             CALL cp_dbcsr_add(matrix_p(1,img)%matrix,matrix_p(2,img)%matrix,&
-                           alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+                           alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
          END DO
       END IF
     END IF
@@ -441,21 +437,21 @@ CONTAINS
     IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
        ! Diagonal 3rd order correction (DFTB3)
        CALL build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
-               calculate_forces,just_energy,error)
+               calculate_forces,just_energy)
     END IF
 
     ! QMMM
     IF(qs_env%qmmm .AND. qs_env%qmmm_periodic) THEN
        CALL build_dftb_coulomb_qmqm(qs_env,ks_matrix,rho,mcharge,energy,&
-            calculate_forces,just_energy,error)
+            calculate_forces,just_energy)
     END IF
 
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -470,10 +466,9 @@ CONTAINS
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_dftb_coulomb_qmqm(qs_env,ks_matrix,rho,mcharge,energy,&
-               calculate_forces,just_energy,error)
+               calculate_forces,just_energy)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -482,7 +477,6 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb_qmqm', &
       routineP = moduleN//':'//routineN
@@ -534,7 +528,7 @@ CONTAINS
 
     natom = SIZE(mcharge)
     ALLOCATE(gmcharge(natom,nmat),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     gmcharge = 0._dp
 
     CALL get_qs_env(qs_env,&
@@ -543,8 +537,7 @@ CONTAINS
                     cell=cell,&
                     virial=virial,&
                     atprop=atprop,&
-                    dft_control=dft_control,&
-                    error=error)
+                    dft_control=dft_control)
 
     IF ( calculate_forces ) THEN
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -552,21 +545,21 @@ CONTAINS
 
     ! Qm-QM long range correction for QMMM calculations
     ! no atomic energy evaluation
-    CPPrecondition(.NOT.atprop%energy,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.atprop%energy,cp_failure_level,routineP,failure)
     ! no stress tensor possible for QMMM
-    CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,failure)
     qmmm_env_qm => qs_env%qmmm_env_qm
     ewald_env => qmmm_env_qm%ewald_env
     ewald_pw => qmmm_env_qm%ewald_pw
-    CALL get_qs_env(qs_env=qs_env,super_cell=mm_cell,error=error)
+    CALL get_qs_env(qs_env=qs_env,super_cell=mm_cell)
     CALL get_cell(cell=mm_cell,periodic=periodic,deth=deth)
-    CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
+    CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type)
     gmcharge = 0.0_dp
     ! direct sum for overlap and local correction
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     local_particles=local_particles,&
-                    force=force,para_env=para_env,error=error)
+                    force=force,para_env=para_env)
     DO ikind=1,SIZE(local_particles%n_el)
        DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -600,19 +593,19 @@ CONTAINS
 
     SELECT CASE(ewald_type)
     CASE DEFAULT
-       CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
+       CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
     CASE(do_ewald_none)
-       CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB",error)
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB")
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     CASE(do_ewald_ewald)
        CALL cp_unimplemented_error(routineP,&
-            "Standard Ewald not implemented in DFTB",error)
+            "Standard Ewald not implemented in DFTB")
     CASE(do_ewald_pme)
        CALL cp_unimplemented_error(routineP,&
-            "PME not implemented in DFTB",error)
+            "PME not implemented in DFTB")
     CASE(do_ewald_spme)
        CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,mm_cell,&
-            gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
+            gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)
     END SELECT
     !
     CALL mp_sum(gmcharge(:,1),para_env%group)
@@ -627,19 +620,19 @@ CONTAINS
     !
     IF ( calculate_forces ) THEN
        ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,&
                                 atom_of_kind=atom_of_kind)
     END IF
     !
     IF ( .NOT. just_energy ) THEN
-       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s)
+       CALL qs_rho_get(rho, rho_ao=matrix_p)
 
        IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
-             alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+             alpha_scalar=1.0_dp,beta_scalar=1.0_dp)
        END IF
 
        CALL cp_dbcsr_iterator_start(iter, ks_matrix(1,1)%matrix)
@@ -675,16 +668,16 @@ CONTAINS
        CALL cp_dbcsr_iterator_stop(iter)
        IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
-               alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+               alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
        END IF
     END IF
 
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -702,10 +695,9 @@ CONTAINS
 !> \param virial ...
 !> \param use_virial ...
 !> \param atprop ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
-       gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
+       gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -720,7 +712,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, INTENT(in)                      :: use_virial
     TYPE(atprop_type), POINTER               :: atprop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_spme_evaluate', &
       routineP = moduleN//':'//routineN
@@ -752,28 +743,28 @@ CONTAINS
     !-------------- INITIALISATION ---------------------
     failure = .FALSE.
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
-         para_env=para_env, error=error)
+         para_env=para_env)
     NULLIFY(green, poisson_env, pw_pool)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc, &
          poisson_env=poisson_env)
-    CALL pw_poisson_rebuild(poisson_env,error=error)
+    CALL pw_poisson_rebuild(poisson_env)
     green => poisson_env%green_fft
     grid_spme => pw_pool % pw_grid
 
-    CALL get_pw_grid_info(grid_spme,dvol=dvols,npts=npts,error=error)
+    CALL get_pw_grid_info(grid_spme,dvol=dvols,npts=npts)
 
     npart = SIZE ( particle_set )
 
     n = o_spline
     ALLOCATE ( rhos ( n, n, n ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL rs_grid_create(rden, rs_desc, error=error)
-    CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+    CALL rs_grid_create(rden, rs_desc)
+    CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center ( 3, npart ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL get_center ( particle_set, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -792,14 +783,14 @@ CONTAINS
     END DO
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D,&
-         in_space = REALSPACE, error=error)
+         in_space = REALSPACE)
 
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw)
 
     ! transform density to G space and add charge function
     CALL pw_pool_create_pw ( pw_pool, rhob_g, use_data = COMPLEXDATA1D, &
-         in_space = RECIPROCALSPACE ,error=error)
-    CALL pw_transfer ( rhob_r, rhob_g, error=error)
+         in_space = RECIPROCALSPACE)
+    CALL pw_transfer ( rhob_r, rhob_g)
     ! update charge function
     rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
@@ -809,26 +800,26 @@ CONTAINS
     DO i = 1, 3
        NULLIFY(dphi_g(i)%pw)
        CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
-            use_data = COMPLEXDATA1D,in_space = RECIPROCALSPACE, error=error)
+            use_data = COMPLEXDATA1D,in_space = RECIPROCALSPACE)
     END DO
     CALL pw_pool_create_pw ( pw_pool, phi_g,  &
-         use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE, error=error)
+         use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE)
     IF ( use_virial ) THEN
-       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, h_stress=h_stress, error=error)
+       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, h_stress=h_stress)
     ELSE
-       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, error=error)
+       CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g)
     END IF
 
-    CALL rs_grid_create(rpot, rs_desc, error=error )
-    CALL rs_grid_set_box ( grid_spme, rs=rpot, error=error )
+    CALL rs_grid_create(rpot, rs_desc)
+    CALL rs_grid_set_box ( grid_spme, rs=rpot)
 
     ! Atomic Stress
     IF (atprop%stress .AND. use_virial) THEN
 
        CALL rs_grid_zero ( rpot )
        rhob_g%cc = phi_g%cc * green%p3m_charge%cr
-       CALL pw_transfer ( rhob_g, rhob_r, error=error)
-       CALL rs_pw_transfer ( rpot, rhob_r, pw2rs, error=error)
+       CALL pw_transfer ( rhob_g, rhob_r)
+       CALL rs_pw_transfer ( rpot, rhob_r, pw2rs)
        ipart = 0
        DO
           CALL set_list ( particle_set, npart, center, p1, rden, ipart )
@@ -843,7 +834,7 @@ CONTAINS
        END DO
 
        CALL pw_pool_create_pw ( pw_pool, phib_g,  &
-            use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE, error=error)
+            use_data = COMPLEXDATA1D, in_space = RECIPROCALSPACE)
        ffa = ( 0.5_dp / alpha ) ** 2
        ffb = 1.0_dp / fourpi
        DO i = 1, 3
@@ -855,11 +846,11 @@ CONTAINS
           DO j = 1, i
              nd = 0
              nd ( j ) = 1
-             CALL pw_copy ( phib_g, rhob_g, error=error)
-             CALL pw_derive ( rhob_g, nd , error=error)
+             CALL pw_copy ( phib_g, rhob_g)
+             CALL pw_derive ( rhob_g, nd)
              rhob_g%cc = rhob_g%cc * green%p3m_charge%cr
-             CALL pw_transfer ( rhob_g, rhob_r, error=error)
-             CALL rs_pw_transfer ( rpot, rhob_r, pw2rs, error=error)
+             CALL pw_transfer ( rhob_g, rhob_r)
+             CALL rs_pw_transfer ( rpot, rhob_r, pw2rs)
 
              ipart = 0
              DO
@@ -876,17 +867,17 @@ CONTAINS
 
           END DO
        END DO
-       CALL pw_pool_give_back_pw ( pw_pool, phib_g ,error=error)
+       CALL pw_pool_give_back_pw ( pw_pool, phib_g)
    
     END IF
 
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_g)
 
     CALL rs_grid_zero ( rpot )
     phi_g%cc = phi_g%cc * green%p3m_charge%cr
-    CALL pw_transfer ( phi_g, rhob_r, error=error)
-    CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
-    CALL rs_pw_transfer ( rpot, rhob_r, pw2rs, error=error)
+    CALL pw_transfer ( phi_g, rhob_r)
+    CALL pw_pool_give_back_pw ( pw_pool, phi_g)
+    CALL rs_pw_transfer ( rpot, rhob_r, pw2rs)
 
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
@@ -895,7 +886,7 @@ CONTAINS
     IF ( use_virial ) THEN
        DO i = 1, 3
           DO j = i, 3
-             f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw,error=error)
+             f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
              f_stress(j,i) = f_stress(i,j)
           END DO
        END DO
@@ -909,21 +900,21 @@ CONTAINS
        ! move derivative of potential to real space grid and
        ! multiply by charge function in g-space
        ALLOCATE ( drpot(1:3), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, 3
-          CALL rs_grid_create(drpot(i)%rs_grid, rs_desc, error=error)
-          CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
+          CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
+          CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
           dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
-          CALL pw_transfer ( dphi_g ( i )%pw, rhob_r, error=error)
-          CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-          CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs, error=error)
+          CALL pw_transfer ( dphi_g ( i )%pw, rhob_r)
+          CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw)
+          CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs)
        END DO
     ELSE
        DO i = 1, 3
-          CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
+          CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw)
        END DO
     END IF
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, rhob_r)
 
     !----------------- FORCE CALCULATION ----------------
 
@@ -953,21 +944,21 @@ CONTAINS
 
     !------------------CLEANING UP ----------------------
 
-    CALL rs_grid_release(rden, error=error)
-    CALL rs_grid_release(rpot, error=error)
+    CALL rs_grid_release(rden)
+    CALL rs_grid_release(rpot)
     IF ( calculate_forces ) THEN
        IF (ASSOCIATED(drpot)) THEN
          DO i = 1, 3
-           CALL rs_grid_release(drpot(i)%rs_grid, error=error)
+           CALL rs_grid_release(drpot(i)%rs_grid)
          END DO
          DEALLOCATE ( drpot, STAT = stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -982,9 +973,8 @@ CONTAINS
 !> \param virial ...
 !> \param use_virial ...
 !> \param atprop ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,virial,use_virial,atprop,error)
+  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,virial,use_virial,atprop)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: gmcharge
@@ -995,7 +985,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(atprop_type), POINTER               :: atprop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_ewald_overlap', &
       routineP = moduleN//':'//routineN
@@ -1028,10 +1017,10 @@ CONTAINS
          END IF
          IF ( use_virial ) THEN
            pfr = -dfr*mcharge(iatom)*mcharge(jatom)
-           CALL virial_pair_force ( virial%pv_virial, -pfr, rij, rij, error)
+           CALL virial_pair_force ( virial%pv_virial, -pfr, rij, rij)
            IF ( atprop%stress ) THEN
-              CALL virial_pair_force ( atprop%atstress(:,:,iatom), -0.5_dp*pfr, rij, rij, error)
-              CALL virial_pair_force ( atprop%atstress(:,:,jatom), -0.5_dp*pfr, rij, rij, error)
+              CALL virial_pair_force ( atprop%atstress(:,:,iatom), -0.5_dp*pfr, rij, rij)
+              CALL virial_pair_force ( atprop%atstress(:,:,jatom), -0.5_dp*pfr, rij, rij)
            END IF
          END IF
        END IF

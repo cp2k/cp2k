@@ -51,19 +51,16 @@ CONTAINS
 !> \brief compute the surface dipole and the correction to the hartree potential
 !> \param qs_env the qs environment
 !> \param energy ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2014 created [MI]
 !> \author MI
 ! *****************************************************************************
 
 
-  SUBROUTINE calc_dipsurf_potential(qs_env,energy,error)
+  SUBROUTINE calc_dipsurf_potential(qs_env,energy)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_dipsurf_potential', &
       routineP = moduleN//':'//routineN
@@ -105,29 +102,28 @@ CONTAINS
                       cell=cell,&
                       pw_env=pw_env,&
                       subsys=subsys,&
-                      v_hartree_rspace=v_hartree_rspace,&
-                      error=error)
+                      v_hartree_rspace=v_hartree_rspace)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               pw_pools=pw_pools,error=error)
+               pw_pools=pw_pools)
       CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
+               in_space = REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool,vdip_r%pw,&
                use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
+               in_space = REALSPACE)
 
       IF (dft_control%qs_control%gapw) THEN
-          CALL pw_transfer(rho0_s_gs%pw,wf_r%pw,error=error)
+          CALL pw_transfer(rho0_s_gs%pw,wf_r%pw)
           IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-              CALL pw_axpy(rho_core%pw,wf_r%pw, error=error)
+              CALL pw_axpy(rho_core%pw,wf_r%pw)
           END IF
       ELSE
-          CALL pw_transfer(rho_core%pw,wf_r%pw,error=error)
+          CALL pw_transfer(rho_core%pw,wf_r%pw)
       END IF
-      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+      CALL qs_rho_get(rho, rho_r=rho_r)
       DO ispin=1,dft_control%nspins
-          CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw, error=error)
+          CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw)
       END DO
 
       ngrid(1:3) = wf_r%pw%pw_grid%npts(1:3)
@@ -139,7 +135,7 @@ CONTAINS
              ! stop surface dipole defined only for slab perpendigular to one of the Cartesian axis
               CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
                    routineP, " Dipole correction only for surface perpendicular to "//&
-                   " one Cartesian axis",error, only_ionode=.TRUE.)
+                   " one Cartesian axis",only_ionode=.TRUE.)
 !  not properly general, we assume that vectors A, B, and C are along x y and z respectively, 
 !  in the ortorhombic cell, but in principle it does not need to be this way, importan
 !  is that the cell angles are 90 degrees.
@@ -152,7 +148,7 @@ CONTAINS
       iup = wf_r%pw%pw_grid%bounds(2,idir_surfdip)
 
       ALLOCATE (rhoavsurf(ilow:iup),stat=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(stat==0,cp_failure_level,routineP,failure)
       rhoavsurf = 0.0_dp
 
       bo => wf_r%pw%pw_grid%bounds_local
@@ -199,7 +195,7 @@ CONTAINS
       rhoav_min = ABS(rhoavsurf(ilayer_min))
       CALL cp_assert(rhoav_min<1.E-5_dp, cp_failure_level,cp_assertion_failed,&
                 routineP, " Dipole correction needs more vacuum space above the surface ",&
-                error, only_ionode=.TRUE.)
+                only_ionode=.TRUE.)
       height_min =  REAL((ilayer_min - ilow),dp)*dh(idir_surfdip,idir_surfdip)
 
 
@@ -219,10 +215,10 @@ CONTAINS
      END DO 
 
      DEALLOCATE(rhoavsurf,stat=stat)
-     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
 !    Calculation of the dipole potential as a function of the perpendicular coordinate
-     CALL pw_zero(vdip_r%pw, error=error)
+     CALL pw_zero(vdip_r%pw)
      vdip_fac = dip_hh*4.0_dp*pi
 
      DO i = ilayer_min+1,ilayer_min+ngrid(idir_surfdip)
@@ -260,8 +256,8 @@ CONTAINS
 !    Add the dipole potential to the hartree potential on the realspace grid
      v_hartree_rspace%cr3d =  v_hartree_rspace%cr3d + vdip_r%pw%cr3d
 
-     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
-     CALL pw_pool_give_back_pw(auxbas_pw_pool,vdip_r%pw, error=error)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,vdip_r%pw)
 
      CALL timestop(handle)
 

@@ -44,7 +44,7 @@ CONTAINS
 !> \param zf& ...
 ! *****************************************************************************
   SUBROUTINE P_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,zf&
-       ,scal,hx,hy,hz,mpi_group,error)
+       ,scal,hx,hy,hz,mpi_group)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
                                                 md1, md2, md3, nproc, iproc
     REAL(KIND=dp), &
@@ -52,7 +52,6 @@ CONTAINS
       INTENT(inout)                          :: zf
     REAL(KIND=dp), INTENT(in)                :: scal, hx, hy, hz
     INTEGER, INTENT(in)                      :: mpi_group
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
 
@@ -877,7 +876,6 @@ CONTAINS
 !> \param scal factor of renormalization of the FFT in order to acheve unitarity
 !>                   and the correct dimension
 !> \param mpi_group ...
-!> \param error ...
 !> \date October 2006
 !> \author S. Goedecker, L. Genovese
 !> \note   As transform lengths most products of the prime factors 2,3,5 are allowed.
@@ -892,7 +890,7 @@ CONTAINS
 !>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt . 
 ! *****************************************************************************
   SUBROUTINE S_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf,&
-       scal,mpi_group,error)
+       scal,mpi_group)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
                                                 md1, md2, md3, nproc, iproc
     REAL(KIND=dp), &
@@ -903,7 +901,6 @@ CONTAINS
       INTENT(inout)                          :: zf
     REAL(KIND=dp), INTENT(in)                :: scal
     INTEGER, INTENT(in)                      :: mpi_group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'S_PoissonSolver', &
       routineP = moduleN//':'//routineN
@@ -1684,7 +1681,6 @@ CONTAINS
 !> \param scal factor of renormalization of the FFT in order to acheve unitarity
 !>                   and the correct dimension 
 !> \param mpi_group ...
-!> \param error ...
 !> \date February 2006
 !> \author S. Goedecker, L. Genovese
 !> \note As transform lengths
@@ -1700,7 +1696,7 @@ CONTAINS
 !>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt . 
 ! *****************************************************************************
   SUBROUTINE F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf,&
-       scal,mpi_group,error)
+       scal,mpi_group)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
                                                 md1, md2, md3, nproc, iproc
     REAL(KIND=dp), &
@@ -1711,7 +1707,6 @@ CONTAINS
       INTENT(inout)                          :: zf
     REAL(KIND=dp), INTENT(in)                :: scal
     INTEGER, INTENT(in)                      :: mpi_group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
 

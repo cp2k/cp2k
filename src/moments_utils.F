@@ -54,10 +54,9 @@ CONTAINS
 !> \param ref_point ...
 !> \param ifirst ...
 !> \param ilast ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_reference_point(rpoint,drpoint,qs_env,fist_env,reference,ref_point,&
-             ifirst, ilast, error)
+             ifirst, ilast)
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: rpoint
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: drpoint
@@ -68,7 +67,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: reference
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     INTEGER, INTENT(IN), OPTIONAL            :: ifirst, ilast
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point', &
       routineP = moduleN//':'//routineN
@@ -88,16 +86,16 @@ CONTAINS
       POINTER                                :: qs_kind_set
 
     failure = .FALSE.
-    CPPostcondition(PRESENT(ifirst).EQV.PRESENT(ilast),cp_failure_level,routineP,error,failure)
+    CPPostcondition(PRESENT(ifirst).EQV.PRESENT(ilast),cp_failure_level,routineP,failure)
     NULLIFY ( cell, particle_set, qs_kind_set, local_particles, para_env )
     IF (PRESENT(qs_env)) THEN
        CALL get_qs_env ( qs_env, cell=cell, particle_set=particle_set, &
             qs_kind_set=qs_kind_set,&
-            local_particles=local_particles, para_env=para_env, error=error)
+            local_particles=local_particles, para_env=para_env)
     END IF
     IF (PRESENT(fist_env)) THEN
        CALL fist_env_get( fist_env, cell=cell, particle_set=particle_set, &
-            local_particles=local_particles, para_env=para_env, error=error)
+            local_particles=local_particles, para_env=para_env)
     END IF
     do_molecule = .FALSE.
     IF (PRESENT(ifirst).AND.PRESENT(ilast)) do_molecule = .TRUE.
@@ -106,7 +104,7 @@ CONTAINS
     CASE DEFAULT
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Type of reference point not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     CASE (use_mom_ref_com)
        rpoint = 0._dp
        mtot = 0._dp
@@ -169,7 +167,7 @@ CONTAINS
              ria = pbc(ria-center,cell)+center
              atomic_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atomic_kind, kind_number=akind )
-             CALL get_qs_kind(qs_kind_set(akind), core_charge=charge,error=error)
+             CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
              rpoint(:) = rpoint(:) + charge*ria(:)
              IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
              ztot = ztot + charge
@@ -182,7 +180,7 @@ CONTAINS
                 ria = pbc(ria,cell)
                 atomic_kind => particle_set(iatom)%atomic_kind
                 CALL get_atomic_kind(atomic_kind, kind_number=akind )
-                CALL get_qs_kind(qs_kind_set(akind), core_charge=charge,error=error)
+                CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
                 rpoint(:) = rpoint(:) + charge*ria(:)
                 IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
                 ztot = ztot + charge

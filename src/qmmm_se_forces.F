@@ -74,11 +74,10 @@ CONTAINS
 !> \param calc_force ...
 !> \param Forces ...
 !> \param Forces_added_charges ...
-!> \param error ...
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,&
-       calc_force, Forces, Forces_added_charges, error)
+       calc_force, Forces, Forces_added_charges)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -88,7 +87,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_se_qmmm_matrix', &
       routineP = moduleN//':'//routineN
@@ -129,8 +127,7 @@ CONTAINS
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        dft_control=dft_control,&
                        particle_set=particles_qm,&
-                       natom=number_qm_atoms,&
-                       error=error)
+                       natom=number_qm_atoms)
        SELECT CASE (dft_control%qs_control%method_id)
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,&
              do_method_pm3,do_method_pm6,do_method_mndod,do_method_pnnl)
@@ -148,20 +145,20 @@ CONTAINS
 
        ! Create a fake semi-empirical type to handle the classical atom
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL semi_empirical_create(se_kind_mm,error)
-       CALL se_param_set_default(se_kind_mm,0,do_method_pchg,error)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CALL semi_empirical_create(se_kind_mm)
+       CALL se_param_set_default(se_kind_mm,0,do_method_pchg)
        itype    = get_se_type(se_kind_mm%typ)
        nkind    = SIZE(atomic_kind_set)
        enuclear = 0.0_dp
        Forces_QM= 0.0_dp
-       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       CALL qs_rho_get(rho, rho_ao=matrix_p)
 
        DO ispin = 1, dft_control%nspins
           iqm = 0
           Kinds: DO ikind=1,nkind
              CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=list)
-             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
+             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
              CALL get_se_param(se_kind_a,&
                                defined=defined,&
                                natorb=natorb_a)
@@ -193,8 +190,7 @@ CONTAINS
                                                  anag,&
                                                  delta,&
                                                  qmmm_env%spherical_cutoff,&
-                                                 particles_qm,&
-                                                 error)
+                                                 particles_qm)
                    ! Possibly added charges
                    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
                       CALL deriv_se_qmmm_matrix_low(p_block_a,&
@@ -214,20 +210,19 @@ CONTAINS
                                                     anag,&
                                                     delta,&
                                                     qmmm_env%spherical_cutoff,&
-                                                    particles_qm,&
-                                                    error)
+                                                    particles_qm)
                    END IF
                 END IF
              END DO Atoms
           END DO Kinds
        END DO
-       CPPrecondition(iqm==number_qm_atoms,cp_failure_level,routineP,error,failure)
+       CPPrecondition(iqm==number_qm_atoms,cp_failure_level,routineP,failure)
        ! Transfer QM gradients to the QM particles..
        CALL mp_sum(Forces_QM, para_env%group)
        iqm = 0
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,&
                             defined=defined,&
                             natorb=natorb_a)
@@ -241,8 +236,8 @@ CONTAINS
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
        DEALLOCATE(Forces_QM,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL semi_empirical_release(se_kind_mm,error)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CALL semi_empirical_release(se_kind_mm)
 
     END IF
     CALL timestop(handle)
@@ -269,13 +264,12 @@ CONTAINS
 !> \param delta ...
 !> \param qmmm_spherical_cutoff ...
 !> \param particles_qm ...
-!> \param error ...
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, particles_mm, mm_charges, mm_atom_index, &
        mm_cell, IndQM, itype, forces, forces_qm, se_taper,&
-       se_int_control, anag, delta, qmmm_spherical_cutoff, particles_qm, error)
+       se_int_control, anag, delta, qmmm_spherical_cutoff, particles_qm)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -297,7 +291,6 @@ CONTAINS
                                                 qmmm_spherical_cutoff(2)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_se_qmmm_matrix_low', &
       routineP = moduleN//':'//routineN
@@ -326,17 +319,17 @@ CONTAINS
           se_kind_mm%zeff = mm_charges(Imm)
           ! Computes the screening factor for the spherical cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
-             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor)
              se_kind_mm%zeff = se_kind_mm%zeff * sph_chrg_factor
           END IF
           IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           ! Integrals derivatives involving QM - MM atoms
           CALL drotnuc(se_kind_a, se_kind_mm, rij, itype=itype, de1b=de1b,&
                se_int_control=se_int_control, anag=anag, delta=delta, &
-               se_taper=se_taper, error=error)
+               se_taper=se_taper)
           CALL dcorecore(se_kind_a, se_kind_mm, rij, itype=itype, denuc=denuc,&
                se_int_control=se_int_control, anag=anag, delta=delta, &
-               se_taper=se_taper, error=error)
+               se_taper=se_taper)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           ! Force contribution from the QMMM Hamiltonian

@@ -37,7 +37,6 @@ CONTAINS
 !> \param transl ...
 !> \param rot ...
 !> \param drmsd3 ...
-!> \param error ...
 !> \author Teodoro Laino 08.2006
 !> \note
 !>      Optional arguments:
@@ -49,7 +48,7 @@ CONTAINS
 !>          drmsd3 -> derivatives of RMSD3 w.r.t. atomic positions
 ! *****************************************************************************
   SUBROUTINE rmsd3( particle_set, r, r0, output_unit, weights, my_val,&
-       rotate, transl, rot, drmsd3, error)
+       rotate, transl, rot, drmsd3)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:), &
@@ -63,7 +62,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: transl
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: rot, drmsd3
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rmsd3', &
       routineP = moduleN//':'//routineN
@@ -77,12 +75,12 @@ CONTAINS
       DIMENSION(:, :)                        :: r0p, rp
 
     failure   = .FALSE.
-    CPPostcondition(SIZE(r)==SIZE(r0),cp_failure_level,routineP,error,failure)
+    CPPostcondition(SIZE(r)==SIZE(r0),cp_failure_level,routineP,failure)
     natom     = SIZE(particle_set)
     my_rotate = .FALSE.
     IF (PRESENT(rotate)) my_rotate=rotate
     ALLOCATE(w(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(weights)) THEN
        w(:) = weights
     ELSE
@@ -95,9 +93,9 @@ CONTAINS
        IF (mtot /= 0.0_dp) w(:) = w(:)/mtot
     END IF
     ALLOCATE(rp(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(r0p(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Molecule given by coordinates R
     ! Find COM and center molecule in COM
     xx=0.0_dp
@@ -184,7 +182,7 @@ CONTAINS
     M(4,3) = M(3,4)
     ! Solve the eigenvalue problem for M
     Z = M
-    CALL diamat_all(Z,lambda,error=error)
+    CALL diamat_all(Z,lambda)
     ! Pick the correct eigenvectors
     S =  1.0_dp
     IF (Z(1,1) .LT. 0.0_dp) S = -1.0_dp
@@ -293,11 +291,11 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(w,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(rp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(r0p,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE rmsd3
 
 END MODULE rmsd

@@ -71,11 +71,10 @@ CONTAINS
 !> \param core_particle_set ...
 !> \param force_update ...
 !> \param exclusions ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
        cell, fist_nonbond_env, para_env, mm_section,shell_particle_set,&
-       core_particle_set, force_update, exclusions, error)
+       core_particle_set, force_update, exclusions)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
     TYPE(particle_type), POINTER             :: particle_set(:)
@@ -89,7 +88,6 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: force_update
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL                               :: exclusions
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_control', &
       routineP = moduleN//':'//routineN
@@ -117,7 +115,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     ! *** Assigning local pointers ***
     CALL fist_nonbond_env_get(fist_nonbond_env,&
@@ -136,7 +134,7 @@ CONTAINS
                               cell_last_update=cell_last_update,&
                               num_update=num_update,&
                               potparm=potparm,&
-                              last_update=last_update,error=error)
+                              last_update=last_update)
 
     nparticle      = SIZE(particle_set)
     nparticle_kind = SIZE(atomic_kind_set)
@@ -150,14 +148,14 @@ CONTAINS
     ! *** Check, if the neighbor lists have to be built or updated ***
     update_neighbor_lists = .FALSE.
     CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%NEIGHBOR_LISTS_FROM_SCRATCH",&
-         l_val=build_from_scratch,error=error)
+         l_val=build_from_scratch)
     CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%GEO_CHECK",&
-         l_val=geo_check,error=error)
+         l_val=geo_check)
     IF (ASSOCIATED(r_last_update)) THEN
        ! Determine the maximum of the squared displacement, compared to
        ! r_last_update.
        CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
-            r_val=verlet_skin,error=error)
+            r_val=verlet_skin)
        dr2_max = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -183,7 +181,7 @@ CONTAINS
     ELSE
        ! There is no r_last_update to compare with. Neighbor lists from scratch.
        ALLOCATE (r_last_update(nparticle),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO iparticle=1,nparticle
           r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
        END DO
@@ -199,15 +197,15 @@ CONTAINS
     ! Allocate the r_last_update_pbc, rshell_last_update_pbc, rcore_last_update_pbc
     IF (.NOT.ASSOCIATED(r_last_update_pbc)) THEN
        ALLOCATE (r_last_update_pbc(nparticle),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(shell_present .AND. .NOT.ASSOCIATED(rshell_last_update_pbc)) THEN
        ALLOCATE (rshell_last_update_pbc(nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF(shell_present .AND. .NOT.ASSOCIATED(rcore_last_update_pbc)) THEN
        ALLOCATE (rcore_last_update_pbc(nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     ! update the neighbor lists
@@ -215,7 +213,7 @@ CONTAINS
        ! determine which pairs of atom kinds need full neighbor lists. Full
        ! means that atom a is in the neighbor list of atom b and vice versa.
        ALLOCATE(full_nl(nparticle_kind,nparticle_kind),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        IF (ASSOCIATED(potparm)) THEN
           DO ikind = 1, nparticle_kind
              DO jkind = ikind, nparticle_kind
@@ -237,11 +235,11 @@ CONTAINS
             vdw_scale14, nonbonded, para_env, &
             build_from_scratch=build_from_scratch, geo_check=geo_check, &
             mm_section=mm_section, full_nl=full_nl,&
-            exclusions=exclusions, error=error)
+            exclusions=exclusions)
 
-       CALL cell_release(cell_last_update,error=error)
-       CALL cell_create(cell_last_update,error=error)
-       CALL cell_clone(cell,cell_last_update,error)
+       CALL cell_release(cell_last_update)
+       CALL cell_create(cell_last_update)
+       CALL cell_clone(cell,cell_last_update)
 
        IF ( counter > 0 ) THEN
           num_update = num_update + 1
@@ -265,10 +263,10 @@ CONTAINS
                                  nonbonded=nonbonded,&
                                  num_update=num_update,&
                                  last_update=last_update,&
-                                 cell_last_update=cell_last_update,error=error)
+                                 cell_last_update=cell_last_update)
 
        output_unit = cp_print_key_unit_nr(logger,mm_section,"PRINT%NEIGHBOR_LISTS",&
-            extension=".mmLog",error=error)
+            extension=".mmLog")
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,&
                FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
@@ -276,9 +274,9 @@ CONTAINS
                " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,mm_section,&
-            "PRINT%NEIGHBOR_LISTS",error=error)
+            "PRINT%NEIGHBOR_LISTS")
        DEALLOCATE(full_nl,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     ! Store particle positions after the last update, translated to the
@@ -317,7 +315,7 @@ CONTAINS
     END DO
 
     counter = counter + 1
-    CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter,error=error)
+    CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter)
     CALL timestop(handle)
 
   END SUBROUTINE list_control

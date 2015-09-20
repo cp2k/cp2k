@@ -70,14 +70,13 @@ CONTAINS
 !> \param charges ...
 !> \param e_coulomb ...
 !> \param pv_coulomb ...
-!> \param error ...
 !> \par History
 !>      JGH (21-Feb-2001) : changed name
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
        local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, e_coulomb,&
-       pv_coulomb, error )
+       pv_coulomb)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -94,7 +93,6 @@ CONTAINS
       POINTER                                :: charges, e_coulomb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: pv_coulomb
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_evaluate', &
       routineP = moduleN//':'//routineN
@@ -135,7 +133,7 @@ CONTAINS
     IF (atstress) pv_coulomb=0._dp
 
     ! pointing
-    CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, group = group)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg = dg )
     CALL dg_get ( dg, dg_rho0=dg_rho0 )
     rho0    => dg_rho0 % density % pw % cr3d
@@ -152,9 +150,9 @@ CONTAINS
     CALL structure_factor_allocate ( pw_grid % bounds, nnodes, exp_igr)
 
     ALLOCATE (summe(1:pw_grid%ngpts_cut),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
     ALLOCATE (charge(1:nnodes),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
 
     ! Initializing vg_coulomb and fg_coulomb
     vg_coulomb = 0.0_dp
@@ -293,7 +291,7 @@ CONTAINS
     CALL structure_factor_deallocate ( exp_igr )
 
     DEALLOCATE ( charge, summe, STAT = isos )
-    CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
     NULLIFY ( charge )
 
     CALL timestop(handle)
@@ -310,13 +308,12 @@ CONTAINS
 !> \param e_self ...
 !> \param e_neut ...
 !> \param charges ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_self ( ewald_env, cell, atomic_kind_set, local_particles, e_self,&
-       e_neut, charges, error)
+       e_neut, charges)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
@@ -324,7 +321,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self', &
       routineP = moduleN//':'//routineN
@@ -340,7 +336,7 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
-         alpha = alpha, group = group ,error=error)
+         alpha = alpha, group = group)
     q_neutg = 0.0_dp
     q_self = 0.0_dp
     q_sum = 0.0_dp
@@ -355,7 +351,7 @@ CONTAINS
           IF(mm_radius>0.0_dp)THEN
              CALL cp_unimplemented_error(fromWhere=routineP, &
                        message="Array of charges not implemented for mm_radius>0.0 !!",&
-                       error=error, error_level=cp_failure_level)
+                       error_level=cp_failure_level)
           END IF
        END DO
     ELSE
@@ -365,7 +361,7 @@ CONTAINS
                qeff=q, shell_active=is_shell, shell=shell)
           nparticle_local = local_particles%n_el(iparticle_kind)
           IF (is_shell) THEN
-             CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
+             CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell)
              ! MI: the core-shell ES interaction, when core and shell belong to the same ion, is excluded
              !     in the nonbond correction term. Therefore, here the self interaction is computed entirely
              q_self = q_self + qcore*qcore*nparticle_local + qshell*qshell*nparticle_local
@@ -403,13 +399,12 @@ CONTAINS
 !> \param local_particles ...
 !> \param e_self ...
 !> \param charges ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JHU from ewald_self
 ! *****************************************************************************
   SUBROUTINE ewald_self_atom ( ewald_env, atomic_kind_set, local_particles, e_self,&
-       charges, error)
+       charges)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -418,7 +413,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: e_self(:)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self_atom', &
       routineP = moduleN//':'//routineN
@@ -433,7 +427,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,error=error)
+    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha)
 
     fself = alpha*oorootpi
 
@@ -442,7 +436,7 @@ CONTAINS
        IF (ASSOCIATED(charges)) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Atomic energy not implemented for charges",&
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        ELSE
           DO iparticle_kind=1,nparticle_kind
              atomic_kind => atomic_kind_set(iparticle_kind)
@@ -450,7 +444,7 @@ CONTAINS
              CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=q,&
                                   shell_active=is_shell,shell=shell)
              IF (is_shell) THEN
-                CALL get_shell(shell=shell,charge_core=qcore,charge_shell=qshell,error=error)
+                CALL get_shell(shell=shell,charge_core=qcore,charge_shell=qshell)
                 DO iparticle_local=1,nparticle_local
                    ii = local_particles%list(iparticle_kind)%array(iparticle_local)
                    e_self(ii) = e_self(ii) - (qcore*qcore + qshell*qshell)*fself

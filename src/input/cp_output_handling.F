@@ -151,13 +151,11 @@ CONTAINS
 !> \param unit_str specifies an unit of measure for output quantity. If not
 !>        provided the control is totally left to how the output was coded
 !>        (i.e. USERS have no possibility to change it)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
        print_level,each_iter_names,each_iter_values,add_last,filename,&
-       common_iter_levels,citations,unit_str,error)
+       common_iter_levels,citations,unit_str)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(IN)             :: name, description
     INTEGER, INTENT(IN), OPTIONAL            :: print_level
@@ -170,7 +168,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: common_iter_levels
     INTEGER, DIMENSION(:), OPTIONAL          :: citations
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: unit_str
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
       routineP = moduleN//':'//routineN
@@ -185,13 +182,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(print_key_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(print_key_section),cp_failure_level,routineP,failure)
     my_print_level=debug_print_level
     IF (PRESENT(print_level)) my_print_level=print_level
 
     CALL section_create(print_key_section,name=name,description=description,&
          n_keywords=2, n_subsections=0, repeats=.FALSE.,&
-         citations=citations, error=error)
+         citations=citations)
 
     NULLIFY(keyword, subsection)
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -201,16 +198,16 @@ CONTAINS
          enum_c_vals=s2a("on","off","silent","low","medium","high","debug"),&
          enum_i_vals=(/ silent_print_level-1,debug_print_level+1,&
          silent_print_level, low_print_level,&
-         medium_print_level,high_print_level,debug_print_level/), error=error)
-    CALL section_add_keyword(print_key_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         medium_print_level,high_print_level,debug_print_level/))
+    CALL section_add_keyword(print_key_section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="__CONTROL_VAL",&
          description=' hidden parameter that controls storage, printing,...'//&
          ' of the print_key',&
-         default_i_val=cp_out_default,error=error)
-    CALL section_add_keyword(print_key_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_i_val=cp_out_default)
+    CALL section_add_keyword(print_key_section,keyword)
+    CALL keyword_release(keyword)
 
     CALL section_create(subsection,name="EACH",&
          description="This section specifies how often this proprety is printed."//&
@@ -221,18 +218,18 @@ CONTAINS
          "though equal to 0, might print the last iteration). If an iteration level is specified "//&
          "that is not present in the flow of the calculation it is just ignored.",&
          n_keywords=2, n_subsections=0, repeats=.FALSE.,&
-         citations=citations, error=error)
+         citations=citations)
 
     ! Enforce the presence or absence of both.. or give an error
     check = (PRESENT(each_iter_names)).EQV.(PRESENT(each_iter_values))
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    CPPrecondition(check,cp_failure_level,routineP,failure)
     ext_each = (PRESENT(each_iter_names)).AND.(PRESENT(each_iter_values))
 
     DO i_each = 1, SIZE(each_possible_labels)
        my_value = 1
        IF (ext_each) THEN
           check    = SUM(INDEX(each_iter_names,each_possible_labels(i_each)))<=1
-          CPPrecondition(check,cp_failure_level,routineP,error,failure)
+          CPPrecondition(check,cp_failure_level,routineP,failure)
           DO i_iter = 1, SIZE(each_iter_names)
              IF (INDEX(TRIM(each_iter_names(i_iter)),TRIM(each_possible_labels(i_each)))/=0) THEN
                 my_value = each_iter_values(i_iter)
@@ -242,12 +239,12 @@ CONTAINS
        CALL keyword_create(keyword, name=TRIM(each_possible_labels(i_each)),&
             description=TRIM(each_desc_labels(i_each)),&
             usage=TRIM(each_possible_labels(i_each))//" <INTEGER>",&
-            default_i_val=my_value, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+            default_i_val=my_value)
+       CALL section_add_keyword(subsection,keyword)
+       CALL keyword_release(keyword)
     END DO
-    CALL section_add_subsection(print_key_section,subsection,error=error)
-    CALL section_release(subsection,error=error)
+    CALL section_add_subsection(print_key_section,subsection)
+    CALL section_release(subsection)
 
     my_add_last = add_last_no
     IF (PRESENT(add_last)) THEN
@@ -266,9 +263,9 @@ CONTAINS
          enum_desc=s2a("Do not mark last iteration specifically",&
                          "Mark last iteration with its iteration number",&
                          "Mark last iteration with lowercase letter l"),&
-         default_i_val=my_add_last,error=error)
-    CALL section_add_keyword(print_key_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_i_val=my_add_last)
+    CALL section_add_keyword(print_key_section,keyword)
+    CALL keyword_release(keyword)
 
     my_comm_iter_levels=0
     IF (PRESENT(common_iter_levels)) my_comm_iter_levels=common_iter_levels
@@ -277,9 +274,9 @@ CONTAINS
          " in the same file (no extra information about the actual"//&
          " iteration level is written to the file)",&
          usage="COMMON_ITERATION_LEVELS <INTEGER>",&
-         default_i_val=my_comm_iter_levels,error=error)
-    CALL section_add_keyword(print_key_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_i_val=my_comm_iter_levels)
+    CALL section_add_keyword(print_key_section,keyword)
+    CALL keyword_release(keyword)
 
     my_filename=""
     IF (PRESENT(filename)) my_filename=filename
@@ -295,24 +292,24 @@ CONTAINS
          ' Please note that this can lead to clashes of'//&
          ' filenames.',&
          usage="FILENAME ./filename ",&
-         default_lc_val=my_filename,error=error)
-    CALL section_add_keyword(print_key_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_lc_val=my_filename)
+    CALL section_add_keyword(print_key_section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="LOG_PRINT_KEY",&
          description="This keywords enables the logger for the print_key (a message is printed on "//&
          "screen everytime data, controlled by this print_key, are written)",&
-         usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key_section,keyword)
+    CALL keyword_release(keyword)
 
     IF (PRESENT(unit_str)) THEN
        CALL keyword_create(keyword, name="UNIT",&
             description='Specify the unit of measurement for the quantity in output. '//&
             "All available CP2K units can be used.",&
-            usage="UNIT angstrom",default_c_val=TRIM(unit_str),error=error)
-       CALL section_add_keyword(print_key_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+            usage="UNIT angstrom",default_c_val=TRIM(unit_str))
+       CALL section_add_keyword(print_key_section,keyword)
+       CALL keyword_release(keyword)
     END IF
   END SUBROUTINE cp_print_key_section_create
 
@@ -328,15 +325,13 @@ CONTAINS
 !> \param used_print_key here the print_key that was used is returned
 !> \param first_time if it ist the first time that an output is written
 !>        (not fully correct, but most of the time)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author fawzi
 !> \note
 !>      not all the propreties support can be stored
 ! *****************************************************************************
   FUNCTION cp_print_key_should_output(iteration_info,basis_section,&
-       print_key_path,used_print_key,first_time,error)&
+       print_key_path,used_print_key,first_time)&
        RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: basis_section
@@ -344,7 +339,6 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: used_print_key
     LOGICAL, INTENT(OUT), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
@@ -358,8 +352,8 @@ CONTAINS
     failure=.FALSE.
     res=0
     IF (PRESENT(first_time)) first_time=.FALSE.
-    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,failure)
+    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,failure)
     IF (PRESENT(used_print_key)) NULLIFY(used_print_key)
     IF (failure) THEN
        IF (iteration_info%print_level>=debug_print_level) res=cp_out_default
@@ -375,15 +369,15 @@ CONTAINS
 
        IF (to_path>1) THEN
           print_key => section_vals_get_subs_vals(basis_section,&
-               print_key_path(1:(to_path-1)),error=error)
+               print_key_path(1:(to_path-1)))
        ELSE
           print_key => basis_section
        END IF
-       CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,failure)
+       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,failure)
        IF (to_path+1<end_str) THEN
           CALL section_vals_val_get(print_key,print_key_path((to_path+1):end_str),&
-               l_val=flags,error=error)
+               l_val=flags)
        ELSE
           flags=.TRUE.
        END IF
@@ -396,14 +390,13 @@ CONTAINS
     IF (.NOT.flags) RETURN
 
     CALL section_vals_val_get(print_key,"__CONTROL_VAL",&
-         i_val=my_control_val,error=error)
-    is_on=cp_printkey_is_on(iteration_info,print_key,error=error)
+         i_val=my_control_val)
+    is_on=cp_printkey_is_on(iteration_info,print_key)
 
     ! a shortcut for most common case
     IF(my_control_val==cp_out_default .AND. .NOT. is_on) RETURN
 
-    is_iter=cp_printkey_is_iter(iteration_info,print_key,first_time=first_time,&
-         error=error)
+    is_iter=cp_printkey_is_iter(iteration_info,print_key,first_time=first_time)
 
     IF (BTEST(my_control_val,cp_p_store)) THEN
        res=IBSET(res,cp_p_store)
@@ -430,15 +423,12 @@ CONTAINS
 !>      does not look if this iteration it should be printed
 !> \param iteration_info information about the actual iteration level
 !> \param print_key the section values of the key to be printed
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
+  FUNCTION cp_printkey_is_on(iteration_info,print_key) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
@@ -448,13 +438,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
     IF (.NOT.ASSOCIATED(print_key)) THEN
        res=(iteration_info%print_level > debug_print_level)
     ELSE
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(print_key,"_SECTION_PARAMETERS_",i_val=print_level,error=error)
+       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,failure)
+       CALL section_vals_val_get(print_key,"_SECTION_PARAMETERS_",i_val=print_level)
        res=iteration_info%print_level>=print_level
     END IF
   END FUNCTION cp_printkey_is_on
@@ -467,17 +457,14 @@ CONTAINS
 !> \param print_key the section values of the key to be printed
 !> \param first_time returns if it is the first time that output is written
 !>        (not fully correct, but most of the time)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION cp_printkey_is_iter(iteration_info,print_key,first_time,error)&
+  FUNCTION cp_printkey_is_iter(iteration_info,print_key,first_time)&
        RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
     LOGICAL, INTENT(OUT), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
@@ -488,22 +475,22 @@ CONTAINS
     LOGICAL                                  :: failure, first, level_passed
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
     IF (.NOT.ASSOCIATED(print_key)) THEN
        res=(iteration_info%print_level > debug_print_level)
        first=ALL(iteration_info%iteration(1:iteration_info%n_rlevel)==1)
     ELSE
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,failure)
        res   = .FALSE.
        first = .FALSE.
-       CALL section_vals_val_get(print_key,"ADD_LAST",i_val=add_last,error=error)
+       CALL section_vals_val_get(print_key,"ADD_LAST",i_val=add_last)
        res  =.TRUE.
        first=.TRUE.
        DO ilevel=1,iteration_info%n_rlevel
           level_passed=.FALSE.
           CALL section_vals_val_get(print_key,"EACH%"//TRIM(iteration_info%level_name(ilevel)),&
-               i_val=ival,error=error)
+               i_val=ival)
           IF (ival>0) THEN
              iter_nr=iteration_info%iteration(ilevel)
              IF (iter_nr/ival>1) first=.FALSE.
@@ -534,19 +521,16 @@ CONTAINS
 !>        (and should consequently ignore some iteration levels depending
 !>        on COMMON_ITERATION_LEVELS).
 !>        Defaults to false.
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author fawzi
 !> \note
 !>      If the root level is 1 removes it
 ! *****************************************************************************
-  FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
+  FUNCTION cp_iter_string(iter_info,print_key,for_file) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iter_info
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: print_key
     LOGICAL, INTENT(IN), OPTIONAL            :: for_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     CHARACTER(len=default_string_length)     :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
@@ -562,14 +546,14 @@ CONTAINS
     res=""
     my_for_file=.FALSE.
     IF (PRESENT(for_file)) my_for_file=for_file
-    CPPrecondition(ASSOCIATED(iter_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(iter_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(iter_info),cp_failure_level,routineP,failure)
+    CPPrecondition(iter_info%ref_count>0,cp_failure_level,routineP,failure)
     NULLIFY(my_print_key)
     IF (PRESENT(print_key)) my_print_key => print_key
     s_level=1
     IF (ASSOCIATED(my_print_key)) THEN
-       CALL section_vals_val_get(my_print_key,"ADD_LAST",i_val=add_last,error=error)
-       CALL section_vals_val_get(my_print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
+       CALL section_vals_val_get(my_print_key,"ADD_LAST",i_val=add_last)
+       CALL section_vals_val_get(my_print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level)
        n_rlevel=iter_info%n_rlevel
        IF (my_for_file) n_rlevel=MIN(n_rlevel,MAX(0,n_rlevel-c_i_level))
        DO ilevel=s_level,n_rlevel
@@ -601,18 +585,15 @@ CONTAINS
 !> \param iter_nr ...
 !> \param increment ...
 !> \param iter_nr_out ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 !> \note
 !>      this is supposed to be called at the beginning of each iteration
 ! *****************************************************************************
-  SUBROUTINE cp_iterate(iteration_info,last,iter_nr,increment,iter_nr_out,error)
+  SUBROUTINE cp_iterate(iteration_info,last,iter_nr,increment,iter_nr_out)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     LOGICAL, INTENT(IN), OPTIONAL            :: last
     INTEGER, INTENT(IN), OPTIONAL            :: iter_nr, increment
     INTEGER, INTENT(OUT), OPTIONAL           :: iter_nr_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', &
       routineP = moduleN//':'//routineN
@@ -627,8 +608,8 @@ CONTAINS
     IF (PRESENT(increment))  my_increment = increment
     IF (PRESENT(iter_nr_out)) iter_nr_out = -1
 
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
     IF (PRESENT(iter_nr)) THEN
        iteration_info%iteration(iteration_info%n_rlevel)=iter_nr
     ELSE
@@ -648,15 +629,12 @@ CONTAINS
 !>        to be added
 !> \param level_name the name of this level, for pretty printing only, right now
 !> \param n_rlevel_new number of iteration levels after this call 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
+  SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
     INTEGER, INTENT(OUT), OPTIONAL           :: n_rlevel_new
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
       routineP = moduleN//':'//routineN
@@ -666,8 +644,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
     found = .FALSE.
     DO i = 1, SIZE(each_possible_labels)
        IF (TRIM(level_name)==TRIM(each_possible_labels(i))) THEN
@@ -700,15 +678,12 @@ CONTAINS
 !>        to be removed
 !> \param level_name level_name to be destroyed (if does not match gives an error)
 !> \param n_rlevel_att iteration level before the call (to do some checks)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE cp_rm_iter_level(iteration_info,level_name,n_rlevel_att,error)
+  SUBROUTINE cp_rm_iter_level(iteration_info,level_name,n_rlevel_att)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
     INTEGER, INTENT(IN), OPTIONAL            :: n_rlevel_att
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
       routineP = moduleN//':'//routineN
@@ -717,16 +692,16 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
     IF (PRESENT(n_rlevel_att)) THEN
-       CPPrecondition(n_rlevel_att==iteration_info%n_rlevel,cp_failure_level,routineP,error,failure)
+       CPPrecondition(n_rlevel_att==iteration_info%n_rlevel,cp_failure_level,routineP,failure)
     END IF
     CALL cp_iteration_info_release(iteration_info)
     ! This check that the iteration levels are consistently created and destroyed..
     ! Never remove this check..
     check = iteration_info%level_name(iteration_info%n_rlevel)==level_name
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    CPPrecondition(check,cp_failure_level,routineP,failure)
     iteration_info%n_rlevel=iteration_info%n_rlevel-1
     CALL reallocate(iteration_info%iteration,  1, iteration_info%n_rlevel)
     CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
@@ -755,19 +730,16 @@ CONTAINS
 !> \param extension extension to be applied to the filename (including the ".")
 !> \param my_local if the unit should be local to this task, or global to the
 !>        program (defaults to false).
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval filename ...
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
-       my_local, error) RESULT(filename)
+       my_local) RESULT(filename)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
     CHARACTER(len=*), INTENT(IN)             :: extension
     LOGICAL, INTENT(IN)                      :: my_local
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     CHARACTER(len=default_path_length)       :: filename
 
     CHARACTER(len=default_path_length)       :: outPath, postfix, root
@@ -775,7 +747,7 @@ CONTAINS
     INTEGER                                  :: my_ind1, my_ind2
     LOGICAL                                  :: has_root
 
-    CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+    CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath)
     IF (outPath(1:1)=='=') THEN
        filename=outPath(2:LEN_TRIM(outPath))
        RETURN
@@ -820,7 +792,7 @@ CONTAINS
     END IF
 
     ! use the cp_iter_string as a postfix
-    postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.,error=error))
+    postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.))
     IF (TRIM(postfix)=="-") postfix=""
 
     ! and add the extension
@@ -848,12 +820,11 @@ CONTAINS
 !> \param do_backup ...
 !> \param on_file ...
 !> \param is_new_file true if this rank created a new (or rewound) file, false otherwise
-!> \param error ...
 !> \retval res ...
 ! *****************************************************************************
   FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
        middle_name, local, log_filename,ignore_should_output, file_form, file_position,&
-       file_action, file_status, do_backup, on_file, is_new_file,error) RESULT(res)
+       file_action, file_status, do_backup, on_file, is_new_file) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
@@ -865,7 +836,6 @@ CONTAINS
                                                 file_action, file_status
     LOGICAL, INTENT(IN), OPTIONAL            :: do_backup, on_file
     LOGICAL, INTENT(OUT), OPTIONAL           :: is_new_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
@@ -904,18 +874,18 @@ CONTAINS
     IF (PRESENT(local))         my_local         = local
     IF (PRESENT(is_new_file))   is_new_file      = .FALSE.
     NULLIFY(print_key)
-    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
-    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,failure)
+    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,failure)
     my_should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-         basis_section,print_key_path,used_print_key=print_key,error=error),cp_p_file)
+         basis_section,print_key_path,used_print_key=print_key),cp_p_file)
     IF (PRESENT(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
     IF (.NOT.my_should_output) RETURN
     IF (my_local.OR.&
          logger%para_env%mepos==logger%para_env%source) THEN
 
-       CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+       CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath)
        IF (outPath=='__STD_OUT__'.AND..NOT.my_on_file) THEN
           res=cp_logger_get_default_unit_nr(logger,local=my_local)
        ELSE
@@ -926,7 +896,7 @@ CONTAINS
           !
           ! if it is actually a full path, use it as the root
           filename = cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
-               my_local,error)
+               my_local)
           ! Give back info about a possible existence of the file if required
           IF (PRESENT(is_new_file)) THEN
              INQUIRE(FILE=filename,EXIST=found)
@@ -938,17 +908,17 @@ CONTAINS
           IF (PRESENT(log_filename)) THEN
              do_log = log_filename
           ELSE
-             CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log,error=error)
+             CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log)
           END IF
           ! If required do a backup
           IF (my_do_backup) THEN
              INQUIRE(FILE=filename,EXIST=found)
-             CALL section_vals_val_get(print_key,"BACKUP_COPIES",i_val=nbak,error=error)
+             CALL section_vals_val_get(print_key,"BACKUP_COPIES",i_val=nbak)
              IF (nbak/=0) THEN
                 iteration_info => logger%iter_info
                 s_backup_level   = 0
                 IF (ASSOCIATED(print_key%ibackup)) s_backup_level = SIZE(print_key%ibackup)
-                CALL section_vals_val_get(print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
+                CALL section_vals_val_get(print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level)
                 my_backup_level = MAX(1,iteration_info%n_rlevel-c_i_level+1)
                 f_backup_level  = MAX(s_backup_level,my_backup_level)
                 IF (f_backup_level>s_backup_level) THEN
@@ -999,7 +969,7 @@ CONTAINS
           IF (do_log) THEN
              CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
                   message="Writing "//TRIM(print_key%section%name)//" "//&
-                  TRIM(cp_iter_string(logger%iter_info,error=error))//" to "//&
+                  TRIM(cp_iter_string(logger%iter_info))//" to "//&
                   TRIM(filename),local=my_local)
           END IF
        END IF
@@ -1022,7 +992,6 @@ CONTAINS
 !> \param local ...
 !> \param ignore_should_output ...
 !> \param on_file ...
-!> \param error ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -1031,14 +1000,13 @@ CONTAINS
 !>      not __STD_OUT__
 ! *****************************************************************************
   SUBROUTINE cp_print_key_finished_output(unit_nr, logger, basis_section,&
-       print_key_path,local,ignore_should_output,on_file,error)
+       print_key_path,local,ignore_should_output,on_file)
     INTEGER, INTENT(INOUT)                   :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
     LOGICAL, INTENT(IN), OPTIONAL            :: local, ignore_should_output, &
                                                 on_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output', &
       routineP = moduleN//':'//routineN
@@ -1054,25 +1022,25 @@ CONTAINS
     NULLIFY(print_key)
     IF (PRESENT(local)) my_local=local
     IF (PRESENT(on_file)) my_on_file=on_file
-    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
-    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,failure)
+    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,failure)
     my_should_output=BTEST(cp_print_key_should_output(logger%iter_info,basis_section,&
-         print_key_path,used_print_key=print_key,error=error),cp_p_file)
+         print_key_path,used_print_key=print_key),cp_p_file)
     IF (PRESENT(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
     IF (my_should_output.and.(my_local.OR.&
          logger%para_env%source==logger%para_env%mepos)) THEN
-       CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+       CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath)
        IF (my_on_file.OR.outPath.NE.'__STD_OUT__') THEN
-          CPPrecondition(unit_nr>0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(unit_nr>0,cp_failure_level,routineP,failure)
           CALL close_file(unit_nr,"KEEP")
           unit_nr=-1
        ELSE
           unit_nr=-1
        ENDIF
     END IF
-    CPPostcondition(unit_nr==-1,cp_failure_level,routineP,error,failure)
+    CPPostcondition(unit_nr==-1,cp_failure_level,routineP,failure)
     unit_nr=-1
   END SUBROUTINE cp_print_key_finished_output
 
@@ -1095,13 +1063,11 @@ CONTAINS
 !> \param ignore_should_output if true always returns a valid unit (ignoring
 !>        cp_print_key_should_output)
 !> \param on_file ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_print_key_log(logger, basis_section, print_key_path, extension,&
        message,middle_name, local, log_filename,ignore_should_output, &
-       on_file, error)
+       on_file)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
@@ -1109,7 +1075,6 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
     LOGICAL, INTENT(IN), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output, on_file
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_log', &
       routineP = moduleN//':'//routineN
@@ -1126,13 +1091,13 @@ CONTAINS
             print_key_path=print_key_path,extension=extension,&
             middle_name=middle_name, local=local, log_filename=log_filename,&
             ignore_should_output=ignore_should_output, &
-            on_file=on_file, error=error)
+            on_file=on_file)
        IF (output_unit>0) THEN
           WRITE(output_unit,"(a)")message
           CALL cp_print_key_finished_output(output_unit,logger,&
                basis_section=basis_section,print_key_path=print_key_path,&
                local=local,ignore_should_output=ignore_should_output,&
-               on_file=on_file,error=error)
+               on_file=on_file)
        END IF
     END IF
   END SUBROUTINE cp_print_key_log

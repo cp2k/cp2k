@@ -144,19 +144,17 @@ MODULE admm_types
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param para_env The parallel env
 !> \param natoms ...
-!> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE admm_env_create(admm_env, admm_control, mos, mos_aux_fit, para_env, natoms, error)
+  SUBROUTINE admm_env_create(admm_env, admm_control, mos, mos_aux_fit, para_env, natoms)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(admm_control_type), POINTER         :: admm_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: natoms
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_env_create', &
       routineP = moduleN//':'//routineN
@@ -183,43 +181,39 @@ MODULE admm_types
                              context=mo_coeff%matrix_struct%context,&
                              nrow_global=nao_aux_fit,&
                              ncol_global=nao_aux_fit,&
-                             para_env=para_env,&
-                             error=error)
+                             para_env=para_env)
     CALL cp_fm_struct_create(fm_struct_aux_orb,&
                              context=mo_coeff%matrix_struct%context,&
                              nrow_global=nao_aux_fit,&
                              ncol_global=nao_orb,&
-                             para_env=para_env,&
-                             error=error)
+                             para_env=para_env)
     CALL cp_fm_struct_create(fm_struct_orb_aux,&
                              context=mo_coeff%matrix_struct%context,&
                              nrow_global=nao_orb,&
                              ncol_global=nao_aux_fit,&
-                             para_env=para_env,&
-                             error=error)
+                             para_env=para_env)
     CALL cp_fm_struct_create(fm_struct_orb_orb,&
                              context=mo_coeff%matrix_struct%context,&
                              nrow_global=nao_orb,&
                              ncol_global=nao_orb,&
-                             para_env=para_env,&
-                             error=error)
+                             para_env=para_env)
 
-    CALL cp_fm_create(admm_env%S,fm_struct_aux_aux,name="aux_fit_overlap",error=error)
-    CALL cp_fm_create(admm_env%S_inv,fm_struct_aux_aux,name="aux_fit_overlap_inv",error=error)
-    CALL cp_fm_create(admm_env%Q,fm_struct_aux_orb,name="mixed_overlap",error=error)
-    CALL cp_fm_create(admm_env%A,fm_struct_aux_orb,name="work_A",error=error)
-    CALL cp_fm_create(admm_env%B,fm_struct_orb_orb,name="work_B",error=error)
-    CALL cp_fm_create(admm_env%work_orb_orb,fm_struct_orb_orb,name="work_orb_orb",error=error)
-    CALL cp_fm_create(admm_env%work_orb_orb2,fm_struct_orb_orb,name="work_orb_orb",error=error)
-    CALL cp_fm_create(admm_env%work_orb_orb3,fm_struct_orb_orb,name="work_orb_orb3",error=error)
-    CALL cp_fm_create(admm_env%work_aux_orb,fm_struct_aux_orb,name="work_aux_orb",error=error)
-    CALL cp_fm_create(admm_env%work_aux_orb2,fm_struct_aux_orb,name="work_aux_orb2",error=error)
-    CALL cp_fm_create(admm_env%work_aux_orb3,fm_struct_aux_orb,name="work_aux_orb3",error=error)
-    CALL cp_fm_create(admm_env%work_aux_aux,fm_struct_aux_aux,name="work_aux_aux",error=error)
-    CALL cp_fm_create(admm_env%work_aux_aux2,fm_struct_aux_aux,name="work_aux_aux2",error=error)
-    CALL cp_fm_create(admm_env%work_aux_aux3,fm_struct_aux_aux,name="work_aux_aux3",error=error)
-    CALL cp_fm_create(admm_env%work_aux_aux4,fm_struct_aux_aux,name="work_aux_aux4",error=error)
-    CALL cp_fm_create(admm_env%work_aux_aux5,fm_struct_aux_aux,name="work_aux_aux5",error=error)
+    CALL cp_fm_create(admm_env%S,fm_struct_aux_aux,name="aux_fit_overlap")
+    CALL cp_fm_create(admm_env%S_inv,fm_struct_aux_aux,name="aux_fit_overlap_inv")
+    CALL cp_fm_create(admm_env%Q,fm_struct_aux_orb,name="mixed_overlap")
+    CALL cp_fm_create(admm_env%A,fm_struct_aux_orb,name="work_A")
+    CALL cp_fm_create(admm_env%B,fm_struct_orb_orb,name="work_B")
+    CALL cp_fm_create(admm_env%work_orb_orb,fm_struct_orb_orb,name="work_orb_orb")
+    CALL cp_fm_create(admm_env%work_orb_orb2,fm_struct_orb_orb,name="work_orb_orb")
+    CALL cp_fm_create(admm_env%work_orb_orb3,fm_struct_orb_orb,name="work_orb_orb3")
+    CALL cp_fm_create(admm_env%work_aux_orb,fm_struct_aux_orb,name="work_aux_orb")
+    CALL cp_fm_create(admm_env%work_aux_orb2,fm_struct_aux_orb,name="work_aux_orb2")
+    CALL cp_fm_create(admm_env%work_aux_orb3,fm_struct_aux_orb,name="work_aux_orb3")
+    CALL cp_fm_create(admm_env%work_aux_aux,fm_struct_aux_aux,name="work_aux_aux")
+    CALL cp_fm_create(admm_env%work_aux_aux2,fm_struct_aux_aux,name="work_aux_aux2")
+    CALL cp_fm_create(admm_env%work_aux_aux3,fm_struct_aux_aux,name="work_aux_aux3")
+    CALL cp_fm_create(admm_env%work_aux_aux4,fm_struct_aux_aux,name="work_aux_aux4")
+    CALL cp_fm_create(admm_env%work_aux_aux5,fm_struct_aux_aux,name="work_aux_aux5")
 
     ALLOCATE(admm_env%lambda_inv(nspins))
     ALLOCATE(admm_env%lambda(nspins))
@@ -253,45 +247,42 @@ MODULE admm_types
                                context=mo_coeff%matrix_struct%context,&
                                nrow_global=nao_aux_fit,&
                                ncol_global=nmo,&
-                               para_env=para_env,&
-                               error=error)
+                               para_env=para_env)
       CALL cp_fm_struct_create(fm_struct_orb_nmo,&
                                context=mo_coeff%matrix_struct%context,&
                                nrow_global=nao_orb,&
                                ncol_global=nmo,&
-                               para_env=para_env,&
-                               error=error)
+                               para_env=para_env)
       CALL cp_fm_struct_create(fm_struct_nmo_nmo,&
                                context=mo_coeff%matrix_struct%context,&
                                nrow_global=nmo,&
                                ncol_global=nmo,&
-                               para_env=para_env,&
-                               error=error)
+                               para_env=para_env)
 
-      CALL cp_fm_create(admm_env%work_orb_nmo(ispin)%matrix,fm_struct_orb_nmo,name="work_orb_nmo",error=error)
-      CALL cp_fm_create(admm_env%work_nmo_nmo1(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo1",error=error)
-      CALL cp_fm_create(admm_env%R_schur_R_t(ispin)%matrix,fm_struct_nmo_nmo,name="R_schur_R_t",error=error)
-      CALL cp_fm_create(admm_env%work_nmo_nmo2(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo2",error=error)
-      CALL cp_fm_create(admm_env%lambda(ispin)%matrix,fm_struct_nmo_nmo,name="lambda",error=error)
-      CALL cp_fm_create(admm_env%lambda_inv(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv",error=error)
-      CALL cp_fm_create(admm_env%lambda_inv_sqrt(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv_sqrt",error=error)
-      CALL cp_fm_create(admm_env%R(ispin)%matrix,fm_struct_nmo_nmo,name="R",error=error)
-      CALL cp_fm_create(admm_env%R_purify(ispin)%matrix,fm_struct_aux_aux,name="R_purify",error=error)
-      CALL cp_fm_create(admm_env%K(ispin)%matrix,fm_struct_aux_aux,name="K",error=error)
-      CALL cp_fm_create(admm_env%H(ispin)%matrix,fm_struct_aux_nmo,name="H",error=error)
-      CALL cp_fm_create(admm_env%H_corr(ispin)%matrix,fm_struct_orb_orb,name="H_corr",error=error)
-      CALL cp_fm_create(admm_env%M(ispin)%matrix,fm_struct_nmo_nmo,name="M",error=error)
-      CALL cp_fm_create(admm_env%M_purify(ispin)%matrix,fm_struct_aux_aux,name="M aux",error=error)
-      CALL cp_fm_create(admm_env%P_to_be_purified(ispin)%matrix,fm_struct_aux_aux,name="P_to_be_purified",error=error)
-      CALL cp_fm_create(admm_env%work_aux_nmo(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo",error=error)
-      CALL cp_fm_create(admm_env%work_aux_nmo2(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo2",error=error)
-      CALL cp_fm_create(admm_env%mo_derivs_tmp(ispin)%matrix,fm_struct_orb_nmo,name="mo_derivs_tmp",error=error)
+      CALL cp_fm_create(admm_env%work_orb_nmo(ispin)%matrix,fm_struct_orb_nmo,name="work_orb_nmo")
+      CALL cp_fm_create(admm_env%work_nmo_nmo1(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo1")
+      CALL cp_fm_create(admm_env%R_schur_R_t(ispin)%matrix,fm_struct_nmo_nmo,name="R_schur_R_t")
+      CALL cp_fm_create(admm_env%work_nmo_nmo2(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo2")
+      CALL cp_fm_create(admm_env%lambda(ispin)%matrix,fm_struct_nmo_nmo,name="lambda")
+      CALL cp_fm_create(admm_env%lambda_inv(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv")
+      CALL cp_fm_create(admm_env%lambda_inv_sqrt(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv_sqrt")
+      CALL cp_fm_create(admm_env%R(ispin)%matrix,fm_struct_nmo_nmo,name="R")
+      CALL cp_fm_create(admm_env%R_purify(ispin)%matrix,fm_struct_aux_aux,name="R_purify")
+      CALL cp_fm_create(admm_env%K(ispin)%matrix,fm_struct_aux_aux,name="K")
+      CALL cp_fm_create(admm_env%H(ispin)%matrix,fm_struct_aux_nmo,name="H")
+      CALL cp_fm_create(admm_env%H_corr(ispin)%matrix,fm_struct_orb_orb,name="H_corr")
+      CALL cp_fm_create(admm_env%M(ispin)%matrix,fm_struct_nmo_nmo,name="M")
+      CALL cp_fm_create(admm_env%M_purify(ispin)%matrix,fm_struct_aux_aux,name="M aux")
+      CALL cp_fm_create(admm_env%P_to_be_purified(ispin)%matrix,fm_struct_aux_aux,name="P_to_be_purified")
+      CALL cp_fm_create(admm_env%work_aux_nmo(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo")
+      CALL cp_fm_create(admm_env%work_aux_nmo2(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo2")
+      CALL cp_fm_create(admm_env%mo_derivs_tmp(ispin)%matrix,fm_struct_orb_nmo,name="mo_derivs_tmp")
 
-      CALL cp_fm_create(admm_env%lambda_inv2(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv2",error=error)
-      CALL cp_fm_create(admm_env%C_hat(ispin)%matrix,fm_struct_aux_nmo,name="C_hat",error=error)
-      CALL cp_fm_create(admm_env%P_tilde(ispin)%matrix,fm_struct_aux_aux,name="P_tilde",error=error)
+      CALL cp_fm_create(admm_env%lambda_inv2(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv2")
+      CALL cp_fm_create(admm_env%C_hat(ispin)%matrix,fm_struct_aux_nmo,name="C_hat")
+      CALL cp_fm_create(admm_env%P_tilde(ispin)%matrix,fm_struct_aux_aux,name="P_tilde")
 
-      CALL cp_fm_create(admm_env%ks_to_be_merged(ispin)%matrix,fm_struct_orb_orb,name="KS_to_be_merged ",error=error)
+      CALL cp_fm_create(admm_env%ks_to_be_merged(ispin)%matrix,fm_struct_orb_orb,name="KS_to_be_merged ")
 
       ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals)
       ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals)
@@ -299,15 +290,15 @@ MODULE admm_types
       ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(nao_aux_fit))
       admm_env%eigvals_lambda(ispin)%eigvals%data = 0.0_dp
       admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data = 0.0_dp
-      CALL cp_fm_struct_release(fm_struct_aux_nmo,error=error)
-      CALL cp_fm_struct_release(fm_struct_orb_nmo,error=error)
-      CALL cp_fm_struct_release(fm_struct_nmo_nmo,error=error)
+      CALL cp_fm_struct_release(fm_struct_aux_nmo)
+      CALL cp_fm_struct_release(fm_struct_orb_nmo)
+      CALL cp_fm_struct_release(fm_struct_nmo_nmo)
     END DO
 
-    CALL cp_fm_struct_release(fm_struct_aux_aux,error=error)
-    CALL cp_fm_struct_release(fm_struct_aux_orb,error=error)
-    CALL cp_fm_struct_release(fm_struct_orb_aux,error=error)
-    CALL cp_fm_struct_release(fm_struct_orb_orb,error=error)
+    CALL cp_fm_struct_release(fm_struct_aux_aux)
+    CALL cp_fm_struct_release(fm_struct_aux_orb)
+    CALL cp_fm_struct_release(fm_struct_orb_aux)
+    CALL cp_fm_struct_release(fm_struct_orb_orb)
 
     ! copy settings from admm_control
     admm_env%purification_method = admm_control%purification_method
@@ -341,61 +332,58 @@ MODULE admm_types
 !> \brief releases the ADMM environment, cleans up all types
 !>
 !> \param admm_env The ADMM env
-!> \param error ...
-!>
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE admm_env_release(admm_env, error)
+  SUBROUTINE admm_env_release(admm_env)
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_env_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
 
-    CALL cp_fm_release(admm_env%S, error=error)
-    CALL cp_fm_release(admm_env%S_inv, error=error)
-    CALL cp_fm_release(admm_env%Q, error=error)
-    CALL cp_fm_release(admm_env%A, error=error)
-    CALL cp_fm_release(admm_env%B, error=error)
-    CALL cp_fm_release(admm_env%work_orb_orb, error=error)
-    CALL cp_fm_release(admm_env%work_orb_orb2, error=error)
-    CALL cp_fm_release(admm_env%work_orb_orb3, error=error)
-    CALL cp_fm_release(admm_env%work_aux_aux, error=error)
-    CALL cp_fm_release(admm_env%work_aux_aux2, error=error)
-    CALL cp_fm_release(admm_env%work_aux_aux3, error=error)
-    CALL cp_fm_release(admm_env%work_aux_aux4, error=error)
-    CALL cp_fm_release(admm_env%work_aux_aux5, error=error)
-    CALL cp_fm_release(admm_env%work_aux_orb, error=error)
-    CALL cp_fm_release(admm_env%work_aux_orb2, error=error)
-    CALL cp_fm_release(admm_env%work_aux_orb3, error=error)
+    CALL cp_fm_release(admm_env%S)
+    CALL cp_fm_release(admm_env%S_inv)
+    CALL cp_fm_release(admm_env%Q)
+    CALL cp_fm_release(admm_env%A)
+    CALL cp_fm_release(admm_env%B)
+    CALL cp_fm_release(admm_env%work_orb_orb)
+    CALL cp_fm_release(admm_env%work_orb_orb2)
+    CALL cp_fm_release(admm_env%work_orb_orb3)
+    CALL cp_fm_release(admm_env%work_aux_aux)
+    CALL cp_fm_release(admm_env%work_aux_aux2)
+    CALL cp_fm_release(admm_env%work_aux_aux3)
+    CALL cp_fm_release(admm_env%work_aux_aux4)
+    CALL cp_fm_release(admm_env%work_aux_aux5)
+    CALL cp_fm_release(admm_env%work_aux_orb)
+    CALL cp_fm_release(admm_env%work_aux_orb2)
+    CALL cp_fm_release(admm_env%work_aux_orb3)
     DO ispin = 1,SIZE(admm_env%lambda)
-      CALL cp_fm_release(admm_env%lambda(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%lambda_inv(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%lambda_inv_sqrt(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%C_hat(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%P_tilde(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%R(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%R_purify(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%H(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%H_corr(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%K(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%M(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%M_purify(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%P_to_be_purified(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%work_orb_nmo(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%R_schur_R_t(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%work_nmo_nmo2(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%work_aux_nmo(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%work_aux_nmo2(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%mo_derivs_tmp(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%ks_to_be_merged(ispin)%matrix, error=error)
-      CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix, error=error)
+      CALL cp_fm_release(admm_env%lambda(ispin)%matrix)
+      CALL cp_fm_release(admm_env%lambda_inv(ispin)%matrix)
+      CALL cp_fm_release(admm_env%lambda_inv_sqrt(ispin)%matrix)
+      CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix)
+      CALL cp_fm_release(admm_env%C_hat(ispin)%matrix)
+      CALL cp_fm_release(admm_env%P_tilde(ispin)%matrix)
+      CALL cp_fm_release(admm_env%R(ispin)%matrix)
+      CALL cp_fm_release(admm_env%R_purify(ispin)%matrix)
+      CALL cp_fm_release(admm_env%H(ispin)%matrix)
+      CALL cp_fm_release(admm_env%H_corr(ispin)%matrix)
+      CALL cp_fm_release(admm_env%K(ispin)%matrix)
+      CALL cp_fm_release(admm_env%M(ispin)%matrix)
+      CALL cp_fm_release(admm_env%M_purify(ispin)%matrix)
+      CALL cp_fm_release(admm_env%P_to_be_purified(ispin)%matrix)
+      CALL cp_fm_release(admm_env%work_orb_nmo(ispin)%matrix)
+      CALL cp_fm_release(admm_env%work_nmo_nmo1(ispin)%matrix)
+      CALL cp_fm_release(admm_env%R_schur_R_t(ispin)%matrix)
+      CALL cp_fm_release(admm_env%work_nmo_nmo2(ispin)%matrix)
+      CALL cp_fm_release(admm_env%work_aux_nmo(ispin)%matrix)
+      CALL cp_fm_release(admm_env%work_aux_nmo2(ispin)%matrix)
+      CALL cp_fm_release(admm_env%mo_derivs_tmp(ispin)%matrix)
+      CALL cp_fm_release(admm_env%ks_to_be_merged(ispin)%matrix)
+      CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix)
       DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data)
       DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data)
       DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals)
@@ -430,9 +418,9 @@ MODULE admm_types
       DEALLOCATE(admm_env%block_map)
 
     IF(ASSOCIATED(admm_env%xc_section_primary))&
-       CALL section_vals_release(admm_env%xc_section_primary,error)
+       CALL section_vals_release(admm_env%xc_section_primary)
     IF(ASSOCIATED(admm_env%xc_section_aux))&
-       CALL section_vals_release(admm_env%xc_section_aux,error)
+       CALL section_vals_release(admm_env%xc_section_aux)
 
     DEALLOCATE(admm_env)
 

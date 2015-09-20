@@ -115,18 +115,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Release the matrix set, using the right pointer
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE kpoint_transitional_release(this, error)
+  SUBROUTINE kpoint_transitional_release(this)
     TYPE(kpoint_transitional_type)           :: this
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF (ASSOCIATED(this%ptr_1d)) THEN
       IF (this%set_as_1d) THEN
-        CALL cp_dbcsr_deallocate_matrix_set(this%ptr_1d, error)
+        CALL cp_dbcsr_deallocate_matrix_set(this%ptr_1d)
       ELSE
-        CALL cp_dbcsr_deallocate_matrix_set(this%ptr_2d, error)
+        CALL cp_dbcsr_deallocate_matrix_set(this%ptr_2d)
       ENDIF
     ENDIF
     NULLIFY(this%ptr_1d, this%ptr_2d)

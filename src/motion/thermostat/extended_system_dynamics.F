@@ -51,19 +51,17 @@ CONTAINS
 !> \param nhc ...
 !> \param npt ...
 !> \param group ...
-!> \param error ...
 !> \date 13-DEC-2000
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE lnhc_barostat ( nhc, npt, group, error )
+  SUBROUTINE lnhc_barostat ( nhc, npt, group)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
     INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_barostat', &
       routineP = moduleN//':'//routineN
@@ -75,13 +73,13 @@ CONTAINS
     map_info => nhc%map_info
 
     ! Compute the kinetic energy of the barostat
-    CALL ke_region_baro(map_info, npt, group, error)
+    CALL ke_region_baro(map_info, npt, group)
 
     ! Calculate forces on the Nose-Hoover Thermostat and apply chains
-    CALL do_nhc(nhc, map_info, error)
+    CALL do_nhc(nhc, map_info)
 
     ! Now scale the particle velocities
-    CALL vel_rescale_baro(map_info, npt, error)
+    CALL vel_rescale_baro(map_info, npt)
 
     CALL timestop(handle)
   END SUBROUTINE lnhc_barostat
@@ -100,15 +98,13 @@ CONTAINS
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error ...
 !> \date 14-NOV-2000
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE lnhc_particles( nhc, molecule_kind_set, molecule_set,  &
        particle_set, local_molecules, group, shell_adiabatic,&
-       shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
-       error)
+       shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -121,7 +117,6 @@ CONTAINS
                                                 core_particle_set( : )
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_particles', &
       routineP = moduleN//':'//routineN
@@ -137,15 +132,15 @@ CONTAINS
 
     ! Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, vel, error)
+         local_molecules, molecule_set, group, vel)
 
     ! Calculate forces on the Nose-Hoover Thermostat and apply chains
-    CALL do_nhc(nhc, map_info, error)
+    CALL do_nhc(nhc, map_info)
 
     ! Now scale the particle velocities
     CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
          local_molecules, my_shell_adiabatic, shell_particle_set,core_particle_set,&
-         vel, shell_vel, core_vel, error)
+         vel, shell_vel, core_vel)
 
     CALL timestop(handle)
   END SUBROUTINE lnhc_particles
@@ -162,14 +157,12 @@ CONTAINS
 !> \param vel ...
 !> \param shell_vel ...
 !> \param core_vel ...
-!> \param error ...
 !> \date 14-NOV-2000
 !> \par History
 !>      none
 ! *****************************************************************************
   SUBROUTINE lnhc_shells(nhc, atomic_kind_set, particle_set, local_particles, &
-       group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
-       error)
+       group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -180,7 +173,6 @@ CONTAINS
                                                 core_particle_set(:)
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
                                                 core_vel(:,:)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_shells', &
       routineP = moduleN//':'//routineN
@@ -193,14 +185,14 @@ CONTAINS
 
     ! Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
-    group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
+    group, core_particle_set, shell_particle_set, core_vel, shell_vel)
 
     ! Calculate forces on the Nose-Hoover Thermostat and apply chains
-    CALL do_nhc(nhc, map_info, error)
+    CALL do_nhc(nhc, map_info)
 
     ! Now scale the particle velocities
     CALL vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
-         shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
+         shell_particle_set, core_particle_set, shell_vel, core_vel, vel)
 
     CALL timestop(handle)
   END SUBROUTINE lnhc_shells
@@ -209,13 +201,11 @@ CONTAINS
 !> \brief ...
 !> \param nhc ...
 !> \param map_info ...
-!> \param error ...
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE do_nhc(nhc, map_info, error)
+  SUBROUTINE do_nhc(nhc, map_info)
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(map_info_type), POINTER             :: map_info
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_nhc', &
       routineP = moduleN//':'//routineN
@@ -233,7 +223,7 @@ CONTAINS
     END DO
 
     ! Perform multiple time stepping using Yoshida
-    CALL multiple_step_yoshida(nhc,error)
+    CALL multiple_step_yoshida(nhc)
 
   END SUBROUTINE do_nhc
 
@@ -299,15 +289,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param nhc ...
-!> \param error ...
 !> \date 14-NOV-2000
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE multiple_step_yoshida(nhc,error)
+  SUBROUTINE multiple_step_yoshida(nhc)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'multiple_step_yoshida', &
       routineP = moduleN//':'//routineN

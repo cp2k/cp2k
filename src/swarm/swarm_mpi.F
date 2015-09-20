@@ -65,17 +65,15 @@ MODULE swarm_mpi
 !> \param n_workers ...
 !> \param worker_id ...
 !> \param iw ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_mpi_init(swarm_mpi, world_para_env, root_section, n_workers, worker_id, iw, error)
+   SUBROUTINE swarm_mpi_init(swarm_mpi, world_para_env, root_section, n_workers, worker_id, iw)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(cp_para_env_type), POINTER          :: world_para_env
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: n_workers
     INTEGER, INTENT(OUT)                     :: worker_id
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_groups_created, &
                                                 pe_per_worker, subgroup, &
@@ -112,7 +110,7 @@ MODULE swarm_mpi
        CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 1)
        CALL mp_environ(subgroup_size, subgroup_rank, subgroup)
        IF(subgroup_size/=1) STOP "swarm: mp_comm_split_direct failed (master)"
-       CALL cp_para_env_create(swarm_mpi%master, group=subgroup, error=error)
+       CALL cp_para_env_create(swarm_mpi%master, group=subgroup)
        !WRITE (*,*) "this is a master ", swarm_mpi%master%mepos, swarm_mpi%master%num_pe
     ELSE
        CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 2)
@@ -130,7 +128,7 @@ MODULE swarm_mpi
        CALL mp_comm_split(subgroup, worker_group, n_groups_created, group_distribution_p, n_subgroups=n_workers)
        worker_id = group_distribution(subgroup_rank) + 1 ! shall start by 1
        IF(n_groups_created/=n_workers) STOP "swarm: mp_comm_split failed."
-       CALL cp_para_env_create(swarm_mpi%worker, group=worker_group, error=error)
+       CALL cp_para_env_create(swarm_mpi%worker, group=worker_group)
        CALL mp_comm_free(subgroup)
 
        !WRITE (*,*) "this is worker ", worker_id, swarm_mpi%worker%mepos, swarm_mpi%worker%num_pe
@@ -145,20 +143,18 @@ MODULE swarm_mpi
     !WRITE (*,*), "wid2group table: ",swarm_mpi%wid2group
 
 
-    CALL logger_init_master(swarm_mpi, error)
-    CALL logger_init_worker(swarm_mpi, root_section, worker_id, error)
+    CALL logger_init_master(swarm_mpi)
+    CALL logger_init_worker(swarm_mpi, root_section, worker_id)
   END SUBROUTINE swarm_mpi_init
 
 
 ! *****************************************************************************
 !> \brief Helper routine for swarm_mpi_init, configures the master's logger.
 !> \param swarm_mpi ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE logger_init_master(swarm_mpi, error)
+  SUBROUTINE logger_init_master(swarm_mpi)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: logger
@@ -166,7 +162,7 @@ MODULE swarm_mpi
 ! broadcast master_output_path to all ranks
 
     IF(swarm_mpi%world%mepos == swarm_mpi%world%source) THEN
-       logger => cp_error_get_logger(error)
+       logger => cp_get_default_logger()
        output_unit = logger%default_local_unit_nr
        swarm_mpi%master_output_path = output_unit2path(output_unit)
        IF(output_unit/=default_output_unit) &
@@ -176,7 +172,7 @@ MODULE swarm_mpi
     CALL mp_bcast(swarm_mpi%master_output_path, swarm_mpi%world%source, swarm_mpi%world%group)
 
     IF(ASSOCIATED(swarm_mpi%master)) &
-       CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path, error=error)
+       CALL error_add_new_logger(swarm_mpi%master, swarm_mpi%master_output_path)
   END SUBROUTINE logger_init_master
 
 
@@ -201,14 +197,12 @@ MODULE swarm_mpi
 !> \param swarm_mpi ...
 !> \param root_section ...
 !> \param worker_id ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE logger_init_worker(swarm_mpi, root_section, worker_id, error)
+  SUBROUTINE logger_init_worker(swarm_mpi, root_section, worker_id)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER                                  :: worker_id
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=default_path_length)       :: output_path
     CHARACTER(len=default_string_length)     :: new_project_name, &
@@ -218,7 +212,7 @@ MODULE swarm_mpi
 
     NULLIFY(old_logger, new_iter_info)
     IF(ASSOCIATED(swarm_mpi%worker)) THEN
-       old_logger => cp_error_get_logger(error)
+       old_logger => cp_get_default_logger()
        project_name = old_logger%iter_info%project_name
        IF(worker_id > 99999) &
           STOP "logger_init_worker: Did not expect so many workers."
@@ -227,9 +221,9 @@ MODULE swarm_mpi
           STOP "logger_init_worker: project name too long"
        output_path = TRIM(project_name) // "-"// TRIM(worker_name) // ".out"
        new_project_name = TRIM(project_name) // "-"// TRIM(worker_name)
-       CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=new_project_name,error=error)
+       CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=new_project_name)
        CALL cp_iteration_info_create(new_iter_info, new_project_name)
-       CALL error_add_new_logger(swarm_mpi%worker, output_path, new_iter_info, error)
+       CALL error_add_new_logger(swarm_mpi%worker, output_path, new_iter_info)
        CALL cp_iteration_info_release(new_iter_info)
     ENDIF
   END SUBROUTINE logger_init_worker
@@ -240,15 +234,13 @@ MODULE swarm_mpi
 !> \param para_env ...
 !> \param output_path ...
 !> \param iter_info ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE error_add_new_logger(para_env, output_path, iter_info, error)
+  SUBROUTINE error_add_new_logger(para_env, output_path, iter_info)
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=default_path_length)       :: output_path
     TYPE(cp_iteration_info_type), OPTIONAL, &
       POINTER                                :: iter_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: new_logger, old_logger
@@ -263,7 +255,7 @@ MODULE swarm_mpi
            file_action="WRITE", file_position="APPEND", unit_number=output_unit)
     ENDIF
 
-    old_logger => cp_error_get_logger(error)
+    old_logger => cp_get_default_logger()
     CALL cp_logger_create(new_logger, para_env=para_env,&
        default_global_unit_nr=output_unit, close_global_unit_on_dealloc=.FALSE.,&
        template_logger=old_logger, iter_info=iter_info)
@@ -277,19 +269,17 @@ MODULE swarm_mpi
 !> \brief Finalizes the MPI communicators of a swarm run.
 !> \param swarm_mpi ...
 !> \param root_section ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE swarm_mpi_finalize(swarm_mpi, root_section, error)
+  SUBROUTINE swarm_mpi_finalize(swarm_mpi, root_section)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CALL mp_sync(swarm_mpi%world%group)
-    CALL logger_finalize(swarm_mpi, root_section, error)
+    CALL logger_finalize(swarm_mpi, root_section)
 
-    IF(ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker, error)
-    IF(ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master, error)
+    IF(ASSOCIATED(swarm_mpi%worker)) CALL cp_para_env_release(swarm_mpi%worker)
+    IF(ASSOCIATED(swarm_mpi%master)) CALL cp_para_env_release(swarm_mpi%master)
     NULLIFY(swarm_mpi%worker, swarm_mpi%master)
     DEALLOCATE(swarm_mpi%wid2group)
   END SUBROUTINE swarm_mpi_finalize
@@ -299,30 +289,28 @@ MODULE swarm_mpi
 !> \brief Helper routine for swarm_mpi_finalize, restores the original loggers
 !> \param swarm_mpi ...
 !> \param root_section ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE logger_finalize(swarm_mpi, root_section, error)
+  SUBROUTINE logger_finalize(swarm_mpi, root_section)
     TYPE(swarm_mpi_type)                     :: swarm_mpi
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: output_unit
     LOGICAL                                  :: I_am_rank0
     TYPE(cp_logger_type), POINTER            :: logger, old_logger
 
     NULLIFY(logger, old_logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = logger%default_local_unit_nr
     IF(output_unit>0 .AND. output_unit/=default_output_unit)&
         CALL close_file(output_unit)
 
     CALL cp_rm_default_logger() !pops the top-most logger
-    old_logger => cp_error_get_logger(error)
+    old_logger => cp_get_default_logger()
 
     ! restore GLOBAL%PROJECT_NAME
     CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", &
-     c_val=old_logger%iter_info%project_name, error=error)
+     c_val=old_logger%iter_info%project_name)
 
     CALL mp_sync(swarm_mpi%world%group)
 

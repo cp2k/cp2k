@@ -245,14 +245,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Allocate an atomic all-electron potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    25.07.2000,
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_all_potential(potential,error)
+  SUBROUTINE allocate_all_potential(potential)
     TYPE(all_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_all_potential', &
       routineP = moduleN//':'//routineN
@@ -261,10 +259,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential,error)
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY (potential%elec_conf)
 
@@ -276,13 +274,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Allocate an effective charge and inducible dipole potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    05.03.2010
 !> \author  Toon.Verstraelen@gmail.com
 ! *****************************************************************************
-  SUBROUTINE allocate_fist_potential(potential,error)
+  SUBROUTINE allocate_fist_potential(potential)
     TYPE(fist_potential_type), POINTER       :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_potential', &
       routineP = moduleN//':'//routineN
@@ -291,10 +287,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential,error)
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     potential%apol = 0.0_dp
     potential%cpol = 0.0_dp
@@ -310,14 +306,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Allocate an atomic local potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    24.01.2014
 !> \author  JGH
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_local_potential(potential,error)
+  SUBROUTINE allocate_local_potential(potential)
     TYPE(local_potential_type), POINTER      :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential', &
       routineP = moduleN//':'//routineN
@@ -326,10 +320,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential,error)
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY (potential%alpha)
     NULLIFY (potential%cval)
@@ -344,14 +338,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Allocate an atomic GTH potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    25.07.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_gth_potential(potential,error)
+  SUBROUTINE allocate_gth_potential(potential)
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gth_potential', &
       routineP = moduleN//':'//routineN
@@ -360,10 +352,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential,error)
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY (potential%alpha_ppnl)
     NULLIFY (potential%cexp_ppl)
@@ -394,14 +386,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate an atomic all-electron potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    03.11.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_all_potential(potential,error)
+  SUBROUTINE deallocate_all_potential(potential)
     TYPE(all_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_all_potential', &
       routineP = moduleN//':'//routineN
@@ -412,9 +402,9 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "The pointer potential is not associated.")
@@ -425,13 +415,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate an effective charge and inducible dipole potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    05.03.2010
 !> \author  Toon.Verstraelen@gmail.com
 ! *****************************************************************************
-  SUBROUTINE deallocate_fist_potential(potential,error)
+  SUBROUTINE deallocate_fist_potential(potential)
     TYPE(fist_potential_type), POINTER       :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_potential', &
       routineP = moduleN//':'//routineN
@@ -443,7 +431,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
        ! Nothing exciting here yet.
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "The pointer potential is not associated.")
@@ -454,14 +442,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate an atomic local potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    24.01.2014
 !> \author  JGH
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_local_potential(potential,error)
+  SUBROUTINE deallocate_local_potential(potential)
     TYPE(local_potential_type), POINTER      :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential', &
       routineP = moduleN//':'//routineN
@@ -475,15 +461,15 @@ CONTAINS
 
        IF (ASSOCIATED(potential%alpha)) THEN
           DEALLOCATE (potential%alpha,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(potential%cval)) THEN
           DEALLOCATE (potential%cval,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     ELSE
 
@@ -497,14 +483,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Deallocate an atomic GTH potential data set.
 !> \param potential ...
-!> \param error ...
 !> \date    03.11.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_gth_potential(potential,error)
+  SUBROUTINE deallocate_gth_potential(potential)
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gth_potential', &
       routineP = moduleN//':'//routineN
@@ -517,59 +501,59 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
        DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        !     *** Deallocate the parameters of the local part ***
 
        IF (ASSOCIATED(potential%cexp_ppl)) THEN
           DEALLOCATE (potential%cexp_ppl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        !     *** Deallocate the parameters of the non-local part ***
        IF (ASSOCIATED(potential%alpha_ppnl)) THEN
           DEALLOCATE (potential%alpha_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%cprj,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%cprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%hprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%nprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%vprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        IF (ASSOCIATED(potential%alpha_lpot)) THEN
           DEALLOCATE (potential%alpha_lpot,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%nct_lpot,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%cval_lpot,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        IF (ASSOCIATED(potential%alpha_lsd)) THEN
           DEALLOCATE (potential%alpha_lsd,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%nct_lsd,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%cval_lsd,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        IF (ASSOCIATED(potential%alpha_nlcc)) THEN
           DEALLOCATE (potential%alpha_nlcc,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%nct_nlcc,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (potential%cval_nlcc,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
 
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -886,14 +870,12 @@ CONTAINS
 !>          for Cartesian overlap integrals between the orbital basis
 !>          functions and the projector functions.
 !> \param potential ...
-!> \param error ...
 !> \date    16.10.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_cprj_ppnl(potential,error)
+  SUBROUTINE init_cprj_ppnl(potential)
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cprj_ppnl', &
       routineP = moduleN//':'//routineN
@@ -939,14 +921,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Initialise a GTH potential data set structure.
 !> \param potential ...
-!> \param error ...
 !> \date    27.10.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_gth_potential(potential,error)
+  SUBROUTINE init_gth_potential(potential)
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_gth_potential', &
       routineP = moduleN//':'//routineN
@@ -963,12 +943,12 @@ CONTAINS
        !     *** non-local part of the GTH pseudopotential and   ***
        !     *** the transformation matrices "pgf" -> "prj_ppnl" ***
 
-       CALL init_cprj_ppnl(potential,error)
+       CALL init_cprj_ppnl(potential)
 
        !     *** Initialise the h(i,j) projector coefficients of ***
        !     *** the non-local part of the GTH pseudopotential   ***
 
-       CALL init_vprj_ppnl(potential,error)
+       CALL init_vprj_ppnl(potential)
 
     END IF
 
@@ -980,14 +960,12 @@ CONTAINS
 !> \brief   Initialise the h(i,j) projector coefficients of the non-local part
 !>          of the GTH pseudopotential.
 !> \param potential ...
-!> \param error ...
 !> \date    24.10.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_vprj_ppnl(potential,error)
+  SUBROUTINE init_vprj_ppnl(potential)
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_vprj_ppnl', &
       routineP = moduleN//':'//routineN
@@ -1029,14 +1007,12 @@ CONTAINS
 !> \param itype ...
 !> \param zeff ...
 !> \param zeff_correction ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_all_potential(potential,itype,zeff,zeff_correction,error)
+  SUBROUTINE init_all_potential(potential,itype,zeff,zeff_correction)
 
     TYPE(all_potential_type), POINTER        :: potential
     CHARACTER(LEN=*), OPTIONAL               :: itype
     REAL(KIND=dp), OPTIONAL                  :: zeff, zeff_correction
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_all_potential', &
       routineP = moduleN//':'//routineN
@@ -1135,20 +1111,18 @@ CONTAINS
 !> \param para_env ...
 !> \param dft_section ...
 !> \param potential_section ...
-!> \param error ...
 !> \date    14.05.2000
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_all_potential(element_symbol,potential_name,potential,zeff_correction,&
-       para_env, dft_section, potential_section, error)
+       para_env, dft_section, potential_section)
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section, potential_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_all_potential', &
       routineP = moduleN//':'//routineN
@@ -1180,11 +1154,10 @@ CONTAINS
 
     potential%name = potential_name
     read_from_input = .FALSE.
-    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    CALL section_vals_get(potential_section,explicit=read_from_input)
     IF (.NOT.read_from_input) THEN
-       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
-            error=error)
-       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name)
+       CALL parser_create(parser,potential_file_name,para_env=para_env)
     END IF
 
     !   *** Search for the requested potential in the potential file   ***
@@ -1197,9 +1170,9 @@ CONTAINS
        IF (read_from_input) THEN
           NULLIFY(list, val)
           found = .TRUE.
-          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list)
        ELSE
-          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
        END IF
        IF (found) THEN
           CALL uppercase(symbol)
@@ -1226,10 +1199,10 @@ CONTAINS
              l = 0
              CALL reallocate(elec_conf,0,l)
              IF (read_from_input) THEN
-                is_ok=cp_sll_val_next(list,val,error=error)
+                is_ok=cp_sll_val_next(list,val)
                 IF (.NOT.is_ok) CALL stop_program(routineN,moduleN, __LINE__,&
                                                   "Error reading the Potential from input file!!")
-                CALL val_get(val,c_val=line_att,error=error)
+                CALL val_get(val,c_val=line_att)
                 READ(line_att,*)elec_conf(l)
                 CALL remove_word(line_att)
                 DO WHILE (LEN_TRIM(line_att) /= 0)
@@ -1239,16 +1212,16 @@ CONTAINS
                    CALL remove_word(line_att)
                 END DO
              ELSE
-                CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
-                DO WHILE (parser_test_next_token(parser,error=error) == "INT")
+                CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
+                DO WHILE (parser_test_next_token(parser) == "INT")
                    l = l + 1
                    CALL reallocate(elec_conf,0,l)
-                   CALL parser_get_object(parser,elec_conf(l),error=error)
+                   CALL parser_get_object(parser,elec_conf(l))
                 END DO
                 irep = irep + 1
                 WRITE(line_att,'(100(1X,I0))')elec_conf
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                     c_val=TRIM(line_att), error=error)
+                     c_val=TRIM(line_att))
              END IF
 
              CALL reallocate(potential%elec_conf,0,l)
@@ -1258,23 +1231,23 @@ CONTAINS
              potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
              DEALLOCATE (elec_conf,STAT=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
              ! Read r(loc) to define the exponent of the core charge
              ! distribution and calculate the corresponding coefficient
 
              IF (read_from_input) THEN
-                is_ok=cp_sll_val_next(list,val,error=error)
+                is_ok=cp_sll_val_next(list,val)
                 IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                   "Error reading the Potential from input file!!")
-                CALL val_get(val,c_val=line_att,error=error)
+                CALL val_get(val,c_val=line_att)
                 READ(line_att,*)r
              ELSE
-                CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                CALL parser_get_object(parser,r,newline=.TRUE.)
                 irep = irep + 1
                 WRITE(line_att,'(E24.16)')r
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                     c_val=TRIM(line_att), error=error)
+                     c_val=TRIM(line_att))
              END IF
              alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -1301,13 +1274,13 @@ CONTAINS
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
+               c_val=TRIM(line_att))
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
+               c_val=TRIM(line_att))
        END IF
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END IF
   END SUBROUTINE read_all_potential
 
@@ -1319,19 +1292,17 @@ CONTAINS
 !> \param para_env ...
 !> \param dft_section ...
 !> \param potential_section ...
-!> \param error ...
 !> \date    24.12.2014
 !> \author  JGH
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_local_potential(element_symbol,potential_name,potential,&
-       para_env, dft_section, potential_section, error)
+       para_env, dft_section, potential_section)
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(local_potential_type), POINTER      :: potential
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section, potential_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_local_potential', &
       routineP = moduleN//':'//routineN
@@ -1363,11 +1334,10 @@ CONTAINS
 
     potential%name = potential_name
     read_from_input = .FALSE.
-    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    CALL section_vals_get(potential_section,explicit=read_from_input)
     IF (.NOT.read_from_input) THEN
-       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
-            error=error)
-       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name)
+       CALL parser_create(parser,potential_file_name,para_env=para_env)
     END IF
 
     !   *** Search for the requested potential in the potential file   ***
@@ -1380,9 +1350,9 @@ CONTAINS
        IF (read_from_input) THEN
           NULLIFY(list, val)
           found = .TRUE.
-          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list)
        ELSE
-          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
        END IF
        IF (found) THEN
           CALL uppercase(symbol)
@@ -1407,39 +1377,39 @@ CONTAINS
 
              ! Read ngau and npol
              IF (read_from_input) THEN
-                is_ok=cp_sll_val_next(list,val,error=error)
+                is_ok=cp_sll_val_next(list,val)
                 IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                   "Error reading the Potential from input file!!")
-                CALL val_get(val,c_val=line_att,error=error)
+                CALL val_get(val,c_val=line_att)
                 READ(line_att,*) ngau, npol
                 CALL remove_word(line_att)
              ELSE
-                CALL parser_get_object(parser,ngau,newline=.TRUE.,error=error)
-                CALL parser_get_object(parser,npol,error=error)
+                CALL parser_get_object(parser,ngau,newline=.TRUE.)
+                CALL parser_get_object(parser,npol)
                 irep = irep + 1
                 WRITE(line_att,'(2(1X,I0))') ngau, npol
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                     c_val=TRIM(line_att), error=error)
+                     c_val=TRIM(line_att))
              END IF
 
              CALL reallocate(alpha,1,ngau)
              CALL reallocate(cval,1,ngau,1,npol)
              DO igau=1,ngau
                 IF (read_from_input) THEN
-                   is_ok=cp_sll_val_next(list,val,error=error)
+                   is_ok=cp_sll_val_next(list,val)
                    IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                      "Error reading the Potential from input file!!")
-                   CALL val_get(val,c_val=line_att,error=error)
+                   CALL val_get(val,c_val=line_att)
                    READ(line_att,*) alpha(igau),(cval(igau,ipol),ipol=1,npol)
                 ELSE
-                   CALL parser_get_object(parser,alpha(igau),newline=.TRUE.,error=error)
+                   CALL parser_get_object(parser,alpha(igau),newline=.TRUE.)
                    DO ipol=1,npol
-                      CALL parser_get_object(parser,cval(igau,ipol),newline=.FALSE.,error=error)
+                      CALL parser_get_object(parser,cval(igau,ipol),newline=.FALSE.)
                    END DO
                    irep = irep + 1
                    WRITE(line_att,'(8(E24.16))') alpha(igau),(cval(igau,ipol),ipol=1,npol)
                    CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                        c_val=TRIM(line_att), error=error)
+                        c_val=TRIM(line_att))
                 END IF
              END DO
              alpha = 1.0_dp/(2.0_dp*alpha**2)
@@ -1479,13 +1449,13 @@ CONTAINS
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
+               c_val=TRIM(line_att))
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
+               c_val=TRIM(line_att))
        END IF
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END IF
 
   END SUBROUTINE read_local_potential
@@ -1499,7 +1469,6 @@ CONTAINS
 !> \param para_env ...
 !> \param dft_section ...
 !> \param potential_section ...
-!> \param error ...
 !> \date    14.05.2000
 !> \par  Literature
 !>         - S. Goedecker, M. Teter and J. Hutter,
@@ -1510,14 +1479,13 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,zeff_correction,&
-       para_env, dft_section, potential_section, error)
+       para_env, dft_section, potential_section)
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section, potential_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential', &
       routineP = moduleN//':'//routineN
@@ -1554,11 +1522,10 @@ CONTAINS
 
     potential%name = potential_name
     read_from_input = .FALSE.
-    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    CALL section_vals_get(potential_section,explicit=read_from_input)
     IF (.NOT.read_from_input) THEN
-       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name,&
-            error=error)
-       CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
+       CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",c_val=potential_file_name)
+       CALL parser_create(parser,potential_file_name,para_env=para_env)
     END IF
 
     !initialize extended form
@@ -1579,9 +1546,9 @@ CONTAINS
        IF (read_from_input) THEN
           NULLIFY(list, val)
           found = .TRUE.
-          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+          CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list)
        ELSE
-          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+          CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
        END IF
        IF (found) THEN
           CALL uppercase(symbol)
@@ -1607,10 +1574,10 @@ CONTAINS
              l = 0
              CALL reallocate(elec_conf,0,l)
              IF (read_from_input) THEN
-                is_ok=cp_sll_val_next(list,val,error=error)
+                is_ok=cp_sll_val_next(list,val)
                 IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                   "Error reading the Potential from input file!!")
-                CALL val_get(val,c_val=line_att,error=error)
+                CALL val_get(val,c_val=line_att)
                 READ(line_att,*)elec_conf(l)
                 CALL remove_word(line_att)
                 DO WHILE (LEN_TRIM(line_att) /= 0)
@@ -1620,16 +1587,16 @@ CONTAINS
                    CALL remove_word(line_att)
                 END DO
              ELSE
-                CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
-                DO WHILE (parser_test_next_token(parser,error=error) == "INT")
+                CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
+                DO WHILE (parser_test_next_token(parser) == "INT")
                    l = l + 1
                    CALL reallocate(elec_conf,0,l)
-                   CALL parser_get_object(parser,elec_conf(l),error=error)
+                   CALL parser_get_object(parser,elec_conf(l))
                 END DO
                 irep = irep + 1
                 WRITE(line_att,'(100(1X,I0))')elec_conf
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                     c_val=TRIM(line_att), error=error)
+                     c_val=TRIM(line_att))
              END IF
 
              CALL reallocate(potential%elec_conf,0,l)
@@ -1639,21 +1606,21 @@ CONTAINS
              potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
              DEALLOCATE (elec_conf,STAT=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
              !         *** Read r(loc) to define the exponent of the core charge    ***
              !         *** distribution and calculate the corresponding coefficient ***
 
              IF (read_from_input) THEN
-                is_ok=cp_sll_val_next(list,val,error=error)
+                is_ok=cp_sll_val_next(list,val)
                 IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                   "Error reading the Potential from input file!!")
-                CALL val_get(val,c_val=line_att,error=error)
+                CALL val_get(val,c_val=line_att)
                 READ(line_att,*)r
                 CALL remove_word(line_att)
              ELSE
                 line_att = ""
-                CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                CALL parser_get_object(parser,r,newline=.TRUE.)
                 istr=LEN_TRIM(line_att)+1
                 WRITE(line_att(istr:),'(E24.16)')r
              END IF
@@ -1672,7 +1639,7 @@ CONTAINS
                 READ(line_att,*)n
                 CALL remove_word(line_att)
              ELSE
-                CALL parser_get_object(parser,n,error=error)
+                CALL parser_get_object(parser,n)
                 istr=LEN_TRIM(line_att)+1
                 WRITE(line_att(istr:),'(1X,I0)')n
              END IF
@@ -1684,7 +1651,7 @@ CONTAINS
                    READ(line_att,*) ci
                    CALL remove_word(line_att)
                 ELSE
-                   CALL parser_get_object(parser,ci,error=error)
+                   CALL parser_get_object(parser,ci)
                    istr=LEN_TRIM(line_att)+1
                    WRITE(line_att(istr:),'(E24.16)') ci
                 END IF
@@ -1695,7 +1662,7 @@ CONTAINS
              IF (.NOT.read_from_input) THEN
                 irep = irep + 1
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                     c_val=TRIM(line_att), error=error)
+                     c_val=TRIM(line_att))
                 line_att = ""
              ELSE
                 IF (LEN_TRIM(line_att)/= 0) THEN
@@ -1711,9 +1678,9 @@ CONTAINS
              ! local potential, NLCC, LSD potential
              IF (read_from_input) THEN
                DO
-                 is_ok=cp_sll_val_next(list,val,error=error)
-                 CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-                 CALL val_get(val,c_val=line_att,error=error)
+                 is_ok=cp_sll_val_next(list,val)
+                 CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                 CALL val_get(val,c_val=line_att)
                  IF(INDEX(line_att,"LPOT") /= 0) THEN
                    potential%lpotextended = .TRUE.
                    CALL remove_word(line_att)
@@ -1726,9 +1693,9 @@ CONTAINS
                    CALL reallocate(potential%nct_lpot,1,n)
                    CALL reallocate(potential%cval_lpot,1,4,1,n)
                    DO ipot=1,potential%nexp_lpot
-                      is_ok=cp_sll_val_next(list,val,error=error)
-                      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-                      CALL val_get(val,c_val=line_att,error=error)
+                      is_ok=cp_sll_val_next(list,val)
+                      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                      CALL val_get(val,c_val=line_att)
                       READ(line_att,*) r
                       potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
                       CALL remove_word(line_att)
@@ -1751,9 +1718,9 @@ CONTAINS
                    CALL reallocate(potential%nct_nlcc,1,n)
                    CALL reallocate(potential%cval_nlcc,1,4,1,n)
                    DO ipot=1,potential%nexp_nlcc
-                      is_ok=cp_sll_val_next(list,val,error=error)
-                      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-                      CALL val_get(val,c_val=line_att,error=error)
+                      is_ok=cp_sll_val_next(list,val)
+                      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                      CALL val_get(val,c_val=line_att)
                       READ(line_att,*) potential%alpha_nlcc(ipot)
                       CALL remove_word(line_att)
                       READ(line_att,*) potential%nct_nlcc(ipot)
@@ -1775,9 +1742,9 @@ CONTAINS
                    CALL reallocate(potential%nct_lsd,1,n)
                    CALL reallocate(potential%cval_lsd,1,4,1,n)
                    DO ipot=1,potential%nexp_lsd
-                      is_ok=cp_sll_val_next(list,val,error=error)
-                      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
-                      CALL val_get(val,c_val=line_att,error=error)
+                      is_ok=cp_sll_val_next(list,val)
+                      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                      CALL val_get(val,c_val=line_att)
                       READ(line_att,*) r
                       potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
                       CALL remove_word(line_att)
@@ -1796,15 +1763,15 @@ CONTAINS
                END DO
              ELSE
                DO
-                 CALL parser_get_next_line(parser,1,error=error)
-                 IF(parser_test_next_token(parser,error=error) == "INT") THEN
+                 CALL parser_get_next_line(parser,1)
+                 IF(parser_test_next_token(parser) == "INT") THEN
                    EXIT
-                 ELSEIF(parser_test_next_token(parser,error=error) == "STR") THEN
-                   CALL parser_get_object(parser,line,error=error)
+                 ELSEIF(parser_test_next_token(parser) == "STR") THEN
+                   CALL parser_get_object(parser,line)
                    IF(INDEX(LINE,"LPOT") /= 0) THEN
                      ! local potential
                      potential%lpotextended = .TRUE.
-                     CALL parser_get_object(parser,potential%nexp_lpot,error=error)
+                     CALL parser_get_object(parser,potential%nexp_lpot)
                      n = potential%nexp_lpot
                      NULLIFY(potential%alpha_lpot,potential%nct_lpot,potential%cval_lpot)
                      CALL reallocate(potential%alpha_lpot,1,n)
@@ -1814,14 +1781,14 @@ CONTAINS
                      WRITE(line_att,'(A,1X,I0)') "LPOT",n
                      irep = irep + 1
                      CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                               c_val=TRIM(line_att), error=error)
+                                               c_val=TRIM(line_att))
                      DO ipot=1,potential%nexp_lpot
-                       CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,r,newline=.TRUE.)
                        potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
-                       CALL parser_get_object(parser,potential%nct_lpot(ipot),error=error)
+                       CALL parser_get_object(parser,potential%nct_lpot(ipot))
                        CALL reallocate(tmp_vals,1,potential%nct_lpot(ipot))
                        DO ic=1,potential%nct_lpot(ipot)
-                         CALL parser_get_object(parser,ci,error=error)
+                         CALL parser_get_object(parser,ci)
                          tmp_vals(ic)=ci
                          rc2 = (2._dp*potential%alpha_lpot(ipot))**(ic-1)
                          potential%cval_lpot(ic,ipot) = ci*rc2
@@ -1831,12 +1798,12 @@ CONTAINS
                        WRITE(line_att,'(E24.16,1X,I0,100(1X,E24.16))') r,potential%nct_lpot(ipot), &
                                                                        tmp_vals(1:potential%nct_lpot(ipot))
                        CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                                 c_val=TRIM(line_att), error=error)
+                                                 c_val=TRIM(line_att))
                      END DO
                    ELSEIF(INDEX(LINE,"NLCC") /= 0) THEN
                      ! NLCC
                      potential%nlcc = .TRUE.
-                     CALL parser_get_object(parser,potential%nexp_nlcc,error=error)
+                     CALL parser_get_object(parser,potential%nexp_nlcc)
                      n = potential%nexp_nlcc
                      NULLIFY(potential%alpha_nlcc,potential%nct_nlcc,potential%cval_nlcc)
                      CALL reallocate(potential%alpha_nlcc,1,n)
@@ -1846,13 +1813,13 @@ CONTAINS
                      WRITE(line_att,'(A,1X,I0)') "NLCC",n
                      irep = irep + 1
                      CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                               c_val=TRIM(line_att), error=error)
+                                               c_val=TRIM(line_att))
                      DO ipot=1,potential%nexp_nlcc
-                       CALL parser_get_object(parser,potential%alpha_nlcc(ipot),newline=.TRUE.,error=error)
-                       CALL parser_get_object(parser,potential%nct_nlcc(ipot),error=error)
+                       CALL parser_get_object(parser,potential%alpha_nlcc(ipot),newline=.TRUE.)
+                       CALL parser_get_object(parser,potential%nct_nlcc(ipot))
                        CALL reallocate(tmp_vals,1,potential%nct_nlcc(ipot))
                        DO ic=1,potential%nct_nlcc(ipot)
-                         CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot),error=error)
+                         CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot))
                          tmp_vals(ic)=potential%cval_nlcc(ic,ipot)
                         !make it compatible with bigdft style
                          potential%cval_nlcc(ic,ipot)=potential%cval_nlcc(ic,ipot)/(4.0_dp*pi)
@@ -1862,12 +1829,12 @@ CONTAINS
                        WRITE(line_att,'(E24.16,1X,I0,100(1X,E24.16))') potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
                                                                        tmp_vals(1:potential%nct_nlcc(ipot))
                        CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                                 c_val=TRIM(line_att), error=error)
+                                                 c_val=TRIM(line_att))
                      END DO
                    ELSEIF(INDEX(LINE,"LSD") /= 0) THEN
                      ! LSD potential
                      potential%lsdpot = .TRUE.
-                     CALL parser_get_object(parser,potential%nexp_lsd,error=error)
+                     CALL parser_get_object(parser,potential%nexp_lsd)
                      n = potential%nexp_lsd
                      NULLIFY(potential%alpha_lsd,potential%nct_lsd,potential%cval_lsd)
                      CALL reallocate(potential%alpha_lsd,1,n)
@@ -1877,14 +1844,14 @@ CONTAINS
                      WRITE(line_att,'(A,1X,I0)') "LSD",n
                      irep = irep + 1
                      CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                               c_val=TRIM(line_att), error=error)
+                                               c_val=TRIM(line_att))
                      DO ipot=1,potential%nexp_lsd
-                       CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,r,newline=.TRUE.)
                        potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
-                       CALL parser_get_object(parser,potential%nct_lsd(ipot),error=error)
+                       CALL parser_get_object(parser,potential%nct_lsd(ipot))
                        CALL reallocate(tmp_vals,1,potential%nct_lsd(ipot))
                        DO ic=1,potential%nct_lsd(ipot)
-                         CALL parser_get_object(parser,ci,error=error)
+                         CALL parser_get_object(parser,ci)
                          tmp_vals(ic)=ci
                          rc2 = (2._dp*potential%alpha_lsd(ipot))**(ic-1)
                          potential%cval_lsd(ic,ipot) = ci*rc2
@@ -1894,13 +1861,13 @@ CONTAINS
                        WRITE(line_att,'(E24.16,1X,I0,100(1X,E24.16))') r,potential%nct_lsd(ipot), &
                                                                        tmp_vals(1:potential%nct_lsd(ipot))
                        CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                                 c_val=TRIM(line_att), error=error)
+                                                 c_val=TRIM(line_att))
                      END DO
                    ELSE
-                     CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                     CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
                    END IF
                  ELSE
-                   CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                   CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
                  END IF
                END DO
              END IF
@@ -1910,11 +1877,11 @@ CONTAINS
                 READ(line_att,*)n
                 CALL remove_word(line_att)
              ELSE
-                CALL parser_get_object(parser,n,error=error)
+                CALL parser_get_object(parser,n)
                 irep = irep + 1
                 WRITE(line_att,'(1X,I0)')n
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                     c_val=TRIM(line_att), error=error)
+                     c_val=TRIM(line_att))
              END IF
              potential%lppnl = n - 1
              potential%nppnl = 0
@@ -1941,18 +1908,18 @@ CONTAINS
 
                 DO l=0,lppnl
                    IF (read_from_input) THEN
-                      is_ok=cp_sll_val_next(list,val,error=error)
+                      is_ok=cp_sll_val_next(list,val)
                       IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                         "Error reading the Potential from input file!!")
-                      CALL val_get(val,c_val=line_att,error=error)
+                      CALL val_get(val,c_val=line_att)
                       READ(line_att,*)r
                       CALL remove_word(line_att)
                       READ(line_att,*)nprj_ppnl
                       CALL remove_word(line_att)
                    ELSE
                       line_att =""
-                      CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
-                      CALL parser_get_object(parser,nprj_ppnl,error=error)
+                      CALL parser_get_object(parser,r,newline=.TRUE.)
+                      CALL parser_get_object(parser,nprj_ppnl)
                       istr=LEN_TRIM(line_att)+1
                       WRITE(line_att(istr:),'(E24.16,1X,I0)')r, nprj_ppnl
                    END IF
@@ -1979,7 +1946,7 @@ CONTAINS
                             READ(line_att,*)hprj_ppnl(i,i,l)
                             CALL remove_word(line_att)
                          ELSE
-                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),error=error)
+                            CALL parser_get_object(parser,hprj_ppnl(i,i,l))
                             istr=LEN_TRIM(line_att)+1
                             WRITE(line_att(istr:),'(E24.16)')hprj_ppnl(i,i,l)
                          END IF
@@ -1987,18 +1954,18 @@ CONTAINS
                          IF (read_from_input) THEN
                             IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,__LINE__,&
                                                             "Error reading the Potential from input file!!")
-                            is_ok=cp_sll_val_next(list,val,error=error)
+                            is_ok=cp_sll_val_next(list,val)
                             IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
                                                               "Error reading the Potential from input file!!")
-                            CALL val_get(val,c_val=line_att,error=error)
+                            CALL val_get(val,c_val=line_att)
                             READ(line_att,*)hprj_ppnl(i,i,l)
                             CALL remove_word(line_att)
                          ELSE
                             irep = irep + 1
                             CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                 c_val=TRIM(line_att), error=error)
+                                 c_val=TRIM(line_att))
                             line_att =""
-                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.,error=error)
+                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.)
                             istr=LEN_TRIM(line_att)+1
                             WRITE(line_att(istr:),'(E24.16)')hprj_ppnl(i,i,l)
                          END IF
@@ -2008,7 +1975,7 @@ CONTAINS
                             READ(line_att,*)hprj_ppnl(i,j,l)
                             CALL remove_word(line_att)
                          ELSE
-                            CALL parser_get_object(parser,hprj_ppnl(i,j,l),error=error)
+                            CALL parser_get_object(parser,hprj_ppnl(i,j,l))
                             istr=LEN_TRIM(line_att)+1
                             WRITE(line_att(istr:),'(E24.16)')hprj_ppnl(i,j,l)
                          END IF
@@ -2017,7 +1984,7 @@ CONTAINS
                    IF (.NOT.read_from_input) THEN
                       irep = irep + 1
                       CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                           c_val=TRIM(line_att), error=error)
+                           c_val=TRIM(line_att))
                       line_att =""
                    ELSE
                       IF (LEN_TRIM(line_att) /= 0) THEN
@@ -2046,7 +2013,7 @@ CONTAINS
                 CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
 
                 DEALLOCATE (hprj_ppnl,STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
              END IF
              EXIT search_loop
           END IF
@@ -2068,13 +2035,13 @@ CONTAINS
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
+               c_val=TRIM(line_att))
           irep = irep + 1
           WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
+               c_val=TRIM(line_att))
        END IF
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END IF
 
     IF (ASSOCIATED(tmp_vals)) DEALLOCATE(tmp_vals)
@@ -2086,14 +2053,12 @@ CONTAINS
 !> \param potential ...
 !> \param z ...
 !> \param zeff_correction ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE set_default_all_potential(potential,z,zeff_correction,error)
+  SUBROUTINE set_default_all_potential(potential,z,zeff_correction)
 
     TYPE(all_potential_type), POINTER        :: potential
     INTEGER, INTENT(IN)                      :: z
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_default_all_potential', &
       routineP = moduleN//':'//routineN
@@ -2371,9 +2336,8 @@ CONTAINS
 !> \brief ...
 !> \param potential ...
 !> \param output_unit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_all_potential(potential,output_unit,error)
+  SUBROUTINE write_all_potential(potential,output_unit)
 
     ! Write an atomic all-electron potential data set to the output unit.
 
@@ -2381,7 +2345,6 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER        :: potential
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=20)                        :: string
 
@@ -2406,9 +2369,8 @@ CONTAINS
 !> \brief ...
 !> \param potential ...
 !> \param output_unit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_local_potential(potential,output_unit,error)
+  SUBROUTINE write_local_potential(potential,output_unit)
 
     ! Write an atomic local potential data set to the output unit.
 
@@ -2416,7 +2378,6 @@ CONTAINS
 
     TYPE(local_potential_type), POINTER      :: potential
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: igau, ipol
 
@@ -2438,16 +2399,14 @@ CONTAINS
 !> \brief ...
 !> \param potential ...
 !> \param output_unit ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_gth_potential(potential,output_unit,error)
+  SUBROUTINE write_gth_potential(potential,output_unit)
 
     ! Write an atomic GTH potential data set to the output unit.
     ! - Creation (09.02.2002,MK)
 
     TYPE(gth_potential_type), POINTER        :: potential
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=20)                        :: string
     INTEGER                                  :: i, j, l

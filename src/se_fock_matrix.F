@@ -76,15 +76,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param calculate_forces ...
 !> \param just_energy ...
-!> \param error ...
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix (qs_env,calculate_forces,just_energy,error)
+  SUBROUTINE build_se_fock_matrix (qs_env,calculate_forces,just_energy)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
       routineP = moduleN//':'//routineN
@@ -122,8 +120,8 @@ CONTAINS
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
     NULLIFY(atomic_kind_set, atprop)
     NULLIFY(ks_env, ks_matrix, rho, energy)
-    logger => cp_error_get_logger(error)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    logger => cp_get_default_logger()
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
 
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -136,71 +134,70 @@ CONTAINS
                     ks_env=ks_env,&
                     matrix_ks=ks_matrix,&
                     rho=rho,&
-                    energy=energy,&
-                    error=error)
+                    energy=energy)
 
     SELECT CASE (dft_control%qs_control%method_id)
     CASE DEFAULT
        ! Abort if the parameterization is an unknown one..
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Fock Matrix not available for the chosen parameterization! ", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
 
     CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
          do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
 
        ! Check for properly allocation of Matrixes
        nspins=dft_control%nspins
-       CPPrecondition(((nspins>=1).AND.(nspins<=2)),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(((nspins>=1).AND.(nspins<=2)),cp_failure_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
+       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
 
        se_control  => dft_control%qs_control%se_control
-       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF")
+       CALL qs_rho_get(rho, rho_ao=matrix_p)
 
        energy%qmmm_el = 0.0_dp
        energy%total = 0.0_dp
 
        DO ispin=1,nspins
           ! Copy the core matrix into the fock matrix
-          CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+          CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix)
        END DO
 
 !      WRITE ( *, * ) 'KS_ENV%s_mstruct_changed', ks_env%s_mstruct_changed
        IF(atprop%energy) THEN
-         CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+         CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
          natom = SIZE(particle_set)
-         CALL atprop_array_init(atprop%atecoul,natom,error)
+         CALL atprop_array_init(atprop%atecoul,natom)
        END IF
 
        ! Compute Exchange and Coulomb terms
-       CALL semi_empirical_si_initialize(store_int_env, s_mstruct_changed, error)
+       CALL semi_empirical_si_initialize(store_int_env, s_mstruct_changed)
        CALL build_fock_matrix_exchange(qs_env,ks_matrix,matrix_p,calculate_forces,&
-            store_int_env,error)
+            store_int_env)
        CALL build_fock_matrix_coulomb(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-            store_int_env,error)
+            store_int_env)
 
        ! Debug statements for Long-Range
        IF (debug_energy_coulomb_lr.AND.se_control%do_ewald) THEN
           CALL dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
-                                     calculate_forces, store_int_env, error)
+                                     calculate_forces, store_int_env)
        END IF
 
        ! Long Range Electrostatic
        IF (se_control%do_ewald) THEN
           ! Evaluate Coulomb Long-Range
           CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-               store_int_env, error)
+               store_int_env)
 
           ! Possibly handle the slowly convergent term 1/R^3
           IF (se_control%do_ewald_r3) THEN
             CALL build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,&
-                 calculate_forces,error)
+                 calculate_forces)
           END IF
        END IF
-       CALL semi_empirical_si_finalize(store_int_env, s_mstruct_changed, error)
+       CALL semi_empirical_si_finalize(store_int_env, s_mstruct_changed)
 
        IF(atprop%energy) THEN
          atprop%atecoul = 0.5_dp*atprop%atecoul
@@ -209,22 +206,22 @@ CONTAINS
        ! Compute the Hartree energy
        ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.
        DO ispin=1,nspins
-          CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,error=error)
+          CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul)
           energy%hartree = energy%hartree + ecoul
        END DO
 !      WRITE ( *, * ) 'AFTER Hartree',  ecoul, energy%hartree
 
 
-!       CALL build_fock_matrix_ph(qs_env,ks_matrix,error)
+!       CALL build_fock_matrix_ph(qs_env,ks_matrix)
        ! QM/MM
        IF (qs_env%qmmm) THEN
           DO ispin = 1, nspins
              ! If QM/MM sumup the 1el Hamiltonian
              CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
-                  1.0_dp,1.0_dp,error=error)
+                  1.0_dp,1.0_dp)
              ! Compute QM/MM Energy
              CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
-                  matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
+                  matrix_p(ispin)%matrix,trace=qmmm_el)
              energy%qmmm_el = energy%qmmm_el + qmmm_el
           END DO
        END IF
@@ -243,7 +240,7 @@ CONTAINS
 
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
-            extension=".scfLog",error=error)
+            extension=".scfLog")
 
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
@@ -256,20 +253,20 @@ CONTAINS
        END IF
 
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%DETAILED_ENERGY", error=error)
+            "PRINT%DETAILED_ENERGY")
 
        ! Here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
-          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
           DO ispin=1,SIZE(mo_derivs)
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
                   mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
              IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
              CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
-                  0.0_dp,mo_derivs(ispin)%matrix, error=error)
+                  0.0_dp,mo_derivs(ispin)%matrix)
           ENDDO
        ENDIF
 

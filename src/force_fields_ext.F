@@ -61,15 +61,13 @@ CONTAINS
 !> \param ff_type ...
 !> \param para_env ...
 !> \param mm_section ...
-!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
-  SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section, error )
+  SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section)
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
       routineP = moduleN//':'//routineN
@@ -92,9 +90,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
-         extension=".mmLog",error=error)
+         extension=".mmLog")
 
     avail_section( 1) = "TITLE"
     avail_section( 2) = "TOPPHYSCON"
@@ -123,63 +121,63 @@ CONTAINS
     NULLIFY(namearray)
     ! ATOMTYPENAME SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
     label = TRIM(avail_section(4))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ntype,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ntype)
        CALL reallocate(namearray,1,ntype)
        DO itype=1,ntype
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.,error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.)
           IF(iw>0) WRITE(iw,*) "GTOP_INFO|  ",TRIM(namearray(itype))
        END DO
     END IF
-    CALL parser_release(parser,error=error)
+    CALL parser_release(parser)
 
     ! SOLVENTCONSTR SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
 
     label = TRIM(avail_section(21))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ncon,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ncon)
        CALL reallocate(gro_info%solvent_k,1,ncon)
        CALL reallocate(gro_info%solvent_r0,1,ncon)
        DO icon=1,ncon
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,itemp,error=error)
-          CALL parser_get_object(parser,itemp,error=error)
-          CALL parser_get_object(parser,gro_info%solvent_r0(icon),error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,itemp)
+          CALL parser_get_object(parser,itemp)
+          CALL parser_get_object(parser,gro_info%solvent_r0(icon))
           gro_info%solvent_k(icon)=0.0_dp
        END DO
     END IF
-    CALL parser_release(parser,error=error)
+    CALL parser_release(parser)
 
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
     ! BONDTYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'
     label = TRIM(avail_section(7))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ntype,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ntype)
        CALL reallocate(gro_info%bond_k,1,ntype)
        CALL reallocate(gro_info%bond_r0,1,ntype)
        DO itype=1,ntype
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
-          CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,gro_info%bond_k(itype))
+          CALL parser_get_object(parser,gro_info%bond_r0(itype))
           IF(ff_type%ff_type==do_ff_g96) THEN
-             gro_info%bond_k(itype) = cp_unit_to_cp2k(gro_info%bond_k(itype),"kjmol*nm^-4",error=error)
+             gro_info%bond_k(itype) = cp_unit_to_cp2k(gro_info%bond_k(itype),"kjmol*nm^-4")
           ELSE ! Assume its G87
              gro_info%bond_k(itype) = (2.0_dp) * gro_info%bond_k(itype) * gro_info%bond_r0(itype)**2
-             gro_info%bond_k(itype) = cp_unit_to_cp2k(gro_info%bond_k(itype),"kjmol*nm^-2",error=error)
+             gro_info%bond_k(itype) = cp_unit_to_cp2k(gro_info%bond_k(itype),"kjmol*nm^-2")
           END IF
-          gro_info%bond_r0(itype)= cp_unit_to_cp2k(gro_info%bond_r0(itype),"nm",error=error)
+          gro_info%bond_r0(itype)= cp_unit_to_cp2k(gro_info%bond_r0(itype),"nm")
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
        END DO
     END IF
@@ -187,17 +185,17 @@ CONTAINS
     ! BONDANGLETYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLETYPE section'
     label = TRIM(avail_section(10))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ntype,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ntype)
        CALL reallocate(gro_info%bend_k,1,ntype)
        CALL reallocate(gro_info%bend_theta0,1,ntype)
        DO itype=1,ntype
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
-          CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
-          gro_info%bend_theta0(itype) = cp_unit_to_cp2k(gro_info%bend_theta0(itype),"deg",error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,gro_info%bend_k(itype))
+          CALL parser_get_object(parser,gro_info%bend_theta0(itype))
+          gro_info%bend_theta0(itype) = cp_unit_to_cp2k(gro_info%bend_theta0(itype),"deg")
           IF(ff_type%ff_type==do_ff_g96) THEN
              gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
           ELSE ! Assume its G87
@@ -206,7 +204,7 @@ CONTAINS
              csq = (cost2-SQRT(sdet))/(2.0_dp*cost2-1.0_dp)
              gro_info%bend_k(itype) = ekt/ACOS(csq)**2
           END IF
-          gro_info%bend_k(itype) = cp_unit_to_cp2k(gro_info%bend_k(itype),"kjmol",error=error)
+          gro_info%bend_k(itype) = cp_unit_to_cp2k(gro_info%bend_k(itype),"kjmol")
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
        END DO
     END IF
@@ -214,18 +212,18 @@ CONTAINS
     ! IMPDIHEDRALTYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALTYPE section'
     label = TRIM(avail_section(13))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ntype,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ntype)
        CALL reallocate(gro_info%impr_k,1,ntype)
        CALL reallocate(gro_info%impr_phi0,1,ntype)
        DO itype=1,ntype
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,gro_info%impr_k(itype),error=error)
-          CALL parser_get_object(parser,gro_info%impr_phi0(itype),error=error)
-          gro_info%impr_phi0(itype) = cp_unit_to_cp2k(gro_info%impr_phi0(itype),"deg",error=error)
-          gro_info%impr_k(itype) = cp_unit_to_cp2k(gro_info%impr_k(itype),"kjmol*deg^-2",error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,gro_info%impr_k(itype))
+          CALL parser_get_object(parser,gro_info%impr_phi0(itype))
+          gro_info%impr_phi0(itype) = cp_unit_to_cp2k(gro_info%impr_phi0(itype),"deg")
+          gro_info%impr_k(itype) = cp_unit_to_cp2k(gro_info%impr_k(itype),"kjmol*deg^-2")
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
        END DO
     END IF
@@ -233,34 +231,34 @@ CONTAINS
     ! DIHEDRALTYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALTYPE section'
     label = TRIM(avail_section(16))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ntype,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ntype)
        CALL reallocate(gro_info%torsion_k,1,ntype)
        CALL reallocate(gro_info%torsion_m,1,ntype)
        CALL reallocate(gro_info%torsion_phi0,1,ntype)
        DO itype=1,ntype
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,gro_info%torsion_k(itype),error=error)
-          CALL parser_get_object(parser,cosphi0,error=error)
-          CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,gro_info%torsion_k(itype))
+          CALL parser_get_object(parser,cosphi0)
+          CALL parser_get_object(parser,gro_info%torsion_m(itype))
           gro_info%torsion_phi0(itype) = ACOS(cosphi0)
-          gro_info%torsion_k(itype) = cp_unit_to_cp2k(gro_info%torsion_k(itype),"kjmol",error=error)
+          gro_info%torsion_k(itype) = cp_unit_to_cp2k(gro_info%torsion_k(itype),"kjmol")
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
        END DO
     END IF
 
-    CALL parser_release(parser,error=error)
+    CALL parser_release(parser)
 
     ! LJPARAMETERS SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
     label = TRIM(avail_section(19))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
-       CALL parser_get_next_line(parser,1,error=error)
-       CALL parser_get_object(parser,ntype,error=error)
+       CALL parser_get_next_line(parser,1)
+       CALL parser_get_object(parser,ntype)
        offset = 0
        IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
        ntype=SIZE(namearray)
@@ -277,21 +275,21 @@ CONTAINS
        gro_info%nonbond_c6_14  = 0._dp
 
        DO itype=1,ntype*(ntype+1)/2
-          CALL parser_get_next_line(parser,1,error=error)
-          CALL parser_get_object(parser,iatom,error=error)
-          CALL parser_get_object(parser,jatom,error=error)
+          CALL parser_get_next_line(parser,1)
+          CALL parser_get_object(parser,iatom)
+          CALL parser_get_object(parser,jatom)
           IF(iatom==jatom) THEN
              gro_info%nonbond_a(iatom) = namearray(iatom)
              gro_info%nonbond_a_14(iatom) = namearray(iatom)
           END IF
-          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom,jatom),error=error)
-          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom,jatom),error=error)
-          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom,jatom),error=error)
-          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom,jatom),error=error)
-          gro_info%nonbond_c6(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6(iatom,jatom),"kjmol*nm^6",error=error)
-          gro_info%nonbond_c12(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12(iatom,jatom),"kjmol*nm^12",error=error)
-          gro_info%nonbond_c6_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6_14(iatom,jatom),"kjmol*nm^6",error=error)
-          gro_info%nonbond_c12_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12_14(iatom,jatom),"kjmol*nm^12",error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom,jatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom,jatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom,jatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom,jatom))
+          gro_info%nonbond_c6(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6(iatom,jatom),"kjmol*nm^6")
+          gro_info%nonbond_c12(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12(iatom,jatom),"kjmol*nm^12")
+          gro_info%nonbond_c6_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6_14(iatom,jatom),"kjmol*nm^6")
+          gro_info%nonbond_c12_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12_14(iatom,jatom),"kjmol*nm^12")
 
           gro_info%nonbond_c6_14(jatom,iatom)= gro_info%nonbond_c6_14(iatom,jatom)
           gro_info%nonbond_c12_14(jatom,iatom)= gro_info%nonbond_c12_14(iatom,jatom)
@@ -300,14 +298,14 @@ CONTAINS
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
        END DO
     END IF
-    CALL parser_release(parser,error=error)
+    CALL parser_release(parser)
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
-         "PRINT%FF_INFO",error=error)
+         "PRINT%FF_INFO")
     CALL timestop(handle)
 
     DEALLOCATE(namearray,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE read_force_field_gromos
 
 ! *****************************************************************************
@@ -315,15 +313,13 @@ CONTAINS
 !> \param ff_type ...
 !> \param para_env ...
 !> \param mm_section ...
-!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
-  SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section, error )
+  SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section)
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
       routineP = moduleN//':'//routineN
@@ -348,9 +344,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
-         extension=".mmLog",error=error)
+         extension=".mmLog")
 
     avail_section(1) = "BOND"     ; bond_section(1) = avail_section(1)
     avail_section(11)= "BONDS"
@@ -381,19 +377,19 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nbond = 0
     DO ilab = 1, SIZE(bond_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(bond_section(ilab))
        DO
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
           IF (found) THEN
-             CALL parser_get_object(parser,string,error=error)
+             CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL charmm_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1)
              DO
-                CALL parser_get_object(parser,string,error=error)
+                CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2,error=error)
+                CALL parser_get_object(parser,string2)
                 CALL uppercase ( string2 )
                 nbond = nbond + 1
                 CALL reallocate(chm_info%bond_a,1,nbond)
@@ -402,23 +398,23 @@ CONTAINS
                 CALL reallocate(chm_info%bond_r0,1,nbond)
                 chm_info%bond_a(nbond) = string
                 chm_info%bond_b(nbond) = string2
-                CALL parser_get_object(parser,chm_info%bond_k(nbond),error=error)
-                CALL parser_get_object(parser,chm_info%bond_r0(nbond),error=error)
+                CALL parser_get_object(parser,chm_info%bond_k(nbond))
+                CALL parser_get_object(parser,chm_info%bond_r0(nbond))
                 IF(iw>0) WRITE(iw,*) "    CHM BOND ",nbond,&
                      TRIM(chm_info%bond_a(nbond))," ",&
                      TRIM(chm_info%bond_b(nbond))," ",&
                      chm_info%bond_k(nbond),&
                      chm_info%bond_r0(nbond)
                 ! Do some units conversion into internal atomic units
-                chm_info%bond_r0(nbond) = cp_unit_to_cp2k(chm_info%bond_r0(nbond),"angstrom",error=error)
-                chm_info%bond_k(nbond) = cp_unit_to_cp2k(chm_info%bond_k(nbond),"kcalmol*angstrom^-2",error=error)
-                CALL charmm_get_next_line(parser,1,error=error)
+                chm_info%bond_r0(nbond) = cp_unit_to_cp2k(chm_info%bond_r0(nbond),"angstrom")
+                chm_info%bond_k(nbond) = cp_unit_to_cp2k(chm_info%bond_k(nbond),"kcalmol*angstrom^-2")
+                CALL charmm_get_next_line(parser,1)
              END DO
           ELSE
              EXIT
           END IF
        END DO
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -432,20 +428,20 @@ CONTAINS
     nbend = 0
     nub = 0
     DO ilab = 1, SIZE(angl_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(angl_section(ilab))
        DO
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
           IF (found) THEN
-             CALL parser_get_object(parser,string,error=error)
+             CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL charmm_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1)
              DO
-                CALL parser_get_object(parser,string,error=error)
+                CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2,error=error)
-                CALL parser_get_object(parser,string3,error=error)
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
                 CALL uppercase ( string2 )
                 CALL uppercase ( string3 )
                 nbend = nbend + 1
@@ -457,8 +453,8 @@ CONTAINS
                 chm_info%bend_a(nbend) = string
                 chm_info%bend_b(nbend) = string2
                 chm_info%bend_c(nbend) = string3
-                CALL parser_get_object(parser,chm_info%bend_k(nbend),error=error)
-                CALL parser_get_object(parser,chm_info%bend_theta0(nbend),error=error)
+                CALL parser_get_object(parser,chm_info%bend_k(nbend))
+                CALL parser_get_object(parser,chm_info%bend_theta0(nbend))
                 IF(iw>0) WRITE(iw,*) "    CHM BEND ",nbend,&
                      TRIM(chm_info%bend_a(nbend))," ",&
                      TRIM(chm_info%bend_b(nbend))," ",&
@@ -466,9 +462,9 @@ CONTAINS
                      chm_info%bend_k(nbend),&
                      chm_info%bend_theta0(nbend)
                 ! Do some units conversion into internal atomic units
-                chm_info%bend_theta0(nbend) = cp_unit_to_cp2k(chm_info%bend_theta0(nbend),"deg",error=error)
-                chm_info%bend_k(nbend) = cp_unit_to_cp2k(chm_info%bend_k(nbend),"kcalmol*rad^-2",error=error)
-                IF (parser_test_next_token(parser,error=error) == "FLT") THEN
+                chm_info%bend_theta0(nbend) = cp_unit_to_cp2k(chm_info%bend_theta0(nbend),"deg")
+                chm_info%bend_k(nbend) = cp_unit_to_cp2k(chm_info%bend_k(nbend),"kcalmol*rad^-2")
+                IF (parser_test_next_token(parser) == "FLT") THEN
                    nub = nub + 1
                    CALL reallocate(chm_info%ub_a,1,nub)
                    CALL reallocate(chm_info%ub_b,1,nub)
@@ -478,8 +474,8 @@ CONTAINS
                    chm_info%ub_a(nub) = string
                    chm_info%ub_b(nub) = string2
                    chm_info%ub_c(nub) = string3
-                   CALL parser_get_object(parser,chm_info%ub_k(nub),error=error)
-                   CALL parser_get_object(parser,chm_info%ub_r0(nub),error=error)
+                   CALL parser_get_object(parser,chm_info%ub_k(nub))
+                   CALL parser_get_object(parser,chm_info%ub_r0(nub))
                    IF(iw>0) WRITE(iw,*) "    CHM UB ",nub,&
                         TRIM(chm_info%ub_a(nub))," ",&
                         TRIM(chm_info%ub_b(nub))," ",&
@@ -487,16 +483,16 @@ CONTAINS
                         chm_info%ub_k(nub),&
                         chm_info%ub_r0(nub)
                    ! Do some units conversion into internal atomic units
-                   chm_info%ub_r0(nub) = cp_unit_to_cp2k(chm_info%ub_r0(nub),"angstrom",error=error)
-                   chm_info%ub_k(nub) = cp_unit_to_cp2k(chm_info%ub_k(nub),"kcalmol*angstrom^-2",error=error)
+                   chm_info%ub_r0(nub) = cp_unit_to_cp2k(chm_info%ub_r0(nub),"angstrom")
+                   chm_info%ub_k(nub) = cp_unit_to_cp2k(chm_info%ub_k(nub),"kcalmol*angstrom^-2")
                 END IF
-                CALL charmm_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1)
              END DO
           ELSE
              EXIT
           END IF
        END DO
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -506,21 +502,21 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ntorsion = 0
     DO ilab = 1, SIZE(thet_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(thet_section(ilab))
        DO
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
           IF (found) THEN
-             CALL parser_get_object(parser,string,error=error)
+             CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL charmm_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1)
              DO
-                CALL parser_get_object(parser,string,error=error)
+                CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2,error=error)
-                CALL parser_get_object(parser,string3,error=error)
-                CALL parser_get_object(parser,string4,error=error)
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string4)
                 CALL uppercase ( string2 )
                 CALL uppercase ( string3 )
                 CALL uppercase ( string4 )
@@ -536,9 +532,9 @@ CONTAINS
                 chm_info%torsion_b(ntorsion) = string2
                 chm_info%torsion_c(ntorsion) = string3
                 chm_info%torsion_d(ntorsion) = string4
-                CALL parser_get_object(parser,chm_info%torsion_k(ntorsion),error=error)
-                CALL parser_get_object(parser,chm_info%torsion_m(ntorsion),error=error)
-                CALL parser_get_object(parser,chm_info%torsion_phi0(ntorsion),error=error)
+                CALL parser_get_object(parser,chm_info%torsion_k(ntorsion))
+                CALL parser_get_object(parser,chm_info%torsion_m(ntorsion))
+                CALL parser_get_object(parser,chm_info%torsion_phi0(ntorsion))
                 IF(iw>0) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
                      TRIM(chm_info%torsion_a(ntorsion))," ",&
                      TRIM(chm_info%torsion_b(ntorsion))," ",&
@@ -549,16 +545,15 @@ CONTAINS
                      chm_info%torsion_phi0(ntorsion)
                 ! Do some units conversion into internal atomic units
                 chm_info%torsion_phi0(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_phi0(ntorsion),&
-                     "deg",error=error)
-                chm_info%torsion_k(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_k(ntorsion),"kcalmol",&
-                     error=error)
-                CALL charmm_get_next_line(parser,1,error=error)
+                     "deg")
+                chm_info%torsion_k(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_k(ntorsion),"kcalmol")
+                CALL charmm_get_next_line(parser,1)
              END DO
           ELSE
              EXIT
           END IF
        END DO
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -568,21 +563,21 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nimpr = 0
     DO ilab = 1, SIZE(impr_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(impr_section(ilab))
        DO
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
           IF (found) THEN
-             CALL parser_get_object(parser,string,error=error)
+             CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL charmm_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1)
              DO
-                CALL parser_get_object(parser,string,error=error)
+                CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2,error=error)
-                CALL parser_get_object(parser,string3,error=error)
-                CALL parser_get_object(parser,string4,error=error)
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string4)
                 CALL uppercase ( string2 )
                 CALL uppercase ( string3 )
                 CALL uppercase ( string4 )
@@ -597,9 +592,9 @@ CONTAINS
                 chm_info%impr_b(nimpr) = string2
                 chm_info%impr_c(nimpr) = string3
                 chm_info%impr_d(nimpr) = string4
-                CALL parser_get_object(parser,chm_info%impr_k(nimpr),error=error)
-                CALL parser_get_object(parser,dummy,error=error)
-                CALL parser_get_object(parser,chm_info%impr_phi0(nimpr),error=error)
+                CALL parser_get_object(parser,chm_info%impr_k(nimpr))
+                CALL parser_get_object(parser,dummy)
+                CALL parser_get_object(parser,chm_info%impr_phi0(nimpr))
                 IF(iw>0) WRITE(iw,*) "    CHM IMPROPERS ",nimpr,&
                      TRIM(chm_info%impr_a(nimpr))," ",&
                      TRIM(chm_info%impr_b(nimpr))," ",&
@@ -608,15 +603,15 @@ CONTAINS
                      chm_info%impr_k(nimpr),&
                      chm_info%impr_phi0(nimpr)
                 ! Do some units conversion into internal atomic units
-                chm_info%impr_phi0(nimpr) = cp_unit_to_cp2k(chm_info%impr_phi0(nimpr),"deg",error=error)
-                chm_info%impr_k(nimpr) = cp_unit_to_cp2k(chm_info%impr_k(nimpr),"kcalmol",error=error)
-                CALL charmm_get_next_line(parser,1,error=error)
+                chm_info%impr_phi0(nimpr) = cp_unit_to_cp2k(chm_info%impr_phi0(nimpr),"deg")
+                chm_info%impr_k(nimpr) = cp_unit_to_cp2k(chm_info%impr_k(nimpr),"kcalmol")
+                CALL charmm_get_next_line(parser,1)
              END DO
           ELSE
              EXIT
           END IF
        END DO
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END DO
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -625,16 +620,16 @@ CONTAINS
     nnonbond = 0
     nonfo = 0
     DO ilab = 1, SIZE(nbon_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(nbon_section(ilab))
        DO
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
           IF (found) THEN
-             CALL parser_get_object(parser,string,error=error)
+             CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL charmm_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1)
              DO
-                CALL parser_get_object(parser,string,error=error)
+                CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
                 nnonbond = nnonbond + 1
@@ -642,45 +637,45 @@ CONTAINS
                 CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
                 CALL reallocate(chm_info%nonbond_rmin2,1,nnonbond)
                 chm_info%nonbond_a(nnonbond) = string
-                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond),error=error)
-                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond),error=error)
-                CALL parser_get_object(parser,chm_info%nonbond_rmin2(nnonbond),error=error)
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))
+                CALL parser_get_object(parser,chm_info%nonbond_rmin2(nnonbond))
                 IF(iw>0) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
                      TRIM(chm_info%nonbond_a(nnonbond))," ",&
                      chm_info%nonbond_eps(nnonbond),&
                      chm_info%nonbond_rmin2(nnonbond)
                 chm_info%nonbond_rmin2(nnonbond) = cp_unit_to_cp2k(chm_info%nonbond_rmin2(nnonbond),&
-                     "angstrom", error=error)
+                     "angstrom")
                 chm_info%nonbond_eps(nnonbond) = cp_unit_to_cp2k(chm_info%nonbond_eps(nnonbond),&
-                     "kcalmol",error=error)
-                IF (parser_test_next_token(parser,error=error) == "FLT") THEN
+                     "kcalmol")
+                IF (parser_test_next_token(parser) == "FLT") THEN
                    nonfo = nonfo + 1
                    CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
                    CALL reallocate(chm_info%nonbond_eps_14,1,nonfo)
                    CALL reallocate(chm_info%nonbond_rmin2_14,1,nonfo)
                    chm_info%nonbond_a_14(nonfo) = chm_info%nonbond_a(nnonbond)
-                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo),error=error)
-                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo),error=error)
-                   CALL parser_get_object(parser,chm_info%nonbond_rmin2_14(nonfo),error=error)
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))
+                   CALL parser_get_object(parser,chm_info%nonbond_rmin2_14(nonfo))
                    IF(iw>0) WRITE(iw,*) "    CHM ONFO ",nonfo,&
                         TRIM(chm_info%nonbond_a_14(nonfo))," ",&
                         chm_info%nonbond_eps_14(nonfo),&
                         chm_info%nonbond_rmin2_14(nonfo)
                    chm_info%nonbond_rmin2_14(nonfo) = cp_unit_to_cp2k(chm_info%nonbond_rmin2_14(nonfo),&
-                        "angstrom",error=error)
+                        "angstrom")
                    chm_info%nonbond_eps_14(nonfo) = cp_unit_to_cp2k(chm_info%nonbond_eps_14(nonfo),&
-                        "kcalmol",error=error)
+                        "kcalmol")
                 END IF
-                CALL charmm_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1)
              END DO
           ELSE
              EXIT
           END IF
        END DO
-       CALL parser_release(parser,error=error)
+       CALL parser_release(parser)
     END DO
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
-         "PRINT%FF_INFO",error=error)
+         "PRINT%FF_INFO")
     CALL timestop(handle)
 
   END SUBROUTINE read_force_field_charmm
@@ -691,17 +686,15 @@ CONTAINS
 !> \param para_env ...
 !> \param mm_section ...
 !> \param particle_set ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino, teodoro.laino-AT-gmail.com] - 11.2008
 ! *****************************************************************************
-  SUBROUTINE read_force_field_amber ( ff_type, para_env, mm_section, particle_set, error )
+  SUBROUTINE read_force_field_amber ( ff_type, para_env, mm_section, particle_set)
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_amber', &
       routineP = moduleN//':'//routineN
@@ -714,15 +707,15 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
-         extension=".mmLog",error=error)
+         extension=".mmLog")
 
     amb_info => ff_type%amb_info
 
     ! Read the Amber topology file to gather the forcefield information
     CALL rdparm_amber_8(ff_type%ff_file_name, iw, para_env, do_connectivity=.FALSE.,&
-         do_forcefield=.TRUE., particle_set=particle_set, amb_info=amb_info, error=error)
+         do_forcefield=.TRUE., particle_set=particle_set, amb_info=amb_info)
 
     !-----------------------------------------------------------------------------
     ! 1. Converts all the Bonds info from the param file here
@@ -737,8 +730,8 @@ CONTAINS
             amb_info%bond_r0(i)
 
        ! Do some units conversion into internal atomic units
-       amb_info%bond_r0(i) = cp_unit_to_cp2k(amb_info%bond_r0(i),"angstrom",error=error)
-       amb_info%bond_k(i) = cp_unit_to_cp2k(amb_info%bond_k(i),"kcalmol*angstrom^-2",error=error)
+       amb_info%bond_r0(i) = cp_unit_to_cp2k(amb_info%bond_r0(i),"angstrom")
+       amb_info%bond_k(i) = cp_unit_to_cp2k(amb_info%bond_k(i),"kcalmol*angstrom^-2")
     END DO
 
     !-----------------------------------------------------------------------------
@@ -758,8 +751,8 @@ CONTAINS
             amb_info%bend_theta0(i)
 
        ! Do some units conversion into internal atomic units
-       amb_info%bend_theta0(i) = cp_unit_to_cp2k(amb_info%bend_theta0(i),"rad",error=error)
-       amb_info%bend_k(i) = cp_unit_to_cp2k(amb_info%bend_k(i),"kcalmol*rad^-2",error=error)
+       amb_info%bend_theta0(i) = cp_unit_to_cp2k(amb_info%bend_theta0(i),"rad")
+       amb_info%bend_k(i) = cp_unit_to_cp2k(amb_info%bend_k(i),"kcalmol*rad^-2")
     END DO
 
     !-----------------------------------------------------------------------------
@@ -778,8 +771,8 @@ CONTAINS
             amb_info%torsion_phi0(i)
 
        ! Do some units conversion into internal atomic units
-       amb_info%torsion_phi0(i) = cp_unit_to_cp2k(amb_info%torsion_phi0(i),"rad",error=error)
-       amb_info%torsion_k(i) = cp_unit_to_cp2k(amb_info%torsion_k(i),"kcalmol",error=error)
+       amb_info%torsion_phi0(i) = cp_unit_to_cp2k(amb_info%torsion_phi0(i),"rad")
+       amb_info%torsion_k(i) = cp_unit_to_cp2k(amb_info%torsion_k(i),"kcalmol")
     END DO
 
     !-----------------------------------------------------------------------------
@@ -792,10 +785,10 @@ CONTAINS
             amb_info%nonbond_rmin2(i)
 
        ! Do some units conversion into internal atomic units
-       amb_info%nonbond_rmin2(i) = cp_unit_to_cp2k(amb_info%nonbond_rmin2(i),"angstrom", error=error)
-       amb_info%nonbond_eps(i) = cp_unit_to_cp2k(amb_info%nonbond_eps(i),"kcalmol",error=error)
+       amb_info%nonbond_rmin2(i) = cp_unit_to_cp2k(amb_info%nonbond_rmin2(i),"angstrom")
+       amb_info%nonbond_eps(i) = cp_unit_to_cp2k(amb_info%nonbond_eps(i),"kcalmol")
     END DO
-    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO")
     CALL timestop(handle)
   END SUBROUTINE read_force_field_amber
 
@@ -807,13 +800,11 @@ CONTAINS
 !>                This sounds simply crazy....
 !> \param parser ...
 !> \param nline ...
-!> \param error ...
 !> \author Teodoro Laino - Zurich University - 06.2007
 ! *****************************************************************************
-  SUBROUTINE charmm_get_next_line(parser, nline, error)
+  SUBROUTINE charmm_get_next_line(parser, nline)
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'charmm_get_next_line', &
       routineP = moduleN//':'//routineN
@@ -824,10 +815,10 @@ CONTAINS
     DO i = 1, nline
        len_line = LEN_TRIM(parser%input_line)
        DO WHILE (parser%input_line(len_line:len_line)==continuation_char)
-          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_next_line(parser,1)
           len_line = LEN_TRIM(parser%input_line)
        END DO
-       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_next_line(parser,1)
     END DO
 
   END SUBROUTINE charmm_get_next_line

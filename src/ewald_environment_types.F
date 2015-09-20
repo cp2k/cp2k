@@ -120,7 +120,6 @@ CONTAINS
 !> \param max_ipol_iter ...
 !> \param interaction_cutoffs ...
 !> \param cell_hmat ...
-!> \param error ...
 !> \par History
 !>      11/03
 !> \author CJM
@@ -128,7 +127,7 @@ CONTAINS
   SUBROUTINE ewald_env_get(ewald_env, ewald_type, alpha, eps_pol, epsilon, &
        gmax, ns_max, o_spline, group, para_env, id_nr, poisson_section, precs, &
        rcut, do_multipoles, max_multipole, do_ipol, max_ipol_iter, &
-       interaction_cutoffs, cell_hmat, error)
+       interaction_cutoffs, cell_hmat)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps_pol, epsilon
@@ -146,8 +145,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: interaction_cutoffs
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: cell_hmat
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get', &
       routineP = moduleN//':'//routineN
@@ -155,7 +152,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,failure)
 
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
     IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
@@ -195,14 +192,13 @@ CONTAINS
 !> \param poisson_section ...
 !> \param interaction_cutoffs ...
 !> \param cell_hmat ...
-!> \param error ...
 !> \par History
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_env_set(ewald_env, ewald_type, alpha, epsilon, eps_pol, &
        gmax, ns_max, precs, o_spline, para_env, id_nr, poisson_section, &
-       interaction_cutoffs, cell_hmat, error)
+       interaction_cutoffs, cell_hmat)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
@@ -218,8 +214,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: interaction_cutoffs
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: cell_hmat
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set', &
       routineP = moduleN//':'//routineN
@@ -227,7 +221,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,failure)
 
     IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
     IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
@@ -240,8 +234,8 @@ CONTAINS
     IF (PRESENT(o_spline)) ewald_env%o_spline = o_spline
     IF (PRESENT(para_env))ewald_env% para_env => para_env
     IF (PRESENT(poisson_section)) THEN
-       CALL section_vals_retain(poisson_section,error=error)
-       CALL section_vals_release(ewald_env%poisson_section,error=error)
+       CALL section_vals_retain(poisson_section)
+       CALL section_vals_release(ewald_env%poisson_section)
        ewald_env%poisson_section => poisson_section
     END IF
     IF (PRESENT(interaction_cutoffs)) ewald_env%interaction_cutoffs => &
@@ -253,16 +247,13 @@ CONTAINS
 !> \brief allocates and intitializes a ewald_env
 !> \param ewald_env the object to create
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
+  SUBROUTINE ewald_env_create ( ewald_env, para_env)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
       routineP = moduleN//':'//routineN
@@ -273,12 +264,12 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE( ewald_env, stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ewald_env%ref_count=1
     last_ewald_env_id_nr=last_ewald_env_id_nr+1
     ewald_env%id_nr=last_ewald_env_id_nr
     NULLIFY(ewald_env%poisson_section)
-    CALL cp_para_env_retain(para_env, error=error)
+    CALL cp_para_env_retain(para_env)
     ewald_env%para_env => para_env
     NULLIFY(ewald_env%interaction_cutoffs) ! allocated and initialized later
   END SUBROUTINE ewald_env_create
@@ -286,15 +277,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given ewald_env (see doc/ReferenceCounting.html)
 !> \param ewald_env the object to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE ewald_env_retain(ewald_env,error)
+  SUBROUTINE ewald_env_retain(ewald_env)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_retain', &
       routineP = moduleN//':'//routineN
@@ -303,23 +291,20 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,failure)
     ewald_env%ref_count=ewald_env%ref_count+1
   END SUBROUTINE ewald_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given ewald_env (see doc/ReferenceCounting.html)
 !> \param ewald_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE ewald_env_release(ewald_env,error)
+  SUBROUTINE ewald_env_release(ewald_env)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
       routineP = moduleN//':'//routineN
@@ -330,17 +315,17 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(ewald_env)) THEN
-       CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,failure)
        ewald_env%ref_count=ewald_env%ref_count-1
        IF (ewald_env%ref_count<1) THEN
-          CALL cp_para_env_release ( ewald_env%para_env, error )
-          CALL section_vals_release(ewald_env%poisson_section,error=error)
+          CALL cp_para_env_release ( ewald_env%para_env)
+          CALL section_vals_release(ewald_env%poisson_section)
           IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
              DEALLOCATE(ewald_env%interaction_cutoffs, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ENDIF
           DEALLOCATE (  ewald_env, stat = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
     END IF
     NULLIFY(ewald_env)
@@ -350,13 +335,11 @@ CONTAINS
 !> \brief Purpose: read the EWALD section
 !> \param ewald_env the pointer to the ewald_env
 !> \param ewald_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] -University of Zurich - 2005
 ! *****************************************************************************
-  SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
+  SUBROUTINE read_ewald_section ( ewald_env, ewald_section)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: ewald_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section', &
       routineP = moduleN//':'//routineN
@@ -372,40 +355,40 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: multipole_section
 
     NULLIFY(enum, keyword, section, multipole_section)
-    logger=>cp_error_get_logger(error)
+    logger=>cp_get_default_logger()
     failure = .FALSE.
-    CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
-    CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
-    CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs,error=error)
+    CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type)
+    CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha)
+    CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs)
 
     IF (ewald_env%ewald_type==do_ewald_none) THEN
        ewald_env%rcut = 0.0_dp
     ELSE
-       CALL section_vals_val_get(ewald_section,"RCUT",explicit=explicit,error=error)
+       CALL section_vals_val_get(ewald_section,"RCUT",explicit=explicit)
        IF (explicit) THEN
-          CALL section_vals_val_get(ewald_section,"RCUT",r_val=ewald_env%rcut,error=error)
+          CALL section_vals_val_get(ewald_section,"RCUT",r_val=ewald_env%rcut)
        ELSE
-          ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
+          ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs)/ewald_env%alpha
        ENDIF
     END IF
     ! we have no defaults for gmax, gmax is only needed for ewald and spme
     SELECT CASE ( ewald_env%ewald_type )
     CASE (do_ewald_ewald, do_ewald_spme)
-       CALL section_vals_val_get(ewald_section,"GMAX",i_vals=gmax_read,error=error)
+       CALL section_vals_val_get(ewald_section,"GMAX",i_vals=gmax_read)
        SELECT CASE (SIZE(gmax_read,1))
        CASE (1)
           ewald_env%gmax = gmax_read(1)
        CASE (3)
           ewald_env%gmax = gmax_read
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
        IF (ewald_env%ewald_type==do_ewald_spme) THEN
-          CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline,error=error)
+          CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline)
        END IF
     CASE (do_ewald_pme)
-       CALL section_vals_val_get(ewald_section,"NS_MAX",i_val=ewald_env%ns_max,error=error)
-       CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon,error=error)
+       CALL section_vals_val_get(ewald_section,"NS_MAX",i_val=ewald_env%ns_max)
+       CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon)
     CASE DEFAULT
        ! this should not be used for do_ewald_none
        ewald_env%gmax   = HUGE(0)
@@ -413,46 +396,46 @@ CONTAINS
     END SELECT
 
     ! Multipoles
-    multipole_section => section_vals_get_subs_vals(ewald_section,"MULTIPOLES",error=error)
-    CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",l_val=ewald_env%do_multipoles,error=error)
-    CALL section_vals_val_get(multipole_section,"POL_SCF",i_val=ewald_env%do_ipol,error=error)
-    CALL section_vals_val_get(multipole_section,"EPS_POL",r_val=ewald_env%eps_pol,error=error)
+    multipole_section => section_vals_get_subs_vals(ewald_section,"MULTIPOLES")
+    CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",l_val=ewald_env%do_multipoles)
+    CALL section_vals_val_get(multipole_section,"POL_SCF",i_val=ewald_env%do_ipol)
+    CALL section_vals_val_get(multipole_section,"EPS_POL",r_val=ewald_env%eps_pol)
     IF (ewald_env%do_multipoles) THEN
        SELECT CASE(ewald_env%ewald_type)
        CASE(do_ewald_ewald)
-          CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole,error=error)
-          CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter,error=error)
+          CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole)
+          CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter)
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Multipole code works at the moment only with standard EWALD sums.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END SELECT
     END IF
 
     iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".log",error=error)
+         extension=".log")
     IF ( iw > 0 ) THEN
        NULLIFY(keyword, enum)
-       CALL create_ewald_section(section,error=error)
+       CALL create_ewald_section(section)
        IF ( ewald_env%ewald_type /= do_ewald_none ) THEN
-          keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
-          CALL keyword_get(keyword,enum=enum,error=error)
+          keyword => section_get_keyword(section,"EWALD_TYPE")
+          CALL keyword_get(keyword,enum=enum)
           WRITE ( iw, '(/,T2,"EWALD| ",A,T67,A14 )')'Summation is done by:', &
-               ADJUSTR(TRIM(enum_i2c(enum,ewald_env%ewald_type,error=error)))
+               ADJUSTR(TRIM(enum_i2c(enum,ewald_env%ewald_type)))
           IF (ewald_env%do_multipoles) THEN
              NULLIFY(keyword, enum)
-             keyword => section_get_keyword(section,"MULTIPOLES%MAX_MULTIPOLE_EXPANSION",error=error)
-             CALL keyword_get(keyword,enum=enum,error=error)
+             keyword => section_get_keyword(section,"MULTIPOLES%MAX_MULTIPOLE_EXPANSION")
+             CALL keyword_get(keyword,enum=enum)
              WRITE ( iw, '( T2,"EWALD| ",A )' ) 'Enabled Multipole Method'
              WRITE ( iw, '( T2,"EWALD| ",A,T67,A14 )' ) 'Max Term in Multipole Expansion :',&
-                  ADJUSTR(TRIM(enum_i2c(enum,ewald_env%max_multipole,error=error)))
+                  ADJUSTR(TRIM(enum_i2c(enum,ewald_env%max_multipole)))
              WRITE ( iw, '( T2,"EWALD| ",A,T67,3I10 )' ) 'Max number Iterations for IPOL :',&
                   ewald_env%max_ipol_iter
           END IF
-          dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
+          dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1")
           WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
                'Alpha parameter [','ANGSTROM^-1',']',dummy
-          dummy = cp_unit_from_cp2k(ewald_env%rcut,"angstrom",error=error)
+          dummy = cp_unit_from_cp2k(ewald_env%rcut,"angstrom")
           WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
                'Real Space Cutoff [','ANGSTROM',']',dummy
 
@@ -471,15 +454,15 @@ CONTAINS
              WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
                   'Spline interpolation order ', ewald_env%o_spline
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           END SELECT
        ELSE
           WRITE ( iw, '( T2,"EWALD| ",T73, A )' ) 'not used'
        END IF
-       CALL section_release(section,error=error)
+       CALL section_release(section)
     END IF
     CALL cp_print_key_finished_output(iw,logger,ewald_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)
+         "PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE read_ewald_section
 
@@ -487,14 +470,11 @@ CONTAINS
 !> \brief triggers (by bisection) the optimal value for EWALD parameter x
 !>      EXP(-x^2)/x^2 = EWALD_ACCURACY
 !> \param precs ...
-!> \param error ...
 !> \retval value ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
-  FUNCTION find_ewald_optimal_value(precs,error) RESULT(value)
-    REAL(KIND=dp)                            :: precs
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: value
+  FUNCTION find_ewald_optimal_value(precs) RESULT(value)
+    REAL(KIND=dp)                            :: precs, value
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_ewald_optimal_value', &
       routineP = moduleN//':'//routineN
@@ -505,7 +485,7 @@ CONTAINS
     failure = .FALSE.
     s    =  0.1_dp
     func =  EXP(-s**2)/s**2 - precs
-    CPPrecondition(func>0.0_dp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(func>0.0_dp,cp_failure_level,routineP,failure)
     DO WHILE (func>0.0_dp)
        s = s + 0.1_dp
        func =  EXP(-s**2)/s**2 - precs
@@ -516,8 +496,8 @@ CONTAINS
     DO WHILE (.TRUE.)
        func2 = EXP(-s2**2)/s2**2 - precs
        func1 = EXP(-s1**2)/s1**2 - precs
-       CPPrecondition(func1>=0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(func2<=0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(func1>=0,cp_failure_level,routineP,failure)
+       CPPrecondition(func2<=0,cp_failure_level,routineP,failure)
        s    = 0.5_dp * (s1 + s2)
        func = EXP(-s**2)/s**2 - precs
        IF      (func > 0.0_dp) THEN

@@ -102,13 +102,11 @@ MODULE qs_efield_berry
 !> \param qs_env ...
 !> \param just_energy ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efield_berry_phase(qs_env,just_energy,calculate_forces,error)
+  SUBROUTINE qs_efield_berry_phase(qs_env,just_energy,calculate_forces)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_berry_phase', &
       routineP = moduleN//':'//routineN
@@ -121,14 +119,14 @@ MODULE qs_efield_berry
 
     NULLIFY(dft_control)
     CALL get_qs_env(qs_env,s_mstruct_changed=s_mstruct_changed,&
-                    dft_control=dft_control,error=error)
+                    dft_control=dft_control)
 
     IF(dft_control%apply_period_efield)THEN
-       IF(s_mstruct_changed) CALL qs_efield_integrals(qs_env,error)
+       IF(s_mstruct_changed) CALL qs_efield_integrals(qs_env)
        IF(dft_control%period_efield%displacement_field) THEN
-          CALL qs_dispfield_derivatives(qs_env,just_energy,calculate_forces,error)
+          CALL qs_dispfield_derivatives(qs_env,just_energy,calculate_forces)
        ELSE
-          CALL qs_efield_derivatives(qs_env,just_energy,calculate_forces,error)
+          CALL qs_efield_derivatives(qs_env,just_energy,calculate_forces)
        END IF
     END IF
 
@@ -139,12 +137,10 @@ MODULE qs_efield_berry
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efield_integrals (qs_env,error)
+  SUBROUTINE qs_efield_integrals (qs_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_integrals', &
       routineP = moduleN//':'//routineN
@@ -160,30 +156,30 @@ MODULE qs_efield_berry
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)
     NULLIFY (matrix_s)
-    CALL get_qs_env(qs_env=qs_env,efield=efield,cell=cell,matrix_s=matrix_s,error=error)
-    CALL init_efield_matrices(efield,error)
+    CALL get_qs_env(qs_env=qs_env,efield=efield,cell=cell,matrix_s=matrix_s)
+    CALL init_efield_matrices(efield)
     ALLOCATE(cosmat(3),sinmat(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i=1,3
        ALLOCATE(cosmat(i)%matrix,sinmat(i)%matrix,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_dbcsr_init(cosmat(i)%matrix,error=error)
-       CALL cp_dbcsr_init(sinmat(i)%matrix, error=error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CALL cp_dbcsr_init(cosmat(i)%matrix)
+       CALL cp_dbcsr_init(sinmat(i)%matrix)
 
-       CALL cp_dbcsr_copy(cosmat(i)%matrix,matrix_s(1)%matrix,'COS MAT',error=error)
-       CALL cp_dbcsr_copy(sinmat(i)%matrix,matrix_s(1)%matrix,'SIN MAT',error=error)
-       CALL cp_dbcsr_set(cosmat(i)%matrix,0.0_dp,error=error)
-       CALL cp_dbcsr_set(sinmat(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_copy(cosmat(i)%matrix,matrix_s(1)%matrix,'COS MAT')
+       CALL cp_dbcsr_copy(sinmat(i)%matrix,matrix_s(1)%matrix,'SIN MAT')
+       CALL cp_dbcsr_set(cosmat(i)%matrix,0.0_dp)
+       CALL cp_dbcsr_set(sinmat(i)%matrix,0.0_dp)
 
        kvec(:) = twopi*cell%h_inv(i,:)
-       CALL build_berry_moment_matrix(qs_env,cosmat(i)%matrix,sinmat(i)%matrix,kvec,error)
+       CALL build_berry_moment_matrix(qs_env,cosmat(i)%matrix,sinmat(i)%matrix,kvec)
     END DO
     CALL set_efield_matrices(efield=efield,cosmat=cosmat,sinmat=sinmat)
-    CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
+    CALL set_qs_env(qs_env=qs_env,efield=efield)
     CALL timestop(handle)
 
   END SUBROUTINE qs_efield_integrals
@@ -193,12 +189,10 @@ MODULE qs_efield_berry
 !> \param qs_env ...
 !> \param just_energy ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_efield_derivatives(qs_env,just_energy,calculate_forces,error)
+  SUBROUTINE qs_efield_derivatives(qs_env,just_energy,calculate_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_derivatives', &
       routineP = moduleN//':'//routineN
@@ -271,10 +265,10 @@ MODULE qs_efield_berry
 
     NULLIFY(dft_control,cell,particle_set)
     CALL get_qs_env(qs_env,dft_control=dft_control,cell=cell,&
-         particle_set=particle_set,virial=virial,error=error)
+         particle_set=particle_set,virial=virial)
     NULLIFY(qs_kind_set,efield,para_env,sab_orb)
     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,&
-         efield=efield,energy=energy,para_env=para_env,sab_orb=sab_orb,error=error)
+         efield=efield,energy=energy,para_env=para_env,sab_orb=sab_orb)
 
     ! calculate stress only if forces requested also
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -283,7 +277,7 @@ MODULE qs_efield_berry
     IF (use_virial) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Stress tensor for periodic E-field not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     fieldpol=dft_control%period_efield%polarisation
@@ -297,15 +291,15 @@ MODULE qs_efield_berry
     ! nuclear contribution
     natom = SIZE(particle_set)
     IF (calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force,error=error)
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
     DO ia = 1,natom
        CALL get_atomic_kind(particle_set(ia)%atomic_kind,kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge,error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge)
        ria = particle_set(ia)%r
        ria = pbc(ria,cell)
        DO idir = 1, 3
@@ -323,88 +317,88 @@ MODULE qs_efield_berry
        END IF
        IF (use_virial) THEN
           IF(para_env%mepos==0) &
-             CALL virial_pair_force ( virial%pv_virial, 1.0_dp, forcea, ria, error)
+             CALL virial_pair_force ( virial%pv_virial, 1.0_dp, forcea, ria)
        END IF
     END DO
     qi = AIMAG(LOG(zi))
 
     ! check uniform occupation
     NULLIFY(mos)
-    CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
+    CALL get_qs_env(qs_env=qs_env,mos=mos)
     DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
        IF (.NOT.uniform) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END IF
     END DO
 
     NULLIFY (mo_derivs)
-    CALL get_qs_env(qs_env=qs_env,mo_derivs=mo_derivs,error=error)
+    CALL get_qs_env(qs_env=qs_env,mo_derivs=mo_derivs)
     ! initialize all work matrices needed
     ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( opvec( 2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( inv_mat( dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( inv_work(2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( mo_derivs_tmp(SIZE(mo_derivs)), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( mo_coeff_tmp(SIZE(mo_derivs)), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ! Allocate temp matrices for the wavefunction derivatives
     DO ispin = 1, dft_control%nspins
        NULLIFY(tmp_fm_struct,mo_coeff)
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
-            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
-       CALL cp_fm_create (mo_derivs_tmp(ispin)%matrix,mo_coeff%matrix_struct,error=error)
-       CALL cp_fm_create (mo_coeff_tmp(ispin)%matrix,mo_coeff%matrix_struct,error=error)
-       CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_derivs_tmp(ispin)%matrix,error=error)
+            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context)
+       CALL cp_fm_create (mo_derivs_tmp(ispin)%matrix,mo_coeff%matrix_struct)
+       CALL cp_fm_create (mo_coeff_tmp(ispin)%matrix,mo_coeff%matrix_struct)
+       CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_derivs_tmp(ispin)%matrix)
        DO i = 1, SIZE(op_fm_set,1)
-          CALL cp_fm_create (opvec(i,ispin)%matrix,mo_coeff%matrix_struct,error=error)
+          CALL cp_fm_create (opvec(i,ispin)%matrix,mo_coeff%matrix_struct)
           NULLIFY(op_fm_set(i,ispin)%matrix)
-          CALL cp_fm_create (op_fm_set(i,ispin)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create (inv_work(i,ispin)%matrix,op_fm_set(i,ispin)%matrix%matrix_struct,error=error)
+          CALL cp_fm_create (op_fm_set(i,ispin)%matrix,tmp_fm_struct)
+          CALL cp_fm_create (inv_work(i,ispin)%matrix,op_fm_set(i,ispin)%matrix%matrix_struct)
        END DO
-       CALL cp_cfm_create (eigrmat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct,error=error)
-       CALL cp_cfm_create (inv_mat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       CALL cp_cfm_create (eigrmat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct)
+       CALL cp_cfm_create (inv_mat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct)
+       CALL cp_fm_struct_release(tmp_fm_struct)
     END DO
     ! temp matrices for force calculation
     IF(calculate_forces)THEN
        NULLIFY (matrix_s)
-       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s)
        ALLOCATE(tempmat(2,dft_control%nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO ispin=1,dft_control%nspins
           ALLOCATE(tempmat(1,ispin)%matrix,tempmat(2,ispin)%matrix,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL cp_dbcsr_init(tempmat(1,ispin)%matrix,error=error)
-          CALL cp_dbcsr_init(tempmat(2,ispin)%matrix, error=error)
-          CALL cp_dbcsr_copy(tempmat(1,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT',error=error)
-          CALL cp_dbcsr_copy(tempmat(2,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT',error=error)
-          CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp,error=error)
-          CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp,error=error)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CALL cp_dbcsr_init(tempmat(1,ispin)%matrix)
+          CALL cp_dbcsr_init(tempmat(2,ispin)%matrix)
+          CALL cp_dbcsr_copy(tempmat(1,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT')
+          CALL cp_dbcsr_copy(tempmat(2,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT')
+          CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp)
+          CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp)
        END DO
        ! integration
-       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab,error=error)
+       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab)
        ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        lsab = MAX(ldab,lsab)
        DO i=1,3
           ALLOCATE(dcost(i,1)%block(lsab,lsab),dsint(i,1)%block(lsab,lsab),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           ALLOCATE(dcost(i,2)%block(lsab,lsab),dsint(i,2)%block(lsab,lsab),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END DO
     END IF
 
@@ -421,24 +415,24 @@ MODULE qs_efield_berry
           DO ispin=1, dft_control%nspins   ! spin
              IF(mos(ispin)%mo_set%use_mo_coeff_b)THEN
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff_b=mo_coeff_b,nmo=nmo)
-                CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff_tmp(ispin)%matrix,error=error)
+                CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff_tmp(ispin)%matrix)
              ELSE
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff_tmp(ispin)%matrix,nmo=nmo)
              END IF
-             CALL cp_dbcsr_sm_fm_multiply(cosmat,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,ncol=nmo,error=error)
+             CALL cp_dbcsr_sm_fm_multiply(cosmat,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,ncol=nmo)
              CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,0.0_dp,&
-                  op_fm_set(1,ispin)%matrix,error=error)
-             CALL cp_dbcsr_sm_fm_multiply(sinmat,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,ncol=nmo,error=error)
+                  op_fm_set(1,ispin)%matrix)
+             CALL cp_dbcsr_sm_fm_multiply(sinmat,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,ncol=nmo)
              CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,0.0_dp,&
-                  op_fm_set(2,ispin)%matrix,error=error)
+                  op_fm_set(2,ispin)%matrix)
           ENDDO
           !second step invert C^T S_berry C
           zdet = one
           DO ispin = 1, dft_control%nspins
-             CALL cp_cfm_add_fm(zero,eigrmat(ispin)%matrix,one,op_fm_set(1,ispin)%matrix,error)
-             CALL cp_cfm_add_fm(one,eigrmat(ispin)%matrix,-zone,op_fm_set(2,ispin)%matrix,error)
-             CALL cp_cfm_set_all(inv_mat(ispin)%matrix,zero,one,error)
-             CALL cp_cfm_solve(eigrmat(ispin)%matrix,inv_mat(ispin)%matrix,zdeta,error)
+             CALL cp_cfm_add_fm(zero,eigrmat(ispin)%matrix,one,op_fm_set(1,ispin)%matrix)
+             CALL cp_cfm_add_fm(one,eigrmat(ispin)%matrix,-zone,op_fm_set(2,ispin)%matrix)
+             CALL cp_cfm_set_all(inv_mat(ispin)%matrix,zero,one)
+             CALL cp_cfm_solve(eigrmat(ispin)%matrix,inv_mat(ispin)%matrix,zdeta)
              zdet = zdet*zdeta
           END DO
           zi(idir) = zdet**occ
@@ -452,9 +446,9 @@ MODULE qs_efield_berry
                 inv_work(2,ispin)%matrix%local_data(:,:)=AIMAG(inv_mat(ispin)%matrix%local_data(:,:))
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
                 CALL cp_gemm("N","N",nao,nmo,nmo,focc,opvec(1,ispin)%matrix,inv_work(2,ispin)%matrix,&
-                     1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
+                     1.0_dp,mo_derivs_tmp(ispin)%matrix)
                 CALL cp_gemm("N","N",nao,nmo,nmo,-focc,opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
-                     1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
+                     1.0_dp,mo_derivs_tmp(ispin)%matrix)
              END DO
           END IF
 
@@ -467,25 +461,25 @@ MODULE qs_efield_berry
              ! calculate: C [C^T S_berry C]^(-1) C^T
              ! Store this matrix in DBCSR form (only S overlap blocks)
              DO ispin=1,dft_control%nspins
-                CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp,error=error)
-                CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp)
+                CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp)
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
                 CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(1,ispin)%matrix,0.0_dp,&
-                     opvec(1,ispin)%matrix,error=error)
+                     opvec(1,ispin)%matrix)
                 CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(2,ispin)%matrix,0.0_dp,&
-                     opvec(2,ispin)%matrix,error=error)
+                     opvec(2,ispin)%matrix)
                 CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(1,ispin)%matrix,&
-                     matrix_v=opvec(1,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo,error=error)
+                     matrix_v=opvec(1,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo)
                 CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(2,ispin)%matrix,&
-                     matrix_v=opvec(2,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo,error=error)
+                     matrix_v=opvec(2,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo)
              END DO
 
              ! Calculation of derivative integrals (da|eikr|b) and (a|eikr|db)
              ALLOCATE (basis_set_list(nkind),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
              DO ikind=1,nkind
                 qs_kind => qs_kind_set(ikind)
-                CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+                CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
                 IF (ASSOCIATED(basis_set_a)) THEN
                    basis_set_list(ikind)%gto_basis_set => basis_set_a
                 ELSE
@@ -591,16 +585,16 @@ MODULE qs_efield_berry
                    NULLIFY (rblock,iblock)
                    CALL cp_dbcsr_get_block_p(matrix=tempmat(1,ispin)%matrix,&
                         row=irow,col=icol,BLOCK=rblock,found=found)
-                   CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(found,cp_failure_level,routineP,failure)
                    CALL cp_dbcsr_get_block_p(matrix=tempmat(2,ispin)%matrix,&
                         row=irow,col=icol,BLOCK=iblock,found=found)
-                   CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(found,cp_failure_level,routineP,failure)
                    n1 = SIZE(rblock,1)
                    n2 = SIZE(rblock,2)
-                   CPPostcondition(SIZE(iblock,1)==n1,cp_failure_level,routineP,error,failure)
-                   CPPostcondition(SIZE(iblock,2)==n2,cp_failure_level,routineP,error,failure)
-                   CPPostcondition(lsab>=n1,cp_failure_level,routineP,error,failure)
-                   CPPostcondition(lsab>=n2,cp_failure_level,routineP,error,failure)
+                   CPPostcondition(SIZE(iblock,1)==n1,cp_failure_level,routineP,failure)
+                   CPPostcondition(SIZE(iblock,2)==n2,cp_failure_level,routineP,failure)
+                   CPPostcondition(lsab>=n1,cp_failure_level,routineP,failure)
+                   CPPostcondition(lsab>=n2,cp_failure_level,routineP,failure)
                    IF (iatom <= jatom) THEN
                       DO i=1,3
                          forcea(i) = forcea(i) + SUM(rblock(1:n1,1:n2)*dsint(i,1)%block(1:n1,1:n2)) &
@@ -621,14 +615,14 @@ MODULE qs_efield_berry
                 force(jkind)%efield(1:3,atom_b)=force(jkind)%efield(1:3,atom_b)-fab*fpolvec(idir)*forceb(1:3)
                 IF (use_virial) THEN
                    f0 = -fab*fpolvec(idir)
-                   CALL virial_pair_force ( virial%pv_virial, f0, forcea, ra, error)
-                   CALL virial_pair_force ( virial%pv_virial, f0, forceb, rb, error)
+                   CALL virial_pair_force ( virial%pv_virial, f0, forcea, ra)
+                   CALL virial_pair_force ( virial%pv_virial, f0, forceb, rb)
                 END IF
 
              END DO
              CALL neighbor_list_iterator_release(nl_iterator)
              DEALLOCATE (basis_set_list,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
           END IF
        END IF
@@ -669,7 +663,7 @@ MODULE qs_efield_berry
     IF(.NOT.just_energy) THEN
        ! Add the result to mo_derivativs
        DO ispin=1, dft_control%nspins
-          CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)
+          CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix)
        END DO
        IF (use_virial) THEN
           ti = 0.0_dp
@@ -687,36 +681,36 @@ MODULE qs_efield_berry
     END IF
 
     DO ispin = 1, dft_control%nspins
-       CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
-       CALL cp_cfm_release(inv_mat(ispin)%matrix,error=error)
-       CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix,error=error)
-       CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix,error=error)
+       CALL cp_cfm_release(eigrmat(ispin)%matrix)
+       CALL cp_cfm_release(inv_mat(ispin)%matrix)
+       CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix)
+       CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix)
        DO i = 1, SIZE ( op_fm_set, 1 )
-          CALL cp_fm_release(opvec(i,ispin)%matrix,error=error)
-          CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
-          CALL cp_fm_release(inv_work(i,ispin)%matrix,error=error)
+          CALL cp_fm_release(opvec(i,ispin)%matrix)
+          CALL cp_fm_release(op_fm_set(i,ispin)%matrix)
+          CALL cp_fm_release(inv_work(i,ispin)%matrix)
        END DO
     END DO
     DEALLOCATE(inv_mat,inv_work,op_fm_set,opvec,eigrmat,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mo_coeff_tmp,mo_derivs_tmp,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     IF(calculate_forces)THEN
        DO ikind=1,SIZE(atomic_kind_set)
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
        DEALLOCATE(atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(cosab,sinab,work,dcosab,dsinab,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DO i=1,3
           DEALLOCATE(dcost(i,1)%block,dsint(i,1)%block,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(dcost(i,2)%block,dsint(i,2)%block,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END DO
-       CALL cp_dbcsr_deallocate_matrix_set(tempmat,error)
+       CALL cp_dbcsr_deallocate_matrix_set(tempmat)
     END IF
     CALL timestop(handle)
 
@@ -727,12 +721,10 @@ MODULE qs_efield_berry
 !> \param qs_env ...
 !> \param just_energy ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_dispfield_derivatives(qs_env,just_energy,calculate_forces,error)
+  SUBROUTINE qs_dispfield_derivatives(qs_env,just_energy,calculate_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_dispfield_derivatives', &
       routineP = moduleN//':'//routineN
@@ -805,10 +797,10 @@ MODULE qs_efield_berry
 
     NULLIFY(dft_control,cell,particle_set)
     CALL get_qs_env(qs_env,dft_control=dft_control,cell=cell,&
-         particle_set=particle_set,virial=virial,error=error)
+         particle_set=particle_set,virial=virial)
     NULLIFY(qs_kind_set,efield,para_env,sab_orb)
     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,&
-         efield=efield,energy=energy,para_env=para_env,sab_orb=sab_orb,error=error)
+         efield=efield,energy=energy,para_env=para_env,sab_orb=sab_orb)
 
     ! calculate stress only if forces requested also
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -817,7 +809,7 @@ MODULE qs_efield_berry
     IF (use_virial) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Stress tensor for periodic D-field not implemented", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
 
     fieldpol=dft_control%period_efield%polarisation
@@ -830,18 +822,18 @@ MODULE qs_efield_berry
     ! nuclear contribution to polarization
     natom = SIZE(particle_set)
     IF (calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force,error=error)
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
        ALLOCATE (force_tmp(natom,3,3),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        force_tmp = 0.0_dp
     END IF
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
     DO ia = 1,natom
        CALL get_atomic_kind(particle_set(ia)%atomic_kind,kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge,error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge)
        ria = particle_set(ia)%r
        ria = pbc(ria,cell)
        DO idir = 1, 3
@@ -862,83 +854,83 @@ MODULE qs_efield_berry
 
     ! check uniform occupation
     NULLIFY(mos)
-    CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
+    CALL get_qs_env(qs_env=qs_env,mos=mos)
     DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
        IF (.NOT.uniform) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END IF
     END DO
 
     ! initialize all work matrices needed
     NULLIFY (mo_derivs)
-    CALL get_qs_env(qs_env=qs_env,mo_derivs=mo_derivs,error=error)
+    CALL get_qs_env(qs_env=qs_env,mo_derivs=mo_derivs)
     ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( opvec( 2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( inv_mat( dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( inv_work(2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( mo_derivs_tmp(3,SIZE(mo_derivs)), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE ( mo_coeff_tmp(SIZE(mo_derivs)), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     ! Allocate temp matrices for the wavefunction derivatives
     DO ispin = 1, dft_control%nspins
        NULLIFY(tmp_fm_struct,mo_coeff)
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
-            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
-       CALL cp_fm_create (mo_coeff_tmp(ispin)%matrix,mo_coeff%matrix_struct,error=error)
+            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context)
+       CALL cp_fm_create (mo_coeff_tmp(ispin)%matrix,mo_coeff%matrix_struct)
        DO i=1,3
-          CALL cp_fm_create (mo_derivs_tmp(i,ispin)%matrix,mo_coeff%matrix_struct,error=error)
-          CALL cp_fm_set_all (matrix=mo_derivs_tmp(i,ispin)%matrix,alpha=0.0_dp,error=error)
+          CALL cp_fm_create (mo_derivs_tmp(i,ispin)%matrix,mo_coeff%matrix_struct)
+          CALL cp_fm_set_all (matrix=mo_derivs_tmp(i,ispin)%matrix,alpha=0.0_dp)
        END DO
        DO i = 1, SIZE(op_fm_set,1)
-          CALL cp_fm_create (opvec(i,ispin)%matrix,mo_coeff%matrix_struct,error=error)
+          CALL cp_fm_create (opvec(i,ispin)%matrix,mo_coeff%matrix_struct)
           NULLIFY(op_fm_set(i,ispin)%matrix)
-          CALL cp_fm_create (op_fm_set(i,ispin)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create (inv_work(i,ispin)%matrix,op_fm_set(i,ispin)%matrix%matrix_struct,error=error)
+          CALL cp_fm_create (op_fm_set(i,ispin)%matrix,tmp_fm_struct)
+          CALL cp_fm_create (inv_work(i,ispin)%matrix,op_fm_set(i,ispin)%matrix%matrix_struct)
        END DO
-       CALL cp_cfm_create (eigrmat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct,error=error)
-       CALL cp_cfm_create (inv_mat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       CALL cp_cfm_create (eigrmat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct)
+       CALL cp_cfm_create (inv_mat(ispin)%matrix,op_fm_set(1,ispin)%matrix%matrix_struct)
+       CALL cp_fm_struct_release(tmp_fm_struct)
     END DO
     ! temp matrices for force calculation
     IF(calculate_forces)THEN
        NULLIFY (matrix_s)
-       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s)
        ALLOCATE(tempmat(2,dft_control%nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO ispin=1,dft_control%nspins
           ALLOCATE(tempmat(1,ispin)%matrix,tempmat(2,ispin)%matrix,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL cp_dbcsr_init(tempmat(1,ispin)%matrix,error=error)
-          CALL cp_dbcsr_init(tempmat(2,ispin)%matrix, error=error)
-          CALL cp_dbcsr_copy(tempmat(1,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT',error=error)
-          CALL cp_dbcsr_copy(tempmat(2,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT',error=error)
-          CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp,error=error)
-          CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp,error=error)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CALL cp_dbcsr_init(tempmat(1,ispin)%matrix)
+          CALL cp_dbcsr_init(tempmat(2,ispin)%matrix)
+          CALL cp_dbcsr_copy(tempmat(1,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT')
+          CALL cp_dbcsr_copy(tempmat(2,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT')
+          CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp)
+          CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp)
        END DO
        ! integration
-       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab,error=error)
+       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab)
        ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        lsab = MAX(lsab,ldab)
        DO i=1,3
           ALLOCATE(dcost(i,1)%block(lsab,lsab),dsint(i,1)%block(lsab,lsab),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           ALLOCATE(dcost(i,2)%block(lsab,lsab),dsint(i,2)%block(lsab,lsab),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END DO
     END IF
 
@@ -953,24 +945,24 @@ MODULE qs_efield_berry
        DO ispin=1, dft_control%nspins   ! spin
           IF(mos(ispin)%mo_set%use_mo_coeff_b)THEN
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff_b=mo_coeff_b,nmo=nmo)
-             CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff_tmp(ispin)%matrix,error=error)
+             CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff_tmp(ispin)%matrix)
           ELSE
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff_tmp(ispin)%matrix,nmo=nmo)
           END IF
-          CALL cp_dbcsr_sm_fm_multiply(cosmat,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,ncol=nmo,error=error)
+          CALL cp_dbcsr_sm_fm_multiply(cosmat,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,ncol=nmo)
           CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,0.0_dp,&
-               op_fm_set(1,ispin)%matrix,error=error)
-          CALL cp_dbcsr_sm_fm_multiply(sinmat,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,ncol=nmo,error=error)
+               op_fm_set(1,ispin)%matrix)
+          CALL cp_dbcsr_sm_fm_multiply(sinmat,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,ncol=nmo)
           CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,0.0_dp,&
-               op_fm_set(2,ispin)%matrix,error=error)
+               op_fm_set(2,ispin)%matrix)
        ENDDO
        !second step invert C^T S_berry C
        zdet = one
        DO ispin = 1, dft_control%nspins
-          CALL cp_cfm_add_fm(zero,eigrmat(ispin)%matrix,one,op_fm_set(1,ispin)%matrix,error)
-          CALL cp_cfm_add_fm(one,eigrmat(ispin)%matrix,-zone,op_fm_set(2,ispin)%matrix,error)
-          CALL cp_cfm_set_all(inv_mat(ispin)%matrix,zero,one,error)
-          CALL cp_cfm_solve(eigrmat(ispin)%matrix,inv_mat(ispin)%matrix,zdeta,error)
+          CALL cp_cfm_add_fm(zero,eigrmat(ispin)%matrix,one,op_fm_set(1,ispin)%matrix)
+          CALL cp_cfm_add_fm(one,eigrmat(ispin)%matrix,-zone,op_fm_set(2,ispin)%matrix)
+          CALL cp_cfm_set_all(inv_mat(ispin)%matrix,zero,one)
+          CALL cp_cfm_solve(eigrmat(ispin)%matrix,inv_mat(ispin)%matrix,zdeta)
           zdet = zdet*zdeta
        END DO
        zi(idir) = zdet**occ
@@ -985,9 +977,9 @@ MODULE qs_efield_berry
              DO i=1,3
                 focc = hmat(idir,i)
                 CALL cp_gemm("N","N",nao,nmo,nmo,focc,opvec(1,ispin)%matrix,inv_work(2,ispin)%matrix,&
-                     1.0_dp,mo_derivs_tmp(idir,ispin)%matrix,error)
+                     1.0_dp,mo_derivs_tmp(idir,ispin)%matrix)
                 CALL cp_gemm("N","N",nao,nmo,nmo,-focc,opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
-                     1.0_dp,mo_derivs_tmp(idir,ispin)%matrix,error)
+                     1.0_dp,mo_derivs_tmp(idir,ispin)%matrix)
              END DO
           END DO
        END IF
@@ -1001,25 +993,25 @@ MODULE qs_efield_berry
           ! calculate: C [C^T S_berry C]^(-1) C^T
           ! Store this matrix in DBCSR form (only S overlap blocks)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp,error=error)
-             CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(tempmat(1,ispin)%matrix,0.0_dp)
+             CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp)
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
              CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(1,ispin)%matrix,0.0_dp,&
-                  opvec(1,ispin)%matrix,error=error)
+                  opvec(1,ispin)%matrix)
              CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(2,ispin)%matrix,0.0_dp,&
-                  opvec(2,ispin)%matrix,error=error)
+                  opvec(2,ispin)%matrix)
              CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(1,ispin)%matrix,&
-                  matrix_v=opvec(1,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo,error=error)
+                  matrix_v=opvec(1,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo)
              CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(2,ispin)%matrix,&
-                  matrix_v=opvec(2,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo,error=error)
+                  matrix_v=opvec(2,ispin)%matrix,matrix_g=mo_coeff_tmp(ispin)%matrix,ncol=nmo)
           END DO
 
           ! Calculation of derivative integrals (da|eikr|b) and (a|eikr|db)
           ALLOCATE (basis_set_list(nkind),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
-             CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+             CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
              IF (ASSOCIATED(basis_set_a)) THEN
                 basis_set_list(ikind)%gto_basis_set => basis_set_a
              ELSE
@@ -1122,16 +1114,16 @@ MODULE qs_efield_berry
                 NULLIFY (rblock,iblock)
                 CALL cp_dbcsr_get_block_p(matrix=tempmat(1,ispin)%matrix,&
                      row=irow,col=icol,BLOCK=rblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                CPPostcondition(found,cp_failure_level,routineP,failure)
                 CALL cp_dbcsr_get_block_p(matrix=tempmat(2,ispin)%matrix,&
                      row=irow,col=icol,BLOCK=iblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                CPPostcondition(found,cp_failure_level,routineP,failure)
                 n1 = SIZE(rblock,1)
                 n2 = SIZE(rblock,2)
-                CPPostcondition(SIZE(iblock,1)==n1,cp_failure_level,routineP,error,failure)
-                CPPostcondition(SIZE(iblock,2)==n2,cp_failure_level,routineP,error,failure)
-                CPPostcondition(lsab>=n1,cp_failure_level,routineP,error,failure)
-                CPPostcondition(lsab>=n2,cp_failure_level,routineP,error,failure)
+                CPPostcondition(SIZE(iblock,1)==n1,cp_failure_level,routineP,failure)
+                CPPostcondition(SIZE(iblock,2)==n2,cp_failure_level,routineP,failure)
+                CPPostcondition(lsab>=n1,cp_failure_level,routineP,failure)
+                CPPostcondition(lsab>=n2,cp_failure_level,routineP,failure)
                 IF (iatom <= jatom) THEN
                    DO i=1,3
                       forcea(i) = forcea(i) + SUM(rblock(1:n1,1:n2)*dsint(i,1)%block(1:n1,1:n2)) &
@@ -1155,7 +1147,7 @@ MODULE qs_efield_berry
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)
           DEALLOCATE (basis_set_list,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END IF
     END DO
 
@@ -1207,14 +1199,14 @@ MODULE qs_efield_berry
        END DO
        ! Add the result to mo_derivativs
        DO ispin=1, dft_control%nspins
-          CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_coeff_tmp(ispin)%matrix,error=error)
+          CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_coeff_tmp(ispin)%matrix)
           DO idir=1,3
              CALL cp_fm_scale_and_add(1.0_dp,mo_coeff_tmp(ispin)%matrix,di(idir),&
-                  mo_derivs_tmp(idir,ispin)%matrix,error)
+                  mo_derivs_tmp(idir,ispin)%matrix)
           END DO
        END DO
        DO ispin=1, dft_control%nspins
-          CALL copy_fm_to_dbcsr(mo_coeff_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)
+          CALL copy_fm_to_dbcsr(mo_coeff_tmp(ispin)%matrix,mo_derivs(ispin)%matrix)
        END DO
     END IF
 
@@ -1229,40 +1221,40 @@ MODULE qs_efield_berry
     END IF
 
     DO ispin = 1, dft_control%nspins
-       CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
-       CALL cp_cfm_release(inv_mat(ispin)%matrix,error=error)
-       CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix,error=error)
+       CALL cp_cfm_release(eigrmat(ispin)%matrix)
+       CALL cp_cfm_release(inv_mat(ispin)%matrix)
+       CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix)
        DO i=1,3
-          CALL cp_fm_release(mo_derivs_tmp(i,ispin)%matrix,error=error)
+          CALL cp_fm_release(mo_derivs_tmp(i,ispin)%matrix)
        END DO
        DO i = 1, SIZE ( op_fm_set, 1 )
-          CALL cp_fm_release(opvec(i,ispin)%matrix,error=error)
-          CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
-          CALL cp_fm_release(inv_work(i,ispin)%matrix,error=error)
+          CALL cp_fm_release(opvec(i,ispin)%matrix)
+          CALL cp_fm_release(op_fm_set(i,ispin)%matrix)
+          CALL cp_fm_release(inv_work(i,ispin)%matrix)
        END DO
     END DO
     DEALLOCATE(inv_mat,inv_work,op_fm_set,opvec,eigrmat,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(mo_coeff_tmp,mo_derivs_tmp,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     IF(calculate_forces)THEN
        DO ikind=1,SIZE(atomic_kind_set)
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
        DEALLOCATE(atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DEALLOCATE (force_tmp,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(cosab,sinab,work,dcosab,dsinab,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        DO i=1,3
           DEALLOCATE(dcost(i,1)%block,dsint(i,1)%block,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(dcost(i,2)%block,dsint(i,2)%block,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        END DO
-       CALL cp_dbcsr_deallocate_matrix_set(tempmat,error)
+       CALL cp_dbcsr_deallocate_matrix_set(tempmat)
     END IF
     CALL timestop(handle)
 

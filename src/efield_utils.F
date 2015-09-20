@@ -54,15 +54,13 @@ CONTAINS
 !> \brief computes the time dependend potential on the grid
 !> \param qs_env ...
 !> \param v_efield_rspace ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE efield_potential(qs_env,v_efield_rspace,error)
+  SUBROUTINE efield_potential(qs_env,v_efield_rspace)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type)                          :: v_efield_rspace
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_potential', &
       routineP = moduleN//':'//routineN
@@ -86,10 +84,9 @@ CONTAINS
                     energy=energy,&
                     rho=rho,&
                     dft_control=dft_control,&
-                    para_env=para_env,&
-                    error=error)
+                    para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r)
 
     v_efield_rspace%pw%cr3d=0.0_dp
 
@@ -99,7 +96,7 @@ CONTAINS
     dvol=v_efield_rspace%pw%pw_grid%dvol
     dr=v_efield_rspace%pw%pw_grid%dr
 
-    CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
+    CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time)
 
     DO k=bo_local(1,3),bo_local(2,3)
        DO j=bo_local(1,2),bo_local(2,2)
@@ -128,16 +125,14 @@ CONTAINS
 !> \param field ...
 !> \param sim_step ...
 !> \param sim_time ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE make_field(dft_control,field,sim_step,sim_time,error)
+  SUBROUTINE make_field(dft_control,field,sim_step,sim_time)
     TYPE(dft_control_type)                   :: dft_control
     REAL(dp)                                 :: field(3)
     INTEGER                                  :: sim_step
     REAL(KIND=dp)                            :: sim_time
-    TYPE(cp_error_type)                      :: error
 
     INTEGER                                  :: i, nfield
     REAL(dp)                                 :: c, env, nu, pol(3), strength
@@ -185,14 +180,12 @@ CONTAINS
 !> \brief computes the force and the energy due to a efield on the cores
 !> \param qs_env ...
 !> \param calculate_forces ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_efield(qs_env,calculate_forces,error)
+  SUBROUTINE calculate_ecore_efield(qs_env,calculate_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, OPTIONAL                        :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_efield', &
       routineP = moduleN//':'//routineN
@@ -217,7 +210,7 @@ CONTAINS
 
     NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
     IF(dft_control%apply_efield_field)THEN
 
        failure=.FALSE.
@@ -230,15 +223,14 @@ CONTAINS
             qs_kind_set=qs_kind_set,&
             energy=energy,&
             particle_set=particle_set,&
-            cell=cell,&
-            error=error)
+            cell=cell)
        efield_ener=0.0_dp
        nkind = SIZE(atomic_kind_set)
-       CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
+       CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time)
 
        DO ikind=1,SIZE(atomic_kind_set)
           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list,natom=natom)
-          CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
 
           natom = SIZE(list)
           DO iatom=1,natom
@@ -247,7 +239,7 @@ CONTAINS
              r(:) = pbc(particle_set(atom_a)%r(:),cell)
              efield_ener=efield_ener-zeff*DOT_PRODUCT(r,field)
               IF(my_force)THEN
-                CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+                CALL get_qs_env(qs_env=qs_env,force=force)
                 force(ikind)%efield(:,iatom)=force(ikind)%efield(:,iatom)-field*zeff
              END IF
           END DO

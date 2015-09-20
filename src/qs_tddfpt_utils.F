@@ -74,14 +74,12 @@ CONTAINS
 !> \param t_env tddfpt environment to be initialized
 !> \param qs_env Quickstep environment with the results of a
 !>                   ground state calcualtion
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, error)
+  SUBROUTINE tddfpt_init(p_env, t_env, qs_env)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type), INTENT(out)       :: t_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init', &
       routineP = moduleN//':'//routineN
@@ -90,14 +88,14 @@ CONTAINS
 ! create the p_env !
 !------------------!
 
-    CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.,error=error)
-    CALL p_env_psi0_changed(p_env, qs_env,error=error) ! update the m_epsilon matrix
+    CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.)
+    CALL p_env_psi0_changed(p_env, qs_env) ! update the m_epsilon matrix
 
     !------------------!
     ! create the t_env !
     !------------------!
-    CALL tddfpt_env_allocate(t_env, p_env, qs_env,error=error)
-    CALL tddfpt_env_init(t_env, qs_env,error=error)
+    CALL tddfpt_env_allocate(t_env, p_env, qs_env)
+    CALL tddfpt_env_init(t_env, qs_env)
 
   END SUBROUTINE tddfpt_init
 
@@ -105,13 +103,11 @@ CONTAINS
 !> \brief Initialize t_env with meaningfull values.
 !> \param t_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tddfpt_env_init(t_env, qs_env,error)
+  SUBROUTINE tddfpt_env_init(t_env, qs_env)
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_init', &
       routineP = moduleN//':'//routineN
@@ -123,13 +119,13 @@ CONTAINS
 
     NULLIFY(matrix_s, dft_control)
 
-    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control)
     n_spins = dft_control%nspins
     IF (dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
-          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
-          CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix,error=error)
-          CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix,error=error)
+          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin)%matrix)
+          CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
+          CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
        END DO
     END IF
 
@@ -139,19 +135,17 @@ CONTAINS
 !> \brief ...
 !> \param t_env ...
 !> \param p_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tddfpt_cleanup(t_env, p_env, error)
+  SUBROUTINE tddfpt_cleanup(t_env, p_env)
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_cleanup', &
       routineP = moduleN//':'//routineN
 
-    CALL tddfpt_env_deallocate(t_env,error=error)
-    CALL p_env_release(p_env,error=error)
+    CALL tddfpt_env_deallocate(t_env)
+    CALL p_env_release(p_env)
 
   END SUBROUTINE tddfpt_cleanup
 
@@ -161,16 +155,14 @@ CONTAINS
 !> \param energies ...
 !> \param n_v ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, error)
+  SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: matrices
     REAL(kind=DP), DIMENSION(:), INTENT(OUT) :: energies
     INTEGER, INTENT(IN)                      :: n_v
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'co_initial_guess', &
       routineP = moduleN//':'//routineN
@@ -193,7 +185,7 @@ CONTAINS
     NULLIFY(dft_control)
     failure=.FALSE.
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
     tddfpt_control => dft_control%tddfpt_control
     n_spins = dft_control%nspins
     energies = 0.0_dp
@@ -208,7 +200,7 @@ CONTAINS
        n_rows = matrices(1,spin)%matrix%matrix_struct%nrow_global
 
        DO i=1, n_v
-          CALL cp_fm_set_all(matrices(i,spin)%matrix, 0.0_dp,error=error)
+          CALL cp_fm_set_all(matrices(i,spin)%matrix, 0.0_dp)
        END DO
 
        CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
@@ -255,9 +247,9 @@ CONTAINS
        END DO
 
        ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
-                                start_col=1, n_cols=n_lumos,error=error)
+                                start_col=1, n_cols=n_lumos)
 
        !-------------------!
        ! fill the matrices !
@@ -268,13 +260,13 @@ CONTAINS
           CALL dcopy(n_rows, lumos(:,sorter_iterator%lumo), 1, &
                              guess(:,sorter_iterator%orbit),1)
           CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
-                                   guess(:,1:n_orbits),error=error)
+                                   guess(:,1:n_orbits))
           energies(i) = energies(i) + sorter_iterator%value/REAL(n_spins,dp)
           sorter_iterator=>sorter_iterator%next
        END DO
        IF (n_v > n_orbits*n_lumos) THEN
           DO i=n_orbits*n_lumos+1, n_v
-             CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits,error=error)
+             CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
              energies(i)=1.0E38_dp
           END DO
        END IF
@@ -298,13 +290,11 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param t_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE find_contributions(qs_env, t_env, error)
+  SUBROUTINE find_contributions(qs_env, t_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(tddfpt_env_type), INTENT(IN)        :: t_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'find_contributions', &
       routineP = moduleN//':'//routineN
@@ -327,9 +317,9 @@ CONTAINS
 
     NULLIFY(S_lumos, logger, matrix_s, dft_control)
     failure = .FALSE.
-    logger    => cp_error_get_logger(error)
+    logger    => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
-    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control)
 
     IF (output_unit>0) WRITE (output_unit,*)
     IF (output_unit>0) WRITE (output_unit,*)
@@ -339,21 +329,21 @@ CONTAINS
     n_spins   = dft_control%nspins
 
     ALLOCATE(S_lumos(n_spins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO spin=1, n_spins
        nrows(spin) = t_control%lumos(spin)%matrix%matrix_struct%nrow_global
        nhomos(spin) = t_env%evecs(1,spin)%matrix%matrix_struct%ncol_global
        nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
        CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
-                         "S times lumos", error=error)
+                         "S times lumos")
        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
-                              S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp,error=error)
+                              S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
     END DO
 
     ALLOCATE(homo_coeff_col(MAXVAL(nrows(1:n_spins)),1), &
              lumo_coeff_col(MAXVAL(nrows(1:n_spins)),1), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i=1, n_ev
        IF (output_unit>0) THEN
           WRITE (output_unit,'(A,I3,5X,F15.6)') "  excited state : ", i, t_env%evals(i)*evolt
@@ -370,10 +360,10 @@ CONTAINS
           END IF
           searchloop: DO occ=nhomos(spin), 1, -1
              CALL cp_fm_get_submatrix(t_env%evecs(i,spin)%matrix, homo_coeff_col, &
-                                      1, occ, nrows(spin), 1, error=error)
+                                      1, occ, nrows(spin), 1)
              DO virt=1, nlumos(spin)
                 CALL cp_fm_get_submatrix(S_lumos(spin)%matrix, lumo_coeff_col, &
-                                         1, virt, nrows(spin), 1, error=error)
+                                         1, virt, nrows(spin), 1)
                 contribution = 0.0_dp
                 DO j=1, nrows(spin)
                    contribution = contribution + homo_coeff_col(j,1)*lumo_coeff_col(j,1)
@@ -397,13 +387,13 @@ CONTAINS
     ENDIF
 
     DO spin=1, n_spins
-       CALL cp_fm_release(S_lumos(spin)%matrix, error=error)
+       CALL cp_fm_release(S_lumos(spin)%matrix)
     END DO
     DEALLOCATE(homo_coeff_col, lumo_coeff_col, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DEALLOCATE(S_lumos, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE find_contributions
 
@@ -412,14 +402,12 @@ CONTAINS
 !> \param X ...
 !> \param tmp_vec ...
 !> \param metric ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE normalize(X, tmp_vec, metric, error)
+  SUBROUTINE normalize(X, tmp_vec, metric)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: metric
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_spins, spin
     REAL(KIND=dp)                            :: norm, tmp
@@ -432,14 +420,14 @@ CONTAINS
        CALL cp_dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
             tmp_vec(spin)%matrix, &
             X(spin)%matrix%matrix_struct%ncol_global, &
-            1.0_dp, 0.0_dp,error=error)
-       CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp,error=error)
+            1.0_dp, 0.0_dp)
+       CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
        norm = norm + tmp
     END DO
 
     norm = SQRT(norm)
     DO spin=1, n_spins
-       CALL cp_fm_scale((1.0_dp/norm), X(spin)%matrix,error=error)
+       CALL cp_fm_scale((1.0_dp/norm), X(spin)%matrix)
     END DO
 
   END SUBROUTINE normalize
@@ -455,15 +443,13 @@ CONTAINS
 !> \param SV_set ...
 !> \param work ...
 !> \param n ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n, error)
+  SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: V_set, SV_set
     TYPE(cp_fm_p_type), DIMENSION(:)         :: work
     INTEGER, INTENT(IN)                      :: n
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reorthogonalize', &
       routineP = moduleN//':'//routineN
@@ -477,18 +463,18 @@ CONTAINS
 
        n_spins = SIZE(X)
        DO spin=1, n_spins
-          CALL cp_fm_to_fm(X(spin)%matrix, work(spin)%matrix,error=error)
+          CALL cp_fm_to_fm(X(spin)%matrix, work(spin)%matrix)
        END DO
 
        DO i=1, n
           dot_product = 0.0_dp
           DO spin=1, n_spins
-             CALL cp_fm_trace(SV_set(i,spin)%matrix, work(spin)%matrix, tmp,error=error)
+             CALL cp_fm_trace(SV_set(i,spin)%matrix, work(spin)%matrix, tmp)
              dot_product = dot_product + tmp
           END DO
           DO spin=1, n_spins
              CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
-                                      -1.0_dp*dot_product, V_set(i,spin)%matrix,error=error)
+                                      -1.0_dp*dot_product, V_set(i,spin)%matrix)
           END DO
        END DO
 

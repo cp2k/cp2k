@@ -119,13 +119,11 @@ CONTAINS
 !> \brief  Create an object of molsym type
 !> \param sym ...
 !> \param natoms ...
-!> \param error ...
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE create_molsym(sym,natoms,error)
+  SUBROUTINE create_molsym(sym,natoms)
     TYPE(molsym_type), POINTER               :: sym
     INTEGER, INTENT(IN)                      :: natoms
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_molsym', &
       routineP = moduleN//':'//routineN
@@ -134,26 +132,24 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF ( ASSOCIATED(sym) ) CALL release_molsym(sym,error)
+    IF ( ASSOCIATED(sym) ) CALL release_molsym(sym)
 
     ALLOCATE(sym,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
     ALLOCATE (sym%ain(natoms),sym%aw(natoms),sym%group_of(natoms),sym%llequatom(natoms),&
               sym%nequatom(natoms),sym%symequ_list(natoms),sym%ulequatom(natoms),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE create_molsym
 
 ! *****************************************************************************
 !> \brief  release an object of molsym type
 !> \param sym ...
-!> \param error ...
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE release_molsym(sym,error)
+  SUBROUTINE release_molsym(sym)
     TYPE(molsym_type), POINTER               :: sym
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_molsym', &
       routineP = moduleN//':'//routineN
@@ -162,39 +158,39 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(sym),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(sym),cp_failure_level,routineP,failure)
 
     IF ( ASSOCIATED(sym%aw) ) THEN
       DEALLOCATE(sym%aw,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
     IF ( ASSOCIATED(sym%ain) ) THEN
       DEALLOCATE(sym%ain,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
     IF ( ASSOCIATED(sym%group_of) ) THEN
       DEALLOCATE(sym%group_of,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
     IF ( ASSOCIATED(sym%llequatom) ) THEN
       DEALLOCATE(sym%llequatom,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
     IF ( ASSOCIATED(sym%nequatom) ) THEN
       DEALLOCATE(sym%nequatom,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
     IF ( ASSOCIATED(sym%symequ_list) ) THEN
       DEALLOCATE(sym%symequ_list,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
     IF ( ASSOCIATED(sym%ulequatom) ) THEN
       DEALLOCATE(sym%ulequatom,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
     END IF
 
     DEALLOCATE(sym,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE release_molsym
 
@@ -206,16 +202,14 @@ CONTAINS
 !> \param n ...
 !> \param a ...
 !> \param sym ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE addsec(n,a,sym,error)
+  SUBROUTINE addsec(n,a,sym)
     INTEGER, INTENT(IN)                      :: n
     REAL(dp), DIMENSION(3), INTENT(IN)       :: a
     TYPE(molsym_type), INTENT(inout)         :: sym
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'addsec', &
       routineP = moduleN//':'//routineN
@@ -237,7 +231,7 @@ CONTAINS
     sym%ncn = MAX(sym%ncn,n)
 
     ! Add the new Cn axis to the list sec
-    CPPrecondition(sym%nsec(n) < maxsec,cp_failure_level,routineP,error,failure)
+    CPPrecondition(sym%nsec(n) < maxsec,cp_failure_level,routineP,failure)
     sym%nsec(1) = sym%nsec(1) + 1
     sym%nsec(n) = sym%nsec(n) + 1
     sym%sec(:,sym%nsec(n),n) = d(:)
@@ -250,16 +244,14 @@ CONTAINS
 !> \param n ...
 !> \param a ...
 !> \param sym ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE addses(n,a,sym,error)
+  SUBROUTINE addses(n,a,sym)
     INTEGER, INTENT(IN)                      :: n
     REAL(dp), DIMENSION(3), INTENT(IN)       :: a
     TYPE(molsym_type), INTENT(inout)         :: sym
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'addses', &
       routineP = moduleN//':'//routineN
@@ -281,7 +273,7 @@ CONTAINS
     sym%nsn = MAX(sym%nsn,n)
 
     ! Add the new Sn axis to the list ses
-    CPPrecondition(sym%nses(n) < maxses,cp_failure_level,routineP,error,failure)
+    CPPrecondition(sym%nses(n) < maxses,cp_failure_level,routineP,failure)
     sym%nses(1) = sym%nses(1) + 1
     sym%nses(n) = sym%nses(n) + 1
     sym%ses(:,sym%nses(n),n) = d(:)
@@ -293,15 +285,13 @@ CONTAINS
 !>         normal vector of the mirror plane is already in the list.
 !> \param a ...
 !> \param sym ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE addsig(a,sym,error)
+  SUBROUTINE addsig(a,sym)
     REAL(dp), DIMENSION(3), INTENT(IN)       :: a
     TYPE(molsym_type), INTENT(inout)         :: sym
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'addsig', &
       routineP = moduleN//':'//routineN
@@ -322,7 +312,7 @@ CONTAINS
     END DO
 
     ! Add the normal vector of the new mirror plane to the list sig
-    CPPrecondition(sym%nsig < maxsig,cp_failure_level,routineP,error,failure)
+    CPPrecondition(sym%nsig < maxsig,cp_failure_level,routineP,failure)
     sym%nsig = sym%nsig + 1
     sym%sig(:,sym%nsig) = d(:)
 
@@ -331,14 +321,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Symmetry handling for only one atom.
 !> \param sym ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE atomsym(sym,error)
+  SUBROUTINE atomsym(sym)
     TYPE(molsym_type), INTENT(inout)         :: sym
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atomsym', &
       routineP = moduleN//':'//routineN
@@ -359,16 +347,14 @@ CONTAINS
 !> \brief Search for point groups with AXial SYMmetry (Cn,Cnh,Cnv,Dn,Dnh,Dnd,S2n).
 !> \param coord ...
 !> \param sym ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE axsym(coord,sym,error)
+  SUBROUTINE axsym(coord,sym)
     REAL(Kind=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
     TYPE(molsym_type), INTENT(inout)         :: sym
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'axsym', &
       routineP = moduleN//':'//routineN
@@ -385,7 +371,7 @@ CONTAINS
         ! Special case: D2d
         phi = angle(sym%ses(:,1,sym%nsn),sym%z_axis(:))
         d(:) = vector_product(sym%ses(:,1,sym%nsn),sym%z_axis(:))
-        CALL rotate_molecule(phi,d(:),sym,coord,error)
+        CALL rotate_molecule(phi,d(:),sym,coord)
       ELSE
         ! Special cases: D2 and D2h
         phi = 0.5_dp*pi
@@ -393,15 +379,15 @@ CONTAINS
         ny = naxis(sym%y_axis(:),coord,sym)
         nz = naxis(sym%z_axis(:),coord,sym)
         IF ((nx > ny).AND.(nx > nz)) THEN
-          CALL rotate_molecule(-phi,sym%y_axis(:),sym,coord,error)
+          CALL rotate_molecule(-phi,sym%y_axis(:),sym,coord)
         ELSE IF ((ny > nz).AND.(ny > nx)) THEN
-          CALL rotate_molecule(phi,sym%x_axis(:),sym,coord,error)
+          CALL rotate_molecule(phi,sym%x_axis(:),sym,coord)
         END IF
       END IF
     ELSE
       phi = angle(sym%sec(:,1,sym%ncn),sym%z_axis(:))
       d(:) = vector_product(sym%sec(:,1,sym%ncn),sym%z_axis(:))
-      CALL rotate_molecule(phi,d(:),sym,coord,error)
+      CALL rotate_molecule(phi,d(:),sym,coord)
     END IF
 
     ! Search for C2 axes perpendicular to the main axis
@@ -411,9 +397,9 @@ CONTAINS
       a(:) = coord(:,iatom)
       IF ((ABS(a(1)) > sym%eps_geo).OR.(ABS(a(2)) > sym%eps_geo)) THEN
         a(3) = 0.0_dp
-        IF (caxis(2,a(:),sym,coord)) CALL addsec(2,a(:),sym,error)
+        IF (caxis(2,a(:),sym,coord)) CALL addsec(2,a(:),sym)
         d(:) = vector_product(a(:),sym%z_axis(:))
-        IF (sigma(d(:),sym,coord)) CALL addsig(d(:),sym,error)
+        IF (sigma(d(:),sym,coord)) CALL addsig(d(:),sym)
         DO jatom=iatom+1,natoms
           b(:) = coord(:,jatom)
           IF ((ABS(b(1)) > sym%eps_geo).OR.(ABS(b(2)) > sym%eps_geo)) THEN
@@ -421,9 +407,9 @@ CONTAINS
             phi = 0.5_dp*angle(a(:),b(:))
             d(:) = vector_product(a(:),b(:))
             b(:) = rotate_vector(a(:),phi,d(:))
-            IF (caxis(2,b(:),sym,coord)) CALL addsec(2,b(:),sym,error)
+            IF (caxis(2,b(:),sym,coord)) CALL addsec(2,b(:),sym)
             d(:) = vector_product(b(:),sym%z_axis)
-            IF (sigma(d(:),sym,coord)) CALL addsig(d(:),sym,error)
+            IF (sigma(d(:),sym,coord)) CALL addsig(d(:),sym)
           END IF
         END DO
       END IF
@@ -431,7 +417,7 @@ CONTAINS
 
     ! Check the xy plane for mirror plane
     IF (sigma(sym%z_axis(:),sym,coord)) THEN
-      CALL addsig(sym%z_axis(:),sym,error)
+      CALL addsig(sym%z_axis(:),sym)
       sym%sigmah = .TRUE.
     END IF
 
@@ -469,7 +455,7 @@ CONTAINS
           phi = angle(a(:),sym%y_axis(:))
           d(:) = vector_product(a(:),sym%y_axis(:))
         END IF
-        CALL rotate_molecule(phi,d(:),sym,coord,error)
+        CALL rotate_molecule(phi,d(:),sym,coord)
       END IF
     ELSE IF (sym%sigmah) THEN
       ! Cnh
@@ -485,7 +471,7 @@ CONTAINS
       IF (m > 0) THEN
         phi = angle(a(:),sym%x_axis(:))
         d(:) = vector_product(a(:),sym%x_axis(:))
-        CALL rotate_molecule(phi,d(:),sym,coord,error)
+        CALL rotate_molecule(phi,d(:),sym,coord)
       END IF
     ! No action for Dn, Cn or S2n ***
     END IF
@@ -496,16 +482,14 @@ CONTAINS
 !> \brief Generate a symmetry list to identify equivalent atoms.
 !> \param sym ...
 !> \param coord ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE build_symequ_list(sym,coord,error)
+  SUBROUTINE build_symequ_list(sym,coord)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(Kind=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_symequ_list', &
       routineP = moduleN//':'//routineN
@@ -656,17 +640,15 @@ CONTAINS
 !> \param sym ...
 !> \param coord ...
 !> \param failed ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE cubsym(sym,coord,failed,error)
+  SUBROUTINE cubsym(sym,coord,failed)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
     LOGICAL, INTENT(INOUT)                   :: failed
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iatom, iax, ic3, isec, &
                                                 jatom, jc3, jsec, katom, &
@@ -688,7 +670,7 @@ CONTAINS
     DO iatom=1,natoms
       ! Check all atomic vectors for C3 axis
       IF (caxis(3,coord(:,iatom),sym,coord)) THEN
-        CALL addsec(3,coord(:,iatom),sym,error)
+        CALL addsec(3,coord(:,iatom),sym)
         IF (sym%nsec(3) > 1) EXIT
       END IF
     END DO
@@ -707,7 +689,7 @@ CONTAINS
               - dist(coord(:,jatom),coord(:,katom))) < sym%eps_geo)) THEN
               b(:) = a(:) + coord(:,jatom) + coord(:,katom)
               IF (caxis(3,b(:),sym,coord)) THEN
-                CALL addsec(3,b(:),sym,error)
+                CALL addsec(3,b(:),sym)
                 IF (sym%nsec(3) > 1) EXIT loop
               END IF
             END IF
@@ -735,7 +717,7 @@ CONTAINS
             DO i=1,2
               phi1 = 2.0_dp*REAL(i,KIND=dp)*pi/3.0_dp
               b(:) = rotate_vector(a(:),phi1,d(:))
-              CALL addsec(3,b(:),sym,error)
+              CALL addsec(3,b(:),sym)
             END DO
           END IF
         END DO
@@ -762,11 +744,11 @@ CONTAINS
           phi1 = 0.5_dp*phidd
           a(:) = rotate_vector(b(:),phi1,d(:))
           IF (caxis(3,a(:),sym,coord)) THEN
-            CALL addsec(3,a(:),sym,error)
+            CALL addsec(3,a(:),sym)
           ELSE
             phi2 = 0.5_dp*pi - phi1
             a(:) = rotate_vector(b(:),phi2,d(:))
-            IF (caxis(3,a(:),sym,coord)) CALL addsec(3,a(:),sym,error)
+            IF (caxis(3,a(:),sym,coord)) CALL addsec(3,a(:),sym)
           END IF
 
           IF (sym%nsec(3) > 4) CYCLE
@@ -798,10 +780,10 @@ CONTAINS
         IF (sym%nsec(3) == 10) THEN
           b(:) = rotate_vector(a(:),phidi,d(:))
           IF (caxis(5,b(:),sym,coord)) THEN
-            CALL addsec(5,b(:),sym,error)
+            CALL addsec(5,b(:),sym)
             phi1 = phidi + phiii
             b(:) = rotate_vector(a(:),phi1,d(:))
-            IF (caxis(5,b(:),sym,coord)) CALL addsec(5,b(:),sym,error)
+            IF (caxis(5,b(:),sym,coord)) CALL addsec(5,b(:),sym)
           END IF
         END IF
 
@@ -810,20 +792,20 @@ CONTAINS
           phi2 = phi1 - 0.5_dp*REAL(i,KIND=dp)*pi
           b(:) = rotate_vector(a(:),phi2,d(:))
           IF (caxis(2,b(:),sym,coord)) THEN
-            CALL addsec(2,b(:),sym,error)
+            CALL addsec(2,b(:),sym)
             IF (sym%nsec(3) == 4) THEN
-              IF (caxis(4,b(:),sym,coord)) CALL addsec(4,b(:),sym,error)
+              IF (caxis(4,b(:),sym,coord)) CALL addsec(4,b(:),sym)
             END IF
             IF (saxis(2,b(:),sym,coord)) THEN
-              CALL addses(2,b(:),sym,error)
+              CALL addses(2,b(:),sym)
               sym%invers = .TRUE.
             END IF
           END IF
-          IF (sigma(b(:),sym,coord)) CALL addsig(b(:),sym,error)
+          IF (sigma(b(:),sym,coord)) CALL addsig(b(:),sym)
         END DO
 
         ! Check for mirror plane
-        IF (sigma(d(:),sym,coord)) CALL addsig(d(:),sym,error)
+        IF (sigma(d(:),sym,coord)) CALL addsig(d(:),sym)
 
       END DO
 
@@ -849,13 +831,13 @@ CONTAINS
     ! Rotate molecule to standard orientation
     phi1 = angle(sym%sec(:,1,iax),sym%z_axis(:))
     d(:) = vector_product(sym%sec(:,1,iax),sym%z_axis(:))
-    CALL rotate_molecule(phi1,d(:),sym,coord,error)
+    CALL rotate_molecule(phi1,d(:),sym,coord)
 
     a(:) = sym%sec(:,2,iax)
     a(3) = 0.0_dp
     phi2 = angle(a(:),sym%x_axis(:))
     d(:) = vector_product(a(:),sym%x_axis(:))
-    CALL rotate_molecule(phi2,d(:),sym,coord,error)
+    CALL rotate_molecule(phi2,d(:),sym,coord)
 
   END SUBROUTINE cubsym
 
@@ -1009,16 +991,14 @@ CONTAINS
 !> \param sym ...
 !> \param atype ...
 !> \param weight ...
-!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE init_symmetry(sym,atype,weight,error)
+  SUBROUTINE init_symmetry(sym,atype,weight)
     TYPE(molsym_type), INTENT(inout)         :: sym
     INTEGER, DIMENSION(:), INTENT(IN)        :: atype
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: weight
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_symmetry', &
       routineP = moduleN//':'//routineN
@@ -1115,16 +1095,14 @@ CONTAINS
 !> \brief Search for point groups of LOW SYMmetry (Ci,Cs).
 !> \param sym ...
 !> \param coord ...
-!> \param error ...
 !> \par History
 !>        Creation (21.04.95, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE lowsym(sym,coord,error)
+  SUBROUTINE lowsym(sym,coord)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lowsym', &
       routineP = moduleN//':'//routineN
@@ -1138,7 +1116,7 @@ CONTAINS
       sym%invers = .TRUE.
       phi = angle(sym%ses(:,1,2),sym%z_axis(:))
       d(:) = vector_product(sym%ses(:,1,2),sym%z_axis(:))
-      CALL rotate_molecule(phi,d(:),sym,coord,error)
+      CALL rotate_molecule(phi,d(:),sym,coord)
 
     ELSE IF (sym%nsig == 1) THEN
 
@@ -1146,7 +1124,7 @@ CONTAINS
       sym%sigmah = .TRUE.
       phi = angle(sym%sig(:,1),sym%z_axis(:))
       d(:) = vector_product(sym%sig(:,1),sym%z_axis(:))
-      CALL rotate_molecule(phi,d(:),sym,coord,error)
+      CALL rotate_molecule(phi,d(:),sym,coord)
 
     END IF
 
@@ -1159,19 +1137,17 @@ CONTAINS
 !> \param coord ...
 !> \param atype ...
 !> \param weight ...
-!> \param error ...
 !> \par History
 !>        Creation (14.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE molecular_symmetry(sym,eps_geo,coord,atype,weight,error)
+  SUBROUTINE molecular_symmetry(sym,eps_geo,coord,atype,weight)
     TYPE(molsym_type), POINTER               :: sym
     REAL(KIND=dp), INTENT(IN)                :: eps_geo
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
     INTEGER, DIMENSION(:), INTENT(IN)        :: atype
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: weight
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'molecular_symmetry', &
       routineP = moduleN//':'//routineN
@@ -1182,18 +1158,18 @@ CONTAINS
 
     ! Perform memory allocation for the symmetry analysis
     natoms = SIZE(coord,2)
-    CALL create_molsym(sym,natoms,error)
+    CALL create_molsym(sym,natoms)
     sym%eps_geo=eps_geo
 
     ! Initialization of symmetry analysis
-    CALL init_symmetry(sym,atype,weight,error)
+    CALL init_symmetry(sym,atype,weight)
 
     IF (natoms == 1) THEN
       ! Special case: only one atom
-      CALL atomsym(sym,error)
+      CALL atomsym(sym)
     ELSE
       ! Find molecular symmetry
-      CALL moleculesym(sym,coord,error)
+      CALL moleculesym(sym,coord)
       ! Get point group and load point group table
       CALL get_point_group_symbol(sym)
     END IF
@@ -1202,7 +1178,7 @@ CONTAINS
     IF (.NOT.sym%linear) CALL get_point_group_order(sym)
 
     ! Generate a list of equivalent atoms
-    CALL build_symequ_list(sym,coord,error)
+    CALL build_symequ_list(sym,coord)
 
     CALL timestop(handle)
 
@@ -1212,16 +1188,14 @@ CONTAINS
 !> \brief Find the molecular symmetry.
 !> \param sym ...
 !> \param coord ...
-!> \param error ...
 !> \par History
 !>        Creation (14.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE moleculesym(sym,coord,error)
+  SUBROUTINE moleculesym(sym,coord)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'moleculesym', &
       routineP = moduleN//':'//routineN
@@ -1235,7 +1209,7 @@ CONTAINS
     eps_tenval = 0.01_dp*sym%eps_geo
 
     ! Calculate the molecular tensor of inertia
-    CALL tensor(sym,coord,error)
+    CALL tensor(sym,coord)
     ! Use symmetry information from the eigenvalues of the molecular tensor of inertia
     IF ((sym%tenval(3) - sym%tenval(1)) < eps_tenval) THEN
       ! 0 < tenval(1) = tenval(2) = tenval(3)
@@ -1254,7 +1228,7 @@ CONTAINS
     DO
       failed = .FALSE.
       IF (sym%cubic) THEN
-        CALL cubsym(sym,coord,failed,error)
+        CALL cubsym(sym,coord,failed)
         IF (failed) THEN
           sym%cubic = .FALSE.
           CYCLE
@@ -1273,30 +1247,30 @@ CONTAINS
 
         ! Check the new coordinate axes for Cn axes
         DO icn=2,maxcn
-          IF (caxis(icn,sym%z_axis(:),sym,coord)) CALL addsec(icn,sym%z_axis(:),sym,error)
-          IF (caxis(icn,sym%x_axis(:),sym,coord)) CALL addsec(icn,sym%x_axis(:),sym,error)
-          IF (caxis(icn,sym%y_axis(:),sym,coord)) CALL addsec(icn,sym%y_axis(:),sym,error)
+          IF (caxis(icn,sym%z_axis(:),sym,coord)) CALL addsec(icn,sym%z_axis(:),sym)
+          IF (caxis(icn,sym%x_axis(:),sym,coord)) CALL addsec(icn,sym%x_axis(:),sym)
+          IF (caxis(icn,sym%y_axis(:),sym,coord)) CALL addsec(icn,sym%y_axis(:),sym)
         END DO
 
         ! Check the new coordinate axes for Sn axes
         DO isn=2,maxsn
-          IF (saxis(isn,sym%z_axis(:),sym,coord)) CALL addses(isn,sym%z_axis(:),sym,error)
-          IF (saxis(isn,sym%x_axis(:),sym,coord)) CALL addses(isn,sym%x_axis(:),sym,error)
-          IF (saxis(isn,sym%y_axis(:),sym,coord)) CALL addses(isn,sym%y_axis(:),sym,error)
+          IF (saxis(isn,sym%z_axis(:),sym,coord)) CALL addses(isn,sym%z_axis(:),sym)
+          IF (saxis(isn,sym%x_axis(:),sym,coord)) CALL addses(isn,sym%x_axis(:),sym)
+          IF (saxis(isn,sym%y_axis(:),sym,coord)) CALL addses(isn,sym%y_axis(:),sym)
         END DO
 
         ! Check the new coordinate planes for mirror planes
-        IF (sigma(sym%z_axis(:),sym,coord)) CALL addsig(sym%z_axis(:),sym,error)
-        IF (sigma(sym%x_axis(:),sym,coord)) CALL addsig(sym%x_axis(:),sym,error)
-        IF (sigma(sym%y_axis(:),sym,coord)) CALL addsig(sym%y_axis(:),sym,error)
+        IF (sigma(sym%z_axis(:),sym,coord)) CALL addsig(sym%z_axis(:),sym)
+        IF (sigma(sym%x_axis(:),sym,coord)) CALL addsig(sym%x_axis(:),sym)
+        IF (sigma(sym%y_axis(:),sym,coord)) CALL addsig(sym%y_axis(:),sym)
 
         ! There is a main axis (MAXIS = .TRUE.)
         IF ((sym%ncn > 1).OR.(sym%nsn > 3)) THEN
           sym%maxis = .TRUE.
-          CALL axsym(coord,sym,error)
+          CALL axsym(coord,sym)
         ELSE
           ! Only low or no symmetry (Ci, Cs or C1)
-          CALL lowsym(sym,coord,error)
+          CALL lowsym(sym,coord)
         END IF
 
       END IF
@@ -1310,9 +1284,9 @@ CONTAINS
       DO icn=2,sym%ncn
         DO isec=1,sym%nsec(icn)
           IF (saxis(icn,sym%sec(:,isec,icn),sym,coord)) &
-                    CALL addses(icn,sym%sec(:,isec,icn),sym,error)
+                    CALL addses(icn,sym%sec(:,isec,icn),sym)
           IF (saxis(2*icn,sym%sec(:,isec,icn),sym,coord)) &
-                    CALL addses(2*icn,sym%sec(:,isec,icn),sym,error)
+                    CALL addses(2*icn,sym%sec(:,isec,icn),sym)
         END DO
       END DO
     END IF
@@ -1321,7 +1295,7 @@ CONTAINS
     IF (sym%nses(2) > 0) THEN
       sym%nses(1) = sym%nses(1) - sym%nses(2)
       sym%nses(2) = 0
-      CALL addses(2,sym%z_axis(:),sym,error)
+      CALL addses(2,sym%z_axis(:),sym)
     END IF
 
   END SUBROUTINE moleculesym
@@ -1485,12 +1459,11 @@ CONTAINS
 !> \param weight ...
 !> \param iw ...
 !> \param plevel ...
-!> \param error ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE print_symmetry(sym,coord,atype,element,z,weight,iw,plevel,error)
+  SUBROUTINE print_symmetry(sym,coord,atype,element,z,weight,iw,plevel)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: coord
@@ -1500,7 +1473,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(in)        :: z
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: weight
     INTEGER, INTENT(IN)                      :: iw, plevel
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_symmetry', &
       routineP = moduleN//':'//routineN
@@ -1524,7 +1496,7 @@ CONTAINS
 
     IF ( MOD(plevel,10) == 1 ) THEN
       ! Print the Cartesian coordinates of the standard orientation
-      CALL write_coordinates(coord,atype,element,z,weight,iw,error)
+      CALL write_coordinates(coord,atype,element,z,weight,iw)
 
       WRITE (iw,"(/,T3,A,(T41,10I4))") "Group Number:      1   Group Members:",&
         (sym%symequ_list(iequatom),iequatom=sym%llequatom(1),sym%ulequatom(1))
@@ -1602,18 +1574,16 @@ CONTAINS
 !> \param a ...
 !> \param sym ...
 !> \param coord ...
-!> \param error ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE rotate_molecule(phi,a,sym,coord,error)
+  SUBROUTINE rotate_molecule(phi,a,sym,coord)
     REAL(KIND=dp), INTENT(IN)                :: phi
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotate_molecule', &
       routineP = moduleN//':'//routineN
@@ -1748,16 +1718,14 @@ CONTAINS
 !>        center of mass of the molecule.
 !> \param sym ...
 !> \param coord ...
-!> \param error ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE tensor(sym,coord,error)
+  SUBROUTINE tensor(sym,coord)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: coord
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tensor', &
       routineP = moduleN//':'//routineN
@@ -1797,7 +1765,7 @@ CONTAINS
     sym%tenvec(:,3) = vector_product(sym%tenvec(:,1),sym%tenvec(:,2))
 
     tt = SQRT(sym%tenval(1)**2 + sym%tenval(2)**2 + sym%tenval(3)**2)
-    CPPostcondition(tt /= 0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(tt /= 0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE tensor
 
@@ -1853,11 +1821,10 @@ CONTAINS
 !> \param z ...
 !> \param weight ...
 !> \param iw ...
-!> \param error ...
 !> \date    08.05.2008
 !> \author  JGH
 ! *****************************************************************************
-  SUBROUTINE write_coordinates(coord,atype,element,z,weight,iw,error)
+  SUBROUTINE write_coordinates(coord,atype,element,z,weight,iw)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: coord
     INTEGER, DIMENSION(:), INTENT(in)        :: atype
@@ -1866,7 +1833,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(in)        :: z
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: weight
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iatom, natom
 

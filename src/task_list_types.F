@@ -41,13 +41,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates and initialised the components of the task_list_type
 !> \param task_list ...
-!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE allocate_task_list(task_list,error)
+SUBROUTINE allocate_task_list(task_list)
     TYPE(task_list_type), POINTER            :: task_list
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_task_list', &
       routineP = moduleN//':'//routineN
@@ -56,7 +54,7 @@ SUBROUTINE allocate_task_list(task_list,error)
     LOGICAL                                  :: failure
 
   ALLOCATE(task_list,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   NULLIFY(task_list%tasks)
   NULLIFY(task_list%dist_ab)
@@ -71,13 +69,11 @@ END SUBROUTINE allocate_task_list
 ! *****************************************************************************
 !> \brief deallocates the components and the object itself
 !> \param task_list ...
-!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE deallocate_task_list(task_list,error)
+SUBROUTINE deallocate_task_list(task_list)
     TYPE(task_list_type), POINTER            :: task_list
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_task_list', &
       routineP = moduleN//':'//routineN
@@ -87,34 +83,34 @@ SUBROUTINE deallocate_task_list(task_list,error)
 
   IF (ASSOCIATED(task_list%tasks)) THEN
      DEALLOCATE(task_list%tasks,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
   IF (ASSOCIATED(task_list%dist_ab)) THEN
      DEALLOCATE(task_list%dist_ab,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
   IF (ASSOCIATED(task_list%atom_pair_send)) THEN
      DEALLOCATE(task_list%atom_pair_send,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
   IF (ASSOCIATED(task_list%atom_pair_recv)) THEN
      DEALLOCATE(task_list%atom_pair_recv,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
   IF (ASSOCIATED(task_list%taskstart)) THEN
      DEALLOCATE(task_list%taskstart,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
   IF (ASSOCIATED(task_list%taskstop)) THEN
      DEALLOCATE(task_list%taskstop,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
   IF (ASSOCIATED(task_list%npairs)) THEN
      DEALLOCATE(task_list%npairs,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   ENDIF
 
   DEALLOCATE(task_list,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 END SUBROUTINE deallocate_task_list
 END MODULE task_list_types

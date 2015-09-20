@@ -71,10 +71,9 @@ CONTAINS
 !> \param nsgf_cnt ...
 !> \param sgf_soft_only ...
 !> \param eps_fit ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_oce_block(oces,atom_ka,atom_kb,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,&
-       eps_fit,error)
+       eps_fit)
 
 
     TYPE(block_p_type), DIMENSION(:), &
@@ -86,7 +85,6 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: nsgf_cnt
     LOGICAL, INTENT(OUT)                     :: sgf_soft_only
     REAL(dp), INTENT(IN)                     :: eps_fit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block', &
       routineP = moduleN//':'//routineN
@@ -117,12 +115,12 @@ CONTAINS
    NULLIFY(orb_basis_a,paw_proj_a)
    CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,&
-                        hard_radius=hard_radius_a,error=error)
+                        hard_radius=hard_radius_a)
 
    NULLIFY(orb_basis_b,paw_proj_b)
    CALL get_qs_kind(qs_kind=atom_kb,basis_set=orb_basis_b,&
                          paw_proj_set=paw_proj_b,paw_atom=paw_atom_b,&
-                         hard_radius=hard_radius_b,error=error)
+                         hard_radius=hard_radius_b)
 
    IF(.NOT. paw_atom_a) RETURN
 
@@ -158,15 +156,15 @@ CONTAINS
     msab = MAX(maxnprja*ncoset(maxlprj),maxcob)
 
     ALLOCATE(c2s(lds,lds),STAT= istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(spa_sb(np_car,ntotsgfb), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(spa_tmp(msab,msab*maxder),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     m1 = 0
     nsgf_cnt = 0
@@ -271,7 +269,7 @@ CONTAINS
     IF(sgf_hard_only.EQ.0) sgf_soft_only = .TRUE.
 
     DEALLOCATE(c2s,s,spa_sb,spa_tmp,ovs,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE build_oce_block
 
@@ -282,16 +280,14 @@ CONTAINS
 !> \param atom_ka ...
 !> \param sgf_list ...
 !> \param nsgf_cnt ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_oce_block_local(oceh,oces,atom_ka,sgf_list,nsgf_cnt,error)
+  SUBROUTINE build_oce_block_local(oceh,oces,atom_ka,sgf_list,nsgf_cnt)
 
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
     TYPE(qs_kind_type), POINTER              :: atom_ka
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sgf_list
     INTEGER, INTENT(OUT)                     :: nsgf_cnt
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block_local', &
       routineP = moduleN//':'//routineN
@@ -310,7 +306,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(orb_basis_a,paw_proj_a)
     CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
-                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,error=error)
+                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
 
     IF(.NOT. paw_atom_a) RETURN
 
@@ -326,7 +322,7 @@ CONTAINS
                           local_oce_sphi_s=local_oce_s)
 
     ALLOCATE(prjloc_h(nseta*maxsoa,nsgfa),prjloc_s(nseta*maxsoa,nsgfa),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     prjloc_h = 0._dp
     prjloc_s = 0._dp
 
@@ -353,7 +349,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(prjloc_h,prjloc_s,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   END SUBROUTINE build_oce_block_local
 
@@ -368,13 +364,12 @@ CONTAINS
 !> \param particle_set ...
 !> \param sap_oce ...
 !> \param eps_fit ...
-!> \param error ...
 !> \par History
 !>      02.2009 created
 !> \author jgh
 ! *****************************************************************************
   SUBROUTINE build_oce_matrices(intac, calculate_forces, nder,&
-                    qs_kind_set, particle_set, sap_oce, eps_fit, error)
+                    qs_kind_set, particle_set, sap_oce, eps_fit)
 
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: intac
@@ -387,7 +382,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sap_oce
     REAL(dp), INTENT(IN)                     :: eps_fit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices', &
       routineP = moduleN//':'//routineN
@@ -441,7 +435,7 @@ CONTAINS
                                maxlgto=maxlgto,&
                                maxlprj=maxlprj,&
                                maxco_proj=maxprj,&
-                               maxsgf=maxsgf,error=error)
+                               maxsgf=maxsgf)
 
       maxl = MAX(maxlgto,maxlprj)
       CALL init_orbital_pointers(maxl+nder+1)
@@ -449,14 +443,14 @@ CONTAINS
       ldsab = MAX(maxco,ncoset(maxlprj),maxsgf,maxprj)
       ldai = ncoset(maxl+nder+1)
       ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       sab=0.0_dp
       ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ai_work=0.0_dp
 
       ALLOCATE(oceh(maxder),oces(maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
       DO i=1,nkind*nkind
         NULLIFY(intac(i)%alist,intac(i)%asort,intac(i)%aindex)
@@ -473,7 +467,7 @@ CONTAINS
          dab = SQRT(SUM(rab*rab))
 
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis_set,error=error)
+         CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis_set)
 
          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -494,10 +488,10 @@ CONTAINS
          qs_kind => qs_kind_set(jkind)
 
          NULLIFY(paw_proj_b)
-         CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b,error=error)
+         CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
          IF (.NOT.paw_atom_b) CYCLE
 
-         CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis_paw,error=error)
+         CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis_paw)
          IF (.NOT.ASSOCIATED(orb_basis_paw)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
 
@@ -518,7 +512,7 @@ CONTAINS
             intac(iac)%p_kind = jkind
             intac(iac)%nalist = nlist
             ALLOCATE(intac(iac)%alist(nlist),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
             DO i=1,nlist
                NULLIFY(intac(iac)%alist(i)%clist)
                intac(iac)%alist(i)%aatom  = 0
@@ -529,7 +523,7 @@ CONTAINS
             intac(iac)%alist(ilist)%aatom  = atom_a
             intac(iac)%alist(ilist)%nclist = nneighbor
             ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
          END IF
 
          clist => intac(iac)%alist(ilist)%clist(jneighbor)
@@ -542,7 +536,7 @@ CONTAINS
          NULLIFY(clist%acint,clist%achint,clist%sgf_list)
 
          ALLOCATE(sgf_list(nsgfa),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          at_a => qs_kind_set(jkind)
          at_b => qs_kind_set(ikind)
@@ -552,22 +546,22 @@ CONTAINS
          IF( local ) THEN
             DO i=1,maxder
                ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                oceh(i)%block=0._dp
                oces(i)%block=0._dp
             END DO
-            CALL build_oce_block_local(oceh,oces,at_a,sgf_list,nsgf_cnt,error)
+            CALL build_oce_block_local(oceh,oces,at_a,sgf_list,nsgf_cnt)
             clist%nsgf_cnt = nsgf_cnt
             clist%sgf_soft_only = .FALSE.
             IF(nsgf_cnt > 0) THEN
                ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                clist%acint(:,:,:)=0._dp
                clist%sgf_list(:)=HUGE(0)
-               CPPostcondition(nsgf_cnt == nsgfa,cp_failure_level,routineP,error,failure)
+               CPPostcondition(nsgf_cnt == nsgfa,cp_failure_level,routineP,failure)
                ! *** Special case: A=B
                ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                clist%achint=0._dp
                clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
                clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
@@ -577,20 +571,20 @@ CONTAINS
             ENDIF
             DO i=1,maxder
               DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
             END DO
          ELSE
             DO i=1,maxder
                ALLOCATE(oces(i)%block(nsobtot,nsgfa),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                oces(i)%block=0._dp
             END DO
-            CALL build_oce_block(oces,at_a,at_b,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,eps_fit,error)
+            CALL build_oce_block(oces,at_a,at_b,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,eps_fit)
             clist%nsgf_cnt = nsgf_cnt
             clist%sgf_soft_only = sgf_soft_only
             IF(nsgf_cnt > 0) THEN
                ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
                clist%acint(:,:,:)=0._dp
                clist%sgf_list(:)=HUGE(0)
                DO i=1,maxder
@@ -602,23 +596,23 @@ CONTAINS
             ENDIF
             DO i=1,maxder
               DEALLOCATE(oces(i)%block,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
             END DO
          END IF
 
          DEALLOCATE(sgf_list,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
      DEALLOCATE(sab,work,ai_work,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DEALLOCATE(oceh,oces,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
      ! set up sort index
-     CALL sap_sort(intac,error)
+     CALL sap_sort(intac)
 
    END IF
 
@@ -702,14 +696,12 @@ CONTAINS
 !> \param ain matrix in old indexing
 !> \param aout matrix in new compressed indexing
 !> \param atom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE prj_gather(ain,aout,atom,error)
+  SUBROUTINE prj_gather(ain,aout,atom)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: aout
     TYPE(qs_kind_type), INTENT(IN)           :: atom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_gather', &
       routineP = moduleN//':'//routineN
@@ -720,7 +712,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
-    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom,error=error)
+    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)
     CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 
@@ -739,14 +731,12 @@ CONTAINS
 !> \param ain  matrix in new compressed indexing
 !> \param aout matrix in old indexing (addup)
 !> \param atom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE prj_scatter(ain,aout,atom,error)
+  SUBROUTINE prj_scatter(ain,aout,atom)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: aout
     TYPE(qs_kind_type), INTENT(IN)           :: atom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_scatter', &
       routineP = moduleN//':'//routineN
@@ -757,7 +747,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
-    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom,error=error)
+    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)
     CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 

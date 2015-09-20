@@ -64,9 +64,8 @@ CONTAINS
 !> \param scptb_control ...
 !> \param print_section ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_parameter_init(atomic_kind_set,qs_kind_set,scptb_control,print_section,para_env,error)
+  SUBROUTINE scptb_parameter_init(atomic_kind_set,qs_kind_set,scptb_control,print_section,para_env)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -75,7 +74,6 @@ CONTAINS
     TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_init', &
       routineP = moduleN//':'//routineN
@@ -97,45 +95,45 @@ CONTAINS
     failure = .FALSE.
     output_unit = -1
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     print_info = (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
-         "KINDS/BASIS_SET",error=error),cp_p_file))
+         "KINDS/BASIS_SET"),cp_p_file))
     IF (print_info) THEN
-       output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log",error=error)
+       output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log")
        IF ( output_unit > 0 ) THEN
          WRITE(output_unit,"(/,A)") " SCPTB| A set of SCPTB "//&
               "parameters for material sciences."
          WRITE(output_unit,"(A)") " SCPTB| J. Hutter, Y. Misteli, R. Koitz"
          WRITE(output_unit,"(A)") " SCPTB| University of Zurich, 2012"
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS")
     END IF
 
     ! read global parameters from xml file
-    IF(para_env%ionode) CALL scptb_global_parameter_from_file(scptb_control,error)
-    CALL scptb_global_parameter_broadcast(scptb_control,para_env,error)
+    IF(para_env%ionode) CALL scptb_global_parameter_from_file(scptb_control)
+    CALL scptb_global_parameter_broadcast(scptb_control,para_env)
 
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
       CALL get_atomic_kind(atomic_kind_set(ikind), name=iname)
       CALL uppercase(iname)
       NULLIFY(scptb_parameter)
-      CALL allocate_scptb_parameter(scptb_parameter,error)
-      CALL set_scptb_parameter(scptb_parameter,key=iname,defined=.FALSE., error=error)
+      CALL allocate_scptb_parameter(scptb_parameter)
+      CALL set_scptb_parameter(scptb_parameter,key=iname,defined=.FALSE.)
     
       ! only for ionode
-      IF(para_env%ionode) CALL scptb_parameter_from_file(scptb_parameter,scptb_control,error)
-      CALL scptb_parameter_broadcast(scptb_parameter,para_env,error)
+      IF(para_env%ionode) CALL scptb_parameter_from_file(scptb_parameter,scptb_control)
+      CALL scptb_parameter_broadcast(scptb_parameter,para_env)
       
       IF (scptb_parameter%defined .EQV. .FALSE.) THEN
-        output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log",error=error)
+        output_unit = cp_print_key_unit_nr(logger,print_section,"KINDS",extension=".Log")
         IF ( output_unit > 0 ) THEN
            WRITE(output_unit, "(A,I3,2X,A,A)") " SCPTB| Kind ", ikind, TRIM(iname), &
             ": No parameter xml given or element undefined. Using defaults."
         END IF
         !defaults, but undefined for most elements atm
-        CALL scptb_default_parameter(scptb_parameter,error) 
-        CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS",error=error)
+        CALL scptb_default_parameter(scptb_parameter) 
+        CALL cp_print_key_finished_output(output_unit,logger,print_section,"KINDS")
       END IF
 
       !initialization
@@ -145,15 +143,15 @@ CONTAINS
               zeff_correction=0.0_dp)
          ! basis set
          NULLIFY(sto_basis)
-         CALL allocate_sto_basis_set (sto_basis,error)
+         CALL allocate_sto_basis_set (sto_basis)
          nshell = SUM(scptb_parameter%norb)
          ALLOCATE (nq(nshell),lq(nshell),zet(nshell),STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
          nq=0
          lq=0
          zet=0._dp
          ALLOCATE (symbol(nshell),STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
          symbol=""
          is=0
          !Aggregate all the electron shell parameters into arrays
@@ -175,14 +173,14 @@ CONTAINS
                  nshell=nshell,symbol=symbol,nq=nq,lq=lq,zet=zet)
             qs_kind => qs_kind_set(ikind)
             NULLIFY(gto_basis)
-            CALL create_gto_from_sto_basis(sto_basis,gto_basis,scptb_control%sto_ng,error=error)
-            CALL add_basis_set_to_container(qs_kind%basis_sets,gto_basis,"ORB",error)
+            CALL create_gto_from_sto_basis(sto_basis,gto_basis,scptb_control%sto_ng)
+            CALL add_basis_set_to_container(qs_kind%basis_sets,gto_basis,"ORB")
          END IF
 
          DEALLOCATE (nq,lq,zet,symbol,STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
-         CALL deallocate_sto_basis_set (sto_basis,error)
+         CALL deallocate_sto_basis_set (sto_basis)
          !throw away the STO basis set, since from now on we use the GTO
 
          a = scptb_parameter%crep(1)
@@ -212,7 +210,7 @@ CONTAINS
 
       END IF
 
-      CALL set_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_parameter, error=error)
+      CALL set_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_parameter)
 
     END DO
 
@@ -221,12 +219,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param scptb_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_global_parameter_from_file(scptb_control,error)
+  SUBROUTINE scptb_global_parameter_from_file(scptb_control)
 
     TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'scptb_global_parameter_from_file', &
@@ -326,14 +322,12 @@ CONTAINS
 !> \brief ...
 !> \param scptb_parameter ...
 !> \param scptb_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_parameter_from_file(scptb_parameter,scptb_control,error)
+  SUBROUTINE scptb_parameter_from_file(scptb_parameter,scptb_control)
 
     TYPE(scptb_parameter_type), &
       INTENT(INOUT)                          :: scptb_parameter
     TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_from_file', &
       routineP = moduleN//':'//routineN
@@ -565,13 +559,11 @@ CONTAINS
 !> \brief ...
 !> \param scptb_control ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_global_parameter_broadcast(scptb_control,para_env,error)
+  SUBROUTINE scptb_global_parameter_broadcast(scptb_control,para_env)
 
     TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'scptb_global_parameter_broadcast', &
@@ -586,9 +578,9 @@ CONTAINS
     group = para_env%group
     
     IF(para_env%ionode) THEN
-       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,error,failure)
+       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,failure)
     ELSE
-       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,error,failure)
+       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,failure)
     END IF
 
     CALL mp_bcast(scptb_control%sd3,source,group)
@@ -599,14 +591,12 @@ CONTAINS
 !> \brief ...
 !> \param scptb_parameter ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_parameter_broadcast(scptb_parameter,para_env,error)
+  SUBROUTINE scptb_parameter_broadcast(scptb_parameter,para_env)
 
     TYPE(scptb_parameter_type), &
       INTENT(INOUT)                          :: scptb_parameter
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scptb_parameter_broadcast', &
       routineP = moduleN//':'//routineN
@@ -620,9 +610,9 @@ CONTAINS
     group = para_env%group
     
     IF(para_env%ionode) THEN
-       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,error,failure)
+       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,failure)
     ELSE
-       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,error,failure)
+       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,failure)
     END IF
 
     CALL mp_bcast(scptb_parameter%key,source,group)

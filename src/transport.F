@@ -82,12 +82,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the transport environment
 !> \param[inout] qs_env the qs_env containing the transport_env
-!> \param[inout] error  CP2K error
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE transport_env_create(qs_env,error)
+  SUBROUTINE transport_env_create(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transport_env_create', &
       routineP = moduleN//':'//routineN
@@ -101,17 +99,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env, transport_env=transport_env, input=input, error=error)
+    CALL get_qs_env(qs_env, transport_env=transport_env, input=input)
 
-    CPPostcondition(.NOT.ASSOCIATED(transport_env),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(transport_env),cp_failure_level,routineP,failure)
 
     ALLOCATE(transport_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL transport_init_read_input(input,transport_env,error)
-    CALL cp_dbcsr_init(transport_env%template_matrix_sym, error)
-    CALL cp_dbcsr_init(transport_env%template_matrix_nosym, error)
-    CALL cp_dbcsr_init(transport_env%csr_sparsity, error)
-    CALL set_qs_env(qs_env,transport_env=transport_env,error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL transport_init_read_input(input,transport_env)
+    CALL cp_dbcsr_init(transport_env%template_matrix_sym)
+    CALL cp_dbcsr_init(transport_env%template_matrix_nosym)
+    CALL cp_dbcsr_init(transport_env%csr_sparsity)
+    CALL set_qs_env(qs_env,transport_env=transport_env)
 
     CALL timestop(handle)
 
@@ -122,13 +120,11 @@ CONTAINS
 !>        the corresponding input section 
 !> \param[inout] input         the input file 
 !> \param[inout] transport_env the transport_env to be initialized
-!> \param[inout] error         CP2K error
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE transport_init_read_input(input,transport_env,error)
+  SUBROUTINE transport_init_read_input(input,transport_env)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_init_read_input', &
       routineP = moduleN//':'//routineN
@@ -138,31 +134,31 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    transport_section => section_vals_get_subs_vals(input,"DFT%TRANSPORT",error=error)
+    transport_section => section_vals_get_subs_vals(input,"DFT%TRANSPORT")
     
 ! read from input
-    CALL section_vals_val_get(transport_section,"DENSITY_MATRIX_CONSTRUCTION_METHOD",i_val=transport_env%params%method,error=error)
-    CALL section_vals_val_get(transport_section,"BANDWIDTH",i_val=transport_env%params%bandwidth,error=error)
-    CALL section_vals_val_get(transport_section,"N_CELLS",i_val=transport_env%params%n_cells,error=error)
-    CALL section_vals_val_get(transport_section,"N_ABSCISSAE",i_val=transport_env%params%n_abscissae,error=error)
-    CALL section_vals_val_get(transport_section,"N_KPOINTS",i_val=transport_env%params%n_kpoint,error=error)
-    CALL section_vals_val_get(transport_section,"NUM_INTERVAL",i_val=transport_env%params%num_interval,error=error)
-    CALL section_vals_val_get(transport_section,"NUM_CONTACTS",i_val=transport_env%params%num_contacts,error=error)
-    CALL section_vals_val_get(transport_section,"N_DOF",i_val=transport_env%params%ndof,error=error)
-    CALL section_vals_val_get(transport_section,"TASKS_PER_POINT",i_val=transport_env%params%tasks_per_point,error=error)
-    CALL section_vals_val_get(transport_section,"CORES_PER_NODE",i_val=transport_env%params%cores_per_node,error=error)
-    CALL section_vals_val_get(transport_section,"COLZERO_THRESHOLD",r_val=transport_env%params%colzero_threshold,error=error)
-    CALL section_vals_val_get(transport_section,"EPS_LIMIT",r_val=transport_env%params%eps_limit,error=error)
-    CALL section_vals_val_get(transport_section,"EPS_DECAY",r_val=transport_env%params%eps_decay,error=error)
+    CALL section_vals_val_get(transport_section,"DENSITY_MATRIX_CONSTRUCTION_METHOD",i_val=transport_env%params%method)
+    CALL section_vals_val_get(transport_section,"BANDWIDTH",i_val=transport_env%params%bandwidth)
+    CALL section_vals_val_get(transport_section,"N_CELLS",i_val=transport_env%params%n_cells)
+    CALL section_vals_val_get(transport_section,"N_ABSCISSAE",i_val=transport_env%params%n_abscissae)
+    CALL section_vals_val_get(transport_section,"N_KPOINTS",i_val=transport_env%params%n_kpoint)
+    CALL section_vals_val_get(transport_section,"NUM_INTERVAL",i_val=transport_env%params%num_interval)
+    CALL section_vals_val_get(transport_section,"NUM_CONTACTS",i_val=transport_env%params%num_contacts)
+    CALL section_vals_val_get(transport_section,"N_DOF",i_val=transport_env%params%ndof)
+    CALL section_vals_val_get(transport_section,"TASKS_PER_POINT",i_val=transport_env%params%tasks_per_point)
+    CALL section_vals_val_get(transport_section,"CORES_PER_NODE",i_val=transport_env%params%cores_per_node)
+    CALL section_vals_val_get(transport_section,"COLZERO_THRESHOLD",r_val=transport_env%params%colzero_threshold)
+    CALL section_vals_val_get(transport_section,"EPS_LIMIT",r_val=transport_env%params%eps_limit)
+    CALL section_vals_val_get(transport_section,"EPS_DECAY",r_val=transport_env%params%eps_decay)
     CALL section_vals_val_get(transport_section,"EPS_SINGULARITY_CURVATURES",&
-                                                r_val=transport_env%params%eps_singularity_curvatures,error=error)
-    CALL section_vals_val_get(transport_section,"EPS_MU",r_val=transport_env%params%eps_mu,error=error)
-    CALL section_vals_val_get(transport_section,"EPS_EIGVAL_DEGEN",r_val=transport_env%params%eps_eigval_degen,error=error)
-    CALL section_vals_val_get(transport_section,"ENERGY_INTERVAL",r_val=transport_env%params%energy_interval,error=error)
-    CALL section_vals_val_get(transport_section,"MIN_INTERVAL",r_val=transport_env%params%min_interval,error=error)
-    CALL section_vals_val_get(transport_section,"TEMPERATURE",r_val=transport_env%params%temperature,error=error)
-    CALL section_vals_val_get(transport_section,"ROW_DISTRIBUTION",i_val=transport_env%row_dist,error=error)
-    CALL section_vals_val_get(transport_section,"CSR_SCREENING",l_val=transport_env%csr_screening,error=error)
+                                                r_val=transport_env%params%eps_singularity_curvatures)
+    CALL section_vals_val_get(transport_section,"EPS_MU",r_val=transport_env%params%eps_mu)
+    CALL section_vals_val_get(transport_section,"EPS_EIGVAL_DEGEN",r_val=transport_env%params%eps_eigval_degen)
+    CALL section_vals_val_get(transport_section,"ENERGY_INTERVAL",r_val=transport_env%params%energy_interval)
+    CALL section_vals_val_get(transport_section,"MIN_INTERVAL",r_val=transport_env%params%min_interval)
+    CALL section_vals_val_get(transport_section,"TEMPERATURE",r_val=transport_env%params%temperature)
+    CALL section_vals_val_get(transport_section,"ROW_DISTRIBUTION",i_val=transport_env%row_dist)
+    CALL section_vals_val_get(transport_section,"CSR_SCREENING",l_val=transport_env%csr_screening)
 
     CALL timestop(handle)
 
@@ -173,14 +169,12 @@ CONTAINS
 !> \param ks_env ...
 !> \param[inout] transport_env the transport env to be initialized 
 !> \param[in]    template_matrix   template matrix to keep the sparsity of matrices fixed
-!> \param[inout] error             CP2K error
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE transport_initialize(ks_env, transport_env, template_matrix, error)
+  SUBROUTINE transport_initialize(ks_env, transport_env, template_matrix)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: template_matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_initialize', &
       routineP = moduleN//':'//routineN
@@ -191,7 +185,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)  
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -213,34 +207,33 @@ CONTAINS
     ENDDO
 
     IF (cp_dbcsr_has_symmetry(template_matrix)) THEN
-       CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix, error=error)
-       CALL cp_dbcsr_desymmetrize(transport_env%template_matrix_sym, transport_env%template_matrix_nosym, error)
+       CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
+       CALL cp_dbcsr_desymmetrize(transport_env%template_matrix_sym, transport_env%template_matrix_nosym)
     ELSE 
-       CALL cp_dbcsr_copy(transport_env%template_matrix_nosym, template_matrix, error=error)
-       CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix, error=error)
+       CALL cp_dbcsr_copy(transport_env%template_matrix_nosym, template_matrix)
+       CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
     END IF
 
     CALL cp_dbcsr_create(transport_env%csr_sparsity, "CSR sparsity", &
                          template = transport_env%template_matrix_sym, &
-                         data_type=dbcsr_type_real_4, error=error)
-    CALL cp_dbcsr_copy(transport_env%csr_sparsity, transport_env%template_matrix_sym, error=error)
+                         data_type=dbcsr_type_real_4)
+    CALL cp_dbcsr_copy(transport_env%csr_sparsity, transport_env%template_matrix_sym)
 
-    CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity, error)
+    CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity)
 
-    IF (.NOT. transport_env%csr_screening) CALL cp_dbcsr_set (transport_env%csr_sparsity, 1.0, error)
+    IF (.NOT. transport_env%csr_screening) CALL cp_dbcsr_set (transport_env%csr_sparsity, 1.0)
     CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
                                   transport_env%s_matrix, &
                                   transport_env%row_dist, &
                                   csr_sparsity = transport_env%csr_sparsity, &
-                                  numnodes = transport_env%params%tasks_per_point, &
-                                  error = error)
+                                  numnodes = transport_env%params%tasks_per_point)
 
-    CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr, error)
+    CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
-    CALL cp_convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix, error=error)
+    CALL cp_convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix)
 
-    CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix, error)
-    CALL cp_csr_create(transport_env%p_matrix , transport_env%s_matrix, error)
+    CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix)
+    CALL cp_csr_create(transport_env%p_matrix , transport_env%s_matrix)
 
     CALL timestop(handle)
  
@@ -254,19 +247,17 @@ CONTAINS
 !> \param[inout] matrix_p       DBCSR density matrix
 !> \param[in]    nelectron_spin number of electrons 
 !> \param[in]    natoms         number of atoms 
-!> \param[inout] error          CP2K error
 !> \par History
 !>       12.2012 created [Hossein Bani-Hashemian]
 !>       12.2014 revised [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-   SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, nelectron_spin, natoms, error)
+   SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, nelectron_spin, natoms)
 
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s, matrix_ks
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     INTEGER, INTENT(IN)                      :: nelectron_spin, natoms
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'external_scf_method', &
       routineP = moduleN//':'//routineN
@@ -283,29 +274,29 @@ CONTAINS
     CALL cp_assert(C_ASSOCIATED(transport_env%ext_c_method_ptr),cp_fatal_level,cp_assertion_failed,routineP,&
                   "MISSING C/C++ ROUTINE: The TRANSPORT section is meant to be used together with an external "//&
                   "program, e.g. the quantum transport code OMEN, that provides CP2K with a density matrix.",&
-                  error, failure)
+                  failure)
 
     transport_env%params%n_occ = nelectron_spin
     transport_env%params%n_atoms = natoms
     transport_env%params%evoltfactor = evolt
 
-    CALL csr_interop_nullify(s_mat, error)
-    CALL csr_interop_nullify(ks_mat, error)
-    CALL csr_interop_nullify(p_mat, error)
+    CALL csr_interop_nullify(s_mat)
+    CALL csr_interop_nullify(ks_mat)
+    CALL csr_interop_nullify(p_mat)
 
-    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s, error) 
-    CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%s_matrix, s_mat, error=error)
+    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s) 
+    CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%s_matrix, s_mat)
 
-    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks, error)
-    CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat, error=error)
+    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
+    CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat)
 
-    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s, error)
-    CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat, error=error)
+    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+    CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
     CALL c_method(transport_env%params, s_mat, ks_mat, p_mat)
 
-    CALL convert_csr_interop_to_dbcsr(p_mat, transport_env%p_matrix, transport_env%template_matrix_nosym, error)
-    CALL cp_dbcsr_copy(matrix_p, transport_env%template_matrix_nosym, error=error)
+    CALL convert_csr_interop_to_dbcsr(p_mat, transport_env%p_matrix, transport_env%template_matrix_nosym)
+    CALL cp_dbcsr_copy(matrix_p, transport_env%template_matrix_nosym)
 
     CALL timestop(handle)
 
@@ -316,15 +307,13 @@ CONTAINS
 !> \param[in]    dbcsr_mat  DBCSR matrix to be converted
 !> \param[inout] csr_mat    auxiliary CSR matrix
 !> \param[inout] csr_interop_mat C-interoperable CSR matrix
-!> \param[inout] error      CP2K error
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE convert_dbcsr_to_csr_interop(dbcsr_mat, csr_mat, csr_interop_mat, error)
+  SUBROUTINE convert_dbcsr_to_csr_interop(dbcsr_mat, csr_mat, csr_interop_mat)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
     TYPE(cp2k_csr_interop_type), INTENT(INOUT)      :: csr_interop_mat
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_dbcsr_to_csr_interop', &
       routineP = moduleN//':'//routineN
@@ -338,13 +327,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     mp_group = logger%para_env%group
     mepos = logger%para_env%mepos
     num_pe = logger%para_env%num_pe
 
 ! dbcsr to csr
-    CALL cp_convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error=error)
+    CALL cp_convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
 
 ! csr to csr_interop
     rowptr_local => csr_mat%rowptr_local
@@ -392,7 +381,7 @@ CONTAINS
         ! overflow in nze
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,CPSourceFileRef,&
-             error, failure)
+             failure)
     ENDIF
     csr_interop_mat%nze_total = INT(csr_mat%nze_total,KIND=KIND(csr_interop_mat%nze_total))
     csr_interop_mat%nrows_local = csr_mat%nrows_local
@@ -426,15 +415,13 @@ CONTAINS
 !> \param[in] csr_interop_mat C-interoperable CSR matrix
 !> \param[inout] csr_mat         auxiliary CSR matrix
 !> \param[inout] dbcsr_mat       DBCSR matrix
-!> \param[inout] error           CP2K error
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE convert_csr_interop_to_dbcsr(csr_interop_mat, csr_mat, dbcsr_mat, error)
+  SUBROUTINE convert_csr_interop_to_dbcsr(csr_interop_mat, csr_mat, dbcsr_mat)
 
     TYPE(cp2k_csr_interop_type), INTENT(IN)  :: csr_interop_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: dbcsr_mat
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_interop_to_dbcsr', &
       routineP = moduleN//':'//routineN
@@ -454,8 +441,7 @@ CONTAINS
                    nrows_total = nrows_total, ncols_total = ncols_total, nze_local = nze_local, &
                    nze_total = nze_total, nrows_local = nrows_local, data_type = data_type,&
                    rowptr_local = rowptr_local, colind_local = colind_local, &
-                   nzerow_local = nzerow_local, nzvals_local = nzvals_local, &
-                   error=error)
+                   nzerow_local = nzerow_local, nzvals_local = nzvals_local)
 
     csr_mat%nrows_total = nrows_total
     csr_mat%ncols_total = ncols_total
@@ -470,7 +456,7 @@ CONTAINS
     csr_mat%nzval_local%r_dp = nzvals_local
 
 ! csr to dbcsr
-    CALL cp_convert_csr_to_dbcsr(dbcsr_mat, csr_mat, error=error)
+    CALL cp_convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
 
     CALL timestop(handle)
 

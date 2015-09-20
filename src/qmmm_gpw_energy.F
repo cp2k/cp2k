@@ -88,19 +88,16 @@ CONTAINS
 !> \param qmmm_env ...
 !> \param mm_particles ...
 !> \param mm_cell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE  qmmm_el_coupling(qs_env,qmmm_env,mm_particles,mm_cell,error)
+  SUBROUTINE  qmmm_el_coupling(qs_env,qmmm_env,mm_particles,mm_cell)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
       routineP = moduleN//':'//routineN
@@ -121,7 +118,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section, dft_control)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
@@ -129,25 +126,24 @@ CONTAINS
                     input=input_section,&
                     ks_qmmm_env=ks_qmmm_env_loc,&
                     subsys=subsys,&
-                    dft_control=dft_control,&
-                    error=error)
-    CALL qs_subsys_get(subsys,particles=particles,error=error)
+                    dft_control=dft_control)
+    CALL qs_subsys_get(subsys,particles=particles)
 
-    CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
-    print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT",error=error)
+    CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools)
+    print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT")
     iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
-         extension=".qmmmLog",error=error)
+         extension=".qmmmLog")
     IF (iw>0) &
          WRITE(iw,'(T2,"QMMM|",1X,A)')"Information on the QM/MM Electrostatic Potential:"
     !
     ! Initializing vectors:
     !        Zeroing v_qmmm_rspace
-    CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw,error=error)
+    CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw)
     IF (dft_control%qs_control%semi_empirical) THEN
        ! SEMIEMPIRICAL
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_none)
-          CALL build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
+          CALL build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env)
           IF( qmmm_env%qmmm_coupl_type==do_qmmm_none) THEN
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -155,14 +151,14 @@ CONTAINS
        CASE (do_qmmm_pcharge)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Point charge QM/MM electrostatic coupling not yet implemented for SE.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        CASE (do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
     ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
@@ -170,18 +166,18 @@ CONTAINS
        CASE(do_qmmm_none)
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
-          CALL build_dftb_qmmm_matrix_zero(qs_env,para_env,error)
+          CALL build_dftb_qmmm_matrix_zero(qs_env,para_env)
        CASE(do_qmmm_coulomb)
-          CALL build_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
+          CALL build_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env)
        CASE(do_qmmm_pcharge)
-          CALL build_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
+          CALL build_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env)
        CASE (do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="GAUSS or SWAVE QM/MM electrostatic coupling not implemented for DFTB.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
     ELSE
        ! QS
@@ -189,17 +185,17 @@ CONTAINS
        CASE(do_qmmm_coulomb)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        CASE(do_qmmm_pcharge)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           IF (iw>0) &
                WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "QM/MM Coupling computed collocating the Gaussian Potential Functions."
           interp_section => section_vals_get_subs_vals(input_section,&
-               "QMMM%INTERPOLATOR",error=error)
+               "QMMM%INTERPOLATOR")
           CALL qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                        v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
                                        mm_particles=mm_particles,&
@@ -211,30 +207,29 @@ CONTAINS
                                        auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                        coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
                                        interp_section=interp_section,&
-                                       mm_cell=mm_cell,&
-                                       error=error)
+                                       mm_cell=mm_cell)
        CASE(do_qmmm_none)
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
        ! Dump info on the electrostatic potential if requested
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
-            "POTENTIAL",error=error),cp_p_file)) THEN
+            "POTENTIAL"),cp_p_file)) THEN
           iw2 = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
-               extension=".qmmmLog",error=error)
+               extension=".qmmmLog")
           CALL cp_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,&
                particles=particles,&
-               stride=section_get_ivals(print_section,"POTENTIAL%STRIDE",error),&
-               title="QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
+               stride=section_get_ivals(print_section,"POTENTIAL%STRIDE"),&
+               title="QM/MM: MM ELECTROSTATIC POTENTIAL ")
           CALL cp_print_key_finished_output(iw2,logger,print_section,&
-               "POTENTIAL", error=error)
+               "POTENTIAL")
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,&
-         "PROGRAM_RUN_INFO", error=error)
+         "PROGRAM_RUN_INFO")
     CALL timestop(handle)
   END SUBROUTINE qmmm_el_coupling
 
@@ -253,15 +248,13 @@ CONTAINS
 !> \param coarser_grid ...
 !> \param interp_section ...
 !> \param mm_cell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian(qmmm_env, v_qmmm, mm_particles,&
        aug_pools, cube_info, para_env, eps_mm_rspace, pw_pools,&
-       auxbas_grid, coarser_grid, interp_section, mm_cell, error)
+       auxbas_grid, coarser_grid, interp_section, mm_cell)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_p_type), INTENT(INOUT)           :: v_qmmm
     TYPE(particle_type), DIMENSION(:), &
@@ -277,7 +270,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
       routineP = moduleN//':'//routineN
@@ -289,17 +281,17 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(aug_pools),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(aug_pools),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,failure)
     !Statements
     CALL timeset(routineN,handle)
     ngrids=SIZE(pw_pools)
-    CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE)
     DO igrid=1,ngrids
-       CALL pw_zero(grids(igrid)%pw,error=error)
+       CALL pw_zero(grids(igrid)%pw)
     END DO
 
     CALL qmmm_elec_with_gaussian_low( grids, mm_particles,&
@@ -308,7 +300,7 @@ CONTAINS
          auxbas_grid, coarser_grid, qmmm_env%potentials,       &
          mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic,     &
          per_potentials=qmmm_env%per_potentials, par_scheme=qmmm_env%par_scheme,    &
-         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff, error=error)
+         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
        CALL qmmm_elec_with_gaussian_low( grids, qmmm_env%added_charges%added_particles,   &
@@ -318,7 +310,7 @@ CONTAINS
          coarser_grid, qmmm_env%added_charges%potentials,            &
          mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic,           &
          per_potentials=qmmm_env%per_potentials, par_scheme=qmmm_env%par_scheme,          &
-         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff, error=error)
+         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff)
     END IF
     ! Sumup all contributions according the parallelization scheme
     IF (qmmm_env%par_scheme==do_par_atom) THEN
@@ -327,7 +319,7 @@ CONTAINS
        END DO
     END IF
     ! RealSpace Interpolation
-    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
+    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp)
     SELECT CASE(kind_interp)
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
@@ -337,12 +329,11 @@ CONTAINS
           CALL pw_prolongate_s3(grids(Ilevel  )%pw,&
                                 grids(Ilevel-1)%pw,&
                                 aug_pools(Ilevel)%pool,&
-                                param_section=interp_section,&
-                                error=error)
+                                param_section=interp_section)
        END DO
        CALL timestop(handle2)
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     END SELECT
     lb = v_qmmm%pw%pw_grid%bounds_local(1,:)
     ub = v_qmmm%pw%pw_grid%bounds_local(2,:)
@@ -351,7 +342,7 @@ CONTAINS
                                                  lb(2):ub(2),&
                                                  lb(3):ub(3) )
 
-    CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
+    CALL pw_pools_give_back_pws(aug_pools,grids)
 
     CALL timestop(handle)
   END SUBROUTINE qmmm_elec_with_gaussian
@@ -376,8 +367,6 @@ CONTAINS
 !> \param per_potentials ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
-!> \param error variable to control error logging ,stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -386,7 +375,7 @@ CONTAINS
        mm_atom_index, cube_info, para_env,   &
        eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,  &
        potentials, mm_cell, dOmmOqm, periodic, per_potentials, par_scheme,   &
-       qmmm_spherical_cutoff, error)
+       qmmm_spherical_cutoff)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_grid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -408,7 +397,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: per_potentials
     INTEGER, INTENT(IN)                      :: par_scheme
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
       routineNb = 'qmmm_elec_gaussian_low', routineP = moduleN//':'//routineN
@@ -432,11 +420,11 @@ CONTAINS
     CALL timeset(routineNb//"_G",handle2)
     bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
@@ -462,7 +450,7 @@ CONTAINS
              W         =   mm_charges(LIndMM) * height
              ! Possible Spherical Cutoff
              IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
-                CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
+                CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor)
                 W = W * sph_chrg_factor
              END IF
              IF (ABS(W)<= EPSILON(0.0_dp)) CYCLE Atoms
@@ -484,15 +472,15 @@ CONTAINS
     END DO Radius
     IF (ASSOCIATED(xdat)) THEN
        DEALLOCATE (xdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
     IF (ASSOCIATED(ydat)) THEN
        DEALLOCATE (ydat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
     IF (ASSOCIATED(zdat)) THEN
        DEALLOCATE (zdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
     CALL timestop(handle2)
     CALL timeset(routineNb//"_R",handle2)
@@ -508,8 +496,7 @@ CONTAINS
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
                                            par_scheme=par_scheme,&
-                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
-                                           error=error)
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff)
     ELSE
        ! Long Range Part of the QM/MM Potential with Gaussians
        CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
@@ -522,8 +509,7 @@ CONTAINS
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
                                            par_scheme=par_scheme,&
-                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
-                                           error=error)
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff)
     END IF
     CALL timestop(handle2)
     CALL timestop(handle)
@@ -546,8 +532,6 @@ CONTAINS
 !> \param dOmmOqm ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -557,7 +541,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LG(pgfs, cgrid, mm_charges, mm_atom_index,&
        mm_particles, para_env, per_potentials,&
-       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, error)
+       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -572,7 +556,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG', &
       routineP = moduleN//':'//routineN
@@ -622,7 +605,7 @@ CONTAINS
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
-             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor)
              qt = qt * sph_chrg_factor
           END IF
           IF (ABS(qt)<= EPSILON(0.0_dp)) CYCLE Atoms
@@ -764,15 +747,13 @@ CONTAINS
 !> \param dOmmOqm ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges, mm_atom_index,&
        mm_particles, para_env, potentials,&
-       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, error)
+       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: grid
@@ -787,7 +768,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
       routineP = moduleN//':'//routineN
@@ -835,7 +815,7 @@ CONTAINS
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
-             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor)
              qt = qt * sph_chrg_factor
           END IF
           IF (ABS(qt)<= EPSILON(0.0_dp)) CYCLE Atoms

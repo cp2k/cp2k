@@ -50,12 +50,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transform a general cell matrix into an upper triangular one
 !> \param cell ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE get_ut_cell_matrix(cell, error)
+  SUBROUTINE get_ut_cell_matrix(cell)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_ut_cell_matrix', &
       routineP = moduleN//':'//routineN
@@ -67,10 +65,9 @@ CONTAINS
     failure  = .FALSE.
     ! orthorhombic cells are diagonal, and should stay exactly like this
     IF (.NOT. cell%orthorhombic) THEN
-      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,periodic=periodic,&
-                          error=error)
+      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,periodic=periodic)
       CALL set_cell_param(cell,cell_length,cell_angle,periodic=periodic,&
-                          do_init_cell=.TRUE.,error=error)
+                          do_init_cell=.TRUE.)
     END IF
 
   END SUBROUTINE get_ut_cell_matrix
@@ -82,18 +79,16 @@ CONTAINS
 !> \param para_env ...
 !> \param project_name ...
 !> \param id_run ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE gopt_new_logger_create(new_logger, root_section, para_env, project_name,&
-       id_run, error)
+       id_run)
     TYPE(cp_logger_type), POINTER            :: new_logger
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: project_name
     INTEGER, INTENT(IN)                      :: id_run
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_create', &
       routineP = moduleN//':'//routineN
@@ -110,23 +105,23 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(new_logger, logger, enum, keyword, section)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CALL create_global_section(section,error=error)
-    keyword => section_get_keyword(section,"RUN_TYPE",error=error)
-    CALL keyword_get(keyword,enum=enum,error=error)
-    label = TRIM(enum_i2c(enum,id_run,error=error))
-    CALL section_release(section, error)
+    CALL create_global_section(section)
+    keyword => section_get_keyword(section,"RUN_TYPE")
+    CALL keyword_get(keyword,enum=enum)
+    label = TRIM(enum_i2c(enum,id_run))
+    CALL section_release(section)
 
     ! Redirecting output of the sub_calculation to a different file
-    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT_NAME",c_val=project_name,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT_NAME",c_val=project_name)
     input_file_path = TRIM(project_name)
     lp=LEN_TRIM(input_file_path)
     i = logger%iter_info%iteration(logger%iter_info%n_rlevel)
     input_file_path(lp+1:LEN(input_file_path))="-"//TRIM(label)//"-"//ADJUSTL(cp_to_string(i))
     lp=LEN_TRIM(input_file_path)
-    CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",c_val=input_file_path(1:lp),error=error)
-    CALL section_vals_val_set(root_section,"GLOBAL%RUN_TYPE",i_val=id_run,error=error)
+    CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",c_val=input_file_path(1:lp))
+    CALL section_vals_val_set(root_section,"GLOBAL%RUN_TYPE",i_val=id_run)
 
     ! Redirecting output into a new file
     output_file_path=input_file_path(1:lp)//".out"
@@ -138,13 +133,13 @@ CONTAINS
     END IF
     CALL cp_logger_create(new_logger, para_env=para_env, default_global_unit_nr=unit_nr, &
          close_global_unit_on_dealloc=.FALSE.)
-    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=c_val,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=c_val)
     IF (c_val/="") THEN
        CALL cp_logger_set(new_logger,local_filename=TRIM(c_val)//"_localLog")
     END IF
     new_logger%iter_info%project_name=c_val
     CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",&
-       i_val=new_logger%iter_info%print_level,error=error)
+       i_val=new_logger%iter_info%print_level)
 
   END SUBROUTINE gopt_new_logger_create
 
@@ -155,17 +150,15 @@ CONTAINS
 !> \param para_env ...
 !> \param project_name ...
 !> \param id_run ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE gopt_new_logger_release(new_logger, root_section, para_env, project_name, id_run, error)
+  SUBROUTINE gopt_new_logger_release(new_logger, root_section, para_env, project_name, id_run)
     TYPE(cp_logger_type), POINTER            :: new_logger
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(len=default_string_length), &
       INTENT(IN)                             :: project_name
     INTEGER, INTENT(IN)                      :: id_run
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_release', &
       routineP = moduleN//':'//routineN
@@ -177,8 +170,8 @@ CONTAINS
        CALL close_file(unit_number=unit_nr)
     END IF
     CALL cp_logger_release(new_logger)
-    CALL section_vals_val_set(root_section,"GLOBAL%RUN_TYPE",i_val=id_run,error=error)
-    CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",c_val=project_name,error=error)
+    CALL section_vals_val_set(root_section,"GLOBAL%RUN_TYPE",i_val=id_run)
+    CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",c_val=project_name)
 
   END SUBROUTINE gopt_new_logger_release
 
@@ -189,10 +182,9 @@ CONTAINS
 !> \param pres_ext ...
 !> \param mtrx ...
 !> \param rot ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE read_external_press_tensor(geo_section, cell, pres_ext, mtrx, rot, error)
+  SUBROUTINE read_external_press_tensor(geo_section, cell, pres_ext, mtrx, rot)
     TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(OUT)               :: pres_ext
@@ -200,7 +192,6 @@ CONTAINS
       INTENT(OUT)                            :: mtrx
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: rot
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_external_press_tensor', &
       routineP = moduleN//':'//routineN
@@ -215,7 +206,7 @@ CONTAINS
     mtrx          = 0.0_dp
     pres_ext_tens = 0.0_dp
     pres_ext      = 0.0_dp
-    CALL section_vals_val_get(geo_section,"EXTERNAL_PRESSURE", r_vals=pvals, error=error)
+    CALL section_vals_val_get(geo_section,"EXTERNAL_PRESSURE", r_vals=pvals)
     check = (SIZE(pvals)==1).OR.(SIZE(pvals)==9)
     CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
          "EXTERNAL_PRESSURE can have 1 or 9 components only! "//&
@@ -260,11 +251,10 @@ CPSourceFileRef,&
 !> \param keep_angles ...
 !> \param keep_symmetry ...
 !> \param pres_int ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_angles,&
-                       keep_symmetry,pres_int,error)
+                       keep_symmetry,pres_int)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -275,7 +265,6 @@ CPSourceFileRef,&
       INTENT(IN)                             :: mtrx
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_angles, keep_symmetry
     REAL(KIND=dp), INTENT(OUT)               :: pres_int
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh', &
       routineP = moduleN//':'//routineN

@@ -75,17 +75,14 @@ CONTAINS
 !> \brief   Deallocates ps_implicit
 !> \param implicit_env the implicit_env to be deallocated
 !> \param pw_pool pool of plane-wave grid  
-!> \param error cp2k error
-!>
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_release(implicit_env, pw_pool, error)
+  SUBROUTINE ps_implicit_release(implicit_env, pw_pool)
     TYPE(ps_implicit_type), POINTER          :: implicit_env
     TYPE(pw_pool_type), INTENT(IN), &
       OPTIONAL, POINTER                      :: pw_pool
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_release', &
       routineP = moduleN//':'//routineN
@@ -100,18 +97,18 @@ CONTAINS
        IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
        IF (can_give_back) THEN
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%initial_guess, &
-                                    accept_non_compatible=.TRUE., error=error)
+                                    accept_non_compatible=.TRUE.)
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%v_eps, &
-                                    accept_non_compatible=.TRUE., error=error)
+                                    accept_non_compatible=.TRUE.)
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%cstr_charge, &
-                                    accept_non_compatible=.TRUE., error=error)
+                                    accept_non_compatible=.TRUE.)
           CALL dirichlet_boundary_region_release(implicit_env%gates, &
-                                                 pw_pool=pw_pool, error=error)
+                                                 pw_pool=pw_pool)
        ELSE
-          CALL pw_release(implicit_env%initial_guess, error=error)
-          CALL pw_release(implicit_env%v_eps, error=error)
-          CALL pw_release(implicit_env%cstr_charge, error=error)
-          CALL dirichlet_boundary_region_release(implicit_env%gates, error=error)
+          CALL pw_release(implicit_env%initial_guess)
+          CALL pw_release(implicit_env%v_eps)
+          CALL pw_release(implicit_env%cstr_charge)
+          CALL dirichlet_boundary_region_release(implicit_env%gates)
        END IF
 
        DEALLOCATE(implicit_env%initial_lambda)
@@ -122,7 +119,7 @@ CONTAINS
        DEALLOCATE(implicit_env%v_D)
        DEALLOCATE(implicit_env%idx_1dto3d)
     
-       CALL dielectric_release(implicit_env%dielectric,pw_pool,error)
+       CALL dielectric_release(implicit_env%dielectric,pw_pool)
 
        DEALLOCATE(implicit_env)
     END IF

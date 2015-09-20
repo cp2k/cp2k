@@ -109,16 +109,14 @@ CONTAINS
 !> \param old ...
 !> \param particle_set ...
 !> \param npt ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE allocate_old ( old, particle_set, npt, error )
+  SUBROUTINE allocate_old ( old, particle_set, npt)
     TYPE(old_variables_type), POINTER        :: old
     TYPE(particle_type), POINTER             :: particle_set(:)
     TYPE(npt_info_type), POINTER             :: npt(:,:)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_old', &
       routineP = moduleN//':'//routineN
@@ -130,24 +128,24 @@ CONTAINS
     natoms = SIZE ( particle_set)
     idim = SIZE ( npt, 1)
     jdim = SIZE ( npt, 2)
-    CPPostcondition(.NOT.ASSOCIATED(old),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(old),cp_failure_level,routineP,failure)
     ALLOCATE ( old, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE ( old%v ( natoms, 3 ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     old%v = 0.0_dp
     ALLOCATE ( old%r ( natoms, 3 ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     old%r = 0.0_dp
     ALLOCATE ( old%eps ( idim, jdim ),STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     old%eps = 0.0_dp
     ALLOCATE ( old%veps ( idim, jdim ),STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     old%veps = 0.0_dp
     ALLOCATE ( old%h(3, 3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     old%h = 0.0_dp
 
   END SUBROUTINE allocate_old
@@ -155,14 +153,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param old ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE deallocate_old (old, error)
+  SUBROUTINE deallocate_old (old)
     TYPE(old_variables_type), POINTER        :: old
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old', &
       routineP = moduleN//':'//routineN
@@ -174,26 +170,26 @@ CONTAINS
     IF (ASSOCIATED(old)) THEN
        IF (ASSOCIATED(old%v)) THEN
           DEALLOCATE ( old%v, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(old%r)) THEN
           DEALLOCATE ( old%r, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(old%eps)) THEN
           DEALLOCATE ( old%eps, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(old%veps)) THEN
           DEALLOCATE ( old%veps, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF (ASSOCIATED(old%h)) THEN
           DEALLOCATE ( old%h, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        DEALLOCATE ( old, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE deallocate_old
@@ -206,17 +202,15 @@ CONTAINS
 !> \param nparticle ...
 !> \param nshell ...
 !> \param shell_adiabatic ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (February 2008)
 ! *****************************************************************************
-  SUBROUTINE allocate_tmp ( md_env, tmp, nparticle, nshell, shell_adiabatic, error )
+  SUBROUTINE allocate_tmp ( md_env, tmp, nparticle, nshell, shell_adiabatic)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(tmp_variables_type), POINTER        :: tmp
     INTEGER, INTENT(IN)                      :: nparticle, nshell
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_tmp', &
       routineP = moduleN//':'//routineN
@@ -225,9 +219,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(tmp),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(tmp),cp_failure_level,routineP,failure)
     ALLOCATE (tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! Nullify Components
     NULLIFY(tmp%pos)
@@ -240,10 +234,10 @@ CONTAINS
 
     !     *** Allocate work storage for positions and velocities ***
     ALLOCATE (tmp%pos(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE (tmp%vel(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     tmp%pos(:,:) = 0.0_dp
     tmp%vel(:,:) = 0.0_dp
@@ -251,16 +245,16 @@ CONTAINS
     IF(shell_adiabatic) THEN
        !     *** Allocate work storage for positions and velocities ***
        ALLOCATE (tmp%shell_pos(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        ALLOCATE (tmp%core_pos(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        ALLOCATE (tmp%shell_vel(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        ALLOCATE (tmp%core_vel(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        tmp%shell_pos(:,:) = 0.0_dp
        tmp%shell_vel(:,:) = 0.0_dp
@@ -281,7 +275,7 @@ CONTAINS
    tmp%poly_r = 1.0_dp
    tmp%poly_v = 1.0_dp
 
-   CALL get_md_env(md_env=md_env, itimes=tmp%itimes, error=error)
+   CALL get_md_env(md_env=md_env, itimes=tmp%itimes)
 
   END SUBROUTINE allocate_tmp
 
@@ -296,14 +290,13 @@ CONTAINS
 !> \param pos ...
 !> \param vel ...
 !> \param should_deall_vel ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (February 2008)
 ! *****************************************************************************
   SUBROUTINE update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
        core_particle_set, para_env, shell_adiabatic, pos, vel,&
-       should_deall_vel,error )
+       should_deall_vel)
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(particle_type), DIMENSION(:), &
@@ -313,7 +306,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     LOGICAL, INTENT(IN), OPTIONAL            :: pos, vel, should_deall_vel
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
       routineP = moduleN//':'//routineN
@@ -324,7 +316,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPostcondition(ASSOCIATED(tmp),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(tmp),cp_failure_level,routineP,failure)
     my_pos =.FALSE.
     my_vel =.FALSE.
     my_deall=.TRUE.
@@ -334,41 +326,41 @@ CONTAINS
 
     !      *** Broadcast the new particle positions ***
     IF(my_pos) THEN
-       CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos, error=error)
+       CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos)
        DEALLOCATE (tmp%pos,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        IF(shell_adiabatic)THEN
-          CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos, error=error )
-          CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos, error=error )
+          CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos)
+          CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos)
           DEALLOCATE (tmp%shell_pos,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE (tmp%core_pos,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
 
     !     *** Broadcast the new particle velocities ***
     IF(my_vel) THEN
-       CALL update_particle_set ( particle_set, para_env % group, vel = tmp%vel, error=error )
+       CALL update_particle_set ( particle_set, para_env % group, vel = tmp%vel)
        IF (shell_adiabatic) THEN
-          CALL update_particle_set ( shell_particle_set, para_env%group, vel=tmp%shell_vel, error=error )
-          CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel, error=error )
+          CALL update_particle_set ( shell_particle_set, para_env%group, vel=tmp%shell_vel)
+          CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel)
        END IF
        IF(my_deall)THEN
           DEALLOCATE (tmp%vel,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           IF (shell_adiabatic) THEN
              DEALLOCATE (tmp%shell_vel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              DEALLOCATE (tmp%core_vel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
-          CPPostcondition(.NOT.ASSOCIATED(tmp%pos),cp_failure_level,routineP,error,failure)
-          CPPostcondition(.NOT.ASSOCIATED(tmp%shell_pos),cp_failure_level,routineP,error,failure)
-          CPPostcondition(.NOT.ASSOCIATED(tmp%core_pos),cp_failure_level,routineP,error,failure)
+          CPPostcondition(.NOT.ASSOCIATED(tmp%pos),cp_failure_level,routineP,failure)
+          CPPostcondition(.NOT.ASSOCIATED(tmp%shell_pos),cp_failure_level,routineP,failure)
+          CPPostcondition(.NOT.ASSOCIATED(tmp%core_pos),cp_failure_level,routineP,failure)
           DEALLOCATE (tmp,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
     END IF
 
@@ -788,14 +780,13 @@ CONTAINS
 !> \param first ...
 !> \param para_env ...
 !> \param u ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE rattle_roll_setup ( old, gci, atomic_kind_set, particle_set, local_particles, &
        molecule_kind_set, molecule_set, local_molecules, vel, dt, cell, npt, simpar, virial,&
-       vector_v, roll_tol, iroll, infree, first, para_env, u, error )
+       vector_v, roll_tol, iroll, infree, first, para_env, u)
 
     TYPE(old_variables_type), POINTER        :: old
     TYPE(global_constraint_type), POINTER    :: gci
@@ -819,7 +810,6 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: first
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u( : , : )
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp)                            :: kin
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
@@ -853,7 +843,7 @@ CONTAINS
     CALL set ( old, atomic_kind_set, particle_set, vel, local_particles, cell , npt, 'B' )
     CALL rattle_roll_control( gci, local_molecules, molecule_set, molecule_kind_set, &
          particle_set, vel, dt, simpar, vector_v, npt_loc%v, roll_tol, iroll,&
-         para_env, u, cell, local_particles, error=error )
+         para_env, u, cell, local_particles)
 
   END SUBROUTINE rattle_roll_setup
 
@@ -1203,14 +1193,13 @@ CONTAINS
 !> \param shell_adiabatic ...
 !> \param dt ...
 !> \param u ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (February 2008)
 ! *****************************************************************************
   SUBROUTINE vv_first ( tmp, atomic_kind_set, local_particles, particle_set, &
        core_particle_set, shell_particle_set, nparticle_kind,&
-       shell_adiabatic, dt, u, error )
+       shell_adiabatic, dt, u)
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1224,7 +1213,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vv_first', &
       routineP = moduleN//':'//routineN
@@ -1416,14 +1404,13 @@ CONTAINS
 !> \param shell_adiabatic ...
 !> \param dt ...
 !> \param u ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (February 2008)
 ! *****************************************************************************
   SUBROUTINE vv_second ( tmp, atomic_kind_set, local_particles, particle_set,&
        core_particle_set, shell_particle_set, nparticle_kind,&
-       shell_adiabatic, dt, u, error )
+       shell_adiabatic, dt, u)
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1437,7 +1424,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vv_second', &
       routineP = moduleN//':'//routineN
@@ -1651,13 +1637,12 @@ CONTAINS
 !> \param nparticle_kind ...
 !> \param shell_adiabatic ...
 !> \param npt ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (October 2008)
 ! *****************************************************************************
   SUBROUTINE  variable_timestep(md_env,tmp,dt,simpar,para_env,atomic_kind_set, local_particles,&
-       particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+       particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(tmp_variables_type), POINTER        :: tmp
@@ -1674,7 +1659,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nparticle_kind
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt(:,:)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'variable_timestep', &
       routineP = moduleN//':'//routineN
@@ -1717,7 +1701,7 @@ CONTAINS
        dt = dt*dt_fact_f
        simpar%dt_fact = dt_fact_f
        CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
-            particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+            particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt)
     END IF
 
     dt_fact = 1.0_dp
@@ -1743,15 +1727,15 @@ CONTAINS
        dt = dt*dt_fact_v
        simpar%dt_fact = dt_fact_f*dt_fact_v
        CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
-            particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+            particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt)
     END IF
 
     simpar%dt_fact = dt_fact_f*dt_fact_v
     IF(simpar%dt_fact  < 1.0_dp) THEN
-      CALL get_md_env(md_env, t=time, thermostats=thermostats, error=error)
+      CALL get_md_env(md_env, t=time, thermostats=thermostats)
       time = time - dt_old + dt_old*simpar%dt_fact
       IF(ASSOCIATED(thermostats)) THEN
-         CALL set_thermostats(thermostats, dt_fact=simpar%dt_fact, error=error)
+         CALL set_thermostats(thermostats, dt_fact=simpar%dt_fact)
       END IF
     END IF
 
@@ -1770,14 +1754,13 @@ CONTAINS
 !> \param nparticle_kind ...
 !> \param shell_adiabatic ...
 !> \param npt ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MI (October 2008)
 !>     I soliti ignoti
 ! *****************************************************************************
   SUBROUTINE rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
-           particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+           particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt)
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     REAL(KIND=dp), INTENT(IN)                :: dt
@@ -1792,7 +1775,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nparticle_kind
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt(:,:)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rescaled_vv_first', &
       routineP = moduleN//':'//routineN
@@ -1813,13 +1795,13 @@ CONTAINS
     SELECT CASE(simpar%ensemble)
     CASE (nve_ensemble, nvt_ensemble)
       CALL vv_first(tmp,atomic_kind_set, local_particles, particle_set, &
-           core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error)
+           core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
     CASE (isokin_ensemble)
       tmp%scale_v(1:3) = SQRT(1.0_dp/tmp%ds)
       tmp%poly_v(1:3) = 2.0_dp*tmp%s/SQRT(tmp%ds)/dt
       CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
            core_particle_set, shell_particle_set, nparticle_kind,&
-           shell_adiabatic, dt, error=error)
+           shell_adiabatic, dt)
 
     CASE (npt_i_ensemble, npe_i_ensemble)
        arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
@@ -1831,7 +1813,7 @@ CONTAINS
                      (1.0_dp + 3.0_dp * infree ) )
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
            core_particle_set, shell_particle_set, nparticle_kind,&
-           shell_adiabatic, dt, error=error )
+           shell_adiabatic, dt)
 
     CASE (npt_f_ensemble,npe_f_ensemble)
        trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v
@@ -1845,7 +1827,7 @@ CONTAINS
 
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
            core_particle_set, shell_particle_set, nparticle_kind,&
-           shell_adiabatic, dt, u, error=error)
+           shell_adiabatic, dt, u)
 
     CASE (nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble)
         arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
@@ -1862,7 +1844,7 @@ CONTAINS
         tmp%scale_v(3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
         CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt, error=error)
+            shell_adiabatic, dt)
 
     END SELECT
 

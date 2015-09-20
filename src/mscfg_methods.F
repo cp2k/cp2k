@@ -67,16 +67,14 @@ CONTAINS
 !> \brief Prepare data for calculations on isolated molecules.
 !> \param globenv ...
 !> \param force_env ...
-!> \param error ...
 !> \par   History
 !>        10.2014 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE loop_over_molecules(globenv,force_env,error)
+  SUBROUTINE loop_over_molecules(globenv,force_env)
 
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'loop_over_molecules', &
       routineP = moduleN//':'//routineN
@@ -93,11 +91,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL force_env_get(force_env,qs_env=qs_env,error=error)
-    CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CALL force_env_get(force_env,qs_env=qs_env)
+    CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
     CALL get_qs_env(qs_env,&
-      molecule_set=molecule_set,&
-      error=error)
+      molecule_set=molecule_set)
 
     nmols=SIZE(molecule_set)
     
@@ -110,12 +107,10 @@ CONTAINS
             mol_to_first_atom=first_atom_of_frag,& 
             mol_to_last_atom=last_atom_of_frag,& 
             mol_to_charge=charge_of_frag,& 
-            mol_to_multiplicity=multip_of_frag,& 
-            error=error)
+            mol_to_multiplicity=multip_of_frag) 
     
     CALL calcs_on_isolated_molecules(force_env, globenv, nmols,&
-            first_atom_of_frag, last_atom_of_frag, charge_of_frag, multip_of_frag, &
-            error)
+            first_atom_of_frag, last_atom_of_frag, charge_of_frag, multip_of_frag)
    
     DEALLOCATE(first_atom_of_frag)
     DEALLOCATE(last_atom_of_frag)
@@ -134,14 +129,12 @@ CONTAINS
 !> \param last_atom_of_frag ...
 !> \param charge_of_frag ...
 !> \param multip_of_frag ...
-!> \param error ...
 !> \par   History
 !>        10.2014 created
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE calcs_on_isolated_molecules(force_env, globenv, nfrags,&
-    first_atom_of_frag, last_atom_of_frag, charge_of_frag, multip_of_frag, &
-    error)
+    first_atom_of_frag, last_atom_of_frag, charge_of_frag, multip_of_frag)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -149,7 +142,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: first_atom_of_frag, &
                                                 last_atom_of_frag, &
                                                 charge_of_frag, multip_of_frag
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calcs_on_isolated_molecules', &
       routineP = moduleN//':'//routineN
@@ -185,28 +177,28 @@ CONTAINS
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, &
          force_env_section, qs_env_loc, mscfg_env, qs_env, qs_energy)
     CALL force_env_get(force_env, force_env_section=force_env_section, &
-            qs_env=qs_env, error=error)
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=force_method,error=error)
-    CPPostcondition(force_method.eq.do_qs,cp_failure_level,routineP,error,failure)
+            qs_env=qs_env)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=force_method)
+    CPPostcondition(force_method.eq.do_qs,cp_failure_level,routineP,failure)
     root_section   => force_env%root_section
-    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-    dft_section    => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
+    dft_section    => section_vals_get_subs_vals(force_env_section,"DFT")
     !
     ! Save several global settings to restore them after the loop:
     !  charge, multiplicity, ALMO flag
     !
-    CALL section_vals_val_get(dft_section,"CHARGE",i_val=global_charge, error=error)
-    CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=global_multpl, error=error)
-    qs_section    => section_vals_get_subs_vals(dft_section,"QS",error=error)
-    CALL section_vals_val_get(qs_section,"ALMO_SCF",l_val=global_almo_scf_keyword, error=error)
+    CALL section_vals_val_get(dft_section,"CHARGE",i_val=global_charge)
+    CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=global_multpl)
+    qs_section    => section_vals_get_subs_vals(dft_section,"QS")
+    CALL section_vals_val_get(qs_section,"ALMO_SCF",l_val=global_almo_scf_keyword)
     !
     ! Get access to critical data before the loop
     !
     CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env,&
-         cell=cell, error=error)
-    CALL cp_subsys_get(subsys, particles=particles, error=error)
-    CALL get_qs_env(qs_env, mscfg_env=mscfg_env, error=error)
-    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,error,failure)
+         cell=cell)
+    CALL cp_subsys_get(subsys, particles=particles)
+    CALL get_qs_env(qs_env, mscfg_env=mscfg_env)
+    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,failure)
     !
     ! These flags determine the options of molecular runs (e.g. cell size)
     !
@@ -217,7 +209,7 @@ CONTAINS
     ! Until molecular_scf_guess_env is destroyed it will keep
     ! the results of fragment calculations
     !
-    CALL molecular_scf_guess_env_init(mscfg_env, nfrags, error=error)
+    CALL molecular_scf_guess_env_init(mscfg_env, nfrags)
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! 
@@ -235,12 +227,12 @@ CONTAINS
        !
        ! Turn ALMO SCF flag off
        !
-       CALL section_vals_val_set(qs_section,"ALMO_SCF",l_val=.FALSE., error=error)
+       CALL section_vals_val_set(qs_section,"ALMO_SCF",l_val=.FALSE.)
        !
        ! Setup the charge and multiplicity of the molecule
        !
-       CALL section_vals_val_set(dft_section,"CHARGE",i_val=charge_of_frag(ifrag), error=error)
-       CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=multip_of_frag(ifrag), error=error)
+       CALL section_vals_val_set(dft_section,"CHARGE",i_val=charge_of_frag(ifrag))
+       CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=multip_of_frag(ifrag))
        !
        ! Create a list of atoms in the current molecule
        !
@@ -255,7 +247,7 @@ CONTAINS
        ! Get atom type names
        !
        ALLOCATE(atom_type(isize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO j = 1, isize
           my_targ = atom_index(j)
           DO k = 1, SIZE(particles%els)
@@ -270,60 +262,58 @@ CONTAINS
        CALL create_small_subsys(subsys_loc, big_subsys=subsys,&
             small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
             sub_atom_kind_name=atom_type,para_env=para_env,&
-            force_env_section=force_env_section,subsys_section=subsys_section,error=error)
-       CALL qs_env_create(qs_env_loc, globenv,error=error)
+            force_env_section=force_env_section,subsys_section=subsys_section)
+       CALL qs_env_create(qs_env_loc, globenv)
        CALL qs_init(qs_env_loc, para_env, globenv, root_section, cp_subsys=subsys_loc,&
             force_env_section=force_env_section, subsys_section=subsys_section,&
-            use_motion_section=.FALSE., error=error)
-       CALL cp_subsys_release(subsys_loc,error=error)
+            use_motion_section=.FALSE.)
+       CALL cp_subsys_release(subsys_loc)
 
        !
        ! Print-out fragment info
        !
        CALL print_frag_info(atom_index, atom_type, ifrag, nfrags, &
-               charge_of_frag(ifrag), multip_of_frag(ifrag),  error)
+               charge_of_frag(ifrag), multip_of_frag(ifrag))
        !
        !  Run calculations on a subsystem
        !
-       CALL qs_energies(qs_env_loc, error=error)
+       CALL qs_energies(qs_env_loc)
        !
        !  Get the desired results (energy and MOs) out
        !
-       CALL get_qs_env(qs_env_loc, mos=mos_of_frag, energy=qs_energy, error=error)
+       CALL get_qs_env(qs_env_loc, mos=mos_of_frag, energy=qs_energy)
        !
        ! Store all desired results of fragment calculations in the fragment_env 
        ! of the qs_env to use them later as needed
        !
        mscfg_env%energy_of_frag(ifrag) = qs_energy%total
        nmosets_of_frag=SIZE(mos_of_frag)
-       CPPostcondition(nmosets_of_frag.le.mscfg_max_moset_size,cp_failure_level,routineP,error,failure)
+       CPPostcondition(nmosets_of_frag.le.mscfg_max_moset_size,cp_failure_level,routineP,failure)
        mscfg_env%nmosets_of_frag(ifrag)=nmosets_of_frag
        DO imo=1,nmosets_of_frag
           ! the matrices have been allocated already - copy the results there  
-          CALL cp_dbcsr_init(mscfg_env%mos_of_frag(ifrag,imo),error)
+          CALL cp_dbcsr_init(mscfg_env%mos_of_frag(ifrag,imo))
           CALL cp_dbcsr_create(mscfg_env%mos_of_frag(ifrag,imo),&
                   template=mos_of_frag(imo)%mo_set%mo_coeff_b,&
-                  matrix_type=dbcsr_type_no_symmetry,&
-                  error=error)
+                  matrix_type=dbcsr_type_no_symmetry)
           CALL cp_dbcsr_copy(mscfg_env%mos_of_frag(ifrag,imo),&
-                  mos_of_frag(imo)%mo_set%mo_coeff_b,&
-                  error=error)
+                  mos_of_frag(imo)%mo_set%mo_coeff_b)
        ENDDO
        !
        ! Clean up
        !
        NULLIFY(qs_energy)
-       CALL qs_env_release(qs_env_loc, error=error)
+       CALL qs_env_release(qs_env_loc)
        DEALLOCATE(atom_index, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(atom_type, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     END DO
 
-    CALL section_vals_val_set(dft_section,"CHARGE",i_val=global_charge, error=error)
-    CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=global_multpl, error=error)
-    CALL section_vals_val_set(qs_section,"ALMO_SCF",l_val=global_almo_scf_keyword, error=error)
+    CALL section_vals_val_set(dft_section,"CHARGE",i_val=global_charge)
+    CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=global_multpl)
+    CALL section_vals_val_set(qs_section,"ALMO_SCF",l_val=global_almo_scf_keyword)
    
     CALL timestop(handle)
 
@@ -337,20 +327,18 @@ CONTAINS
 !> \param nfrags ...
 !> \param charge ...
 !> \param multpl ...
-!> \param error variable to control error logging, stopping,...
 !> \par History
 !>      07.2005 created as a part of BSSE calculations [tlaino]
 !>      10.2014 adapted to ALMO guess calculations [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
   SUBROUTINE  print_frag_info(atom_index, atom_type, frag, nfrags, charge, &
-                 multpl, error)
+                 multpl)
 
     INTEGER, DIMENSION(:), POINTER           :: atom_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER, INTENT(IN)                      :: frag, nfrags, charge, multpl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_frag_info', &
       routineP = moduleN//':'//routineN
@@ -362,7 +350,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        iw=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -393,16 +381,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Is the loop over molecules requested? 
 !> \param force_env ...
-!> \param error ...
 !> \retval do_mol_loop ...
 !> \par History
 !>       10.2014 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  FUNCTION do_mol_loop(force_env, error)
+  FUNCTION do_mol_loop(force_env)
   
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: do_mol_loop
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mol_loop', &
@@ -424,16 +410,16 @@ CONTAINS
     is_crystal = .FALSE.
 
     NULLIFY(qs_env, mscfg_env, force_env_section, subsection)
-    CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+    CALL force_env_get(force_env, force_env_section=force_env_section)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
     
     IF (method_name_id.eq.do_qs) THEN
 
-       CALL force_env_get(force_env, qs_env=qs_env, error=error)
-       CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+       CALL force_env_get(force_env, qs_env=qs_env)
+       CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
        
-       CALL get_qs_env(qs_env, mscfg_env=mscfg_env, error=error)
-       CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,error,failure)
+       CALL get_qs_env(qs_env, mscfg_env=mscfg_env)
+       CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,failure)
      
        !!!! RZK-warning: All decisions are based on the values of input keywords
        !!!! The real danger is that many of these keywords might not be even
@@ -442,18 +428,18 @@ CONTAINS
    
        ! check ALMO SCF guess option
        NULLIFY(subsection)
-       subsection    => section_vals_get_subs_vals(force_env_section,"DFT%ALMO_SCF",error=error)
-       CALL section_vals_val_get(subsection,"ALMO_SCF_GUESS",i_val=almo_guess_type, error=error)
+       subsection    => section_vals_get_subs_vals(force_env_section,"DFT%ALMO_SCF")
+       CALL section_vals_val_get(subsection,"ALMO_SCF_GUESS",i_val=almo_guess_type)
    
        ! check SCF guess option
        NULLIFY(subsection)
-       subsection    => section_vals_get_subs_vals(force_env_section,"DFT%SCF",error=error)
-       CALL section_vals_val_get(subsection,"SCF_GUESS",i_val=scf_guess_type, error=error)
+       subsection    => section_vals_get_subs_vals(force_env_section,"DFT%SCF")
+       CALL section_vals_val_get(subsection,"SCF_GUESS",i_val=scf_guess_type)
        
        ! check ALMO EDA options 
        NULLIFY(subsection)
-       !!!LATER subsection    => section_vals_get_subs_vals(force_env_section,"DFT%ALMO_SCF%ALMO_DA",error=error)
-       !!!LATER CALL section_vals_val_get(subsection,"FRZ_TERM",i_val=frz_term_type, error=error)
+       !!!LATER subsection    => section_vals_get_subs_vals(force_env_section,"DFT%ALMO_SCF%ALMO_DA")
+       !!!LATER CALL section_vals_val_get(subsection,"FRZ_TERM",i_val=frz_term_type)
        frz_term_type = almo_frz_none
    
        ! Are we doing the loop ?

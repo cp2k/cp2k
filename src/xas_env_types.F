@@ -145,7 +145,6 @@ CONTAINS
 !> \param nexc_search ...
 !> \param scf_env ...
 !> \param scf_control ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,nvirtual2,&
              centers_wfn,atom_of_state, exc_atoms, type_of_state,mykind_of_atom,mykind_of_kind,&
@@ -153,7 +152,7 @@ CONTAINS
              dip_fm_set,excvec_coeff,excvec_overlap,fm_work,&
              unoccupied_orbs, unoccupied_evals,unoccupied_max_iter,unoccupied_eps,&
              all_vectors,all_evals, my_gto_basis,qs_loc_env,&
-             stogto_overlap,occ_estate,xas_nelectron,xas_estate,nexc_atoms,nexc_search,scf_env,scf_control,error)
+             stogto_overlap,occ_estate,xas_nelectron,xas_estate,nexc_atoms,nexc_search,scf_env,scf_control)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL           :: iter_count, exc_state, nao, &
@@ -191,7 +190,6 @@ CONTAINS
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
       routineP = moduleN//':'//routineN
@@ -199,7 +197,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
      failure =.FALSE.
-     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
 
 
      IF(PRESENT(iter_count)) iter_count=xas_env%iter_count
@@ -255,11 +253,10 @@ CONTAINS
 !> \param homo_occ ...
 !> \param scf_env ...
 !> \param scf_control ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_xas_env(xas_env,iter_count,nexc_search,nexc_atoms,&
              nvirtual,nvirtual2, ip_energy, occ_estate, qs_loc_env,&
-             xas_estate, xas_nelectron, homo_occ, scf_env, scf_control,error)
+             xas_estate, xas_nelectron, homo_occ, scf_env, scf_control)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(IN), OPTIONAL            :: iter_count, nexc_search, &
@@ -273,7 +270,6 @@ CONTAINS
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
       routineP = moduleN//':'//routineN
@@ -282,7 +278,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
 
 
     IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
@@ -296,19 +292,19 @@ CONTAINS
     IF (PRESENT(xas_estate)) xas_env%xas_estate = xas_estate
     IF (PRESENT(ip_energy)) xas_env%ip_energy = ip_energy
     IF (PRESENT(qs_loc_env)) THEN
-      CALL  qs_loc_env_retain(qs_loc_env, error=error)
+      CALL  qs_loc_env_retain(qs_loc_env)
       IF(ASSOCIATED(xas_env%qs_loc_env)) &
-          CALL qs_loc_env_release(xas_env%qs_loc_env,error=error)
+          CALL qs_loc_env_release(xas_env%qs_loc_env)
       xas_env%qs_loc_env => qs_loc_env
     END IF
     IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
-       CALL scf_env_retain(scf_env,error=error)
-       CALL scf_env_release(xas_env%scf_env, error=error)
+       CALL scf_env_retain(scf_env)
+       CALL scf_env_release(xas_env%scf_env)
        xas_env%scf_env => scf_env
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
-       CALL scf_c_retain(scf_control,error=error)
-       CALL scf_c_release(xas_env%scf_control,error=error)
+       CALL scf_c_retain(scf_control)
+       CALL scf_c_release(xas_env%scf_control)
        xas_env%scf_control => scf_control
     END IF
 
@@ -318,12 +314,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param xas_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE xas_env_create(xas_env, error)
+  SUBROUTINE xas_env_create(xas_env)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_create', &
       routineP = moduleN//':'//routineN
@@ -333,7 +327,7 @@ CONTAINS
 
     failure=.FALSE.
     ALLOCATE(xas_env,STAT=istat)
-    CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_warning_level,routineP,failure)
 
 
     xas_env%ref_count=1
@@ -362,12 +356,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param xas_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE xas_env_release(xas_env, error)
+  SUBROUTINE xas_env_release(xas_env)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_release', &
       routineP = moduleN//':'//routineN
@@ -378,80 +370,80 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(xas_env)) THEN
-       CPPreconditionNoFail(xas_env%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(xas_env%ref_count>0,cp_failure_level,routineP)
        xas_env%ref_count = xas_env%ref_count -1
        IF (xas_env%ref_count==0) THEN
 
          DEALLOCATE(xas_env%state_of_atom,xas_env%atom_of_state,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          DEALLOCATE(xas_env%type_of_state,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          DEALLOCATE(xas_env%mykind_of_atom,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          DEALLOCATE(xas_env%mykind_of_kind,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          DEALLOCATE(xas_env%exc_atoms,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          DEALLOCATE(xas_env%centers_wfn,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          IF(ASSOCIATED(xas_env%all_evals)) THEN
            DEALLOCATE(xas_env%all_evals,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          END IF
          IF(ASSOCIATED(xas_env%unoccupied_evals)) THEN
            DEALLOCATE(xas_env%unoccupied_evals,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          END IF
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
            DO i = 1,SIZE(xas_env%groundstate_coeff)
              CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool,&
-                  xas_env%groundstate_coeff(i)%matrix, error=error)
+                  xas_env%groundstate_coeff(i)%matrix)
            END DO
            DEALLOCATE(xas_env%groundstate_coeff,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          END IF
          IF(ASSOCIATED(xas_env%dip_fm_set)) THEN
            DO i = 1,SIZE(xas_env%dip_fm_set,2)
              DO j = 1,SIZE(xas_env%dip_fm_set,1)
-               CALL cp_fm_release(xas_env%dip_fm_set(j,i)%matrix, error=error)
+               CALL cp_fm_release(xas_env%dip_fm_set(j,i)%matrix)
              END DO
            END DO
            DEALLOCATE(xas_env%dip_fm_set,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          END IF
 
          IF(ASSOCIATED(xas_env%excvec_coeff)) THEN
-           CALL cp_fm_release(xas_env%excvec_coeff,error=error)
+           CALL cp_fm_release(xas_env%excvec_coeff)
          END IF
          IF(ASSOCIATED(xas_env%excvec_overlap)) THEN
-           CALL cp_fm_release(xas_env%excvec_overlap,error=error)
+           CALL cp_fm_release(xas_env%excvec_overlap)
          END IF
          IF(ASSOCIATED(xas_env%unoccupied_orbs)) THEN
-           CALL cp_fm_release(xas_env%unoccupied_orbs,error=error)
+           CALL cp_fm_release(xas_env%unoccupied_orbs)
          END IF
          IF(ASSOCIATED(xas_env%fm_work)) THEN
-           CALL cp_fm_release(xas_env%fm_work,error=error)
+           CALL cp_fm_release(xas_env%fm_work)
          END IF
          NULLIFY(xas_env%ao_mo_fm_pools)
          IF(ASSOCIATED(xas_env%all_vectors).AND.xas_env%nvirtual .GT. 0) THEN
-           CALL cp_fm_release(xas_env%all_vectors,error=error)
+           CALL cp_fm_release(xas_env%all_vectors)
          ELSE
            NULLIFY(xas_env%all_vectors)
          END IF
 
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(xas_env%ostrength_sm,error=error)
+            CALL cp_dbcsr_deallocate_matrix_set(xas_env%ostrength_sm)
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
-            CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)
+            CALL qs_loc_env_release(xas_env%qs_loc_env)
          END IF
 
          IF(ASSOCIATED(xas_env%my_gto_basis)) THEN
            DO ik = 1,SIZE(xas_env%my_gto_basis,1)
-             CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error)
+             CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
            END DO
            DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          END IF
 
          IF(ASSOCIATED(xas_env%stogto_overlap)) THEN
@@ -459,15 +451,15 @@ CONTAINS
              DEALLOCATE(xas_env%stogto_overlap(ik)%array)
            END DO
            DEALLOCATE(xas_env%stogto_overlap,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          END IF
 
-         CALL scf_env_release(xas_env%scf_env, error=error)
-         CALL scf_c_release(xas_env%scf_control, error=error)
+         CALL scf_env_release(xas_env%scf_env)
+         CALL scf_c_release(xas_env%scf_control)
 
 
          DEALLOCATE(xas_env,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
          NULLIFY(xas_env)
        END IF
     END IF
@@ -477,12 +469,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param xas_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE xas_env_retain(xas_env, error)
+  SUBROUTINE xas_env_retain(xas_env)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_retain', &
       routineP = moduleN//':'//routineN
@@ -491,8 +481,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,failure)
     xas_env%ref_count=xas_env%ref_count+1
   END SUBROUTINE xas_env_retain
 

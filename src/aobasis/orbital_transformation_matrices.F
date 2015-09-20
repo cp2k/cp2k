@@ -334,18 +334,16 @@ CONTAINS
 !> \brief  Initialize or update the orbital transformation matrices.
 !> \param maxl ...
 !> \param output_unit ...
-!> \param error ...
 !> \date     09.07.1999
 !> \par Variables
 !>      - maxl   : Maximum angular momentum quantum number
 !> \author MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_spherical_harmonics(maxl,output_unit,error)
+  SUBROUTINE init_spherical_harmonics(maxl,output_unit)
 
     INTEGER, INTENT(IN)                      :: maxl
     INTEGER                                  :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_spherical_harmonics', &
       routineP = moduleN//':'//routineN

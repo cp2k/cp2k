@@ -49,16 +49,14 @@ CONTAINS
 !> \param mpoles ...
 !> \param se_parameter ...
 !> \param method ...
-!> \param error ...
 !> \date   09.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_mpole_p_setup(mpoles, se_parameter, method, error)
+  SUBROUTINE semi_empirical_mpole_p_setup(mpoles, se_parameter, method)
     TYPE(semi_empirical_mpole_p_type), &
       DIMENSION(:), POINTER                  :: mpoles
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     INTEGER, INTENT(IN)                      :: method
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_setup', &
       routineP = moduleN//':'//routineN
@@ -78,19 +76,19 @@ CONTAINS
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(mpoles),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mpoles),cp_failure_level,routineP,failure)
     ! If there are atomic orbitals proceed with the expansion in multipoles
     natorb = se_parameter%natorb
     IF (natorb/=0) THEN
        ndim   = natorb*(natorb+1)/2
-       CALL semi_empirical_mpole_p_create(mpoles, ndim, error)
+       CALL semi_empirical_mpole_p_create(mpoles, ndim)
 
        ! Select method for multipolar expansion
 
        ! Fill in information on multipole expansion due to atomic orbitals charge
        ! distribution
        NULLIFY(mpole)
-       CALL amn_l(se_parameter, amn, error)
+       CALL amn_l(se_parameter, amn)
        DO i = 1, natorb
           DO j = 1, i
              ind1 = indexa(se_map_alm(i),se_map_alm(j))
@@ -140,7 +138,7 @@ CONTAINS
                 mpole%qs(5)   = tmp * alm(ind1,2,-2) ! dxy
 
                 ! Convert into cartesian components
-                CALL quadrupole_sph_to_cart(mpole%qc, mpole%qs, error)
+                CALL quadrupole_sph_to_cart(mpole%qc, mpole%qs)
                 mpole%task(3)= .TRUE.
              END IF
 
@@ -157,7 +155,7 @@ CONTAINS
 
        IF (method == do_method_pnnl) THEN
           ! No d-function for Schenter type integrals
-          CPPostcondition(natorb<=4,cp_failure_level,routineP,error,failure)
+          CPPostcondition(natorb<=4,cp_failure_level,routineP,failure)
 
           M0 = 0.0_dp
           M1 = 0.0_dp
@@ -237,15 +235,13 @@ CONTAINS
 !> \brief  Transforms the quadrupole components from sphericals to cartesians
 !> \param qcart ...
 !> \param qsph ...
-!> \param error ...
 !> \date   09.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE quadrupole_sph_to_cart(qcart, qsph, error)
+  SUBROUTINE quadrupole_sph_to_cart(qcart, qsph)
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT)                            :: qcart
     REAL(KIND=dp), DIMENSION(5), INTENT(IN)  :: qsph
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'quadrupole_sph_to_cart', &
       routineP = moduleN//':'//routineN
@@ -277,14 +273,12 @@ CONTAINS
 !> \brief Setup NDDO multipole type
 !> \param nddo_mpole ...
 !> \param natom ...
-!> \param error ...
 !> \date   09.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE nddo_mpole_setup(nddo_mpole, natom, error)
+  SUBROUTINE nddo_mpole_setup(nddo_mpole, natom)
     TYPE(nddo_mpole_type), POINTER           :: nddo_mpole
     INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_setup', &
       routineP = moduleN//':'//routineN
@@ -296,23 +290,23 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(nddo_mpole)) THEN
-       CALL nddo_mpole_release(nddo_mpole, error=error)
+       CALL nddo_mpole_release(nddo_mpole)
     END IF
-    CALL nddo_mpole_create(nddo_mpole, error=error)
+    CALL nddo_mpole_create(nddo_mpole)
     ! Allocate Global Arrays
     ALLOCATE(nddo_mpole%charge(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(nddo_mpole%dipole(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(nddo_mpole%quadrupole(3,3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ALLOCATE(nddo_mpole%efield0(  natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(nddo_mpole%efield1(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(nddo_mpole%efield2(9,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 

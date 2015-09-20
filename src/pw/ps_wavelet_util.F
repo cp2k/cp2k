@@ -73,7 +73,6 @@ CONTAINS
 !>                 dimensions that are related to the output of the PS_dim4allocation routine
 !>                 it MUST be created by following the same geocode as the Poisson Solver.
 !> \param pw_grid ...
-!> \param error ...
 !> \date February 2007
 !> \author Luigi Genovese
 !> \note The dimensions of the arrays must be compatible with geocode, nproc, 
@@ -81,7 +80,7 @@ CONTAINS
 !>     is IMPERATIVE to use the PS_dim4allocation routine for calculation arrays sizes. 
 ! *****************************************************************************
   SUBROUTINE PSolver(geocode,iproc,nproc,n01,n02,n03,hx,hy,hz,&
-       rhopot,karray,pw_grid,error)
+       rhopot,karray,pw_grid)
     CHARACTER(len=1), INTENT(in)             :: geocode
     INTEGER, INTENT(in)                      :: iproc, nproc, n01, n02, n03
     REAL(KIND=dp), INTENT(in)                :: hx, hy, hz
@@ -89,7 +88,6 @@ CONTAINS
       INTENT(inout)                          :: rhopot
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: karray
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: i1, i2, i3, i_all, i_stat, iend, istart, j2, m1, m2, m3, md1, &
       md2, md3, n1, n2, n3, nd1, nd2, nd3, nlim, nwb, nwbl, nwbr, nxc, nxcl, &
@@ -177,17 +175,17 @@ CONTAINS
        !no powers of hgrid because they are incorporated in the plane wave treatment
        scal=1._dp/REAL(n1*n2*n3,KIND=dp)
        CALL P_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,zf,&
-            scal,hx,hy,hz,pw_grid%para%rs_group,error)
+            scal,hx,hy,hz,pw_grid%para%rs_group)
     ELSE IF (geocode == 'S') THEN
        !only one power of hgrid
        scal=hy/REAL(n1*n2*n3,KIND=dp)
        CALL S_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf,&
-            scal,pw_grid%para%rs_group,error)
+            scal,pw_grid%para%rs_group)
     ELSE IF (geocode == 'F') THEN
        hgrid=MAX(hx,hy,hz)
        scal=hgrid**3/REAL(n1*n2*n3,KIND=dp)
        CALL F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf,&
-            scal,pw_grid%para%rs_group,error)
+            scal,pw_grid%para%rs_group)
        factor=0.5_dp*hgrid**3
     END IF
 

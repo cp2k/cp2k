@@ -49,13 +49,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param section will contain the coeff section
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_barostat_section(section, error)
+  SUBROUTINE create_barostat_section(section)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section', &
       routineP = moduleN//':'//routineN
@@ -66,40 +63,40 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
     CALL section_create(section,name="barostat",&
          description="Parameters of barostat.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
     NULLIFY(keyword,subsection,thermo_section)
     CALL keyword_create(keyword, name="PRESSURE",&
          description="Initial pressure",&
          usage="PRESSURE real",&
-         default_r_val=0._dp,unit_str='bar',error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_r_val=0._dp,unit_str='bar')
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TIMECON",&
          description="Barostat time constant",&
          usage="TIMECON real",&
-         default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
-         unit_str='fs',error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs"),&
+         unit_str='fs')
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TEMPERATURE",&
          description="Barostat initial temperature. If not set, the ensemble temperature is used instead.",&
          usage="TEMPERATURE real",type_of_var=real_t,&
-         unit_str='K',error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         unit_str='K')
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TEMP_TOL",&
          description="Maximum oscillation of the Barostat temperature imposed by rescaling.",&
          usage="TEMP_TOL real",default_r_val=0._dp, &
-         unit_str='K',error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         unit_str='K')
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="VIRIAL",&
          description="For NPT_F only: allows the screening of one or more components of the virial in order"//&
@@ -107,37 +104,35 @@ CONTAINS
          usage="VIRIAL (XYZ | X | Y | Z | XY| XZ | YZ)",&
          enum_c_vals=s2a( "XYZ","X", "Y", "Z", "XY", "XZ", "YZ"),&
          enum_i_vals=(/ do_clv_xyz, do_clv_x, do_clv_y,do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/),&
-         default_i_val=do_clv_xyz, error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+         default_i_val=do_clv_xyz)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
-    CALL create_velocity_section(subsection,"BAROSTAT",error=error)
-    CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)
+    CALL create_velocity_section(subsection,"BAROSTAT")
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
 
-    CALL create_mass_section(subsection,"BAROSTAT",error=error)
-    CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)
+    CALL create_mass_section(subsection,"BAROSTAT")
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
 
-    CALL create_thermostat_section(thermo_section, coupled_thermostat=.TRUE., error=error)
-    CALL section_add_subsection(section, thermo_section, error=error)
-    CALL section_release(thermo_section,error=error)
+    CALL create_thermostat_section(thermo_section, coupled_thermostat=.TRUE.)
+    CALL section_add_subsection(section, thermo_section)
+    CALL section_release(thermo_section)
 
-    CALL create_print_section(subsection, error=error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
+    CALL create_print_section(subsection)
+    CALL section_add_subsection(section, subsection)
+    CALL section_release(subsection)
 
   END SUBROUTINE create_barostat_section
 
 ! *****************************************************************************
 !> \brief Creates print section for barostat section
 !> \param section ...
-!> \param error ...
 !> \author teo [tlaino] - University of Zurich - 02.2008
 ! *****************************************************************************
-  SUBROUTINE create_print_section(section, error)
+  SUBROUTINE create_print_section(section)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
       routineP = moduleN//':'//routineN
@@ -147,18 +142,18 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
     NULLIFY(print_key)
     CALL section_create(section,name="PRINT",&
          description="Collects all print_keys for barostat",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
     CALL cp_print_key_section_create(print_key,"ENERGY",&
          description="Controls the output of kinetic energy, and potential energy "//&
          " of the defined barostat.", print_level=high_print_level, common_iter_levels=1,&
-         filename="",error=error)
-    CALL section_add_subsection(section,print_key,error=error)
-    CALL section_release(print_key,error=error)
+         filename="")
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
   END SUBROUTINE create_print_section
 
 END MODULE input_cp2k_barostats

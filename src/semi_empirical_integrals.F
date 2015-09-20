@@ -64,11 +64,10 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date   05.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE rotint(sepi,sepj,rij,w,anag,se_int_control,se_taper,store_int_env,error)
+  SUBROUTINE rotint(sepi,sepj,rij,w,anag,se_int_control,se_taper,store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(2025), INTENT(OUT)   :: w
@@ -76,7 +75,6 @@ CONTAINS
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint', &
       routineP = moduleN//':'//routineN
@@ -106,12 +104,12 @@ CONTAINS
           END IF
           ! Compute Integrals
           IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-            CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,error=error)
+            CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control)
           ELSE
             IF (anag) THEN
-               CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+               CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper)
             ELSE
-               CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+               CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper)
             END IF
           END IF
           ! Store integrals if we did not go overflow
@@ -135,14 +133,14 @@ CONTAINS
                                                     store_int_env%integral_containers(nbits), &
                                                     eps_storage, 1.0_dp,&
                                                     store_int_env%memory_parameter%actual_memory_usage, &
-                                                    .FALSE., error)
+                                                    .FALSE.)
                    buffer_left  = buffer_left  - buffer_size
                    buffer_start = buffer_start + buffer_size
                 END DO
              ELSE
                 ! Skip compression
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,error,failure)
+                CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,failure)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
                    new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
@@ -186,24 +184,24 @@ CONTAINS
              END IF
           ELSE
              IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-               CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,error=error)
+               CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control)
              ELSE
                 IF (anag) THEN
-                   CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+                   CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper)
                 ELSE
-                   CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+                   CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper)
                 END IF
              END IF
           END IF
        END IF
     ELSE
        IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-          CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,error=error)
+          CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control)
        ELSE
           IF (anag) THEN
-             CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+             CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper)
           ELSE
-             CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+             CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper)
           END IF
        END IF
     END IF
@@ -221,11 +219,10 @@ CONTAINS
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param store_int_env ...
-!> \param error ...
 !> \date   05.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,se_int_control,se_taper,store_int_env,error)
+  SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,se_int_control,se_taper,store_int_env)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(45), INTENT(OUT), &
@@ -236,7 +233,6 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc', &
       routineP = moduleN//':'//routineN
@@ -260,7 +256,7 @@ CONTAINS
        IF (PRESENT(e2a)) nints_2 = (sepj%natorb*(sepj%natorb+1)/2)
        nints                     = nints_1 + nints_2
        ! This is the upper limit for an spd basis set
-       CPPrecondition(nints<=90,cp_failure_level,routineP,error,failure)
+       CPPrecondition(nints<=90,cp_failure_level,routineP,failure)
        cache_size = store_int_env%memory_parameter%cache_size
        eps_storage= store_int_env%memory_parameter%eps_storage_scaling
        IF (store_int_env%filling_containers) THEN
@@ -275,14 +271,14 @@ CONTAINS
           ! Compute Integrals
           IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
              CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
-                  se_int_control=se_int_control,error=error)
+                  se_int_control=se_int_control)
           ELSE
              IF (anag) THEN
                 CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                     se_int_control=se_int_control, se_taper=se_taper, error=error)
+                     se_int_control=se_int_control, se_taper=se_taper)
              ELSE
                 CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                     se_int_control=se_int_control, se_taper=se_taper, error=error)
+                     se_int_control=se_int_control, se_taper=se_taper)
              END IF
           END IF
           ! Store integrals if we did not go overflow
@@ -309,14 +305,14 @@ CONTAINS
                                                     store_int_env%integral_containers(nbits), &
                                                     eps_storage, 1.0_dp,&
                                                     store_int_env%memory_parameter%actual_memory_usage, &
-                                                    .FALSE., error)
+                                                    .FALSE.)
                    buffer_left  = buffer_left  - buffer_size
                    buffer_start = buffer_start + buffer_size
                 END DO
              ELSE
                 ! Skip compression
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,error,failure)
+                CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,failure)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
                    new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
@@ -363,14 +359,14 @@ CONTAINS
           ELSE
              IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
                 CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
-                     se_int_control=se_int_control, error=error)
+                     se_int_control=se_int_control)
              ELSE
                 IF (anag) THEN
                    CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                        se_int_control=se_int_control, se_taper=se_taper, error=error)
+                        se_int_control=se_int_control, se_taper=se_taper)
                 ELSE
                    CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                        se_int_control=se_int_control, se_taper=se_taper, error=error)
+                        se_int_control=se_int_control, se_taper=se_taper)
                 END IF
              END IF
           END IF
@@ -378,14 +374,14 @@ CONTAINS
     ELSE
        IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
           CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
-               se_int_control=se_int_control, error=error)
+               se_int_control=se_int_control)
        ELSE
           IF (anag) THEN
              CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  se_int_control=se_int_control, se_taper=se_taper, error=error)
+                  se_int_control=se_int_control, se_taper=se_taper)
           ELSE
              CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  se_int_control=se_int_control, se_taper=se_taper, error=error)
+                  se_int_control=se_int_control, se_taper=se_taper)
           END IF
        END IF
     END IF
@@ -405,11 +401,10 @@ CONTAINS
 !> \param anag ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \date   04.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE corecore (sepi,sepj,rij,enuc,itype,anag,se_int_control,se_taper,error)
+  SUBROUTINE corecore (sepi,sepj,rij,enuc,itype,anag,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), INTENT(OUT)                    :: enuc
@@ -417,21 +412,20 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore', &
       routineP = moduleN//':'//routineN
 
     enuc = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-       CALL corecore_gks (sepi,sepj,rij,enuc=enuc,se_int_control=se_int_control,error=error)
+       CALL corecore_gks (sepi,sepj,rij,enuc=enuc,se_int_control=se_int_control)
     ELSE
        IF (anag) THEN
           CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
-               se_taper=se_taper, error=error)
+               se_taper=se_taper)
        ELSE
           CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
-               se_taper=se_taper, error=error)
+               se_taper=se_taper)
        END IF
     END IF
 
@@ -449,11 +443,10 @@ CONTAINS
 !> \param anag ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \date   05.2009
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE corecore_el (sepi,sepj,rij,enuc,itype,anag,se_int_control,se_taper,error)
+  SUBROUTINE corecore_el (sepi,sepj,rij,enuc,itype,anag,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), INTENT(OUT)                    :: enuc
@@ -461,7 +454,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el', &
       routineP = moduleN//':'//routineN
@@ -469,10 +461,10 @@ CONTAINS
     enuc = 0.0_dp
     IF (anag) THEN
        CALL corecore_el_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
-            se_taper=se_taper, error=error)
+            se_taper=se_taper)
     ELSE
        CALL corecore_el_num (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
-            se_taper=se_taper, error=error)
+            se_taper=se_taper)
     END IF
 
   END SUBROUTINE corecore_el
@@ -487,11 +479,10 @@ CONTAINS
 !> \param anag ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \date   04.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE drotint (sepi,sepj,rij,dw,delta,anag,se_int_control,se_taper, error)
+  SUBROUTINE drotint (sepi,sepj,rij,dw,delta,anag,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 2025), &
@@ -500,19 +491,18 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint', &
       routineP = moduleN//':'//routineN
 
     dw(:,:) = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-       CALL  drotint_gks(sepi,sepj,rij,dw=dw,se_int_control=se_int_control,error=error)
+       CALL  drotint_gks(sepi,sepj,rij,dw=dw,se_int_control=se_int_control)
     ELSE
        IF (anag) THEN
-          CALL  rotint_ana(sepi,sepj,rij,dw=dw,   se_int_control=se_int_control,se_taper=se_taper,error=error)
+          CALL  rotint_ana(sepi,sepj,rij,dw=dw,   se_int_control=se_int_control,se_taper=se_taper)
        ELSE
-          CALL drotint_num(sepi,sepj,rij,dw,delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
+          CALL drotint_num(sepi,sepj,rij,dw,delta,se_int_control=se_int_control,se_taper=se_taper)
        END IF
     END IF
 
@@ -530,11 +520,10 @@ CONTAINS
 !> \param anag ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \date   04.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,se_int_control,se_taper,error)
+  SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 45), &
@@ -544,7 +533,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc', &
       routineP = moduleN//':'//routineN
@@ -553,14 +541,14 @@ CONTAINS
     IF (PRESENT(de2a)) de2a(:,:) = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
           CALL drotnuc_gks (sepi, sepj, rij, de1b=de1b, de2a=de2a,&
-               se_int_control=se_int_control,error=error)
+               se_int_control=se_int_control)
     ELSE
        IF (anag) THEN
           CALL rotnuc_ana  (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
-               se_int_control=se_int_control,se_taper=se_taper,error=error)
+               se_int_control=se_int_control,se_taper=se_taper)
        ELSE
           CALL drotnuc_num (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
-               delta=delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
+               delta=delta,se_int_control=se_int_control,se_taper=se_taper)
        END IF
     END IF
 
@@ -577,11 +565,10 @@ CONTAINS
 !> \param anag ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \date   04.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE dcorecore (sepi,sepj,rij,denuc,itype,delta,anag,se_int_control,se_taper,error)
+  SUBROUTINE dcorecore (sepi,sepj,rij,denuc,itype,delta,anag,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
@@ -590,21 +577,20 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore', &
       routineP = moduleN//':'//routineN
 
     denuc = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-       CALL corecore_gks (sepi,sepj,rij,denuc=denuc,se_int_control=se_int_control,error=error)
+       CALL corecore_gks (sepi,sepj,rij,denuc=denuc,se_int_control=se_int_control)
     ELSE
        IF (anag) THEN
           CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
-               se_taper=se_taper, error=error)
+               se_taper=se_taper)
        ELSE
           CALL dcorecore_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
-               se_int_control=se_int_control,se_taper=se_taper, error=error)
+               se_int_control=se_int_control,se_taper=se_taper)
        END IF
     END IF
 
@@ -623,11 +609,10 @@ CONTAINS
 !> \param anag ...
 !> \param se_int_control ...
 !> \param se_taper ...
-!> \param error ...
 !> \date   05.2009
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE dcorecore_el (sepi,sepj,rij,denuc,itype,delta,anag,se_int_control,se_taper,error)
+  SUBROUTINE dcorecore_el (sepi,sepj,rij,denuc,itype,delta,anag,se_int_control,se_taper)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
@@ -636,7 +621,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_el', &
       routineP = moduleN//':'//routineN
@@ -644,10 +628,10 @@ CONTAINS
     denuc = 0.0_dp
     IF (anag) THEN
        CALL corecore_el_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
-            se_taper=se_taper, error=error)
+            se_taper=se_taper)
     ELSE
        CALL dcorecore_el_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
-            se_int_control=se_int_control,se_taper=se_taper, error=error)
+            se_int_control=se_int_control,se_taper=se_taper)
     END IF
 
   END SUBROUTINE dcorecore_el

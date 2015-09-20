@@ -373,14 +373,11 @@ CONTAINS
 !> \brief initializes a colvar_param type
 !> \param colvar the colvat to initialize
 !> \param colvar_id ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-  SUBROUTINE colvar_create(colvar,colvar_id,error)
+  SUBROUTINE colvar_create(colvar,colvar_id)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(in)                      :: colvar_id
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', &
       routineP = moduleN//':'//routineN
@@ -389,9 +386,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(colvar),cp_warning_level,routineP,failure)
     ALLOCATE(colvar, stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     ! Nullify all available COLVAR types
     NULLIFY(colvar%dist_param)
     NULLIFY(colvar%angle_param)
@@ -423,83 +420,83 @@ CONTAINS
     SELECT CASE (colvar_id)
     CASE(dist_colvar_id)
        ALLOCATE(colvar%dist_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar%dist_param%axis_id = do_clv_xyz
     CASE(coord_colvar_id)
        ALLOCATE(colvar%coord_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(population_colvar_id)
        ALLOCATE(colvar%population_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(gyration_colvar_id)
        ALLOCATE(colvar%gyration_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(angle_colvar_id)
        ALLOCATE(colvar%angle_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(torsion_colvar_id)
        ALLOCATE(colvar%torsion_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(plane_distance_colvar_id)
        ALLOCATE(colvar%plane_distance_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(plane_plane_angle_colvar_id)
        ALLOCATE(colvar%plane_plane_angle_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(rotation_colvar_id)
        ALLOCATE(colvar%rotation_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(dfunct_colvar_id)
        ALLOCATE(colvar%dfunct_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(qparm_colvar_id)
        ALLOCATE(colvar%qparm_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(xyz_diag_colvar_id)
        ALLOCATE(colvar%xyz_diag_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        ! Initialize r0 with dummy..
        colvar%xyz_diag_param%r0=HUGE(0.0_dp)
     CASE(xyz_outerdiag_colvar_id)
        ALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        ! Initialize r0 with dummy..
        colvar%xyz_outerdiag_param%r0=HUGE(0.0_dp)
     CASE(u_colvar_id)
        ALLOCATE(colvar%u_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        NULLIFY(colvar%u_param%mixed_energy_section)
     CASE(hydronium_colvar_id)
        ALLOCATE(colvar%hydronium_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(reaction_path_colvar_id)
        ALLOCATE(colvar%reaction_path_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(distance_from_path_colvar_id)
        ALLOCATE(colvar%reaction_path_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(combine_colvar_id)
        ALLOCATE(colvar%combine_cvs_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(rmsd_colvar_id)
        ALLOCATE(colvar%rmsd_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(Wc_colvar_id)
        ALLOCATE(colvar%Wc, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(HBP_colvar_id)
        ALLOCATE(colvar%HBP, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(ring_puckering_colvar_id)
        ALLOCATE(colvar%ring_puckering_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(mindist_colvar_id)
        ALLOCATE(colvar%mindist_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE(no_colvar_id)
        ! Do nothing
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_warning_level,routineP,failure)
     END SELECT
 
   END SUBROUTINE colvar_create
@@ -507,13 +504,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalize the setup of the collective variable
 !> \param colvar the colvar to initialize
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino, [teo] 09.03.2006
 ! *****************************************************************************
-  SUBROUTINE colvar_setup(colvar,error)
+  SUBROUTINE colvar_setup(colvar)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup', &
       routineP = moduleN//':'//routineN
@@ -523,7 +517,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure
 
-    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,failure)
     failure=.FALSE.
     SELECT CASE(colvar%type_id)
     CASE(dist_colvar_id)
@@ -535,7 +529,7 @@ CONTAINS
                        COLV_SIZE(colvar,j)
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        list(1) = colvar%dist_param%i_at
        list(2) = colvar%dist_param%j_at
     CASE(coord_colvar_id)
@@ -559,7 +553,7 @@ CONTAINS
        END IF
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%coord_param%n_atoms_from
           idum = idum + 1
@@ -578,7 +572,7 @@ CONTAINS
             list(idum) = i
          ENDDO
        END IF
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(population_colvar_id)
        np = colvar%population_param%n_atoms_from+colvar%population_param%n_atoms_to
        ! Number of real atoms involved in the colvar
@@ -593,7 +587,7 @@ CONTAINS
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%population_param%n_atoms_from
           idum = idum + 1
@@ -605,7 +599,7 @@ CONTAINS
           i = colvar%population_param%i_at_to(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(gyration_colvar_id)
        np = colvar%gyration_param%n_atoms
        ! Number of real atoms involved in the colvar
@@ -616,14 +610,14 @@ CONTAINS
        ENDDO
       ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%gyration_param%n_atoms
           idum = idum + 1
           i = colvar%gyration_param%i_at(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(angle_colvar_id)
        np = 3
        ! Number of real atoms involved in the colvar
@@ -634,14 +628,14 @@ CONTAINS
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1, 3
           idum = idum + 1
           i = colvar%angle_param%i_at_angle(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(torsion_colvar_id)
        np = 4
        ! Number of real atoms involved in the colvar
@@ -652,14 +646,14 @@ CONTAINS
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1, 4
           idum = idum + 1
           i = colvar%torsion_param%i_at_tors(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(plane_distance_colvar_id)
        np = 4
        ! Number of real atoms involved in the colvar
@@ -672,7 +666,7 @@ CONTAINS
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1, 3
           idum = idum + 1
@@ -682,7 +676,7 @@ CONTAINS
        i = colvar%plane_distance_param%point
        list(4) = i
        idum = idum + 1
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(plane_plane_angle_colvar_id)
        np = 0
        IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) np = np +3
@@ -711,7 +705,7 @@ CPSourceFileRef)
 
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
           DO ii=1, 3
@@ -727,7 +721,7 @@ CPSourceFileRef)
              list(idum) = i
           ENDDO
        END IF
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(dfunct_colvar_id)
        np = 4
        ! Number of real atoms involved in the colvar
@@ -738,14 +732,14 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1, 4
           idum = idum + 1
           i = colvar%dfunct_param%i_at_dfunct(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(rotation_colvar_id)
        np = 4
        ! Number of real atoms involved in the colvar
@@ -760,7 +754,7 @@ CPSourceFileRef)
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        i = colvar%rotation_param%i_at1_bond1
        list(1) = i
        i = colvar%rotation_param%i_at2_bond1
@@ -783,7 +777,7 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%qparm_param%n_atoms_from
           idum = idum + 1
@@ -795,7 +789,7 @@ CPSourceFileRef)
           i = colvar%qparm_param%i_at_to(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(hydronium_colvar_id)
        np = colvar%hydronium_param%n_oxygens+colvar%hydronium_param%n_hydrogens
        ! Number of real atoms involved in the colvar
@@ -810,7 +804,7 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%hydronium_param%n_oxygens
           idum = idum + 1
@@ -822,7 +816,7 @@ CPSourceFileRef)
           i = colvar%hydronium_param%i_hydrogens(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(rmsd_colvar_id)
        np = colvar%rmsd_param%n_atoms
        ! Number of real atoms involved in the colvar
@@ -833,7 +827,7 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%rmsd_param%n_atoms
          idum = idum+1
@@ -873,7 +867,7 @@ CPSourceFileRef)
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        i = colvar%xyz_diag_param%i_atom
        list(1) = i
     CASE(xyz_outerdiag_colvar_id)
@@ -886,14 +880,14 @@ CPSourceFileRef)
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        i = colvar%xyz_outerdiag_param%i_atoms(1)
        list(1) = i
        i = colvar%xyz_outerdiag_param%i_atoms(2)
        list(2) = i
     CASE(u_colvar_id)
        np = 1; ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        colvar%n_atom_s=np; list(1)=1
     CASE(Wc_colvar_id)
        np = 3
@@ -905,14 +899,14 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1, 3
           idum = idum + 1
           i = colvar%Wc%ids(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(HBP_colvar_id)
        np = 3*colvar%HBP%nPoints
        ! Number of real atoms involved in the colvar
@@ -925,7 +919,7 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO j=1,colvar%HBP%nPoints
          DO ii=1, 3
@@ -934,7 +928,7 @@ CPSourceFileRef)
            list(idum) = i
          ENDDO
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(ring_puckering_colvar_id)
        np = colvar%ring_puckering_param%nring
        ! Number of real atoms involved in the colvar
@@ -945,14 +939,14 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%ring_puckering_param%nring
           idum = idum + 1
           i = colvar%ring_puckering_param%atoms(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(mindist_colvar_id)
        np =colvar%mindist_param%n_dist_from +&
            colvar%mindist_param%n_coord_from+colvar%mindist_param%n_coord_to
@@ -972,7 +966,7 @@ CPSourceFileRef)
        ENDDO
        ! Create a List of points...
        ALLOCATE(list(np),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        idum = 0
        DO ii=1,colvar%mindist_param%n_dist_from
           idum = idum + 1
@@ -989,7 +983,7 @@ CPSourceFileRef)
           i = colvar%mindist_param%i_coord_to(ii)
           list(idum) = i
        ENDDO
-       CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CPPostcondition(idum==np,cp_failure_level,routinep,failure)
     CASE(combine_colvar_id)
        colvar%n_atom_s=0
        DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1007,16 +1001,16 @@ CPSourceFileRef)
 
     IF (ASSOCIATED(colvar%dsdr)) THEN
        DEALLOCATE(colvar%dsdr, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
     IF (ASSOCIATED(colvar%i_atom)) THEN
        DEALLOCATE(colvar%i_atom, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
     ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     ! And now map real atoms
     istart = 0
     iend   = 0
@@ -1033,9 +1027,9 @@ CPSourceFileRef)
           END IF
        END IF
     END DO
-    CPPostcondition(iend==colvar%n_atom_s,cp_failure_level,routinep,error,failure)
+    CPPostcondition(iend==colvar%n_atom_s,cp_failure_level,routinep,failure)
     DEALLOCATE(list, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
 
   END SUBROUTINE colvar_setup
 
@@ -1063,13 +1057,10 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief releases the memory that might have been allocated by the colvar
 !> \param colvar the colvar to deallocate
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE colvar_release(colvar,error)
+  RECURSIVE SUBROUTINE colvar_release(colvar)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_release', &
       routineP = moduleN//':'//routineN
@@ -1078,217 +1069,217 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,failure)
     IF (ASSOCIATED(colvar%dsdr)) THEN
        DEALLOCATE(colvar%dsdr, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
     IF (ASSOCIATED(colvar%i_atom)) THEN
         DEALLOCATE(colvar%i_atom, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
     IF (ASSOCIATED(colvar%points)) THEN
        DO i = 1, SIZE(colvar%points)
           IF (ASSOCIATED(colvar%points(i)%atoms)) THEN
              DEALLOCATE(colvar%points(i)%atoms, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routinep,failure)
           END IF
           IF (ASSOCIATED(colvar%points(i)%weights)) THEN
              DEALLOCATE(colvar%points(i)%weights, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routinep,failure)
           END IF
        END DO
        DEALLOCATE(colvar%points, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
     SELECT CASE(colvar%type_id)
     CASE (dist_colvar_id)
        DEALLOCATE(colvar%dist_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (coord_colvar_id)
        IF (ASSOCIATED(colvar%coord_param%i_at_from)) THEN
           DEALLOCATE(colvar%coord_param%i_at_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%i_at_to)) THEN
           DEALLOCATE(colvar%coord_param%i_at_to,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_from)) THEN
           DEALLOCATE(colvar%coord_param%c_kinds_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_to)) THEN
           DEALLOCATE(colvar%coord_param%c_kinds_to,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%i_at_to_b)) THEN
           DEALLOCATE(colvar%coord_param%i_at_to_b,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_to_b)) THEN
           DEALLOCATE(colvar%coord_param%c_kinds_to_b,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        DEALLOCATE(colvar%coord_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (population_colvar_id)
        IF (ASSOCIATED(colvar%population_param%i_at_from)) THEN
           DEALLOCATE(colvar%population_param%i_at_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%population_param%i_at_to)) THEN
           DEALLOCATE(colvar%population_param%i_at_to,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(colvar%population_param%c_kinds_from)) THEN
           DEALLOCATE(colvar%population_param%c_kinds_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%population_param%c_kinds_to)) THEN
           DEALLOCATE(colvar%population_param%c_kinds_to,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        DEALLOCATE(colvar%population_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (gyration_colvar_id)
        IF (ASSOCIATED(colvar%gyration_param%i_at)) THEN
           DEALLOCATE(colvar%gyration_param%i_at, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%gyration_param%c_kinds)) THEN
           DEALLOCATE(colvar%gyration_param%c_kinds, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        DEALLOCATE(colvar%gyration_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(angle_colvar_id)
        DEALLOCATE(colvar%angle_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (torsion_colvar_id)
        DEALLOCATE(colvar%torsion_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(plane_distance_colvar_id)
        DEALLOCATE(colvar%plane_distance_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(plane_plane_angle_colvar_id)
        DEALLOCATE(colvar%plane_plane_angle_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(dfunct_colvar_id)
        DEALLOCATE(colvar%dfunct_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (rotation_colvar_id)
        DEALLOCATE(colvar%rotation_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (qparm_colvar_id)
        DEALLOCATE(colvar%qparm_param%i_at_from, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%qparm_param%i_at_to,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        DEALLOCATE(colvar%qparm_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (xyz_diag_colvar_id)
        DEALLOCATE(colvar%xyz_diag_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (xyz_outerdiag_colvar_id)
        DEALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (u_colvar_id)
        NULLIFY(colvar%u_param%mixed_energy_section)
        DEALLOCATE(colvar%u_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (hydronium_colvar_id)
        DEALLOCATE(colvar%hydronium_param%i_oxygens, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%hydronium_param%i_hydrogens,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        DEALLOCATE(colvar%hydronium_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (reaction_path_colvar_id, distance_from_path_colvar_id)
        IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
          DEALLOCATE(colvar%reaction_path_param%r_ref,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routinep,failure)
          DEALLOCATE(colvar%reaction_path_param%i_rmsd,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ELSE
          DO i=1,SIZE(colvar%reaction_path_param%colvar_p)
-             CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar,error)
+             CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar)
          END DO
          DEALLOCATE(colvar%reaction_path_param%colvar_p, stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routinep,failure)
          DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        DEALLOCATE(colvar%reaction_path_param,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (combine_colvar_id)
        DO i=1,SIZE(colvar%combine_cvs_param%colvar_p)
-          CALL colvar_release(colvar%combine_cvs_param%colvar_p(i)%colvar,error)
+          CALL colvar_release(colvar%combine_cvs_param%colvar_p(i)%colvar)
        END DO
        DEALLOCATE(colvar%combine_cvs_param%colvar_p, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%combine_cvs_param%c_parameters, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%combine_cvs_param%v_parameters, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%combine_cvs_param%variables, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%combine_cvs_param,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (rmsd_colvar_id)
        DEALLOCATE(colvar%rmsd_param%weights, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%rmsd_param%r_ref, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%rmsd_param%i_rmsd, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%rmsd_param,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(Wc_colvar_id)
        DEALLOCATE(colvar%Wc, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(HBP_colvar_id)
        DEALLOCATE(colvar%HBP%ewc, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%HBP%ids, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%HBP, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE (ring_puckering_colvar_id)
        DEALLOCATE(colvar%ring_puckering_param%atoms, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(colvar%ring_puckering_param, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
     CASE (mindist_colvar_id)
        IF (ASSOCIATED(colvar%mindist_param%i_dist_from)) THEN
           DEALLOCATE(colvar%mindist_param%i_dist_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%i_coord_from)) THEN
           DEALLOCATE(colvar%mindist_param%i_coord_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%i_coord_to)) THEN
           DEALLOCATE(colvar%mindist_param%i_coord_to,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%k_coord_from)) THEN
           DEALLOCATE(colvar%mindist_param%k_coord_from, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%k_coord_to)) THEN
           DEALLOCATE(colvar%mindist_param%k_coord_to,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
        DEALLOCATE(colvar%mindist_param, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)
+       CPAssert(.FALSE.,cp_failure_level,routinep,failure)
     END SELECT
     DEALLOCATE(colvar, stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
 
   END SUBROUTINE colvar_release
 
@@ -1297,14 +1288,11 @@ CPSourceFileRef)
 !> \param colvar_out ...
 !> \param colvar_in the colvar to deallocate
 !> \param i_atom_offset ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
+  RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset)
     TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
     INTEGER, INTENT(IN), OPTIONAL            :: i_atom_offset
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone', &
       routineP = moduleN//':'//routineN
@@ -1315,11 +1303,11 @@ CPSourceFileRef)
 
     my_offset = 0
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(colvar_in),cp_warning_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(colvar_out),cp_warning_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(colvar_in),cp_warning_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(colvar_out),cp_warning_level,routineP,failure)
     IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
-    CALL colvar_create(colvar_out, colvar_in%type_id, error)
-    CALL colvar_clone_points(colvar_out, colvar_in, my_offset, error)
+    CALL colvar_create(colvar_out, colvar_in%type_id)
+    CALL colvar_clone_points(colvar_out, colvar_in, my_offset)
     IF (colvar_in%use_points) my_offset = 0
     SELECT CASE(colvar_out%type_id)
     CASE(dist_colvar_id)
@@ -1346,39 +1334,39 @@ CPSourceFileRef)
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_from)
           ALLOCATE(colvar_out%coord_param%c_kinds_from(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%coord_param%c_kinds_from    = colvar_in%coord_param%c_kinds_from
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%coord_param%i_at_from)
           ALLOCATE(colvar_out%coord_param%i_at_from(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%coord_param%i_at_from    = colvar_in%coord_param%i_at_from + my_offset
        END IF
        IF(colvar_in%coord_param%use_kinds_to) THEN
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_to)
           ALLOCATE(colvar_out%coord_param%c_kinds_to(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%coord_param%c_kinds_to    = colvar_in%coord_param%c_kinds_to
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%coord_param%i_at_to)
           ALLOCATE(colvar_out%coord_param%i_at_to(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%coord_param%i_at_to      = colvar_in%coord_param%i_at_to + my_offset
        END IF
        IF(colvar_in%coord_param%use_kinds_to_b) THEN
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_to_b)
           ALLOCATE(colvar_out%coord_param%c_kinds_to_b(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%coord_param%c_kinds_to_b    = colvar_in%coord_param%c_kinds_to_b
        ELSEIF(ASSOCIATED(colvar_in%coord_param%i_at_to_b)) THEN
           ! INDEX
           ndim = SIZE(colvar_in%coord_param%i_at_to_b)
           ALLOCATE(colvar_out%coord_param%i_at_to_b(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%coord_param%i_at_to_b      = colvar_in%coord_param%i_at_to_b + my_offset
        END IF
 
@@ -1397,26 +1385,26 @@ CPSourceFileRef)
           ! KINDS
           ndim = SIZE(colvar_in%population_param%c_kinds_from)
           ALLOCATE(colvar_out%population_param%c_kinds_from(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%population_param%c_kinds_from    = colvar_in%population_param%c_kinds_from
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%population_param%i_at_from)
           ALLOCATE(colvar_out%population_param%i_at_from(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%population_param%i_at_from    = colvar_in%population_param%i_at_from + my_offset
        END IF
        IF(colvar_in%population_param%use_kinds_to) THEN
           ! KINDS
           ndim = SIZE(colvar_in%population_param%c_kinds_to)
           ALLOCATE(colvar_out%population_param%c_kinds_to(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%population_param%c_kinds_to    = colvar_in%population_param%c_kinds_to
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%population_param%i_at_to)
           ALLOCATE(colvar_out%population_param%i_at_to(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%population_param%i_at_to      = colvar_in%population_param%i_at_to + my_offset
        END IF
 
@@ -1428,13 +1416,13 @@ CPSourceFileRef)
           ! KINDS
           ndim = SIZE(colvar_in%gyration_param%c_kinds)
           ALLOCATE(colvar_out%gyration_param%c_kinds(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%gyration_param%c_kinds   = colvar_in%gyration_param%c_kinds
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%gyration_param%i_at)
           ALLOCATE(colvar_out%gyration_param%i_at(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%gyration_param%i_at    = colvar_in%gyration_param%i_at + my_offset
        END IF
     CASE(angle_colvar_id)
@@ -1477,10 +1465,10 @@ CPSourceFileRef)
        colvar_out%qparm_param%alpha        = colvar_in%qparm_param%alpha
        ndim = SIZE(colvar_in%qparm_param%i_at_from)
        ALLOCATE(colvar_out%qparm_param%i_at_from(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        ndim = SIZE(colvar_in%qparm_param%i_at_to)
        ALLOCATE(colvar_out%qparm_param%i_at_to(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%qparm_param%i_at_from    = colvar_in%qparm_param%i_at_from + my_offset
        colvar_out%qparm_param%i_at_to      = colvar_in%qparm_param%i_at_from + my_offset
      CASE(xyz_diag_colvar_id)
@@ -1510,10 +1498,10 @@ CPSourceFileRef)
        colvar_out%hydronium_param%r_OH        = colvar_in%hydronium_param%r_OH
        ndim = SIZE(colvar_in%hydronium_param%i_oxygens)
        ALLOCATE(colvar_out%hydronium_param%i_oxygens(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        ndim = SIZE(colvar_in%hydronium_param%i_hydrogens)
        ALLOCATE(colvar_out%hydronium_param%i_hydrogens(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
     CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
@@ -1535,19 +1523,19 @@ CPSourceFileRef)
        ELSE
          ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
          ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_warning_level,routineP,failure)
          DO i=1,ndim
             NULLIFY(colvar_out%reaction_path_param%colvar_p(i)%colvar)
             CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar,&
                               colvar_in%reaction_path_param%colvar_p(i)%colvar,&
-                              my_offset,error)
+                              my_offset)
          END DO
          colvar_out%reaction_path_param% function_bounds = colvar_in%reaction_path_param%  function_bounds
          NULLIFY(colvar_out%reaction_path_param%f_vals)
          ndim=SIZE(colvar_in%reaction_path_param%f_vals,1)
          ndim2=SIZE(colvar_in%reaction_path_param%f_vals,2)
          ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2),stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_warning_level,routineP,failure)
          colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals
        END IF
        colvar_out%reaction_path_param%step_size        = colvar_in%reaction_path_param%step_size
@@ -1556,12 +1544,12 @@ CPSourceFileRef)
     CASE(combine_colvar_id)
        ndim=SIZE(colvar_in%combine_cvs_param%colvar_p)
        ALLOCATE(colvar_out%combine_cvs_param%colvar_p(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        DO i=1,ndim
           NULLIFY(colvar_out%combine_cvs_param%colvar_p(i)%colvar)
           CALL colvar_clone(colvar_out%combine_cvs_param%colvar_p(i)%colvar,&
                             colvar_in%combine_cvs_param%colvar_p(i)%colvar,&
-                            my_offset,error)
+                            my_offset)
        END DO
        colvar_out%combine_cvs_param%lerr         = colvar_in%combine_cvs_param%lerr
        colvar_out%combine_cvs_param%dx           = colvar_in%combine_cvs_param%dx
@@ -1569,17 +1557,17 @@ CPSourceFileRef)
        !
        ndim = SIZE(colvar_in%combine_cvs_param%c_parameters)
        ALLOCATE(colvar_out%combine_cvs_param%c_parameters(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%combine_cvs_param%c_parameters = colvar_in%combine_cvs_param%c_parameters
        !
        ndim = SIZE(colvar_in%combine_cvs_param%v_parameters)
        ALLOCATE(colvar_out%combine_cvs_param%v_parameters(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%combine_cvs_param%v_parameters = colvar_in%combine_cvs_param%v_parameters
        !
        ndim = SIZE(colvar_in%combine_cvs_param%variables)
        ALLOCATE(colvar_out%combine_cvs_param%variables(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%combine_cvs_param%variables    = colvar_in%combine_cvs_param%variables
      CASE(rmsd_colvar_id)
        colvar_out%rmsd_param%n_atoms   = colvar_in%rmsd_param%n_atoms
@@ -1592,17 +1580,17 @@ CPSourceFileRef)
        ! INDEX
        ndim = SIZE(colvar_in%rmsd_param%i_rmsd)
        ALLOCATE(colvar_out%rmsd_param%i_rmsd(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%rmsd_param%i_rmsd    = colvar_in%rmsd_param%i_rmsd + my_offset
        ! A and Bconfigurations and weights
        ndim = SIZE(colvar_in%rmsd_param%weights)
        ALLOCATE(colvar_out%rmsd_param%weights(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%rmsd_param%weights    = colvar_in%rmsd_param%weights
        ndim = SIZE(colvar_in%rmsd_param%r_ref,1)
        ndim2 = SIZE(colvar_in%rmsd_param%r_ref,2)
        ALLOCATE(colvar_out%rmsd_param%r_ref(ndim,ndim2),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%rmsd_param%r_ref    = colvar_in%rmsd_param%r_ref
     CASE(Wc_colvar_id)
        colvar_out%Wc%ids   = colvar_in%Wc%ids + my_offset
@@ -1610,9 +1598,9 @@ CPSourceFileRef)
     CASE(HBP_colvar_id)
        ndim=colvar_out%HBP%nPoints
        ALLOCATE(colvar_out%HBP%ids(ndim,3),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        ALLOCATE(colvar_out%HBP%ewc(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%HBP%ids   = colvar_in%HBP%ids + my_offset
        colvar_out%HBP%ewc   = colvar_in%HBP%ewc + my_offset
        colvar_out%HBP%nPoints   = colvar_in%HBP%nPoints
@@ -1623,7 +1611,7 @@ CPSourceFileRef)
        colvar_out%ring_puckering_param%nring = colvar_in%ring_puckering_param%nring
        colvar_out%ring_puckering_param%iq    = colvar_in%ring_puckering_param%iq
        ALLOCATE(colvar_out%ring_puckering_param%atoms(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%ring_puckering_param%atoms = colvar_in%ring_puckering_param%atoms + my_offset
     CASE(mindist_colvar_id)
        colvar_out%mindist_param%n_dist_from   = colvar_in%mindist_param%n_dist_from
@@ -1641,37 +1629,37 @@ CPSourceFileRef)
        ! INDEX
        ndim = SIZE(colvar_in%mindist_param%i_dist_from)
        ALLOCATE(colvar_out%mindist_param%i_dist_from(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        colvar_out%mindist_param%i_dist_from    = colvar_in%mindist_param%i_dist_from + my_offset
        IF(colvar_in%mindist_param%use_kinds_from) THEN
           ! KINDS
           ndim = SIZE(colvar_in%mindist_param%k_coord_from)
           ALLOCATE(colvar_out%mindist_param%k_coord_from(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%mindist_param%k_coord_from    = colvar_in%mindist_param%k_coord_from
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%mindist_param%i_coord_from)
           ALLOCATE(colvar_out%mindist_param%i_coord_from(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%mindist_param%i_coord_from    = colvar_in%mindist_param%i_coord_from + my_offset
        END IF
        IF(colvar_in%mindist_param%use_kinds_to) THEN
           ! KINDS
           ndim = SIZE(colvar_in%mindist_param%k_coord_to)
           ALLOCATE(colvar_out%mindist_param%k_coord_to(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%mindist_param%k_coord_to    = colvar_in%mindist_param%k_coord_to
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%mindist_param%i_coord_to)
           ALLOCATE(colvar_out%mindist_param%i_coord_to(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
           colvar_out%mindist_param%i_coord_to      = colvar_in%mindist_param%i_coord_to + my_offset
        END IF
 
     END SELECT
-    CALL colvar_setup(colvar_out, error)
+    CALL colvar_setup(colvar_out)
   END SUBROUTINE colvar_clone
 
 ! *****************************************************************************
@@ -1679,14 +1667,11 @@ CPSourceFileRef)
 !> \param colvar_out ...
 !> \param colvar_in the colvar to deallocate
 !> \param offset ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 03.2007
 ! *****************************************************************************
-  SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset, error)
+  SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset)
     TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
     INTEGER, INTENT(IN)                      :: offset
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone_points', &
       routineP = moduleN//':'//routineN
@@ -1697,15 +1682,15 @@ CPSourceFileRef)
     failure=.FALSE.
     colvar_out%use_points = colvar_in%use_points
     IF (colvar_in%use_points) THEN
-       CPPostcondition(ASSOCIATED(colvar_in%points),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(colvar_in%points),cp_failure_level,routineP,failure)
        npoints = SIZE(colvar_in%points)
        ALLOCATE(colvar_out%points(npoints),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO i = 1, npoints
           IF (ASSOCIATED(colvar_in%points(i)%atoms)) THEN
              natoms = SIZE(colvar_in%points(i)%atoms)
              ALLOCATE(colvar_out%points(i)%atoms(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              colvar_out%points(i)%atoms = colvar_in%points(i)%atoms+offset
           ELSE
              NULLIFY(colvar_out%points(i)%atoms)
@@ -1713,7 +1698,7 @@ CPSourceFileRef)
           IF (ASSOCIATED(colvar_in%points(i)%weights)) THEN
              natoms = SIZE(colvar_in%points(i)%weights)
              ALLOCATE(colvar_out%points(i)%weights(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
              colvar_out%points(i)%weights = colvar_in%points(i)%weights
           ELSE
              NULLIFY(colvar_out%points(i)%weights)
@@ -1732,15 +1717,12 @@ CPSourceFileRef)
 !> \param colvar_set ...
 !> \param lb1_new ...
 !> \param ub1_new ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
-  SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)
+  SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new)
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_set
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_p_reallocate', &
       routineP = moduleN//':'//routineN
@@ -1759,21 +1741,21 @@ CPSourceFileRef)
        lb1 = MAX(lb1_new,lb1_old)
        ub1 = MIN(ub1_new,ub1_old)
        ALLOCATE (work(lb1:ub1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO j = lb1, ub1
           NULLIFY(work(j)%colvar)
-          CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar, error=error)
+          CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar)
        END DO
        DO j = lb1, ub1
-          CALL colvar_release(colvar_set(j)%colvar, error)
+          CALL colvar_release(colvar_set(j)%colvar)
           NULLIFY(colvar_set(j)%colvar)
        END DO
        DEALLOCATE(colvar_set, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     ALLOCATE (colvar_set(lb1_new:ub1_new),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO j = lb1_new, ub1_new
        NULLIFY(colvar_set(j)%colvar)
@@ -1782,14 +1764,14 @@ CPSourceFileRef)
        lb1 = MAX(lb1_new,lb1_old)
        ub1 = MIN(ub1_new,ub1_old)
        DO j = lb1, ub1
-          CALL colvar_clone(colvar_set(j)%colvar, work(j)%colvar, error=error)
+          CALL colvar_clone(colvar_set(j)%colvar, work(j)%colvar)
        END DO
        DO j = lb1, ub1
-          CALL colvar_release(work(j)%colvar, error)
+          CALL colvar_release(work(j)%colvar)
           NULLIFY(work(j)%colvar)
        END DO
        DEALLOCATE (work,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE colvar_p_reallocate
 
@@ -1797,16 +1779,14 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief Deallocate a set of colvar_p_type
 !> \param colvar_p ...
-!> \param error ...
 !> \par History
 !>      07.2003 created [fawzi]
 !>      01.2014 moved from cp_subsys_release() into separate routine.
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE colvar_p_release(colvar_p, error)
+  SUBROUTINE colvar_p_release(colvar_p)
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
@@ -1815,7 +1795,7 @@ CPSourceFileRef)
      IF(ASSOCIATED(colvar_p)) THEN
         DO i=1,SIZE(colvar_p)
            IF (ASSOCIATED(colvar_p(i)%colvar)) &
-              CALL colvar_release(colvar_p(i)%colvar,error)
+              CALL colvar_release(colvar_p(i)%colvar)
         ENDDO
         DEALLOCATE(colvar_p)
      END IF

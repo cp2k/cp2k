@@ -72,15 +72,13 @@ CONTAINS
 !> \param xas_control control variables
 !>       error
 !> \param xas_section ...
-!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
-  SUBROUTINE read_xas_control(xas_control,xas_section,error)
+  SUBROUTINE read_xas_control(xas_control,xas_section)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(section_vals_type), POINTER         :: xas_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
       routineP = moduleN//':'//routineN
@@ -96,31 +94,31 @@ CONTAINS
     NULLIFY(list)
 
     CALL section_vals_val_get(xas_section,"METHOD",&
-         i_val=xas_control%xas_method,error=error)
+         i_val=xas_control%xas_method)
 
     CALL section_vals_val_get(xas_section,"DIPOLE_FORM",&
-         i_val=xas_control%dipole_form,error=error)
+         i_val=xas_control%dipole_form)
 
     CALL section_vals_val_get(xas_section,"RESTART",&
-         l_val=xas_control%xas_restart,error=error)
+         l_val=xas_control%xas_restart)
 
     CALL section_vals_val_get(xas_section,"STATE_TYPE",&
-         i_val=xas_control%state_type,error=error)
+         i_val=xas_control%state_type)
 
     CALL section_vals_val_get(xas_section,"STATE_SEARCH",&
-         i_val=xas_control%nexc_search,error=error)
+         i_val=xas_control%nexc_search)
 
     CALL section_vals_val_get(xas_section,"XAS_CORE", &
-         r_val=xas_control%xas_core_occupation,error=error)
+         r_val=xas_control%xas_core_occupation)
 
     CALL section_vals_val_get(xas_section,"XAS_TOT_EL", &
-         r_val=xas_control%nel_tot,error=error)
+         r_val=xas_control%nel_tot)
 
     CALL section_vals_val_get(xas_section,"XES_CORE", &
-         r_val=xas_control%xes_core_occupation,error=error)
+         r_val=xas_control%xes_core_occupation)
 
     CALL section_vals_val_get(xas_section,"XES_EMPTY_HOMO", &
-         l_val=hempty,error=error)
+         l_val=hempty)
     IF(hempty) THEN
          xas_control%xes_homo_occupation = 0
     ELSE
@@ -130,14 +128,14 @@ CONTAINS
 ! It should be further generalized
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
-          n_rep_val=n_rep, error=error)
+          n_rep_val=n_rep)
 
       IF(n_rep > 0) THEN
         nex_at = 0
         DO ir = 1,n_rep
         NULLIFY(list)
         CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
-             i_rep_val=ir,i_vals=list,error=error)
+             i_rep_val=ir,i_vals=list)
 
         IF(ASSOCIATED(list)) THEN
           CALL reallocate(xas_control%exc_atoms,1,nex_at+SIZE(list))
@@ -154,21 +152,21 @@ CONTAINS
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
       ALLOCATE(xas_control%exc_atoms(1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       xas_control%exc_atoms(1) = 1
     END IF
 
     CALL section_vals_val_get(xas_section,"ADDED_MOS",&
-         i_val=xas_control%added_mos,error=error)
+         i_val=xas_control%added_mos)
 
     CALL section_vals_val_get(xas_section,"MAX_ITER_ADDED",&
-         i_val=xas_control%max_iter_added,error=error)
+         i_val=xas_control%max_iter_added)
 
     CALL section_vals_val_get(xas_section,"EPS_ADDED", &
-         r_val=xas_control%eps_added,error=error)
+         r_val=xas_control%eps_added)
 
     CALL section_vals_val_get(xas_section,"NGAUSS",&
-         i_val=xas_control%ngauss,error=error)
+         i_val=xas_control%ngauss)
 
 
   END SUBROUTINE read_xas_control
@@ -178,15 +176,13 @@ CONTAINS
 !> \param xas_control control variables
 !>       error
 !> \param dft_section ...
-!> \param error ...
 !> \par History
 !>      12.2005 created [MI]
 ! *****************************************************************************
-  SUBROUTINE write_xas_control(xas_control,dft_section, error)
+  SUBROUTINE write_xas_control(xas_control,dft_section)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xas_control', &
       routineP = moduleN//':'//routineN
@@ -195,9 +191,9 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log")
     IF (output_unit>0) THEN
       SELECT CASE(xas_control%xas_method)
         CASE(xas_tp_hh)
@@ -231,7 +227,7 @@ CONTAINS
         CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))),&
-             error,failure)
+             failure)
       END SELECT
       IF(xas_control%xas_restart) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T30,A)")&
@@ -239,7 +235,7 @@ CONTAINS
       END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+         "PRINT%DFT_CONTROL_PARAMETERS")
   END SUBROUTINE write_xas_control
 
 !****f* xas_control/xas_control_create/retain/release *
@@ -247,14 +243,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create retain release the xas_control_type
 !> \param xas_control ...
-!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
-  SUBROUTINE xas_control_create(xas_control,error)
+  SUBROUTINE xas_control_create(xas_control)
 
     TYPE(xas_control_type), POINTER          :: xas_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
       routineP = moduleN//':'//routineN
@@ -264,9 +258,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(xas_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(xas_control),cp_failure_level,routineP,failure)
     ALLOCATE(xas_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     xas_control%ref_count= 1
     xas_control%xas_method = xas_tp_hh
@@ -287,12 +281,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param xas_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE xas_control_release(xas_control,error)
+  SUBROUTINE xas_control_release(xas_control)
 
     TYPE(xas_control_type), POINTER          :: xas_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_release', &
       routineP = moduleN//':'//routineN
@@ -302,19 +294,19 @@ CONTAINS
 
     failure=.FALSE.
     IF(ASSOCIATED(xas_control)) THEN
-      CPPrecondition(xas_control%ref_count>0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(xas_control%ref_count>0,cp_failure_level,routineP,failure)
       xas_control%ref_count=xas_control%ref_count-1
       IF (xas_control%ref_count==0) THEN
         IF (ASSOCIATED(xas_control%exc_atoms)) THEN
           DEALLOCATE(xas_control%exc_atoms,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
         END IF
         IF (ASSOCIATED(xas_control%list_cubes)) THEN
           DEALLOCATE(xas_control%list_cubes,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
         END IF
         DEALLOCATE(xas_control,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       END IF
     END IF
 
@@ -323,12 +315,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param xas_control ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE xas_control_retain(xas_control,error)
+  SUBROUTINE xas_control_retain(xas_control)
 
     TYPE(xas_control_type), POINTER          :: xas_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_retain', &
       routineP = moduleN//':'//routineN
@@ -337,7 +327,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xas_control),cp_failure_level,routineP,failure)
     xas_control%ref_count=xas_control%ref_count+1
 
   END SUBROUTINE xas_control_retain

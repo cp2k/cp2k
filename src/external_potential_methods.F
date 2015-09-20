@@ -45,13 +45,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param force_env ...
-!> \param error ...
 !> \date 03.2008
 !> \author Teodoro Laino - University of Zurich [tlaino]
 ! *****************************************************************************
-  SUBROUTINE add_external_potential(force_env, error)
+  SUBROUTINE add_external_potential(force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_external_potential', &
       routineP = moduleN//':'//routineN
@@ -76,27 +74,26 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(my_par, my_val, logger, subsys, particles, ext_pot_section, nparticle)
     ext_pot_section => section_vals_get_subs_vals(force_env%force_env_section,&
-         "EXTERNAL_POTENTIAL",error=error)
-    CALL section_vals_get(ext_pot_section,n_repetition=n_var,error=error)
+         "EXTERNAL_POTENTIAL")
+    CALL section_vals_get(ext_pot_section,n_repetition=n_var)
     DO rep=1, n_var
        natom       =  0
-       logger => cp_error_get_logger(error)
-       CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx,i_rep_section=rep,error=error)
-       CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr,i_rep_section=rep,error=error)
+       logger => cp_get_default_logger()
+       CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx,i_rep_section=rep)
+       CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr,i_rep_section=rep)
        CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val,&
-            input_variables=(/"X","Y","Z"/), i_rep_sec=rep,error=error)
+            input_variables=(/"X","Y","Z"/), i_rep_sec=rep)
        CALL initf(1)
        CALL parsef(1,TRIM(coupling_function),my_par)
 
        ! Apply potential on all atoms, computing energy and forces
        NULLIFY(particles, subsys)
-       CALL force_env_get(force_env, subsys=subsys, error=error)
-       CALL cp_subsys_get(subsys, particles=particles, error=error)
-       CALL force_env_get(force_env, additional_potential=energy, error=error)
-       CALL section_vals_val_get(ext_pot_section,"ATOMS_LIST",n_rep_val=a_var,i_rep_section=rep,error=error)
+       CALL force_env_get(force_env, subsys=subsys)
+       CALL cp_subsys_get(subsys, particles=particles)
+       CALL force_env_get(force_env, additional_potential=energy)
+       CALL section_vals_val_get(ext_pot_section,"ATOMS_LIST",n_rep_val=a_var,i_rep_section=rep)
        DO k = 1, a_var
-          CALL section_vals_val_get(ext_pot_section,"ATOMS_LIST",i_rep_val=k,i_vals=iatms,i_rep_section=rep,&
-               error=error)
+          CALL section_vals_val_get(ext_pot_section,"ATOMS_LIST",i_rep_val=k,i_vals=iatms,i_rep_section=rep)
           CALL reallocate(nparticle,1, natom+SIZE(iatms))
           nparticle(natom+1:natom+SIZE(iatms)) = iatms
           natom = natom + SIZE(iatms)
@@ -126,19 +123,19 @@ CONTAINS
                 CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
                      'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                     TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
+                     TRIM(def_error)//' .',only_ionode=.TRUE.)
              END IF
              particles%els(iatom)%f(j)=particles%els(iatom)%f(j)-dedf
           END DO
        END DO
-       CALL force_env_set(force_env, additional_potential=energy, error=error)
+       CALL force_env_set(force_env, additional_potential=energy)
        DEALLOCATE(my_par,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(my_val,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        IF (a_var/=0) THEN
           DEALLOCATE (nparticle,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        CALL finalizef()
     END DO

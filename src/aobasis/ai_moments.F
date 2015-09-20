@@ -1485,12 +1485,11 @@ CONTAINS
 !> \param pab ...
 !> \param forcea ...
 !> \param forceb ...
-!> \param error ...
 !> \note
 ! *****************************************************************************
   SUBROUTINE dipole_force(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
-                    order,rac,rbc,pab,forcea,forceb,error)
+                    order,rac,rbc,pab,forcea,forceb)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -1502,7 +1501,6 @@ CONTAINS
       INTENT(IN)                             :: pab
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: forcea, forceb
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_force', &
       routineP = moduleN//':'//routineN
@@ -1516,7 +1514,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: difmab, mab
 
     failure = .FALSE.
-    CPPrecondition(order==1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(order==1,cp_failure_level,routineP,failure)
 
     rab = rbc - rac
     rab2= SUM( rab**2 )

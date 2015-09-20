@@ -519,11 +519,9 @@ CONTAINS
 !> \brief Wrapper for known buggy functionals.
 !> \param func_id ...
 !> \param grad_deriv ...
-!> \param error ...
-!>
 !> \author A. Gloessa (agloess)
 ! *****************************************************************************
-  SUBROUTINE xc_libxc_wrap_functional_buggy(func_id, grad_deriv, error)
+  SUBROUTINE xc_libxc_wrap_functional_buggy(func_id, grad_deriv)
 !
 ! BugFix information was taken from:
 !
@@ -560,7 +558,6 @@ CONTAINS
 !
     INTEGER, INTENT(IN)                      :: func_id
     INTEGER, INTENT(IN), OPTIONAL            :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'xc_libxc_wrap_functional_buggy', &

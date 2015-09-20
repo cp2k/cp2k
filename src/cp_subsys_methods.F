@@ -87,12 +87,11 @@ CONTAINS
 !> \param qmmm ...
 !> \param qmmm_env ...
 !> \param exclusions ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE cp_subsys_create(subsys, para_env, &
                               root_section, force_env_section, subsys_section,&
-                              use_motion_section, qmmm, qmmm_env, exclusions, error)
+                              use_motion_section, qmmm, qmmm_env, exclusions)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -105,7 +104,6 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
       routineP = moduleN//':'//routineN
@@ -129,27 +127,27 @@ CONTAINS
                                                 my_force_env_section, &
                                                 my_subsys_section
 
-    CPPostcondition(.NOT.ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(subsys),cp_failure_level,routineP,failure)
     ALLOCATE(subsys)
 
-    CALL cp_para_env_retain(para_env,error=error)
+    CALL cp_para_env_retain(para_env)
     subsys%para_env => para_env
 
     my_use_motion_section = .FALSE.
     IF(PRESENT(use_motion_section)) &
       my_use_motion_section = use_motion_section
 
-    my_force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
+    my_force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL")
     IF(PRESENT(force_env_section)) &
       my_force_env_section => force_env_section
 
-    my_subsys_section => section_vals_get_subs_vals(my_force_env_section,"SUBSYS",error=error)
+    my_subsys_section => section_vals_get_subs_vals(my_force_env_section,"SUBSYS")
     IF(PRESENT(subsys_section)) &
       my_subsys_section => subsys_section
 
-    colvar_section => section_vals_get_subs_vals(my_subsys_section,"COLVAR",error=error)
+    colvar_section => section_vals_get_subs_vals(my_subsys_section,"COLVAR")
 
-    CALL cp_subsys_read_colvar(subsys, colvar_section, error=error)
+    CALL cp_subsys_read_colvar(subsys, colvar_section)
 
     !   *** Read the particle coordinates and allocate the atomic kind, ***
     !   *** the molecule kind, and the molecule data structures         ***
@@ -157,24 +155,23 @@ CONTAINS
                        subsys%colvar_p, subsys%gci, root_section, para_env,&
                        force_env_section=my_force_env_section,&
                        subsys_section=my_subsys_section,use_motion_section=my_use_motion_section,&
-                       qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions,&
-                       error=error)
+                       qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions)
 
-    CALL particle_list_create(particles,els_ptr=particle_set,error=error)
-    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
-    CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
-    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
+    CALL particle_list_create(particles,els_ptr=particle_set)
+    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set)
+    CALL mol_new_list_create(mols,els_ptr=molecule_set)
+    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set)
 
     CALL cp_subsys_set(subsys,particles=particles,atomic_kinds=atomic_kinds,&
-         molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
+         molecules_new=mols,molecule_kinds_new=mol_kinds)
 
-    CALL particle_list_release(particles,error=error)
-    CALL atomic_kind_list_release(atomic_kinds,error=error)
-    CALL mol_new_list_release(mols,error=error)
-    CALL mol_kind_new_list_release(mol_kinds,error=error)
+    CALL particle_list_release(particles)
+    CALL atomic_kind_list_release(atomic_kinds)
+    CALL mol_new_list_release(mols)
+    CALL mol_kind_new_list_release(mol_kinds)
 
     ! Should we compute the virial?
-    CALL section_vals_val_get(my_force_env_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
+    CALL section_vals_val_get(my_force_env_section,"STRESS_TENSOR",i_val=stress_tensor)
     SELECT CASE(stress_tensor)
     CASE(do_stress_none)
        pv_availability=.FALSE.
@@ -198,38 +195,36 @@ CONTAINS
        pv_diagonal=.TRUE.
     END SELECT
 
-    CALL virial_create(subsys%virial, error=error)
+    CALL virial_create(subsys%virial)
     CALL virial_set(virial=subsys%virial,&
                    pv_availability=pv_availability,&
                    pv_numer=pv_numerical,&
                    pv_diagonal=pv_diagonal)
 
     ! Should we compute atomic properties?
-    CALL atprop_create(subsys%atprop,error)
-    CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%ENERGY",l_val=atomic_energy,error=error)
+    CALL atprop_create(subsys%atprop)
+    CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%ENERGY",l_val=atomic_energy)
     subsys%atprop%energy = atomic_energy
-    CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%PRESSURE",l_val=atomic_stress,error=error)
+    CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%PRESSURE",l_val=atomic_stress)
     IF (atomic_stress) THEN
-       CPPrecondition(pv_availability,cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.pv_numerical,cp_failure_level,routineP,error,failure)
+       CPPrecondition(pv_availability,cp_failure_level,routineP,failure)
+       CPPrecondition(.NOT.pv_numerical,cp_failure_level,routineP,failure)
     END IF
     subsys%atprop%stress = atomic_stress
 
-    CALL cp_result_create(subsys%results,error=error)
+    CALL cp_result_create(subsys%results)
   END SUBROUTINE cp_subsys_create
 
 ! *****************************************************************************
 !> \brief reads the colvar section of the colvar
 !> \param subsys ...
 !> \param colvar_section ...
-!> \param error ...
 !> \par History
 !>      2006.01 Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
+  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: colvar_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
       routineP = moduleN//':'//routineN
@@ -238,12 +233,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL section_vals_get(colvar_section,n_repetition=ncol,error=error)
+    CALL section_vals_get(colvar_section,n_repetition=ncol)
     ALLOCATE(subsys%colvar_p(ncol),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ig= 1, ncol
        NULLIFY(subsys%colvar_p(ig)%colvar)
-       CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env, error=error)
+       CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env)
     ENDDO
   END SUBROUTINE cp_subsys_read_colvar
 
@@ -260,8 +255,6 @@ CONTAINS
 !> \param force_env_section ...
 !> \param subsys_section ...
 !> \param ignore_outside_box ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed, Teodoro Laino
@@ -271,7 +264,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell,&
        small_para_env, sub_atom_index, sub_atom_kind_name, &
-       para_env, force_env_section, subsys_section, ignore_outside_box, error)
+       para_env, force_env_section, subsys_section, ignore_outside_box)
 
     TYPE(cp_subsys_type), POINTER            :: small_subsys, big_subsys
     TYPE(cell_type), POINTER                 :: small_cell
@@ -283,7 +276,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_outside_box
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsys', &
       routineP = moduleN//':'//routineN
@@ -309,24 +301,24 @@ CONTAINS
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
          molecule_kind_set,molecule_set,particles,atomic_kinds)
 
-    CPPrecondition(.NOT.ASSOCIATED(small_subsys),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(small_subsys),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,failure)
     CALL cp_assert(big_subsys%para_env%group==small_para_env%group, &
          cp_failure_level, cp_assertion_failed, routineP, &
-         "big_subsys%para_env%group==small_para_env%group",error,failure)
+         "big_subsys%para_env%group==small_para_env%group",failure)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Initialize the topology structure type
     !-----------------------------------------------------------------------------
-    CALL init_topology(topology,error)
+    CALL init_topology(topology)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Get the cell info
     !-----------------------------------------------------------------------------
     topology%cell=> small_cell
-    CALL cell_retain(small_cell,error=error)
+    CALL cell_retain(small_cell)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -334,19 +326,19 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nat=SIZE(sub_atom_index)
     topology%natoms=nat
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_atmname),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_molname),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_resname),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_mass),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%r),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_atmname),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_molname),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_resname),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_mass),cp_failure_level,routineP,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,failure)
     ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%id_atmname(nat),&
          topology%atom_info%id_molname(nat),topology%atom_info%id_resname(nat),&
          topology%atom_info%id_element(nat), topology%atom_info%atm_mass(nat),&
          topology%atom_info%atm_charge(nat),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL cp_subsys_get(big_subsys, particles=particles, error=error)
+    CALL cp_subsys_get(big_subsys, particles=particles)
     DO iat=1,nat
        topology%atom_info%r(:,iat)=particles%els(sub_atom_index(iat))%r
        topology%atom_info%id_atmname(iat)=str2id(s2s(sub_atom_kind_name(iat)))
@@ -360,7 +352,7 @@ CONTAINS
        strtmp1=id2str(topology%atom_info%id_atmname(iat))
        strtmp1=strtmp1(1:id_)
        CALL check_subsys_element(strtmp1,strtmp1, my_element,&
-            subsys_section,use_mm_map_first=.FALSE.,error=error)
+            subsys_section,use_mm_map_first=.FALSE.)
        topology%atom_info%id_element(iat)=str2id(s2s(my_element))
        topology%atom_info%atm_mass(iat)=0._dp
        topology%atom_info%atm_charge(iat)=0._dp
@@ -372,14 +364,14 @@ CONTAINS
     ! 4. Read in or generate the molecular connectivity
     !-----------------------------------------------------------------------------
     CALL connectivity_control(topology,para_env,subsys_section=subsys_section,&
-         force_env_section=force_env_section,error=error)
+         force_env_section=force_env_section)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Pack everything into the molecular types
     !-----------------------------------------------------------------------------
     CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-         topology,subsys_section=subsys_section,error=error)
+         topology,subsys_section=subsys_section)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -387,36 +379,35 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
          molecule_kind_set,molecule_set,topology,subsys_section=subsys_section,&
-         force_env_section=force_env_section,ignore_outside_box=ignore_outside_box,&
-         error=error)
+         force_env_section=force_env_section,ignore_outside_box=ignore_outside_box)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Cleanup the topology structure type
     !-----------------------------------------------------------------------------
-    CALL deallocate_topology(topology,error=error)
+    CALL deallocate_topology(topology)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. Allocate new subsys
     !-----------------------------------------------------------------------------
     ALLOCATE(small_subsys)
-    CALL cp_para_env_retain(para_env,error=error)
+    CALL cp_para_env_retain(para_env)
     small_subsys%para_env => para_env
-    CALL particle_list_create(particles,els_ptr=particle_set,error=error)
-    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
-    CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
-    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
+    CALL particle_list_create(particles,els_ptr=particle_set)
+    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set)
+    CALL mol_new_list_create(mols,els_ptr=molecule_set)
+    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set)
     CALL cp_subsys_set(small_subsys,particles=particles,atomic_kinds=atomic_kinds,&
-         molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
-    CALL particle_list_release(particles,error=error)
-    CALL atomic_kind_list_release(atomic_kinds,error=error)
-    CALL mol_new_list_release(mols,error=error)
-    CALL mol_kind_new_list_release(mol_kinds,error=error)
+         molecules_new=mols,molecule_kinds_new=mol_kinds)
+    CALL particle_list_release(particles)
+    CALL atomic_kind_list_release(atomic_kinds)
+    CALL mol_new_list_release(mols)
+    CALL mol_kind_new_list_release(mol_kinds)
 
-    CALL virial_create(small_subsys%virial, error=error)
-    CALL atprop_create(small_subsys%atprop,error)
-    CALL cp_result_create(small_subsys%results,error=error)
+    CALL virial_create(small_subsys%virial)
+    CALL atprop_create(small_subsys%atprop)
+    CALL cp_result_create(small_subsys%results)
   END SUBROUTINE create_small_subsys
 
 END MODULE cp_subsys_methods

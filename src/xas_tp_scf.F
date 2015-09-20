@@ -123,14 +123,12 @@ CONTAINS
 !> \param scf_section ...
 !> \param converged ...
 !> \param should_stop ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE xas_do_tp_scf (dft_control,xas_env,iatom,scf_env,qs_env,&
-       xas_section,scf_section,converged,should_stop,error)
+       xas_section,scf_section,converged,should_stop)
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -139,7 +137,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xas_section, scf_section
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', &
       routineP = moduleN//':'//routineN
@@ -171,44 +168,43 @@ CONTAINS
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(qs_charges)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     t1 = m_walltime()
     failure=.FALSE.
     converged = .TRUE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          matrix_s=matrix_s,energy=energy,&
          qs_charges=qs_charges,&
-         ks_env=ks_env,para_env=para_env,&
-         error=error)
+         ks_env=ks_env,para_env=para_env)
 
 
-    CALL get_xas_env(xas_env, scf_control=scf_control, error=error)
+    CALL get_xas_env(xas_env, scf_control=scf_control)
 
     energy_only = .FALSE.
     output_unit=cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".xasLog",error=error)
+         extension=".xasLog")
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "XAS_TP_SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
     !   GAPW method must be used
     gapw = dft_control%qs_control%gapw
-    CPPrecondition(gapw,cp_failure_level,routineP,error,failure)
+    CPPrecondition(gapw,cp_failure_level,routineP,failure)
     xas_control => dft_control%xas_control
 
-    CALL cp_add_iter_level(logger%iter_info,"XAS_SCF",error=error)
+    CALL cp_add_iter_level(logger%iter_info,"XAS_SCF")
 
-    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos,error=error)
-    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
     iter_count = 0
     diis_step = .FALSE.
@@ -231,36 +227,33 @@ CONTAINS
        IF (output_unit > 0) CALL m_flush(output_unit)
 
        iter_count = iter_count + 1
-       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_count,error=error)
+       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter_count)
 
        ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
-       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=energy_only, error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=energy_only)
 
        SELECT CASE (scf_env%method)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method for core level spectroscopy"//&
-               cp_to_string(scf_env%method),error,failure)
+               cp_to_string(scf_env%method),failure)
 
        CASE(general_diag_method_nr) ! diagonalisation (default)
           scf_env%iter_count=iter_count
           CALL general_eigenproblem(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
-                               diis_step,error)
-          CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
+                               diis_step)
+          CALL find_excited_core_orbital(xas_env,mos,matrix_s)
           CALL set_mo_occupation(mo_set=mos(1)%mo_set,&
                              smear=scf_control%smear,&
-                             xas_env=xas_env,&
-                             error=error)
+                             xas_env=xas_env)
           CALL set_mo_occupation(mo_set=mos(2)%mo_set,&
-                                smear=scf_control%smear,&
-                                error=error)
+                                smear=scf_control%smear)
           DO ispin=1,nspin
             ! does not yet handle k-points
             CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin,1)%matrix,&
-                                    error=error)
+                                    scf_env%p_mix_new(ispin,1)%matrix)
           END DO
           energy%kTS = 0.0_dp
           energy%efermi = 0.0_dp
@@ -276,17 +269,17 @@ CONTAINS
        CASE(direct_mixing_nr)
           CALL scf_env_density_mixing(scf_env%p_mix_new,&
                scf_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
-               diis=diis_step, error=error)
+               diis=diis_step)
        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                  broyden_mixing_new_nr,multisecant_mixing_nr)
           ! Compute the difference p_out-p_in
           CALL self_consistency_check(rho_ao_kp,scf_env%p_delta,para_env,scf_env%p_mix_new,&
-                delta= scf_env%iter_delta, error=error)
+                delta= scf_env%iter_delta)
        CASE(no_mixing_nr)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf mixing method: "//&
-               cp_to_string(scf_env%mixing_method),error,failure)
+               cp_to_string(scf_env%mixing_method),failure)
        END SELECT
 
        t2 = m_walltime()
@@ -302,7 +295,7 @@ CONTAINS
 
        ! ** convergence check
        CALL external_control(should_stop,"XASSCF",target_time=qs_env%target_time,&
-           start_time=qs_env%start_time,error=error)
+           start_time=qs_env%start_time)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
@@ -321,13 +314,13 @@ CONTAINS
        IF (exit_loop) THEN
           ! now, print out energies and charges corresponding to the obtained wfn
           ! (this actually is not 100% consistent at this point)!
-          CALL qs_scf_print_summary(output_unit,qs_env,error=error)
-          CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
+          CALL qs_scf_print_summary(output_unit,qs_env)
+          CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count)
        END IF
 
        ! ** Write restart file **
        CALL xas_write_restart(xas_env, xas_section, qs_env, xas_control%xas_method,&
-            iatom,error=error)
+            iatom)
 
        IF (exit_loop) THEN
           CALL timestop(handle2)
@@ -335,25 +328,24 @@ CONTAINS
        END IF
 
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
+         xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL"),cp_p_file)) t1 = m_walltime()
 
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method > 0) THEN
           DO ispin=1,nspin
              ! does not yet handle k-points
-             CALL cp_dbcsr_copy(rho_ao_kp(ispin,1)%matrix,scf_env%p_mix_new(ispin,1)%matrix,&
-                  error=error)
+             CALL cp_dbcsr_copy(rho_ao_kp(ispin,1)%matrix,scf_env%p_mix_new(ispin,1)%matrix)
           END DO
        ENDIF
 
        ! ** update qs_env%rho
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
        IF(scf_env%mixing_method>=gspace_mixing_nr) THEN
           CALL gspace_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, rho, para_env, &
-                             scf_env%iter_count, error=error)
+                             scf_env%iter_count)
        END IF
 
-       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
        CALL timestop(handle2)
 
     END DO scf_loop
@@ -365,15 +357,15 @@ CONTAINS
     END IF
 
     CALL mp_sync(para_env%group)
-    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
 
-    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,xas_section,output_unit,error=error)
+    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,xas_section,output_unit)
 
     CALL mp_sync(para_env%group)
 
     CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)
-    CALL cp_rm_iter_level(logger%iter_info,"XAS_SCF",error=error)
+         "PRINT%PROGRAM_RUN_INFO")
+    CALL cp_rm_iter_level(logger%iter_info,"XAS_SCF")
 
     CALL timestop(handle)
 
@@ -387,13 +379,11 @@ CONTAINS
 !> \param iatom index of the excited atom
 !> \param xas_section ...
 !> \param output_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,xas_section,output_unit,error)
+  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,xas_section,output_unit)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -401,7 +391,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(section_vals_type), POINTER         :: xas_section
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
       routineP = moduleN//':'//routineN
@@ -453,7 +442,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
 
     CALL get_qs_env(qs_env,&
                     cell=cell,&
@@ -465,32 +454,31 @@ CONTAINS
                     particle_set=particle_set,&
                     qs_kind_set=qs_kind_set,&
                     para_env=para_env,&
-                    blacs_env=blacs_env,&
-                    error=error)
+                    blacs_env=blacs_env)
 
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,&
          all_vectors=all_vectors,all_evals=all_evals,&
          excvec_coeff=excvec_coeff,&
          nvirtual2=nvirtual2,xas_estate=xas_estate,&
-         excvec_overlap=excvec_overlap,nexc_search=nexc_search,scf_control=scf_control,error=error)
-    CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
+         excvec_overlap=excvec_overlap,nexc_search=nexc_search,scf_control=scf_control)
+    CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,failure)
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,&
          eigenvalues=eigenvalues)
 
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     vecbuffer = 0.0_dp
     ALLOCATE(vecbuffer2(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     vecbuffer2 = 0.0_dp
     natom=SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, error=error)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
     ALLOCATE(centers_wfn(3,nexc_search),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     centers_wfn=0.0_dp
 
     ! Possible only for emission only
@@ -503,12 +491,12 @@ CONTAINS
 
        CALL get_xas_env(xas_env=xas_env, &
             mykind_of_kind=mykind_of_kind, qs_loc_env=qs_loc_env,&
-            stogto_overlap=stogto_overlap,error=error)
+            stogto_overlap=stogto_overlap)
        CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
-            localized_wfn_control=localized_wfn_control,error=error)
-       loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-       print_loc_section => section_vals_get_subs_vals(loc_section,"PRINT",error=error)
-       CALL qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin=1,error=error)
+            localized_wfn_control=localized_wfn_control)
+       loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE")
+       print_loc_section => section_vals_get_subs_vals(loc_section,"PRINT")
+       CALL qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin=1)
        ra(1:3) = particle_set(iatom)%r(1:3)
 
        NULLIFY(atomic_kind)
@@ -519,7 +507,7 @@ CONTAINS
 
 
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
-            nao,1,transpose=.TRUE.,error=error)
+            nao,1,transpose=.TRUE.)
 
        ! Rotate the wfn to get the eigenstate of the KS hamiltonian
        ! Only ispin=1 should be needed
@@ -528,7 +516,7 @@ CONTAINS
                eigenvalues=eigenvalues)
           CALL calculate_subspace_eigenvalues(mo_coeff,&
                matrix_ks(ispin)%matrix,eigenvalues, &
-               do_rotation=.TRUE.,error=error)
+               do_rotation=.TRUE.)
        END DO  ! ispin
 
        !Search for the core state to be excited
@@ -544,7 +532,7 @@ CONTAINS
 
           IF(dist < 1.0_dp) THEN
              CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
-                  nao,1,transpose=.TRUE.,error=error)
+                  nao,1,transpose=.TRUE.)
              sto_state_overlap=0.0_dp
              DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
                 component = 0.0_dp
@@ -565,9 +553,9 @@ CONTAINS
 
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,xas_estate,&
-            nao,1,transpose=.TRUE.,error=error)
+            nao,1,transpose=.TRUE.)
        CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
-            nao,1,transpose=.TRUE.,error=error)
+            nao,1,transpose=.TRUE.)
        !
     END IF
 
@@ -584,9 +572,9 @@ CONTAINS
 
        NULLIFY(uno_orbs,uno_evals,local_preconditioner)
        ALLOCATE(local_preconditioner,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
        CALL init_preconditioner(local_preconditioner,para_env=para_env,&
-                                blacs_env=blacs_env,error=error)
+                                blacs_env=blacs_env)
 
        CALL make_preconditioner(local_preconditioner, &
             precon_type=ot_precond_full_kinetic, &
@@ -595,23 +583,23 @@ CONTAINS
             matrix_s=matrix_s(1)%matrix,&
             matrix_t=kinetic(1)%matrix, &
             convert_precond_to_dbcsr=.TRUE.,&
-            mo_set=mos(1)%mo_set,energy_gap=0.2_dp,error=error)
+            mo_set=mos(1)%mo_set,energy_gap=0.2_dp)
 
        CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
-            unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter,error=error)
-       CALL cp_fm_init_random(uno_orbs,nvirtual2,error=error)
+            unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter)
+       CALL cp_fm_init_random(uno_orbs,nvirtual2)
 
        CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
             matrix_c_fm=uno_orbs,matrix_orthogonal_space_fm=mo_coeff,&
             preconditioner=local_preconditioner,eps_gradient=uno_eps,&
-            iter_max=uno_iter,size_ortho_space=nmo,error=error)
+            iter_max=uno_iter,size_ortho_space=nmo)
 
        CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
-            uno_evals,do_rotation=.TRUE.,error=error)
-       CALL destroy_preconditioner(local_preconditioner,error=error)
+            uno_evals,do_rotation=.TRUE.)
+       CALL destroy_preconditioner(local_preconditioner)
 
        DEALLOCATE(local_preconditioner,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL mp_sync(para_env%group)
@@ -620,7 +608,7 @@ CONTAINS
        ! Copy the final vectors in the array
        NULLIFY(all_vectors,all_evals)
        CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
-            all_evals=all_evals,error=error)
+            all_evals=all_evals)
        CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
             nmo=nmo)
 
@@ -639,11 +627,11 @@ CONTAINS
     END IF
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(vecbuffer2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -655,18 +643,15 @@ CONTAINS
 !> \param xas_env the environment for XAS  calculations
 !> \param converged ...
 !> \param should_stop ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xes_scf_once(qs_env,xas_env,converged,should_stop,error)
+  SUBROUTINE xes_scf_once(qs_env,xas_env,converged,should_stop)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(xas_environment_type), POINTER      :: xas_env
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', &
       routineP = moduleN//':'//routineN
@@ -694,42 +679,41 @@ CONTAINS
     NULLIFY(dft_control,scf_control,scf_env,matrix_ks,mos,para_env,xas_control)
     NULLIFY(dft_section, xas_section,scf_section,all_vectors,mo_coeff,all_evals, eigenvalues)
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
     IF(.NOT. failure) THEN
        CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, &
-            matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
+            matrix_ks=matrix_ks,mos=mos,para_env=para_env)
 
        xas_control => dft_control%xas_control
-       CALL get_xas_env(xas_env, scf_control=scf_control, error=error)
+       CALL get_xas_env(xas_env, scf_control=scf_control)
 
-      dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-      xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
-      scf_section => section_vals_get_subs_vals(xas_section,"SCF",error=error)
+      dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
+      xas_section => section_vals_get_subs_vals(dft_section,"XAS")
+      scf_section => section_vals_get_subs_vals(xas_section,"SCF")
 
 
        IF(xas_env%homo_occ == 0) THEN
 
          NULLIFY(scf_env)
-         CALL get_xas_env(xas_env,scf_env=scf_env,error=error)
+         CALL get_xas_env(xas_env,scf_env=scf_env)
          IF(.NOT. ASSOCIATED(scf_env)) THEN
-           CALL qs_scf_env_initialize(qs_env,scf_env, scf_control,scf_section,&
-                                   error=error)
-            CALL set_xas_env(xas_env,scf_env=scf_env,error=error)
-            CALL scf_env_release(scf_env,error=error)
-            CALL get_xas_env(xas_env=xas_env,scf_env=scf_env,error=error)
+           CALL qs_scf_env_initialize(qs_env,scf_env, scf_control,scf_section)
+            CALL set_xas_env(xas_env,scf_env=scf_env)
+            CALL scf_env_release(scf_env)
+            CALL get_xas_env(xas_env=xas_env,scf_env=scf_env)
          ELSE
-            CALL qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section,error=error)
+            CALL qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section)
          ENDIF
 
 
          CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
-              converged=converged, should_stop=should_stop, error=error)
-         CALL scf_env_cleanup(scf_env,error=error)
+              converged=converged, should_stop=should_stop)
+         CALL scf_env_cleanup(scf_env)
 
        END IF
 
@@ -745,11 +729,11 @@ CONTAINS
                   eigenvalues=eigenvalues)
              CALL calculate_subspace_eigenvalues(mo_coeff,&
                   matrix_ks(ispin)%matrix,eigenvalues, &
-                  do_rotation=.TRUE.,error=error)
+                  do_rotation=.TRUE.)
           END DO
        END IF
        CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
-            all_evals=all_evals,nvirtual2=nvirtual2,error=error)
+            all_evals=all_evals,nvirtual2=nvirtual2)
        CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff, nmo=nmo)
 
        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nmo,&
@@ -765,7 +749,7 @@ CONTAINS
           END IF
           nvirtual2=0
           nvirtual = nmo
-          CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
+          CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2)
        END IF
 
     END IF  ! failure

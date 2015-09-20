@@ -83,15 +83,13 @@ CONTAINS
 !> \brief The entry point into ALMO SCF routines
 !> \param qs_env - pointer to the QS environment
 !> \param calc_forces - calculate forces?
-!> \param error - error
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_entry_scf(qs_env, calc_forces, error)
+  SUBROUTINE almo_entry_scf(qs_env, calc_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL                                  :: calc_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_entry_scf', &
       routineP = moduleN//':'//routineN
@@ -109,19 +107,19 @@ CONTAINS
                 CPSourceFileRef, only_ionode=.TRUE.)
 
     ! initialize scf
-    CALL almo_scf_init(qs_env,almo_scf_env,error)
+    CALL almo_scf_init(qs_env,almo_scf_env)
 
     ! perform SCF for block diagonal ALMOs
-    CALL almo_scf_main(qs_env,almo_scf_env,error)
+    CALL almo_scf_main(qs_env,almo_scf_env)
 
     ! allow electron delocalization
-    CALL almo_scf_delocalization(qs_env,almo_scf_env,error)
+    CALL almo_scf_delocalization(qs_env,almo_scf_env)
 
     ! return computed quantities to the qs_env
-    !CALL almo_return_to_qs(qs_env,almo_scf_env,error)
+    !CALL almo_return_to_qs(qs_env,almo_scf_env)
 
     ! do post scf processing
-    CALL almo_scf_clean_up(almo_scf_env,error)
+    CALL almo_scf_clean_up(almo_scf_env)
 
     CALL timestop(handle)
 
@@ -131,15 +129,13 @@ CONTAINS
 !> \brief Initialization of the almo_scf_env_type.
 !> \param qs_env ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_init(qs_env,almo_scf_env,error)
+  SUBROUTINE almo_scf_init(qs_env,almo_scf_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init', &
       routineP = moduleN//':'//routineN
@@ -159,7 +155,7 @@ CONTAINS
     failure = .FALSE.
 
     ! define the output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -182,10 +178,9 @@ CONTAINS
       has_unit_metric=almo_scf_env%orthogonal_basis,&
       para_env=almo_scf_env%para_env,&
       blacs_env=almo_scf_env%blacs_env,&
-      nelectron_spin=almo_scf_env%nelectrons_spin,&
-      error=error)
-    CALL cp_para_env_retain(almo_scf_env%para_env,error)
-    CALL cp_blacs_env_retain(almo_scf_env%blacs_env, error)
+      nelectron_spin=almo_scf_env%nelectrons_spin)
+    CALL cp_para_env_retain(almo_scf_env%para_env)
+    CALL cp_blacs_env_retain(almo_scf_env%blacs_env)
 
     ! copy basic quantities
     almo_scf_env%nspins=dft_control%nspins
@@ -200,7 +195,7 @@ CONTAINS
     natoms=almo_scf_env%natoms
     
     ! parse the almo_scf section and set appropriate quantities
-    CALL almo_scf_init_read_write_input(input,almo_scf_env,error)
+    CALL almo_scf_init_read_write_input(input,almo_scf_env)
    
     ! Define groups: either atomic or molecular
     IF (almo_scf_env%domain_layout_mos==almo_domain_layout_molecular) THEN
@@ -235,8 +230,7 @@ CONTAINS
                mol_to_nelectrons=almo_scf_env%nocc_of_domain(1:ndomains,1),&
                mol_to_nbasis=almo_scf_env%nbasis_of_domain,&
                mol_to_charge=almo_scf_env%charge_of_domain,&
-               mol_to_multiplicity=almo_scf_env%multiplicity_of_domain,&
-               error=error)
+               mol_to_multiplicity=almo_scf_env%multiplicity_of_domain)
        ! calculate number of alpha and beta occupied orbitals from
        ! the number of electrons and multiplicity of each molecule
        ! Na + Nb = Ne
@@ -250,14 +244,14 @@ CONTAINS
           IF (nelec_a.ne.nelec_b) THEN 
              IF (nspins.eq.1) THEN
                 WRITE(*,*) "Domain ", idomain, " out of ", ndomains, ". Electrons = ", nelec
-                CPErrorMessage(cp_failure_level,routineP,"odd e- -- use unrestricted methods",error)
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPErrorMessage(cp_failure_level,routineP,"odd e- -- use unrestricted methods")
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
              ENDIF
              almo_scf_env%nocc_of_domain(idomain,2)=nelec_b
              ! RZK-warning: open-shell procedures have not been tested yet
              ! Stop the program now
-             CPErrorMessage(cp_failure_level,routineP,"Unrestricted ALMO methods are NYI",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"Unrestricted ALMO methods are NYI")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           ENDIF
        ENDDO
        DO ispin=1,nspins
@@ -290,8 +284,8 @@ CONTAINS
                    almo_scf_env%nvirt_of_domain(idomain,ispin)
              ENDDO
           CASE DEFAULT
-             CPErrorMessage(cp_failure_level,routineP,"illegal method for virtual space truncation",error)
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPErrorMessage(cp_failure_level,routineP,"illegal method for virtual space truncation")
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           END SELECT
        ENDDO ! spin
     ELSE ! domains are atomic
@@ -345,43 +339,43 @@ CONTAINS
     !ENDIF
 
     ! create all matrices
-    CALL almo_scf_env_create_matrices(almo_scf_env,matrix_s(1)%matrix,error)
+    CALL almo_scf_env_create_matrices(almo_scf_env,matrix_s(1)%matrix)
     ! set up matrix S and all required functions of S
     almo_scf_env%s_inv_done=.FALSE.
     almo_scf_env%s_sqrt_done=.FALSE.
-    CALL almo_scf_init_ao_overlap(matrix_s(1)%matrix,almo_scf_env,error)
+    CALL almo_scf_init_ao_overlap(matrix_s(1)%matrix,almo_scf_env)
 
     ! create the quencher (imposes sparsity template)
-    CALL almo_scf_construct_quencher(qs_env,almo_scf_env,error)
-    CALL distribute_domains(almo_scf_env,error)
+    CALL almo_scf_construct_quencher(qs_env,almo_scf_env)
+    CALL distribute_domains(almo_scf_env)
 
     ! FINISH setting job parameters here, print out job info
-    CALL almo_scf_print_job_info(almo_scf_env,unit_nr,error)
+    CALL almo_scf_print_job_info(almo_scf_env,unit_nr)
 
     ! allocate and init the domain preconditioner
     ALLOCATE(almo_scf_env%domain_preconditioner(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_preconditioner,error)
+    CALL init_submatrices(almo_scf_env%domain_preconditioner)
    
     ! allocate and init projected KS for domains
     ALLOCATE(almo_scf_env%domain_ks_xx(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_ks_xx,error)
+    CALL init_submatrices(almo_scf_env%domain_ks_xx)
    
     ! init ao-overlap subblocks
     ALLOCATE(almo_scf_env%domain_s_inv(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_s_inv,error)
+    CALL init_submatrices(almo_scf_env%domain_s_inv)
     ALLOCATE(almo_scf_env%domain_s_sqrt_inv(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_s_sqrt_inv,error)
+    CALL init_submatrices(almo_scf_env%domain_s_sqrt_inv)
     ALLOCATE(almo_scf_env%domain_s_sqrt(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_s_sqrt,error)
+    CALL init_submatrices(almo_scf_env%domain_s_sqrt)
     ALLOCATE(almo_scf_env%domain_t(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_t,error=error)
+    CALL init_submatrices(almo_scf_env%domain_t)
     ALLOCATE(almo_scf_env%domain_err(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_err,error=error)
+    CALL init_submatrices(almo_scf_env%domain_err)
     ALLOCATE(almo_scf_env%domain_r_down_up(ndomains,nspins))
-    CALL init_submatrices(almo_scf_env%domain_r_down_up,error=error)
+    CALL init_submatrices(almo_scf_env%domain_r_down_up)
 
     ! initialization of the QS settings with the ALMO flavor
-    CALL almo_scf_init_qs(qs_env,almo_scf_env,error)
+    CALL almo_scf_init_qs(qs_env,almo_scf_env)
 
     CALL timestop(handle)
 
@@ -391,15 +385,13 @@ CONTAINS
 !> \brief Parses the ALMO input section
 !> \param input ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_init_read_write_input(input,almo_scf_env,error)
+  SUBROUTINE almo_scf_init_read_write_input(input,almo_scf_env)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'almo_scf_init_read_write_input', &
@@ -413,13 +405,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     
-    almo_scf_section => section_vals_get_subs_vals(input,"DFT%ALMO_SCF",error=error)
+    almo_scf_section => section_vals_get_subs_vals(input,"DFT%ALMO_SCF")
     almo_opt_diis_section => section_vals_get_subs_vals(almo_scf_section,&
-                             "ALMO_OPTIMIZER_DIIS",error=error)
+                             "ALMO_OPTIMIZER_DIIS")
     almo_opt_pcg_section => section_vals_get_subs_vals(almo_scf_section,&
-                            "ALMO_OPTIMIZER_PCG",error=error)
+                            "ALMO_OPTIMIZER_PCG")
     xalmo_opt_pcg_section => section_vals_get_subs_vals(almo_scf_section,&
-                             "XALMO_OPTIMIZER_PCG",error=error)
+                             "XALMO_OPTIMIZER_PCG")
    
     ! RZK-warning the values of these keywords are hardcoded 
     ! but ideally they should also be read from the input file
@@ -430,187 +422,154 @@ CONTAINS
     ! read user input
     ! common ALMO options
     CALL section_vals_val_get(almo_scf_section,"EPS_FILTER",&
-                              r_val=almo_scf_env%eps_filter,error=error)
+                              r_val=almo_scf_env%eps_filter)
     CALL section_vals_val_get(almo_scf_section,"ALMO_SCF_GUESS",&
-                              i_val=almo_scf_env%almo_scf_guess,&
-                              error=error)
+                              i_val=almo_scf_env%almo_scf_guess)
     CALL section_vals_val_get(almo_scf_section,"ALMO_ALGORITHM",&
-                              i_val=almo_scf_env%almo_update_algorithm,&
-                              error=error)
+                              i_val=almo_scf_env%almo_update_algorithm)
     CALL section_vals_val_get(almo_scf_section,"DELOCALIZE_METHOD",&
-                              i_val=almo_scf_env%deloc_method,error=error)
+                              i_val=almo_scf_env%deloc_method)
     CALL section_vals_val_get(almo_scf_section,"XALMO_R_CUTOFF_FACTOR",&
-                              r_val=almo_scf_env%quencher_r0_factor,&
-                              error=error)
+                              r_val=almo_scf_env%quencher_r0_factor)
 
     ! optimizers
     CALL section_vals_val_get(almo_opt_diis_section,"EPS_ERROR",&
-            r_val=almo_scf_env%opt_block_diag_diis%eps_error,&
-            error=error)
+            r_val=almo_scf_env%opt_block_diag_diis%eps_error)
     CALL section_vals_val_get(almo_opt_diis_section,"MAX_ITER",&
-            i_val=almo_scf_env%opt_block_diag_diis%max_iter,error=error)
+            i_val=almo_scf_env%opt_block_diag_diis%max_iter)
     CALL section_vals_val_get(almo_opt_diis_section,"N_DIIS",&
-            i_val=almo_scf_env%opt_block_diag_diis%ndiis,error=error)
+            i_val=almo_scf_env%opt_block_diag_diis%ndiis)
 
     CALL section_vals_val_get(almo_opt_pcg_section,"EPS_ERROR",&
-            r_val=almo_scf_env%opt_block_diag_pcg%eps_error,&
-            error=error)
+            r_val=almo_scf_env%opt_block_diag_pcg%eps_error)
     CALL section_vals_val_get(almo_opt_pcg_section,"MAX_ITER",&
-            i_val=almo_scf_env%opt_block_diag_pcg%max_iter,error=error)
+            i_val=almo_scf_env%opt_block_diag_pcg%max_iter)
     CALL section_vals_val_get(almo_opt_pcg_section,"MAX_ITER_OUTER_LOOP",&
-            i_val=almo_scf_env%opt_block_diag_pcg%max_iter_outer_loop,error=error)
+            i_val=almo_scf_env%opt_block_diag_pcg%max_iter_outer_loop)
     CALL section_vals_val_get(almo_opt_pcg_section,"LIN_SEARCH_EPS_ERROR",&
-            r_val=almo_scf_env%opt_block_diag_pcg%lin_search_eps_error,error=error)
+            r_val=almo_scf_env%opt_block_diag_pcg%lin_search_eps_error)
     CALL section_vals_val_get(almo_opt_pcg_section,"LIN_SEARCH_STEP_SIZE_GUESS",&
-            r_val=almo_scf_env%opt_block_diag_pcg%lin_search_step_size_guess,error=error)
+            r_val=almo_scf_env%opt_block_diag_pcg%lin_search_step_size_guess)
     CALL section_vals_val_get(almo_opt_pcg_section,"CONJUGATOR",&
-            i_val=almo_scf_env%opt_block_diag_pcg%conjugator,error=error)
+            i_val=almo_scf_env%opt_block_diag_pcg%conjugator)
     CALL section_vals_val_get(almo_opt_pcg_section,"PRECONDITIONER",&
-            i_val=almo_scf_env%opt_block_diag_pcg%preconditioner,error=error)
+            i_val=almo_scf_env%opt_block_diag_pcg%preconditioner)
     
     CALL section_vals_val_get(xalmo_opt_pcg_section,"EPS_ERROR",&
-            r_val=almo_scf_env%opt_xalmo_pcg%eps_error,&
-            error=error)
+            r_val=almo_scf_env%opt_xalmo_pcg%eps_error)
     CALL section_vals_val_get(xalmo_opt_pcg_section,"MAX_ITER",&
-            i_val=almo_scf_env%opt_xalmo_pcg%max_iter,error=error)
+            i_val=almo_scf_env%opt_xalmo_pcg%max_iter)
     CALL section_vals_val_get(xalmo_opt_pcg_section,"MAX_ITER_OUTER_LOOP",&
-            i_val=almo_scf_env%opt_xalmo_pcg%max_iter_outer_loop,error=error)
+            i_val=almo_scf_env%opt_xalmo_pcg%max_iter_outer_loop)
     CALL section_vals_val_get(xalmo_opt_pcg_section,"LIN_SEARCH_EPS_ERROR",&
-            r_val=almo_scf_env%opt_xalmo_pcg%lin_search_eps_error,error=error)
+            r_val=almo_scf_env%opt_xalmo_pcg%lin_search_eps_error)
     CALL section_vals_val_get(xalmo_opt_pcg_section,"LIN_SEARCH_STEP_SIZE_GUESS",&
-            r_val=almo_scf_env%opt_xalmo_pcg%lin_search_step_size_guess,error=error)
+            r_val=almo_scf_env%opt_xalmo_pcg%lin_search_step_size_guess)
     CALL section_vals_val_get(xalmo_opt_pcg_section,"CONJUGATOR",&
-            i_val=almo_scf_env%opt_xalmo_pcg%conjugator,error=error)
+            i_val=almo_scf_env%opt_xalmo_pcg%conjugator)
     CALL section_vals_val_get(xalmo_opt_pcg_section,"PRECONDITIONER",&
-            i_val=almo_scf_env%opt_xalmo_pcg%preconditioner,error=error)
+            i_val=almo_scf_env%opt_xalmo_pcg%preconditioner)
     
     ! do not do EDA in the official release until the output files are written
     ! using the proper CP2K routines
     almo_scf_env%almo_eda=0
 
     !CALL section_vals_val_get(almo_scf_section,"DOMAIN_LAYOUT_AOS",&
-    !                          i_val=almo_scf_env%domain_layout_aos,error=error)
+    !                          i_val=almo_scf_env%domain_layout_aos)
     !CALL section_vals_val_get(almo_scf_section,"DOMAIN_LAYOUT_MOS",&
-    !                          i_val=almo_scf_env%domain_layout_mos,error=error)
+    !                          i_val=almo_scf_env%domain_layout_mos)
     !CALL section_vals_val_get(almo_scf_section,"MATRIX_CLUSTERING_AOS",&
-    !                          i_val=almo_scf_env%mat_distr_aos,error=error)
+    !                          i_val=almo_scf_env%mat_distr_aos)
     !CALL section_vals_val_get(almo_scf_section,"MATRIX_CLUSTERING_MOS",&
-    !                          i_val=almo_scf_env%mat_distr_mos,error=error)
+    !                          i_val=almo_scf_env%mat_distr_mos)
     !CALL section_vals_val_get(almo_scf_section,"CONSTRAINT_TYPE",&
-    !                          i_val=almo_scf_env%constraint_type,error=error)
+    !                          i_val=almo_scf_env%constraint_type)
     !CALL section_vals_val_get(almo_scf_section,"MU",&
-    !                          r_val=almo_scf_env%mu,error=error)
+    !                          r_val=almo_scf_env%mu)
     !CALL section_vals_val_get(almo_scf_section,"FIXED_MU",&
-    !                          l_val=almo_scf_env%fixed_mu,error=error)
+    !                          l_val=almo_scf_env%fixed_mu)
     !CALL section_vals_val_get(almo_scf_section,"EPS_USE_PREV_AS_GUESS",&
-    !                          r_val=almo_scf_env%eps_prev_guess,error=error)
+    !                          r_val=almo_scf_env%eps_prev_guess)
     !CALL section_vals_val_get(almo_scf_section,"MIXING_FRACTION",&
-    !                          r_val=almo_scf_env%mixing_fraction,error=error)
+    !                          r_val=almo_scf_env%mixing_fraction)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_TENSOR_TYPE",&
-    !                          i_val=almo_scf_env%deloc_cayley_tensor_type,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%deloc_cayley_tensor_type)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_CONJUGATOR",&
-    !                          i_val=almo_scf_env%deloc_cayley_conjugator,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%deloc_cayley_conjugator)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_MAX_ITER",&
-    !                          i_val=almo_scf_env%deloc_cayley_max_iter,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%deloc_cayley_max_iter)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_USE_OCC_ORBS",&
-    !                          l_val=almo_scf_env%deloc_use_occ_orbs,error=error)
+    !                          l_val=almo_scf_env%deloc_use_occ_orbs)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_USE_VIRT_ORBS",&
-    !                          l_val=almo_scf_env%deloc_cayley_use_virt_orbs,&
-    !                          error=error)
+    !                          l_val=almo_scf_env%deloc_cayley_use_virt_orbs)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_LINEAR",&
-    !                          l_val=almo_scf_env%deloc_cayley_linear,&
-    !                          error=error)
+    !                          l_val=almo_scf_env%deloc_cayley_linear)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_EPS_CONVERGENCE",&
-    !                          r_val=almo_scf_env%deloc_cayley_eps_convergence,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%deloc_cayley_eps_convergence)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_OCC_PRECOND",&
-    !                          l_val=almo_scf_env%deloc_cayley_occ_precond,&
-    !                          error=error)
+    !                          l_val=almo_scf_env%deloc_cayley_occ_precond)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_CAYLEY_VIR_PRECOND",&
-    !                          l_val=almo_scf_env%deloc_cayley_vir_precond,&
-    !                          error=error)
+    !                          l_val=almo_scf_env%deloc_cayley_vir_precond)
     !CALL section_vals_val_get(almo_scf_section,"ALMO_UPDATE_ALGORITHM_BD",&
-    !                          i_val=almo_scf_env%almo_update_algorithm,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%almo_update_algorithm)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_TRUNCATE_VIRTUALS",&
-    !                          i_val=almo_scf_env%deloc_truncate_virt,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%deloc_truncate_virt)
     !CALL section_vals_val_get(almo_scf_section,"DELOC_VIRT_PER_DOMAIN",&
-    !                          i_val=almo_scf_env%deloc_virt_per_domain,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%deloc_virt_per_domain)
     !
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_EPS_CONVERGENCE",&
-    !                          r_val=almo_scf_env%opt_k_eps_convergence,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%opt_k_eps_convergence)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_MAX_ITER",&
-    !                          i_val=almo_scf_env%opt_k_max_iter,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_max_iter)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_OUTER_MAX_ITER",&
-    !                          i_val=almo_scf_env%opt_k_outer_max_iter,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_outer_max_iter)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_TRIAL_STEP_SIZE",&
-    !                          r_val=almo_scf_env%opt_k_trial_step_size,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%opt_k_trial_step_size)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_CONJUGATOR",&
-    !                          i_val=almo_scf_env%opt_k_conjugator,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_conjugator)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_TRIAL_STEP_SIZE_MULTIPLIER",&
-    !                          r_val=almo_scf_env%opt_k_trial_step_size_multiplier,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%opt_k_trial_step_size_multiplier)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_CONJ_ITER_START",&
-    !                          i_val=almo_scf_env%opt_k_conj_iter_start,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_conj_iter_start)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_PREC_ITER_START",&
-    !                          i_val=almo_scf_env%opt_k_prec_iter_start,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_prec_iter_start)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_CONJ_ITER_FREQ_RESET",&
-    !                          i_val=almo_scf_env%opt_k_conj_iter_freq,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_conj_iter_freq)
     !CALL section_vals_val_get(almo_scf_section,"OPT_K_PREC_ITER_FREQ_UPDATE",&
-    !                          i_val=almo_scf_env%opt_k_prec_iter_freq,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%opt_k_prec_iter_freq)
     !
     !CALL section_vals_val_get(almo_scf_section,"QUENCHER_RADIUS_TYPE",&
-    !                          i_val=almo_scf_env%quencher_radius_type,&
-    !                          error=error)
+    !                          i_val=almo_scf_env%quencher_radius_type)
     !CALL section_vals_val_get(almo_scf_section,"QUENCHER_R0_FACTOR",&
-    !                          r_val=almo_scf_env%quencher_r0_factor,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%quencher_r0_factor)
     !CALL section_vals_val_get(almo_scf_section,"QUENCHER_R1_FACTOR",&
-    !                          r_val=almo_scf_env%quencher_r1_factor,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%quencher_r1_factor)
     !!CALL section_vals_val_get(almo_scf_section,"QUENCHER_R0_SHIFT",&
-    !!                          r_val=almo_scf_env%quencher_r0_shift,&
-    !!                          error=error)
+    !!                          r_val=almo_scf_env%quencher_r0_shift)
+    !!                          
     !!CALL section_vals_val_get(almo_scf_section,"QUENCHER_R1_SHIFT",&
-    !!                          r_val=almo_scf_env%quencher_r1_shift,&
-    !!                          error=error)
+    !!                          r_val=almo_scf_env%quencher_r1_shift)
+    !!                          
     !!almo_scf_env%quencher_r0_shift = cp_unit_to_cp2k(&
-    !!   almo_scf_env%quencher_r0_shift,"angstrom",error=error)
+    !!   almo_scf_env%quencher_r0_shift,"angstrom")
     !!almo_scf_env%quencher_r1_shift = cp_unit_to_cp2k(&
-    !!   almo_scf_env%quencher_r1_shift,"angstrom",error=error)
+    !!   almo_scf_env%quencher_r1_shift,"angstrom")
     !
     !CALL section_vals_val_get(almo_scf_section,"QUENCHER_AO_OVERLAP_0",&
-    !                          r_val=almo_scf_env%quencher_s0,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%quencher_s0)
     !CALL section_vals_val_get(almo_scf_section,"QUENCHER_AO_OVERLAP_1",&
-    !                          r_val=almo_scf_env%quencher_s1,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%quencher_s1)
 
     !CALL section_vals_val_get(almo_scf_section,"ENVELOPE_AMPLITUDE",&
-    !                          r_val=almo_scf_env%envelope_amplitude,&
-    !                          error=error)
+    !                          r_val=almo_scf_env%envelope_amplitude)
 
     !! how to read lists 
     !CALL section_vals_val_get(almo_scf_section,"INT_LIST01", &
-    !        n_rep_val=n_rep,error=error)
+    !        n_rep_val=n_rep)
     !counter_i = 0
     !DO k = 1,n_rep
     !  CALL section_vals_val_get(almo_scf_section,"INT_LIST01",&
-    !          i_rep_val=k,i_vals=tmplist, error=error)
+    !          i_rep_val=k,i_vals=tmplist)
     !   DO jj = 1,SIZE(tmplist)
     !      counter_i=counter_i+1
     !      almo_scf_env%charge_of_domain(counter_i)=tmplist(jj)
@@ -656,9 +615,9 @@ CONTAINS
     !almo_scf_env%quencher_r0_shift=0.0_dp
     !almo_scf_env%quencher_r1_shift=0.0_dp
     !almo_scf_env%quencher_r0_shift = cp_unit_to_cp2k(&
-    !   almo_scf_env%quencher_r0_shift,"angstrom",error=error)
+    !   almo_scf_env%quencher_r0_shift,"angstrom")
     !almo_scf_env%quencher_r1_shift = cp_unit_to_cp2k(&
-    !   almo_scf_env%quencher_r1_shift,"angstrom",error=error)
+    !   almo_scf_env%quencher_r1_shift,"angstrom")
     
     almo_scf_env%quencher_s0=1.0E-4_dp
     almo_scf_env%quencher_s1=1.0E-6_dp
@@ -693,46 +652,46 @@ CONTAINS
     ! check for conflicts between options
     IF (almo_scf_env%deloc_truncate_virt.EQ.virt_number .AND. &
         almo_scf_env%deloc_virt_per_domain.LE.0) THEN
-      CPErrorMessage(cp_failure_level,routineP,"specify a positive number of virtual orbitals",error)
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPErrorMessage(cp_failure_level,routineP,"specify a positive number of virtual orbitals")
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%deloc_truncate_virt.EQ.virt_minimal) THEN
-      CPErrorMessage(cp_failure_level,routineP,"VIRT TRUNCATION TO MINIMAL BASIS IS NIY",error)
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPErrorMessage(cp_failure_level,routineP,"VIRT TRUNCATION TO MINIMAL BASIS IS NIY")
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%domain_layout_mos.NE.almo_domain_layout_molecular) THEN
-      CPErrorMessage(cp_failure_level,routineP,"use MOLECULAR domains",error)
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPErrorMessage(cp_failure_level,routineP,"use MOLECULAR domains")
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%domain_layout_aos.NE.almo_domain_layout_molecular) THEN
-      CPErrorMessage(cp_failure_level,routineP,"use MOLECULAR domains",error)
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPErrorMessage(cp_failure_level,routineP,"use MOLECULAR domains")
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%mat_distr_mos.NE.almo_mat_distr_molecular) THEN
-      CPErrorMessage(cp_failure_level,routineP,"use MOLECULAR distr for MOs",error)
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPErrorMessage(cp_failure_level,routineP,"use MOLECULAR distr for MOs")
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%mat_distr_aos==almo_mat_distr_molecular .AND. &
         almo_scf_env%domain_layout_aos==almo_domain_layout_atomic) THEN 
-       CPErrorMessage(cp_failure_level,routineP,"AO blocks cannot be larger than domains",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"AO blocks cannot be larger than domains")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%mat_distr_mos==almo_mat_distr_molecular .AND. &
         almo_scf_env%domain_layout_mos==almo_domain_layout_atomic) THEN 
-       CPErrorMessage(cp_failure_level,routineP,"MO blocks cannot be larger than domains",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"MO blocks cannot be larger than domains")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     IF (almo_scf_env%quencher_r1_factor.gt.almo_max_cutoff_multiplier) THEN
-       CPErrorMessage(cp_failure_level,routineP,"XALMO_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier",error)
-       CPErrorMessage(cp_failure_level,routineP,"increase the hard-coded almo_max_cutoff_multiplier",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"XALMO_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier")
+       CPErrorMessage(cp_failure_level,routineP,"increase the hard-coded almo_max_cutoff_multiplier")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     ENDIF
 
     CALL timestop(handle)
@@ -743,16 +702,14 @@ CONTAINS
 !> \brief Prints out a short summary about the ALMO SCF job
 !> \param almo_scf_env ...
 !> \param unit_nr ...
-!> \param error ...
 !> \par History
 !>       2011.10 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_print_job_info(almo_scf_env,unit_nr,error)
+  SUBROUTINE almo_scf_print_job_info(almo_scf_env,unit_nr)
     
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
     INTEGER, INTENT(IN)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_print_job_info', &
       routineP = moduleN//':'//routineN
@@ -773,10 +730,10 @@ CONTAINS
        SELECT CASE(almo_scf_env%almo_update_algorithm)
        CASE(almo_scf_diag)
           ! the DIIS algorith is the only choice for the diagonlaization-based algorithm
-          CALL print_optimizer_options(almo_scf_env%opt_block_diag_diis,unit_nr,error=error)
+          CALL print_optimizer_options(almo_scf_env%opt_block_diag_diis,unit_nr)
        CASE(almo_scf_pcg)
           ! print out PCG options
-          CALL print_optimizer_options(almo_scf_env%opt_block_diag_pcg,unit_nr,error=error)
+          CALL print_optimizer_options(almo_scf_env%opt_block_diag_pcg,unit_nr)
        END SELECT
        
        SELECT CASE(almo_scf_env%deloc_method)
@@ -815,9 +772,9 @@ CONTAINS
              WRITE(unit_nr,'(T2,A)') "optimization of extended orbitals:"
              SELECT CASE(almo_scf_env%xalmo_update_algorithm)
              CASE(almo_scf_diag)
-                    CALL print_optimizer_options(almo_scf_env%opt_xalmo_diis,unit_nr,error=error)
+                    CALL print_optimizer_options(almo_scf_env%opt_xalmo_diis,unit_nr)
              CASE(almo_scf_pcg)
-                 CALL print_optimizer_options(almo_scf_env%opt_xalmo_pcg,unit_nr,error=error)
+                 CALL print_optimizer_options(almo_scf_env%opt_xalmo_pcg,unit_nr)
              END SELECT
           ENDIF
           
@@ -934,15 +891,13 @@ CONTAINS
 !>        and all necessary functions (sqrt, inverse...)
 !> \param matrix_s ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_init_ao_overlap(matrix_s,almo_scf_env,error)
+  SUBROUTINE almo_scf_init_ao_overlap(matrix_s,almo_scf_env)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_ao_overlap', &
       routineP = moduleN//':'//routineN
@@ -953,7 +908,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -963,19 +918,19 @@ CONTAINS
     ! make almo copy of S
     ! also copy S to S_blk (i.e. to S with the domain structure imposed)
     IF (almo_scf_env%orthogonal_basis) THEN
-       CALL cp_dbcsr_set(almo_scf_env%matrix_s(1),0.0_dp,error=error)
-       CALL cp_dbcsr_add_on_diag(almo_scf_env%matrix_s(1),1.0_dp,error=error)
-       CALL cp_dbcsr_set(almo_scf_env%matrix_s_blk(1),0.0_dp,error=error)
-       CALL cp_dbcsr_add_on_diag(almo_scf_env%matrix_s_blk(1),1.0_dp,error=error)
+       CALL cp_dbcsr_set(almo_scf_env%matrix_s(1),0.0_dp)
+       CALL cp_dbcsr_add_on_diag(almo_scf_env%matrix_s(1),1.0_dp)
+       CALL cp_dbcsr_set(almo_scf_env%matrix_s_blk(1),0.0_dp)
+       CALL cp_dbcsr_add_on_diag(almo_scf_env%matrix_s_blk(1),1.0_dp)
     ELSE
        CALL matrix_qs_to_almo(matrix_s,almo_scf_env%matrix_s(1),&
-                              almo_scf_env,.FALSE.,error=error)
+                              almo_scf_env,.FALSE.)
        CALL matrix_qs_to_almo(matrix_s,almo_scf_env%matrix_s_blk(1),&
-                              almo_scf_env,.TRUE.,error=error)
+                              almo_scf_env,.TRUE.)
     ENDIF
     
-    CALL cp_dbcsr_filter(almo_scf_env%matrix_s(1),almo_scf_env%eps_filter,error=error)
-    CALL cp_dbcsr_filter(almo_scf_env%matrix_s_blk(1),almo_scf_env%eps_filter,error=error)
+    CALL cp_dbcsr_filter(almo_scf_env%matrix_s(1),almo_scf_env%eps_filter)
+    CALL cp_dbcsr_filter(almo_scf_env%matrix_s_blk(1),almo_scf_env%eps_filter)
 
     IF (almo_scf_env%almo_update_algorithm.eq.almo_scf_diag) THEN
        CALL matrix_sqrt_Newton_Schulz(almo_scf_env%matrix_s_blk_sqrt(1),&
@@ -984,13 +939,11 @@ CONTAINS
                threshold=almo_scf_env%eps_filter,&
                order=almo_scf_env%order_lanczos,&
                eps_lanczos=almo_scf_env%eps_lanczos,&
-               max_iter_lanczos=almo_scf_env%max_iter_lanczos,&
-               error=error)
+               max_iter_lanczos=almo_scf_env%max_iter_lanczos)
     ELSE IF (almo_scf_env%almo_update_algorithm.eq.almo_scf_dm_sign) THEN
        CALL invert_Hotelling(almo_scf_env%matrix_s_blk_inv(1),&
                almo_scf_env%matrix_s_blk(1),&
-               threshold=almo_scf_env%eps_filter,&
-               error=error)
+               threshold=almo_scf_env%eps_filter)
     ENDIF
 
     CALL timestop(handle)
@@ -1002,15 +955,13 @@ CONTAINS
 !>        Keep it short and clean.
 !> \param qs_env ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.11 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_main(qs_env,almo_scf_env,error)
+  SUBROUTINE almo_scf_main(qs_env,almo_scf_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_main', &
       routineP = moduleN//':'//routineN
@@ -1023,7 +974,7 @@ CONTAINS
     failure=.FALSE.
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -1041,23 +992,22 @@ CONTAINS
                                matrix_t_out=almo_scf_env%matrix_t_blk,&
                                assume_t0_q0x=.FALSE.,&
                                perturbation_only=.FALSE.,&
-                               special_case=xalmo_case_block_diag,&
-                               error=error)
+                               special_case=xalmo_case_block_diag)
 
-       CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env,error)
+       CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
     
     ELSE
        
        ! mixing/DIIS optimizer
        CALL almo_scf_block_diagonal(qs_env,almo_scf_env,&
-               almo_scf_env%opt_block_diag_diis,error)
+               almo_scf_env%opt_block_diag_diis)
     
     ENDIF
     
     ! we might need a copy of the converged KS
     DO ispin=1,almo_scf_env%nspins
        CALL cp_dbcsr_copy(almo_scf_env%matrix_ks_almo_scf_converged(ispin),&
-                 almo_scf_env%matrix_ks(ispin),error=error)
+                 almo_scf_env%matrix_ks(ispin))
     ENDDO
 
     CALL timestop(handle)
@@ -1068,16 +1018,14 @@ CONTAINS
 !> \brief selects various post scf routines
 !> \param qs_env ...
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_delocalization(qs_env,almo_scf_env,error)
+  SUBROUTINE almo_scf_delocalization(qs_env,almo_scf_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_delocalization', &
       routineP = moduleN//':'//routineN
@@ -1095,7 +1043,7 @@ CONTAINS
     failure=.FALSE.
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -1119,14 +1067,14 @@ CONTAINS
        ! it is a waste of memory but since matrices are distributed
        ! we can tolerate it for now
        ALLOCATE(no_quench(almo_scf_env%nspins))
-       CALL cp_dbcsr_init(no_quench(1),error=error)
+       CALL cp_dbcsr_init(no_quench(1))
        CALL cp_dbcsr_create(no_quench(1),&
                template=almo_scf_env%matrix_t(1),&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
+               matrix_type=dbcsr_type_no_symmetry)
        mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(&
           cp_dbcsr_distribution(no_quench(1))))
        CALL cp_dbcsr_work_create(no_quench(1),&
-               work_mutable=.TRUE., error=error)
+               work_mutable=.TRUE.)
        nblkrows_tot = cp_dbcsr_nblkrows_total(no_quench(1))
        nblkcols_tot = cp_dbcsr_nblkcols_total(no_quench(1))
        ! RZK-warning: is it a quadratic-scaling routine?
@@ -1144,19 +1092,19 @@ CONTAINS
                 NULLIFY (p_new_block)
                 CALL cp_dbcsr_reserve_block2d(no_quench(1),&
                         iblock_row, iblock_col, p_new_block)
-                CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,error,failure)
+                CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
                 p_new_block(:,:) = 1.0_dp
              ENDIF
           ENDDO
        ENDDO
-       CALL cp_dbcsr_finalize(no_quench(1),error=error)
+       CALL cp_dbcsr_finalize(no_quench(1))
        IF (almo_scf_env%nspins.gt.1) THEN
           DO ispin=2,almo_scf_env%nspins
-             CALL cp_dbcsr_init(no_quench(ispin),error=error)
+             CALL cp_dbcsr_init(no_quench(ispin))
              CALL cp_dbcsr_create(no_quench(ispin),&
                      template=almo_scf_env%matrix_t(1),&
-                     matrix_type=dbcsr_type_no_symmetry,error=error)
-             CALL cp_dbcsr_copy(no_quench(ispin),no_quench(1),error=error)
+                     matrix_type=dbcsr_type_no_symmetry)
+             CALL cp_dbcsr_copy(no_quench(ispin),no_quench(1))
           ENDDO
        ENDIF
 
@@ -1167,7 +1115,7 @@ CONTAINS
 
        DO ispin=1,almo_scf_env%nspins
           CALL cp_dbcsr_copy(almo_scf_env%matrix_t(ispin),&
-                  almo_scf_env%matrix_t_blk(ispin),error=error)
+                  almo_scf_env%matrix_t_blk(ispin))
        ENDDO
 
     CASE (almo_deloc_x,almo_deloc_xk,almo_deloc_x_then_scf)
@@ -1183,17 +1131,17 @@ CONTAINS
        !!!      ! simply copy virtual orbitals from matrix_v_full_blk to matrix_v_blk
        !!!      DO ispin=1,almo_scf_env%nspins
        !!!         CALL cp_dbcsr_copy(almo_scf_env%matrix_v_blk(ispin),&
-       !!!                 almo_scf_env%matrix_v_full_blk(ispin),error=error)
+       !!!                 almo_scf_env%matrix_v_full_blk(ispin))
        !!!      ENDDO
        !!!   CASE (virt_number,virt_occ_size)
-       !!!      CALL split_v_blk(almo_scf_env,error)
-       !!!      !CALL truncate_subspace_v_blk(qs_env,almo_scf_env,error)
+       !!!      CALL split_v_blk(almo_scf_env)
+       !!!      !CALL truncate_subspace_v_blk(qs_env,almo_scf_env)
        !!!   CASE DEFAULT
-       !!!      CPErrorMessage(cp_failure_level,routineP,"illegal method for virtual space truncation",error)
-       !!!      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !!!      CPErrorMessage(cp_failure_level,routineP,"illegal method for virtual space truncation")
+       !!!      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        !!!   END SELECT
        !!!ENDIF
-       !!!CALL harris_foulkes_correction(qs_env,almo_scf_env,error)
+       !!!CALL harris_foulkes_correction(qs_env,almo_scf_env)
 
        CALL almo_scf_xalmo_pcg(qs_env=qs_env,&
                                almo_scf_env=almo_scf_env,&
@@ -1203,8 +1151,7 @@ CONTAINS
                                matrix_t_out=almo_scf_env%matrix_t,&
                                assume_t0_q0x=.TRUE.,&
                                perturbation_only=.TRUE.,&
-                               special_case=xalmo_case_fully_deloc,&
-                               error=error)
+                               special_case=xalmo_case_fully_deloc)
 
     CASE (almo_deloc_xalmo_1diag)
 
@@ -1213,15 +1160,15 @@ CONTAINS
           almo_scf_env%perturbative_delocalization=.TRUE.
           DO ispin=1,almo_scf_env%nspins
              CALL cp_dbcsr_copy(almo_scf_env%matrix_t(ispin),&
-                     almo_scf_env%matrix_t_blk(ispin),error=error)
+                     almo_scf_env%matrix_t_blk(ispin))
           ENDDO
           CALL almo_scf_xalmo_eigensolver(qs_env,almo_scf_env,&
-                  arbitrary_optimizer,error)
+                  arbitrary_optimizer)
        
        ELSE
           
-          CPErrorMessage(cp_failure_level,routineP,"Other algorithms do not exist",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"Other algorithms do not exist")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        
        ENDIF
 
@@ -1237,13 +1184,12 @@ CONTAINS
                                   matrix_t_out=almo_scf_env%matrix_t,&
                                   assume_t0_q0x=.TRUE.,&
                                   perturbation_only=.TRUE.,&
-                                  special_case=xalmo_case_normal,&
-                                  error=error)
+                                  special_case=xalmo_case_normal)
        
        ELSE
 
-          CPErrorMessage(cp_failure_level,routineP,"Other algorithms do not exist",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"Other algorithms do not exist")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        
        ENDIF
 
@@ -1251,16 +1197,16 @@ CONTAINS
 
        IF (almo_scf_env%xalmo_update_algorithm.eq.almo_scf_diag) THEN
           
-          CPErrorMessage(cp_failure_level,routineP,"Should not be here: convergence will fail!",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"Should not be here: convergence will fail!")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
           
           almo_scf_env%perturbative_delocalization=.FALSE.
           DO ispin=1,almo_scf_env%nspins
              CALL cp_dbcsr_copy(almo_scf_env%matrix_t(ispin),&
-                     almo_scf_env%matrix_t_blk(ispin),error=error)
+                     almo_scf_env%matrix_t_blk(ispin))
           ENDDO
           CALL almo_scf_xalmo_eigensolver(qs_env,almo_scf_env,&
-                  arbitrary_optimizer,error)
+                  arbitrary_optimizer)
 
        ELSE IF (almo_scf_env%xalmo_update_algorithm.eq.almo_scf_pcg) THEN
           
@@ -1272,8 +1218,7 @@ CONTAINS
                                   matrix_t_out=almo_scf_env%matrix_t,&
                                   assume_t0_q0x=.TRUE.,&
                                   perturbation_only=.FALSE.,&
-                                  special_case=xalmo_case_normal,&
-                                  error=error)
+                                  special_case=xalmo_case_normal)
        
           ! RZK-warning THIS IS A HACK TO GET ORBITAL ENERGIES
           almo_experimental=.FALSE.
@@ -1281,18 +1226,18 @@ CONTAINS
              almo_scf_env%perturbative_delocalization=.TRUE.
              !DO ispin=1,almo_scf_env%nspins
              !   CALL cp_dbcsr_copy(almo_scf_env%matrix_t(ispin),&
-             !           almo_scf_env%matrix_t_blk(ispin),error=error)
+             !           almo_scf_env%matrix_t_blk(ispin))
              !ENDDO
              CALL almo_scf_xalmo_eigensolver(qs_env,almo_scf_env,&
-                     arbitrary_optimizer,error)
+                     arbitrary_optimizer)
           ENDIF ! experimental
        
        ENDIF
 
     CASE DEFAULT
 
-       CPErrorMessage(cp_failure_level,routineP,"Illegal delocalization method",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPErrorMessage(cp_failure_level,routineP,"Illegal delocalization method")
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
     
     END SELECT
     
@@ -1300,8 +1245,8 @@ CONTAINS
     CASE (almo_deloc_scf,almo_deloc_x_then_scf)
        
        IF (almo_scf_env%deloc_truncate_virt.ne.virt_full) THEN
-          CPErrorMessage(cp_failure_level,routineP,"full scf is NYI for truncated virtual space",error)
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPErrorMessage(cp_failure_level,routineP,"full scf is NYI for truncated virtual space")
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ENDIF
        
        CALL almo_scf_xalmo_pcg(qs_env=qs_env,&
@@ -1312,8 +1257,7 @@ CONTAINS
                                matrix_t_out=almo_scf_env%matrix_t,&
                                assume_t0_q0x=.FALSE.,&
                                perturbation_only=.FALSE.,&
-                               special_case=xalmo_case_fully_deloc,&
-                               error=error)
+                               special_case=xalmo_case_fully_deloc)
        
     END SELECT
     
@@ -1321,7 +1265,7 @@ CONTAINS
     SELECT CASE (almo_scf_env%deloc_method)
     CASE (almo_deloc_x,almo_deloc_scf,almo_deloc_x_then_scf)
        DO ispin=1, almo_scf_env%nspins
-          CALL cp_dbcsr_release(no_quench(ispin),error=error)
+          CALL cp_dbcsr_release(no_quench(ispin))
        ENDDO
        DEALLOCATE(no_quench)
     END SELECT
@@ -1334,16 +1278,14 @@ CONTAINS
 !> \brief create various matrices 
 !> \param almo_scf_env ...
 !> \param matrix_s0 ...
-!> \param error ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_env_create_matrices(almo_scf_env,matrix_s0,error)
+  SUBROUTINE almo_scf_env_create_matrices(almo_scf_env,matrix_s0)
     
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s0
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_env_create_matrices', &
       routineP = moduleN//':'//routineN
@@ -1362,8 +1304,7 @@ CONTAINS
          size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
          symmetry_new=dbcsr_type_symmetric,&
          spin_key=0,&
-         init_domains=.FALSE.,&
-         error=error)
+         init_domains=.FALSE.)
     CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_s_blk(1),&
          matrix_qs=matrix_s0,&
          almo_scf_env=almo_scf_env,&
@@ -1371,8 +1312,7 @@ CONTAINS
          size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
          symmetry_new=dbcsr_type_symmetric,&
          spin_key=0,&
-         init_domains=.TRUE.,&
-         error=error)
+         init_domains=.TRUE.)
     IF (almo_scf_env%almo_update_algorithm.eq.almo_scf_diag) THEN
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_s_blk_sqrt_inv(1),&
             matrix_qs=matrix_s0,&
@@ -1381,8 +1321,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=0,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_s_blk_sqrt(1),&
             matrix_qs=matrix_s0,&
             almo_scf_env=almo_scf_env,&
@@ -1390,8 +1329,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=0,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
     ELSE IF (almo_scf_env%almo_update_algorithm.eq.almo_scf_dm_sign) THEN
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_s_blk_inv(1),&
             matrix_qs=matrix_s0,&
@@ -1400,8 +1338,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=0,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
     ENDIF
 
     ! MO coeff matrices and their derivatives
@@ -1425,8 +1362,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
        ! create ALMO coefficient matrix
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_t_blk(ispin),&
             matrix_qs=matrix_s0,&
@@ -1435,8 +1371,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
        ! create the error matrix
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_err_blk(ispin),&
             matrix_qs=matrix_s0,&
@@ -1445,8 +1380,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
        ! create the error matrix for the quenched ALMOs
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_err_xx(ispin),&
             matrix_qs=matrix_s0,&
@@ -1455,8 +1389,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.FALSE.,&
-            error=error)
+            init_domains=.FALSE.)
        ! create a matrix with dimensions of a transposed mo coefficient matrix
        ! it might be necessary to perform the correction step using cayley 
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_t_tr(ispin),&
@@ -1466,8 +1399,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_occ,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.FALSE.,&
-            error=error)
+            init_domains=.FALSE.)
        ! create mo overlap matrix
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_sigma(ispin),&
             matrix_qs=matrix_s0,&
@@ -1476,8 +1408,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_occ,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=ispin,&
-            init_domains=.FALSE.,&
-            error=error)
+            init_domains=.FALSE.)
        ! create blocked mo overlap matrix
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_sigma_blk(ispin),&
             matrix_qs=matrix_s0,&
@@ -1486,8 +1417,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_occ,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=ispin,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
        ! create inverse mo overlap matrix
        CALL matrix_almo_create(&
             matrix_new=almo_scf_env%matrix_sigma_inv(ispin),&
@@ -1497,8 +1427,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_occ,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=ispin,&
-            init_domains=.FALSE.,&
-            error=error)
+            init_domains=.FALSE.)
        ! create various templates that will be necessary later
        CALL matrix_almo_create(&
             matrix_new=almo_scf_env%matrix_t(ispin),&
@@ -1508,16 +1437,15 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_occ/),&
             symmetry_new=dbcsr_type_no_symmetry,&
             spin_key=ispin,&
-            init_domains=.FALSE.,&
-            error=error)
-       CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_sqrt(ispin),error=error)
-       CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_sqrt_inv(ispin),error=error)
+            init_domains=.FALSE.)
+       CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_sqrt(ispin))
+       CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_sqrt_inv(ispin))
        CALL cp_dbcsr_create(almo_scf_env%matrix_sigma_sqrt(ispin),&
                             template=almo_scf_env%matrix_sigma(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry, error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
        CALL cp_dbcsr_create(almo_scf_env%matrix_sigma_sqrt_inv(ispin),&
                             template=almo_scf_env%matrix_sigma(ispin),&
-                            matrix_type=dbcsr_type_no_symmetry, error=error)
+                            matrix_type=dbcsr_type_no_symmetry)
     ENDDO
    
     ! create virtual orbitals if necessary
@@ -1557,8 +1485,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_virt_full/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_v_blk(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1566,8 +1493,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_virt/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_v(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1575,8 +1501,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_virt/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_ov_full(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1584,8 +1509,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_occ,almo_mat_dim_virt_full/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_ov(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1593,8 +1517,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_occ,almo_mat_dim_virt/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_vo(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1602,8 +1525,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_virt,almo_mat_dim_occ/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_x(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1611,8 +1533,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_virt,almo_mat_dim_occ/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_sigma_vv(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1620,8 +1541,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_virt,almo_mat_dim_virt/),&
                symmetry_new=dbcsr_type_symmetric,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_vv_full_blk(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1629,8 +1549,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_virt_full,almo_mat_dim_virt_full/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.TRUE.,&
-               error=error)
+               init_domains=.TRUE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_sigma_vv_blk(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1638,16 +1557,15 @@ CONTAINS
                size_keys=(/almo_mat_dim_virt,almo_mat_dim_virt/),&
                symmetry_new=dbcsr_type_symmetric,&
                spin_key=ispin,&
-               init_domains=.TRUE.,&
-               error=error)
-          CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_vv_sqrt(ispin),error=error)
-          CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_vv_sqrt_inv(ispin),error=error)
+               init_domains=.TRUE.)
+          CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_vv_sqrt(ispin))
+          CALL cp_dbcsr_init(almo_scf_env%matrix_sigma_vv_sqrt_inv(ispin))
           CALL cp_dbcsr_create(almo_scf_env%matrix_sigma_vv_sqrt(ispin),&
                   template=almo_scf_env%matrix_sigma_vv(ispin),&
-                  matrix_type=dbcsr_type_no_symmetry, error=error)
+                  matrix_type=dbcsr_type_no_symmetry)
           CALL cp_dbcsr_create(almo_scf_env%matrix_sigma_vv_sqrt_inv(ispin),&
                   template=almo_scf_env%matrix_sigma_vv(ispin),&
-                  matrix_type=dbcsr_type_no_symmetry, error=error)
+                  matrix_type=dbcsr_type_no_symmetry)
           
           IF (almo_scf_env%deloc_truncate_virt.ne.virt_full) THEN
              CALL matrix_almo_create(matrix_new=almo_scf_env%opt_k_t_rr(ispin),&
@@ -1657,8 +1575,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt,almo_mat_dim_virt/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_vv_disc(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1666,8 +1583,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt_disc,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_symmetric,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%opt_k_t_dd(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1675,8 +1591,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt_disc,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_vv_disc_blk(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1684,8 +1599,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt_disc,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_symmetric,&
                   spin_key=ispin,&
-                  init_domains=.TRUE.,&
-                  error=error)
+                  init_domains=.TRUE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_k_blk(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1693,8 +1607,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt_disc,almo_mat_dim_virt/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.TRUE.,&
-                  error=error)
+                  init_domains=.TRUE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_k_blk_ones(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1702,8 +1615,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt_disc,almo_mat_dim_virt/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.TRUE.,&
-                  error=error)
+                  init_domains=.TRUE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%opt_k_denom(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1711,8 +1623,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt_disc,almo_mat_dim_virt/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_k_tr(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1720,8 +1631,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_virt,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_v_disc_blk(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1729,8 +1639,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_v_disc(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1738,8 +1647,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
              CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_ov_disc(ispin),&
                   matrix_qs=matrix_s0,&
                   almo_scf_env=almo_scf_env,&
@@ -1747,8 +1655,7 @@ CONTAINS
                   size_keys=(/almo_mat_dim_occ,almo_mat_dim_virt_disc/),&
                   symmetry_new=dbcsr_type_no_symmetry,&
                   spin_key=ispin,&
-                  init_domains=.FALSE.,&
-                  error=error)
+                  init_domains=.FALSE.)
         
           ENDIF ! end need_discarded_virtuals
 
@@ -1767,8 +1674,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_occ,almo_mat_dim_occ/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
           CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_evv_full(ispin),&
                matrix_qs=matrix_s0,&
                almo_scf_env=almo_scf_env,&
@@ -1776,8 +1682,7 @@ CONTAINS
                size_keys=(/almo_mat_dim_virt_full,almo_mat_dim_virt_full/),&
                symmetry_new=dbcsr_type_no_symmetry,&
                spin_key=ispin,&
-               init_domains=.FALSE.,&
-               error=error)
+               init_domains=.FALSE.)
        ENDDO
     ENDIF
 
@@ -1789,21 +1694,20 @@ CONTAINS
     IF (almo_scf_env%need_previous_ks)&
        ALLOCATE(almo_scf_env%matrix_ks_almo_scf_converged(nspins))
     DO ispin=1,nspins
-       CALL cp_dbcsr_init(almo_scf_env%matrix_p(ispin),error=error)
+       CALL cp_dbcsr_init(almo_scf_env%matrix_p(ispin))
        ! RZK-warning copy with symmery but remember that this might cause problems 
        CALL cp_dbcsr_create(almo_scf_env%matrix_p(ispin),&
                             template=almo_scf_env%matrix_s(1),&
-                            matrix_type=dbcsr_type_symmetric, error=error)
-       CALL cp_dbcsr_init(almo_scf_env%matrix_ks(ispin),error=error)
+                            matrix_type=dbcsr_type_symmetric)
+       CALL cp_dbcsr_init(almo_scf_env%matrix_ks(ispin))
        CALL cp_dbcsr_create(almo_scf_env%matrix_ks(ispin),&
                             template=almo_scf_env%matrix_s(1),&
-                            matrix_type=dbcsr_type_symmetric, error=error)
+                            matrix_type=dbcsr_type_symmetric)
        IF (almo_scf_env%need_previous_ks) THEN
-          CALL cp_dbcsr_init(almo_scf_env%matrix_ks_almo_scf_converged(ispin),&
-                          error=error)
+          CALL cp_dbcsr_init(almo_scf_env%matrix_ks_almo_scf_converged(ispin))
           CALL cp_dbcsr_create(almo_scf_env%matrix_ks_almo_scf_converged(ispin),&
                             template=almo_scf_env%matrix_s(1),&
-                            matrix_type=dbcsr_type_symmetric, error=error)
+                            matrix_type=dbcsr_type_symmetric)
        ENDIF
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_p_blk(ispin),&
             matrix_qs=matrix_s0,&
@@ -1812,8 +1716,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=ispin,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
        CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_ks_blk(ispin),&
             matrix_qs=matrix_s0,&
             almo_scf_env=almo_scf_env,&
@@ -1821,8 +1724,7 @@ CONTAINS
             size_keys=(/almo_mat_dim_aobasis,almo_mat_dim_aobasis/),&
             symmetry_new=dbcsr_type_symmetric,&
             spin_key=ispin,&
-            init_domains=.TRUE.,&
-            error=error)
+            init_domains=.TRUE.)
     ENDDO
     
     CALL timestop(handle)
@@ -1832,15 +1734,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief clean up procedures for almo scf
 !> \param almo_scf_env ...
-!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_clean_up(almo_scf_env,error)
+  SUBROUTINE almo_scf_clean_up(almo_scf_env)
 
     TYPE(almo_scf_env_type)                  :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_clean_up', &
       routineP = moduleN//':'//routineN
@@ -1851,7 +1751,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -1859,65 +1759,64 @@ CONTAINS
     ENDIF
 
     ! release matrices
-    CALL cp_dbcsr_release(almo_scf_env%matrix_s(1),error=error)
-    CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk(1),error=error)
+    CALL cp_dbcsr_release(almo_scf_env%matrix_s(1))
+    CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk(1))
     IF (almo_scf_env%almo_update_algorithm.eq.almo_scf_diag) THEN
-       CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk_sqrt_inv(1),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk_sqrt(1),error=error)
+       CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk_sqrt_inv(1))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk_sqrt(1))
     ELSE IF (almo_scf_env%almo_update_algorithm.eq.almo_scf_dm_sign) THEN
-       CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk_inv(1),error=error)
+       CALL cp_dbcsr_release(almo_scf_env%matrix_s_blk_inv(1))
     ENDIF
     DO ispin=1,almo_scf_env%nspins
-       CALL cp_dbcsr_release(almo_scf_env%quench_t(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%quench_t_blk(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_t_blk(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_err_blk(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_err_xx(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_t_tr(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_blk(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_inv(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_t(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_sqrt(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_sqrt_inv(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_p(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_ks(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_p_blk(ispin),error=error)
-       CALL cp_dbcsr_release(almo_scf_env%matrix_ks_blk(ispin),error=error)
+       CALL cp_dbcsr_release(almo_scf_env%quench_t(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%quench_t_blk(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_t_blk(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_err_blk(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_err_xx(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_t_tr(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_blk(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_inv(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_t(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_sqrt(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_sqrt_inv(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_p(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_ks(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_p_blk(ispin))
+       CALL cp_dbcsr_release(almo_scf_env%matrix_ks_blk(ispin))
        IF (almo_scf_env%need_previous_ks) THEN
-          CALL cp_dbcsr_release(almo_scf_env%matrix_ks_almo_scf_converged(ispin),&
-                  error=error)
+          CALL cp_dbcsr_release(almo_scf_env%matrix_ks_almo_scf_converged(ispin))
        ENDIF
        IF (almo_scf_env%need_virtuals) THEN
-          CALL cp_dbcsr_release(almo_scf_env%matrix_v_blk(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_v_full_blk(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_v(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_vo(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_x(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_ov(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_ov_full(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv_blk(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv_sqrt(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv_sqrt_inv(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_vv_full_blk(ispin),error=error)
+          CALL cp_dbcsr_release(almo_scf_env%matrix_v_blk(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_v_full_blk(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_v(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_vo(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_x(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_ov(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_ov_full(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv_blk(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv_sqrt(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_sigma_vv_sqrt_inv(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_vv_full_blk(ispin))
           IF (almo_scf_env%deloc_truncate_virt.ne.virt_full) THEN
-             CALL cp_dbcsr_release(almo_scf_env%matrix_k_tr(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_k_blk(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_k_blk_ones(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_v_disc(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_v_disc_blk(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_ov_disc(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_vv_disc_blk(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%matrix_vv_disc(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%opt_k_t_dd(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%opt_k_t_rr(ispin),error=error)
-             CALL cp_dbcsr_release(almo_scf_env%opt_k_denom(ispin),error=error)
+             CALL cp_dbcsr_release(almo_scf_env%matrix_k_tr(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_k_blk(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_k_blk_ones(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_v_disc(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_v_disc_blk(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_ov_disc(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_vv_disc_blk(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%matrix_vv_disc(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%opt_k_t_dd(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%opt_k_t_rr(ispin))
+             CALL cp_dbcsr_release(almo_scf_env%opt_k_denom(ispin))
           ENDIF
        ENDIF
        IF (almo_scf_env%need_orbital_energies) THEN
-          CALL cp_dbcsr_release(almo_scf_env%matrix_eoo(ispin),error=error)
-          CALL cp_dbcsr_release(almo_scf_env%matrix_evv_full(ispin),error=error)
+          CALL cp_dbcsr_release(almo_scf_env%matrix_eoo(ispin))
+          CALL cp_dbcsr_release(almo_scf_env%matrix_evv_full(ispin))
        ENDIF
     ENDDO
 
@@ -1976,22 +1875,14 @@ CONTAINS
     ! clean up other variables
     DO ispin=1,almo_scf_env%nspins
        CALL release_submatrices(&
-              almo_scf_env%domain_preconditioner(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_s_inv(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_s_sqrt_inv(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_s_sqrt(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_ks_xx(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_t(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_err(:,ispin),&
-              error=error)
-       CALL release_submatrices(almo_scf_env%domain_r_down_up(:,ispin),&
-              error=error)
+              almo_scf_env%domain_preconditioner(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_s_inv(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_s_sqrt_inv(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_s_sqrt(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_ks_xx(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_t(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_err(:,ispin))
+       CALL release_submatrices(almo_scf_env%domain_r_down_up(:,ispin))
     ENDDO
     DEALLOCATE(almo_scf_env%domain_preconditioner)
     DEALLOCATE(almo_scf_env%domain_s_inv)
@@ -2023,8 +1914,8 @@ CONTAINS
     DEALLOCATE(almo_scf_env%domain_index_of_ao_block)
     DEALLOCATE(almo_scf_env%domain_index_of_mo_block)
 
-    CALL cp_para_env_release(almo_scf_env%para_env,error)
-    CALL cp_blacs_env_release(almo_scf_env%blacs_env,error)
+    CALL cp_para_env_release(almo_scf_env%para_env)
+    CALL cp_blacs_env_release(almo_scf_env%blacs_env)
 
     CALL timestop(handle)
 

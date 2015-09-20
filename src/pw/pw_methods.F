@@ -79,15 +79,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Set values of a pw type to zero
 !> \param pw ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author apsi
 ! *****************************************************************************
-  SUBROUTINE pw_zero ( pw, error )
+  SUBROUTINE pw_zero ( pw)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_zero', &
       routineP = moduleN//':'//routineN
@@ -98,7 +96,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
     IF ( pw%in_use == REALDATA1D ) THEN
        ns = SIZE(pw%cr)
        pw%cr(:) = 0._dp
@@ -124,7 +122,6 @@ CONTAINS
 !> \brief copy a pw type variable
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param error ...
 !> \par History
 !>      JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if
 !>        in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
@@ -134,10 +131,9 @@ CONTAINS
 !>      Currently only copying of respective types allowed,
 !>      in order to avoid errors
 ! *****************************************************************************
-  SUBROUTINE pw_copy ( pw1, pw2, error)
+  SUBROUTINE pw_copy ( pw1, pw2)
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy', &
       routineP = moduleN//':'//routineN
@@ -150,15 +146,15 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
 
        IF ( pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical ) THEN
 
-          IF ( pw_compatible (pw1%pw_grid, pw2%pw_grid, error=error) ) THEN
+          IF ( pw_compatible (pw1%pw_grid, pw2%pw_grid) ) THEN
 
              IF ( pw1%in_use == COMPLEXDATA1D .AND. &
                   pw2%in_use == COMPLEXDATA1D .AND. &
@@ -215,7 +211,7 @@ CONTAINS
                       pw2%cc ( i ) = pw1%cc ( j )
                    END DO
                 ELSE
-                   CALL pw_zero ( pw2, error=error)
+                   CALL pw_zero ( pw2)
 !$omp parallel do private(i,j) default(none) shared(ng1,pw1,pw2)
                    DO i = 1, ng1
                       j = pw2%pw_grid%gidx ( i )
@@ -230,7 +226,7 @@ CONTAINS
                       pw2%cc ( i ) = pw1%cc ( j )
                    END DO
                 ELSE
-                   CALL pw_zero ( pw2, error=error)
+                   CALL pw_zero ( pw2)
 !$omp parallel do private(i,j) default(none) shared(pw1,pw2,ng1)
                    DO i = 1, ng1
                       j = pw1%pw_grid%gidx ( i )
@@ -309,15 +305,13 @@ CONTAINS
 !> \brief multiplies pw coeffs with a number
 !> \param pw ...
 !> \param a ...
-!> \param error ...
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE pw_scale( pw, a , error)
+  SUBROUTINE pw_scale( pw, a)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: a
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scale', &
       routineP = moduleN//':'//routineN
@@ -328,7 +322,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     SELECT CASE ( pw%in_use )
     CASE ( REALDATA1D )
@@ -356,7 +350,6 @@ CONTAINS
 !> \brief Calculate the derivative of a plane wave vector
 !> \param pw ...
 !> \param n ...
-!> \param error ...
 !> \par History
 !>      JGH (06-10-2002) allow only for inplace derivatives
 !> \author JGH (25-Feb-2001)
@@ -364,11 +357,10 @@ CONTAINS
 !>      Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
 !>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
-  SUBROUTINE pw_derive ( pw, n, error )
+  SUBROUTINE pw_derive ( pw, n)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive', &
       routineP = moduleN//':'//routineN
@@ -380,8 +372,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ALL(n>=0),cp_failure_level,routineP,failure)
 
     m = SUM ( n )
     im = CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) ** m
@@ -460,19 +452,17 @@ CONTAINS
 !> \param pwdr2 ...
 !> \param i ...
 !> \param j ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (05-May-2006)
 !> \note
 !>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
-  SUBROUTINE pw_dr2 ( pw, pwdr2, i, j, error)
+  SUBROUTINE pw_dr2 ( pw, pwdr2, i, j)
 
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(pw_type), INTENT(INOUT)             :: pwdr2
     INTEGER, INTENT(IN)                      :: i, j
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2', &
       routineP = moduleN//':'//routineN
@@ -483,7 +473,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     flop = 0.0_dp
     o3 = 1._dp/3._dp
@@ -526,7 +516,6 @@ CONTAINS
 !> \param pwdr2_gg ...
 !> \param i ...
 !> \param j ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author RD (20-Nov-2006)
@@ -534,12 +523,11 @@ CONTAINS
 !>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 !>      Adapted from pw_dr2
 ! *****************************************************************************
-  SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j, error)
+  SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j)
 
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(pw_type), INTENT(INOUT)             :: pwdr2_gg
     INTEGER, INTENT(IN)                      :: i, j
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: cnt, handle, ig
     LOGICAL                                  :: failure
@@ -549,7 +537,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     flop = 0.0_dp
     o3 = 1._dp/3._dp
@@ -594,18 +582,16 @@ CONTAINS
 !> \param pw ...
 !> \param ecut ...
 !> \param sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (09-June-2006)
 !> \note
 !>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
-  SUBROUTINE pw_smoothing ( pw, ecut, sigma, error)
+  SUBROUTINE pw_smoothing ( pw, ecut, sigma)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: ecut, sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_smoothing', &
       routineP = moduleN//':'//routineN
@@ -616,7 +602,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     flop = 0.0_dp
 
@@ -649,19 +635,17 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param debug ...
-!> \param error ...
 !> \par History
 !>      JGH (13-Mar-2001) : added gather/scatter cases
 !> \author JGH (25-Feb-2001)
 !> \note
 !>      Copy routine that allows for in_space changes
 ! *****************************************************************************
-  SUBROUTINE pw_transfer ( pw1, pw2, debug, error)
+  SUBROUTINE pw_transfer ( pw1, pw2, debug)
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_transfer', &
       routineP = moduleN//':'//routineN
@@ -674,13 +658,13 @@ CONTAINS
     CALL m_memory()
 
     failure = .FALSE.
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE ) THEN
 
        ! simple copy should do
-       CALL pw_copy ( pw1, pw2, error=error)
+       CALL pw_copy ( pw1, pw2)
 
     ELSEIF ( pw1%in_space == RECIPROCALSPACE .AND. &
          pw2%in_space == RECIPROCALSPACE ) THEN
@@ -688,15 +672,15 @@ CONTAINS
        IF ( pw1%in_use == pw2%in_use ) THEN
 
           ! simple copy should do
-          CALL pw_copy ( pw1, pw2, error=error)
+          CALL pw_copy ( pw1, pw2)
 
        ELSE
 
           ! we have to gather/scatter the data
           IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-             CALL pw_scatter ( pw1, pw2%cc3d, error=error)
+             CALL pw_scatter ( pw1, pw2%cc3d)
           ELSEIF ( pw2%in_use == COMPLEXDATA1D ) THEN
-             CALL pw_gather ( pw2, pw1%cc3d, error=error)
+             CALL pw_gather ( pw2, pw1%cc3d)
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__, "Do not know what to do" )
           END IF
@@ -706,7 +690,7 @@ CONTAINS
     ELSE
 
        ! FFT needed, all further tests done in fft_wrap_pw1pw2
-       CALL fft_wrap_pw1pw2 ( pw1, pw2, debug, error=error)
+       CALL fft_wrap_pw1pw2 ( pw1, pw2, debug)
 
     END IF
 
@@ -720,7 +704,6 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param alpha ...
-!> \param error ...
 !> \par History
 !>      JGH (21-Feb-2003) : added reference grid functionality
 !>      JGH (01-Dec-2007) : rename and remove complex alpha
@@ -729,12 +712,11 @@ CONTAINS
 !>      Currently only summing up of respective types allowed,
 !>      in order to avoid errors
 ! *****************************************************************************
-  SUBROUTINE pw_axpy ( pw1, pw2, alpha, error)
+  SUBROUTINE pw_axpy ( pw1, pw2, alpha)
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_axpy', &
       routineP = moduleN//':'//routineN
@@ -747,11 +729,11 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
 
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
@@ -808,7 +790,7 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,"No suitable data field")
        END IF
 
-    ELSE IF ( pw_compatible ( pw1%pw_grid, pw2%pw_grid, error=error) ) THEN
+    ELSE IF ( pw_compatible ( pw1%pw_grid, pw2%pw_grid) ) THEN
 
        IF ( pw1%in_use == COMPLEXDATA1D .AND. &
             pw2%in_use == COMPLEXDATA1D .AND. &
@@ -940,18 +922,16 @@ CONTAINS
 !> \param pw ...
 !> \param c ...
 !> \param scale ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE pw_gather_s ( pw, c, scale, error)
+  SUBROUTINE pw_gather_s ( pw, c, scale)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_s', &
       routineP = moduleN//':'//routineN
@@ -964,7 +944,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1017,15 +997,13 @@ CONTAINS
 !> \param pw ...
 !> \param c ...
 !> \param scale ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pw_gather_p ( pw, c, scale, error)
+  SUBROUTINE pw_gather_p ( pw, c, scale)
 
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_p', &
       routineP = moduleN//':'//routineN
@@ -1039,7 +1017,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1101,18 +1079,16 @@ CONTAINS
 !> \param pw ...
 !> \param c ...
 !> \param scale ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE pw_scatter_s ( pw, c, scale, error)
+  SUBROUTINE pw_scatter_s ( pw, c, scale)
 
     TYPE(pw_type), INTENT(IN)                :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_s', &
       routineP = moduleN//':'//routineN
@@ -1125,7 +1101,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1216,15 +1192,13 @@ CONTAINS
 !> \param pw ...
 !> \param c ...
 !> \param scale ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pw_scatter_p ( pw, c, scale, error)
+  SUBROUTINE pw_scatter_p ( pw, c, scale)
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', &
       routineP = moduleN//':'//routineN
@@ -1238,7 +1212,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1342,7 +1316,6 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param debug ...
-!> \param error ...
 !> \par History
 !>      JGH (30-12-2000): New setup of functions and adaptation to parallelism
 !>      JGH (04-01-2001): Moved routine from pws to this module, only covers
@@ -1351,12 +1324,11 @@ CONTAINS
 !> \note
 !>       fft_wrap_pw1pw2
 ! *****************************************************************************
-  SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug, error)
+  SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug)
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1pw2', &
       routineP = moduleN//':'//routineN
@@ -1377,13 +1349,13 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle2)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
          CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
 
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
     NULLIFY ( c_in )
     NULLIFY ( c_out )
 
@@ -1420,7 +1392,7 @@ CONTAINS
 
     n => pw1%pw_grid%npts
 
-    mode = fftselect ( pw1%in_use, pw2%in_use, pw1%in_space, error=error)
+    mode = fftselect ( pw1%in_use, pw2%in_use, pw1%in_space)
 
     IF ( pw1%pw_grid%para%mode == PW_MODE_LOCAL ) THEN
 
@@ -1464,21 +1436,21 @@ CONTAINS
           CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug = test )
           ! gather results
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_GATHER : 3d -> 1d "
-          CALL pw_gather ( pw2, c_out, error = error)
+          CALL pw_gather ( pw2, c_out)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CASE ( "FW_R3DC1D" )
 #if defined (__PW_CUDA)
-          CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale = norm, error = error)
+          CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale = norm)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "c_out",2*dp_size*PRODUCT(n(1:3)))
           CALL copy_rc(pw1%cr3d,c_out)
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
-          CALL pw_gather ( pw2, c_out, error = error)
+          CALL pw_gather ( pw2, c_out)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 #endif
        CASE ( "BW_C3DC3D" )
           c_in => pw1%cc3d
@@ -1494,28 +1466,28 @@ CONTAINS
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  REAL part "
           pw2%cr3d = REAL ( c_out,KIND=dp)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        CASE ( "BW_C1DC3D" )
           c_out => pw2%cc3d
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_SCATTER : 3d -> 1d "
-          CALL pw_scatter ( pw1, c_out, error=error)
+          CALL pw_scatter ( pw1, c_out)
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
        CASE ( "BW_C1DR3D" )
 #if defined (__PW_CUDA)
-          CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale = norm, error = error)
+          CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale = norm)
 #else
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "c_out",2*dp_size*PRODUCT(n(1:3)))
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_SCATTER : 3d -> 1d "
-          CALL pw_scatter ( pw1, c_out, error = error)
+          CALL pw_scatter ( pw1, c_out)
           ! transform
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           ! use real part only
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  REAL part "
           CALL copy_cr(c_out,pw2%cr3d)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 #endif
        END SELECT
 
@@ -1545,8 +1517,8 @@ CONTAINS
        my_pos = pw1%pw_grid%para%my_pos
        nrays = pw1%pw_grid%para%nyzray ( my_pos )
        grays => pw1%pw_grid%grays
-       CPPostcondition(SIZE(grays,1)==n(1),cp_failure_level,routineP,error,failure)
-       CPPostcondition(SIZE(grays,2)==nrays,cp_failure_level,routineP,error,failure)
+       CPPostcondition(SIZE(grays,1)==n(1),cp_failure_level,routineP,failure)
+       CPPostcondition(SIZE(grays,2)==nrays,cp_failure_level,routineP,failure)
 
        SELECT CASE ( mode )
        CASE DEFAULT
@@ -1570,7 +1542,7 @@ CONTAINS
           !..prepare output
           IF ( test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0 ) &
                WRITE ( output_unit,'(A)') "  PW_GATHER : 2d -> 1d "
-          CALL pw_gather ( pw2, grays, error=error)
+          CALL pw_gather ( pw2, grays)
        CASE ( "FW_R3DC1D" )
 #if defined (__PW_CUDA)
          ! (no ray dist. is not efficient in CUDA)
@@ -1579,7 +1551,7 @@ CONTAINS
           use_pw_cuda = .FALSE.
 #endif
           IF (use_pw_cuda) THEN
-             CALL pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale = norm, error = error)
+             CALL pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale = norm)
           ELSE
              !..prepare input
              nloc = pw1%pw_grid%npts_local
@@ -1601,16 +1573,16 @@ CONTAINS
              !..prepare output
              IF ( test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0 ) &
                   WRITE ( output_unit,'(A)') "  PW_GATHER : 2d -> 1d "
-             CALL pw_gather ( pw2, grays, error=error)
+             CALL pw_gather ( pw2, grays)
              DEALLOCATE ( c_in, STAT = stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
        CASE ( "BW_C1DC3D" )
           !..prepare input
           IF ( test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0 ) &
                WRITE ( output_unit,'(A)') "  PW_SCATTER : 2d -> 1d "
           CALL zero_c(grays)
-          CALL pw_scatter ( pw1, grays, error=error)
+          CALL pw_scatter ( pw1, grays)
           c_in => pw2%cc3d
           !..transform
           IF ( pw1%pw_grid%para%ray_distribution ) THEN
@@ -1631,13 +1603,13 @@ CONTAINS
           use_pw_cuda = .FALSE.
 #endif
           IF (use_pw_cuda) THEN
-             CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale = norm, error = error)
+             CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale = norm)
           ELSE
              !..prepare input
              IF ( test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0 ) &
                   WRITE ( output_unit,'(A)') "  PW_SCATTER : 2d -> 1d "
              CALL zero_c(grays)
-             CALL pw_scatter ( pw1, grays, error=error)
+             CALL pw_scatter ( pw1, grays)
              nloc = pw2%pw_grid%npts_local
              ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
              IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1657,7 +1629,7 @@ CONTAINS
                   WRITE ( output_unit,'(A)') "  Real part "
              CALL copy_cr(c_in,pw2%cr3d)
              DEALLOCATE ( c_in, STAT = stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           END IF
        END SELECT
 
@@ -1680,12 +1652,10 @@ CONTAINS
 !> \param use1 ...
 !> \param use2 ...
 !> \param space1 ...
-!> \param error ...
 !> \retval mode ...
 ! *****************************************************************************
-  FUNCTION fftselect ( use1, use2, space1, error) RESULT ( mode )
+  FUNCTION fftselect ( use1, use2, space1) RESULT ( mode )
     INTEGER, INTENT(IN)                      :: use1, use2, space1
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=9)                         :: mode
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fftselect', &
@@ -1736,16 +1706,13 @@ CONTAINS
 !>      optional long_description arg?)
 !> \param pw the pw data to output
 !> \param unit_nr the unit to output to
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE pw_write(pw, unit_nr, error)
+  SUBROUTINE pw_write(pw, unit_nr)
     TYPE(pw_type), INTENT(in)                :: pw
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_write', &
       routineP = moduleN//':'//routineN
@@ -1819,12 +1786,10 @@ CONTAINS
 !> \brief ...
 !> \param grida ...
 !> \param gridb ...
-!> \param error ...
 !> \retval compat ...
 ! *****************************************************************************
-  FUNCTION pw_compatible ( grida, gridb, error) RESULT ( compat )
+  FUNCTION pw_compatible ( grida, gridb) RESULT ( compat )
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: compat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compatible', &
@@ -1849,16 +1814,14 @@ CONTAINS
 !>      only returns the real part of it ......
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param error ...
 !> \retval integral_value ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! *****************************************************************************
-  FUNCTION pw_integral_ab ( pw1, pw2, error) RESULT ( integral_value )
+  FUNCTION pw_integral_ab ( pw1, pw2) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: integral_value
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab', &
@@ -1926,13 +1889,11 @@ CONTAINS
 !> \brief ...
 !> \param pw1 ...
 !> \param pw2 ...
-!> \param error ...
 !> \retval integral_value ...
 ! *****************************************************************************
-  FUNCTION pw_integral_a2b ( pw1, pw2, error) RESULT ( integral_value )
+  FUNCTION pw_integral_a2b ( pw1, pw2) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: integral_value
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_a2b', &
@@ -1974,18 +1935,16 @@ CONTAINS
 !> \brief Calculate the structure factor for point r
 !> \param sf ...
 !> \param r ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (05-May-2006)
 !> \note
 !>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
-  SUBROUTINE pw_structure_factor ( sf, r, error)
+  SUBROUTINE pw_structure_factor ( sf, r)
 
     TYPE(pw_type), INTENT(INOUT)             :: sf
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: r
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor', &
       routineP = moduleN//':'//routineN
@@ -1996,7 +1955,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(sf%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(sf%ref_count>0,cp_failure_level,routineP,failure)
     flop = 0.0_dp
 
     IF ( sf%in_space == RECIPROCALSPACE .AND. &
@@ -2026,15 +1985,13 @@ CONTAINS
 !> \param fun ...
 !> \param isign ...
 !> \param oprt ...
-!> \param error ...
 !> \retval total_fun ...
 ! *****************************************************************************
-  FUNCTION pw_integrate_function(fun,isign,oprt,error) RESULT(total_fun)
+  FUNCTION pw_integrate_function(fun,isign,oprt) RESULT(total_fun)
 
     TYPE(pw_type), INTENT(IN)                :: fun
     INTEGER, INTENT(IN), OPTIONAL            :: isign
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: oprt
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: total_fun
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_integrate_function', &

@@ -56,7 +56,6 @@ CONTAINS
 !> \param topology ...
 !> \param para_env ...
 !> \param subsys_section ...
-!> \param error ...
 !> \date   05.2009
 !> \par    Format Information implemented:
 !>            TITLE
@@ -69,11 +68,10 @@ CONTAINS
 !>
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE read_coordinate_xtl (topology,para_env,subsys_section,error)
+  SUBROUTINE read_coordinate_xtl (topology,para_env,subsys_section)
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xtl', &
       routineP = moduleN//':'//routineN
@@ -97,12 +95,12 @@ CONTAINS
 
     NULLIFY(parser, logger)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XTL_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
 
-    pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
+    pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR")
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
 
@@ -119,25 +117,25 @@ CONTAINS
     CALL reallocate(atom_info%id_element,1,nblock)
 
     IF (iw>0)  WRITE(iw,*) "    Reading in XTL file ",TRIM(topology%coord_file_name)
-    CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
 
     ! Check for TITLE
     CALL parser_search_string(parser,"TITLE",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(/,A)')" XTL_INFO| TITLE :: "//TRIM(parser%input_line(parser%icol:))
     END IF
 
     ! Check for   _chemical_formula_sum
     CALL parser_search_string(parser,"DIMENSION",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(A)')" XTL_INFO| DIMENSION :: "//TRIM(parser%input_line(parser%icol:))
-       CALL parser_get_object(parser,dimensions,error=error)
+       CALL parser_get_object(parser,dimensions)
        IF (dimensions/=3) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="XTL file with working DIMENSION different from 3 cannot be parsed! ", &
-               error=error, error_level=cp_fatal_level)
+               error_level=cp_fatal_level)
        END IF
     ELSE
        ! Assuming by default we work in 3D-periodic systems
@@ -148,52 +146,52 @@ CONTAINS
     periodic = 1
     ! Check for   _cell_length_a
     CALL parser_search_string(parser,"CELL",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field CELL was not found in XTL file! "//&
 CPSourceFileRef)
-    CALL parser_get_next_line(parser,1,error=error)
+    CALL parser_get_next_line(parser,1)
     ! CELL LENGTH A
-    CALL parser_get_object(parser,cell_lengths(1),error=error)
-    cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1),"angstrom",error=error)
+    CALL parser_get_object(parser,cell_lengths(1))
+    cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1),"angstrom")
     ! CELL LENGTH B
-    CALL parser_get_object(parser,cell_lengths(2),error=error)
-    cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2),"angstrom",error=error)
+    CALL parser_get_object(parser,cell_lengths(2))
+    cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2),"angstrom")
     ! CELL LENGTH C
-    CALL parser_get_object(parser,cell_lengths(3),error=error)
-    cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3),"angstrom",error=error)
+    CALL parser_get_object(parser,cell_lengths(3))
+    cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3),"angstrom")
 
     ! CELL ANGLE ALPHA
-    CALL parser_get_object(parser,cell_angles(1),error=error)
-    cell_angles(1) = cp_unit_to_cp2k(cell_angles(1),"deg",error=error)
+    CALL parser_get_object(parser,cell_angles(1))
+    cell_angles(1) = cp_unit_to_cp2k(cell_angles(1),"deg")
     ! CELL ANGLE BETA
-    CALL parser_get_object(parser,cell_angles(2),error=error)
-    cell_angles(2) = cp_unit_to_cp2k(cell_angles(2),"deg",error=error)
+    CALL parser_get_object(parser,cell_angles(2))
+    cell_angles(2) = cp_unit_to_cp2k(cell_angles(2),"deg")
     ! CELL ANGLE GAMMA
-    CALL parser_get_object(parser,cell_angles(3),error=error)
-    cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg",error=error)
+    CALL parser_get_object(parser,cell_angles(3))
+    cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg")
 
     ! Create cell
     NULLIFY (cell)
-    CALL cell_create(cell,error=error)
+    CALL cell_create(cell)
     CALL set_cell_param(cell,cell_lengths,cell_angles,periodic=periodic,&
-                        do_init_cell=.TRUE.,error=error)
-    CALL write_cell(cell,subsys_section,label="CELL_XTL|",error=error)
+                        do_init_cell=.TRUE.)
+    CALL write_cell(cell,subsys_section,label="CELL_XTL|")
 
     ! Parse atoms info and fractional coordinates
     ! Check for   _atom_site_label
     CALL parser_search_string(parser,"ATOMS",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field ATOMS was not found in XTL file! "//&
 CPSourceFileRef)
-    CALL parser_get_next_line(parser,1,error=error)
+    CALL parser_get_next_line(parser,1)
     ! Paranoic syntax check.. if this fails one should improve the description of XTL files
     found = (INDEX(parser%input_line,"NAME       X          Y          Z")/=0)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field ATOMS in XTL file, is not followed by name and coordinates tags! "//&
 CPSourceFileRef)
-    CALL parser_get_next_line(parser,1,error=error)
+    CALL parser_get_next_line(parser,1)
     ! Parse real info
     natom = 0
     DO WHILE (INDEX(parser%input_line,"EOF")==0)
@@ -213,21 +211,21 @@ CPSourceFileRef)
           CALL reallocate(atom_info%id_element,1,newsize)
        END IF
        ! NAME
-       CALL parser_get_object  (parser,strtmp,error=error)
+       CALL parser_get_object  (parser,strtmp)
        atom_info%id_atmname(natom) = str2id(strtmp)
        atom_info%id_molname(natom) = str2id(s2s("MOL"//TRIM(ADJUSTL(cp_to_string(natom)))))
        atom_info%id_resname(natom) = atom_info%id_molname(natom)
        atom_info%resid(natom)      = 1
        atom_info%id_element(natom) = atom_info%id_atmname(natom)
        ! X
-       CALL parser_get_object(parser,atom_info%r(1,natom),error=error)
+       CALL parser_get_object(parser,atom_info%r(1,natom))
        ! Y
-       CALL parser_get_object(parser,atom_info%r(2,natom),error=error)
+       CALL parser_get_object(parser,atom_info%r(2,natom))
        ! Z
-       CALL parser_get_object(parser,atom_info%r(3,natom),error=error)
+       CALL parser_get_object(parser,atom_info%r(3,natom))
        s = atom_info%r(1:3,natom)
        CALL scaled_to_real(atom_info%r(1:3,natom),s,cell)
-       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
     END DO
     ! Preliminary check: check if atoms provided are really unique.. this is a paranoic
@@ -238,20 +236,20 @@ CPSourceFileRef)
           r2 = atom_info%r(1:3,jj)
           r  = pbc(r1-r2,cell)
           check = (SQRT(DOT_PRODUCT(r,r))>=threshold)
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
        END DO
     END DO
     ! Parse Symmetry Group and generation elements..
     ! Check for SYMMETRY
     CALL parser_search_string(parser,"SYMMETRY",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(A)')" XTL_INFO| Symmetry Infos :: "//TRIM(parser%input_line(parser%icol:))
     END IF
 
     ! Check for SYM MAT
     CALL parser_search_string(parser,"SYM MAT",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
          "The field SYM MAT was not found in XTL file! "//&
 CPSourceFileRef,&
@@ -306,7 +304,7 @@ CPSourceFileRef,&
              END IF
           END DO Loop_over_unique_atoms
           CALL parser_search_string(parser,"SYM MAT",ignore_case=.FALSE.,found=found,&
-               begin_line=.FALSE.,search_from_begin_of_file=.FALSE.,error=error)
+               begin_line=.FALSE.,search_from_begin_of_file=.FALSE.)
        END DO
     END IF
     IF (iw>0) WRITE(iw,'(A,I0)')" XTL_INFO| Number of symmetry operations :: ",isym
@@ -314,8 +312,8 @@ CPSourceFileRef,&
     IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
 
     ! Releasse local cell type and parser
-    CALL cell_release(cell,error=error)
-    CALL parser_release(parser,error=error)
+    CALL cell_release(cell)
+    CALL parser_release(parser)
 
     ! Reallocate all structures with the exact NATOM size
     CALL reallocate(atom_info%id_molname,1,natom)
@@ -332,7 +330,7 @@ CPSourceFileRef,&
     topology%natoms            = natom
     topology%molname_generated = .TRUE.
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/XTL_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/XTL_INFO")
     CALL timestop(handle)
   END SUBROUTINE read_coordinate_xtl
 

@@ -325,18 +325,16 @@ CONTAINS
 !> \param part ...
 !> \param md_env ...
 !> \param simpar ...
-!> \param error ...
 !> \par History
 !>      2008-11
 !> \author  MI
 ! *****************************************************************************
-  SUBROUTINE rescale_vel_region(part,md_env,simpar,error)
+  SUBROUTINE rescale_vel_region(part,md_env,simpar)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_vel_region', &
       routineP = moduleN//':'//routineN
@@ -349,7 +347,7 @@ CONTAINS
 
     NULLIFY(thermal_regions, t_region)
 
-    CALL get_md_env(md_env,thermal_regions=thermal_regions,error=error)
+    CALL get_md_env(md_env,thermal_regions=thermal_regions)
     nfree_done = 0
     DO ireg = 1,thermal_regions%nregions
       NULLIFY(t_region)
@@ -424,18 +422,16 @@ CONTAINS
 !> \param is_fixed ...
 !> \param rcom ...
 !> \param vang ...
-!> \param error ...
 !> \par History
 !>      2007-11-9: created
 !> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
-  SUBROUTINE compute_vang(part,is_fixed,rcom,vang,error)
+  SUBROUTINE compute_vang(part,is_fixed,rcom,vang)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rcom
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vang
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_vang', &
       routineP = moduleN//':'//routineN
@@ -476,7 +472,7 @@ CONTAINS
     ! Take the safest route, i.e. diagonalize the inertia tensor and solve
     ! the angular velocity only with the non-zero eigenvalues. A plain inversion
     ! would fail for linear molecules.
-    CALL diamat_all(iner, evals,error=error)
+    CALL diamat_all(iner, evals)
 
     vang(:) = 0.0_dp
     DO i=1,3
@@ -556,7 +552,6 @@ CONTAINS
 !> \param core_part ...
 !> \param force_rescaling ...
 !> \param para_env ...
-!> \param error ...
 !> \par History
 !>      - is_fixed removed from particle_type
 !>      - 2007-11-07: Cleanup (TV)
@@ -565,7 +560,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_velocities(simpar, part, force_env, globenv, md_env, &
        molecule_kinds, label, print_section, subsys_section, shell_present,&
-       shell_part, core_part, force_rescaling, para_env, error)
+       shell_part, core_part, force_rescaling, para_env)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
@@ -581,7 +576,6 @@ CONTAINS
       POINTER                                :: shell_part, core_part
     LOGICAL, INTENT(IN)                      :: force_rescaling
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
       routineP = moduleN//':'//routineN
@@ -613,8 +607,8 @@ CONTAINS
     NULLIFY (molecule_kind_set)
 
     ! Logging
-    logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
+    logger => cp_get_default_logger()
+    iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log")
     IF (iw>0) THEN
        num_x = (79-LEN_TRIM(ADJUSTL(label))-2)/2
        WRITE(my_format,'(A,I0,A,I0,A)')'(1X,',num_x,'("*"),1X,A,1X,',num_x,'("*"))'
@@ -623,7 +617,7 @@ CONTAINS
 
     ! Build a list of all fixed atoms (if any)
     ALLOCATE (is_fixed(natoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     is_fixed = use_perd_none
     molecule_kind_set => molecule_kinds%els
@@ -651,10 +645,10 @@ CONTAINS
 
 
     CALL read_input_velocities(simpar, part, force_env, md_env, subsys_section,&
-             shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success, error)
+             shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success)
     IF(.NOT.success) &
        CALL generate_velocities(simpar, part, force_env, globenv, md_env, shell_present,&
-                shell_part, core_part, is_fixed, iw, error)
+                shell_part, core_part, is_fixed, iw)
 
 
     IF (iw>0) THEN
@@ -662,20 +656,20 @@ CONTAINS
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
        IF (simpar%nfree == 0) THEN
-          CPPostcondition(ekin==0.0_dp,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ekin==0.0_dp,cp_failure_level,routineP,failure)
           temp = 0.0_dp
        ELSE
           temp = 2.0_dp * ekin / REAL ( simpar%nfree,KIND=dp)
        END IF
-       tmp_r1 = cp_unit_from_cp2k(temp,"K",error=error)
+       tmp_r1 = cp_unit_from_cp2k(temp,"K")
        WRITE (iw, '( A, T61, F18.2, A2 )' ) ' Initial Temperature ', tmp_r1, " K"
        WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM velocity:', vcom ( 1 ), vcom ( 2 ), vcom ( 3 )
 
        ! compute and log rcom and vang if not periodic
-       CALL force_env_get(force_env, cell=cell, error=error)
+       CALL force_env_get(force_env, cell=cell)
        IF (SUM(cell%perd(1:3)) == 0) THEN
           CALL compute_rcom(part,is_fixed,rcom)
-          CALL compute_vang(part,is_fixed,rcom,vang,error)
+          CALL compute_vang(part,is_fixed,rcom,vang)
           WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:', rcom ( 1 ), rcom ( 2 ), rcom ( 3 )
           WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:', vang ( 1 ), vang ( 2 ), vang ( 3 )
        END IF
@@ -683,8 +677,8 @@ CONTAINS
     END IF
 
     DEALLOCATE (is_fixed,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO", error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
     CALL timestop(handle)
 
   END SUBROUTINE initialize_velocities
@@ -704,11 +698,10 @@ CONTAINS
 !> \param para_env ...
 !> \param is_fixed ...
 !> \param success ...
-!> \param error ...
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
   SUBROUTINE read_input_velocities(simpar, part, force_env, md_env, subsys_section,&
-       shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success, error)
+       shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success)
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -722,7 +715,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
     LOGICAL, INTENT(OUT)                     :: success
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_input_velocities', &
       routineP = moduleN//':'//routineN
@@ -760,37 +752,37 @@ CONTAINS
     ! Core-Shell Model
     nshell = 0
     IF (shell_present) THEN
-       CPPostcondition(ASSOCIATED(core_part),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(core_part),cp_failure_level,routineP,failure)
+       CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,failure)
        nshell = SIZE(shell_part)
     END IF
 
-    atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-    shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-    corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+    atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY")
+    shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY")
+    corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY")
 
     ! Read or initialize the particle velocities
-    CALL section_vals_get(atomvel_section,explicit=atomvel_explicit,error=error)
-    CALL section_vals_get(shellvel_section,explicit=shellvel_explicit,error=error)
-    CALL section_vals_get(corevel_section,explicit=corevel_explicit,error=error)
-    CPPostcondition(shellvel_explicit.EQV.corevel_explicit,cp_failure_level,routineP,error,failure)
+    CALL section_vals_get(atomvel_section,explicit=atomvel_explicit)
+    CALL section_vals_get(shellvel_section,explicit=shellvel_explicit)
+    CALL section_vals_get(corevel_section,explicit=corevel_explicit)
+    CPPostcondition(shellvel_explicit.EQV.corevel_explicit,cp_failure_level,routineP,failure)
 
     CALL read_binary_velocities("",part,force_env%root_section,para_env,&
-                                subsys_section,atomvel_read,error)
+                                subsys_section,atomvel_read)
     CALL read_binary_velocities("SHELL",shell_part,force_env%root_section,para_env,&
-                                subsys_section,shellvel_read,error)
+                                subsys_section,shellvel_read)
     CALL read_binary_velocities("CORE",core_part,force_env%root_section,para_env,&
-                                subsys_section,corevel_read,error)
+                                subsys_section,corevel_read)
 
     IF (.NOT.(atomvel_explicit.OR.atomvel_read)) RETURN
     success = .TRUE.
 
      IF (.NOT.atomvel_read) THEN
         ! Read the atom velocities if explicitly given in the input file
-        CALL section_vals_list_get(atomvel_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
+        CALL section_vals_list_get(atomvel_section,"_DEFAULT_KEYWORD_",list=atom_list)
         DO i = 1, natoms
-           is_ok = cp_sll_val_next(atom_list,val,error=error)
-           CALL val_get(val,r_vals=vel,error=error)
+           is_ok = cp_sll_val_next(atom_list,val)
+           CALL val_get(val,r_vals=vel)
            part(i)%v = vel
         END DO
      END IF
@@ -819,14 +811,14 @@ CONTAINS
         IF (shellvel_explicit) THEN
            ! If the atoms positions are given (?) and core and shell velocities are
            ! present in the input, read the latter.
-           CALL section_vals_list_get(shellvel_section,"_DEFAULT_KEYWORD_",list=shell_list,error=error)
-           CALL section_vals_list_get(corevel_section,"_DEFAULT_KEYWORD_",list=core_list,error=error)
+           CALL section_vals_list_get(shellvel_section,"_DEFAULT_KEYWORD_",list=shell_list)
+           CALL section_vals_list_get(corevel_section,"_DEFAULT_KEYWORD_",list=core_list)
            DO i=1,nshell
-              is_ok = cp_sll_val_next(shell_list,val,error=error)
-              CALL val_get(val,r_vals=vel,error=error)
+              is_ok = cp_sll_val_next(shell_list,val)
+              CALL val_get(val,r_vals=vel)
               shell_part(i)%v = vel
-              is_ok = cp_sll_val_next(core_list,val,error=error)
-              CALL val_get(val,r_vals=vel,error=error)
+              is_ok = cp_sll_val_next(core_list,val)
+              CALL val_get(val,r_vals=vel)
               core_part(i)%v = vel
            END DO
         ELSE
@@ -842,7 +834,7 @@ CONTAINS
      ekin = compute_ekin(part) - ecom
 
      IF(simpar%do_thermal_region) THEN
-       CALL get_md_env (md_env, thermal_regions=thermal_regions, error=error)
+       CALL get_md_env (md_env, thermal_regions=thermal_regions)
        IF(ASSOCIATED(thermal_regions)) THEN
          rescale_regions = thermal_regions%force_rescaling
        END IF
@@ -851,7 +843,7 @@ CONTAINS
      END IF
      IF (simpar%nfree /= 0 .AND. (force_rescaling .OR. rescale_regions)) THEN
         IF(simpar%do_thermal_region) THEN
-          CALL rescale_vel_region(part,md_env,simpar,error=error)
+          CALL rescale_vel_region(part,md_env,simpar)
         ELSE
           CALL rescale_vel(part,simpar,ekin,vcom=vcom)
         END IF
@@ -891,11 +883,10 @@ CONTAINS
 !> \param core_part ...
 !> \param is_fixed ...
 !> \param iw ...
-!> \param error ...
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
 ! *****************************************************************************
   SUBROUTINE generate_velocities(simpar, part, force_env, globenv, md_env,&
-                          shell_present, shell_part, core_part, is_fixed, iw, error)
+                          shell_present, shell_part, core_part, is_fixed, iw)
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -907,7 +898,6 @@ CONTAINS
       POINTER                                :: shell_part, core_part
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_velocities', &
       routineP = moduleN//':'//routineN
@@ -928,35 +918,35 @@ CONTAINS
         IF (mass.NE.0.0) THEN
            SELECT CASE(is_fixed(i))
            CASE (use_perd_x)
-              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            CASE (use_perd_y)
-              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            CASE (use_perd_z)
-              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            CASE (use_perd_xy)
-              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            CASE (use_perd_xz)
-              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            CASE (use_perd_yz)
-              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            CASE (use_perd_none)
-              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+              part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
+              part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
+              part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream) / SQRT(mass)
            END SELECT
         END IF
      END DO
 
-     CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
-     CALL soften_velocities(simpar, part, force_env, md_env, is_fixed, iw, error)
+     CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed)
+     CALL soften_velocities(simpar, part, force_env, md_env, is_fixed, iw)
 
      ! Initialize the core and the shell velocity. Atom velocities are just
      ! copied so that the initial relative core-shell velocity is zero.
      IF (shell_present) THEN
-       CALL optimize_shell_core(force_env,part,shell_part, core_part, globenv, error=error)
+       CALL optimize_shell_core(force_env,part,shell_part, core_part, globenv)
      ENDIF
   END SUBROUTINE generate_velocities
 
@@ -970,10 +960,9 @@ CONTAINS
 !> \param md_env ...
 !> \param is_fixed ...
 !> \param iw ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE soften_velocities(simpar, part, force_env, md_env, is_fixed, iw, error)
+  SUBROUTINE soften_velocities(simpar, part, force_env, md_env, is_fixed, iw)
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -981,7 +970,6 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'soften_velocities', &
       routineP = moduleN//':'//routineN
@@ -1011,7 +999,7 @@ CONTAINS
        DO i = 1, SIZE(part)
           part(i)%r = part(i)%r + simpar%soften_delta * N(i,:)
        END DO
-       CALL force_env_calc_energy_force(force_env,error=error)
+       CALL force_env_calc_energy_force(force_env)
 
        ! calculate velocity update direction F_t
        DO i = 1, SIZE(part)
@@ -1025,7 +1013,7 @@ CONTAINS
           part(i)%v = part(i)%v + simpar%soften_alpha * F_t(i,:)
        END DO
 
-       CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
+       CALL normalize_velocities(simpar, part, force_env, md_env, is_fixed)
     END DO
 
     IF(iw>0) THEN
@@ -1042,17 +1030,15 @@ CONTAINS
 !> \param force_env ...
 !> \param md_env ...
 !> \param is_fixed ...
-!> \param error ...
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE normalize_velocities(simpar, part, force_env, md_env, is_fixed, error)
+  SUBROUTINE normalize_velocities(simpar, part, force_env, md_env, is_fixed)
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: is_fixed
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'normalize_velocities', &
       routineP = moduleN//':'//routineN
@@ -1067,15 +1053,15 @@ CONTAINS
      CALL compute_vcom(part,is_fixed,vcom)
      CALL subtract_vcom(part,is_fixed,vcom)
      ! If requested and the system is not periodic, subtract the angular velocity
-     CALL force_env_get(force_env, cell=cell, error=error)
+     CALL force_env_get(force_env, cell=cell)
      IF (SUM(cell%perd(1:3)) == 0 .AND. simpar%angvel_zero) THEN
         CALL compute_rcom(part,is_fixed,rcom)
-        CALL compute_vang(part,is_fixed,rcom,vang,error)
+        CALL compute_vang(part,is_fixed,rcom,vang)
         CALL subtract_vang(part,is_fixed,rcom,vang)
      END IF
      ! Rescale the velocities
      IF(simpar%do_thermal_region) THEN
-       CALL rescale_vel_region(part,md_env,simpar,error=error)
+       CALL rescale_vel_region(part,md_env,simpar)
      ELSE
        ekin = compute_ekin(part)
        CALL rescale_vel(part,simpar,ekin)
@@ -1088,15 +1074,13 @@ CONTAINS
 !> \param subsys ...
 !> \param md_ener ...
 !> \param vsubtract ...
-!> \param error ...
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE reset_vcom(subsys, md_ener, vsubtract, error)
+  SUBROUTINE reset_vcom(subsys, md_ener, vsubtract)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vsubtract
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_vcom', &
       routineP = moduleN//':'//routineN
@@ -1121,8 +1105,7 @@ CONTAINS
                        atomic_kinds=atomic_kinds,&
                        particles=particles,&
                        shell_particles=shell_particles,&
-                       core_particles=core_particles,&
-                       error=error)
+                       core_particles=core_particles)
 
     ekin_old = md_ener%ekin
     ! Possibly subtract a quantity from all velocities
@@ -1186,16 +1169,14 @@ CONTAINS
 !> \param temp_expected ...
 !> \param temp_tol ...
 !> \param iw ...
-!> \param error ...
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE scale_velocity(subsys, md_ener, temp_expected, temp_tol, iw, error)
+  SUBROUTINE scale_velocity(subsys, md_ener, temp_expected, temp_tol, iw)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
     REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity', &
       routineP = moduleN//':'//routineN
@@ -1212,7 +1193,7 @@ CONTAINS
        md_ener%vcom       = 0.0_dp
        md_ener%total_mass = 0.0_dp
 
-       CALL scale_velocity_low(subsys,scale,ireg=0,ekin=md_ener%ekin,vcom=md_ener%vcom,error=error)
+       CALL scale_velocity_low(subsys,scale,ireg=0,ekin=md_ener%ekin,vcom=md_ener%vcom)
        IF(md_ener%nfree /=0) THEN
            md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree,KIND=dp)*kelvin
        END IF
@@ -1232,17 +1213,15 @@ CONTAINS
 !> \param md_ener ...
 !> \param simpar ...
 !> \param iw ...
-!> \param error ...
 !> \par author MI
 ! *****************************************************************************
-  SUBROUTINE scale_velocity_region(md_env, subsys, md_ener, simpar, iw, error)
+  SUBROUTINE scale_velocity_region(md_env, subsys, md_ener, simpar, iw)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(simpar_type), POINTER               :: simpar
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_region', &
       routineP = moduleN//':'//routineN
@@ -1260,9 +1239,9 @@ CONTAINS
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
 
      NULLIFY( particles, part, thermal_regions, t_region)
-     CALL cp_subsys_get(subsys, particles=particles, error=error)
+     CALL cp_subsys_get(subsys, particles=particles)
      part => particles%els
-     CALL get_md_env(md_env, thermal_regions=thermal_regions, error=error)
+     CALL get_md_env(md_env, thermal_regions=thermal_regions)
 
      nregions = thermal_regions%nregions
      nfree_done = 0
@@ -1283,7 +1262,7 @@ CONTAINS
        IF(t_region%temp_tol > 0.0_dp .AND. &
          ABS(t_region%temp_expected - t_region%temperature/kelvin) > t_region%temp_tol) THEN
            fscale =  SQRT((t_region%temp_expected/t_region%temperature)*kelvin)
-           CALL scale_velocity_low(subsys,fscale,ireg,ekin,vcom,error)
+           CALL scale_velocity_low(subsys,fscale,ireg,ekin,vcom)
            t_region%temperature = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
            temp_new(ireg) = t_region%temperature
        END IF
@@ -1297,7 +1276,7 @@ CONTAINS
      IF(simpar%temp_tol > 0.0_dp .AND. nfree>0) THEN
         IF (ABS(simpar%temp_ext - thermal_regions%temp_reg0/kelvin) > simpar%temp_tol) THEN
            fscale =  SQRT((simpar%temp_ext/thermal_regions%temp_reg0)*kelvin)
-           CALL scale_velocity_low(subsys,fscale,0,ekin,vcom,error)
+           CALL scale_velocity_low(subsys,fscale,0,ekin,vcom)
            thermal_regions%temp_reg0 = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
            temp_new(0) = thermal_regions%temp_reg0
         END IF
@@ -1327,16 +1306,14 @@ CONTAINS
 !> \param ireg ...
 !> \param ekin ...
 !> \param vcom ...
-!> \param error ...
 !> \par author MI
 ! *****************************************************************************
-  SUBROUTINE scale_velocity_low(subsys,fscale,ireg,ekin,vcom,error)
+  SUBROUTINE scale_velocity_low(subsys,fscale,ireg,ekin,vcom)
 
     TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), INTENT(IN)                :: fscale
     INTEGER, INTENT(IN)                      :: ireg
     REAL(KIND=dp), INTENT(OUT)               :: ekin, vcom(3)
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_low', &
       routineP = moduleN//':'//routineN
@@ -1361,7 +1338,7 @@ CONTAINS
     vcom = 0.0_dp
 
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles,&
-          shell_particles=shell_particles, core_particles=core_particles, error=error)
+          shell_particles=shell_particles, core_particles=core_particles)
 
     DO ikind=1,atomic_kinds%n_els
        atomic_kind => atomic_kinds%els(ikind)
@@ -1433,16 +1410,14 @@ CONTAINS
 !> \param temp_expected ...
 !> \param temp_tol ...
 !> \param iw ...
-!> \param error ...
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE scale_velocity_internal(subsys, md_ener,  temp_expected, temp_tol, iw, error)
+  SUBROUTINE scale_velocity_internal(subsys, md_ener,  temp_expected, temp_tol, iw)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
     REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_internal', &
       routineP = moduleN//':'//routineN
@@ -1471,7 +1446,7 @@ CONTAINS
        md_ener%temp_shell = 0.0_dp
 
        CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles, shell_particles=shell_particles,&
-          core_particles=core_particles, error=error)
+          core_particles=core_particles)
 
        DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
@@ -1528,16 +1503,14 @@ CONTAINS
 !> \param temp_expected ...
 !> \param temp_tol ...
 !> \param iw ...
-!> \param error ...
 !> \par History
 !>     MI 02.2008
 ! *****************************************************************************
-  SUBROUTINE scale_velocity_baro(md_env, md_ener, temp_expected, temp_tol, iw, error)
+  SUBROUTINE scale_velocity_baro(md_env, md_ener, temp_expected, temp_tol, iw)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_baro', &
       routineP = moduleN//':'//routineN
@@ -1548,7 +1521,7 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
 
     NULLIFY( npt, simpar)
-    CALL get_md_env ( md_env, simpar = simpar, npt = npt,  error=error)
+    CALL get_md_env ( md_env, simpar = simpar, npt = npt)
     IF (ABS(temp_expected - md_ener%temp_baro/kelvin) > temp_tol) THEN
        scale = 0.0_dp
        IF (md_ener%temp_baro>0.0_dp) scale = SQRT((temp_expected/md_ener%temp_baro)*kelvin)
@@ -1586,20 +1559,18 @@ CONTAINS
 !> \param md_ener ...
 !> \param force_env ...
 !> \param logger ...
-!> \param error ...
 !> \par History
 !>     Creation (15.09.2003,MK)
 !>     adapted to force_env (05.10.2003,fawzi)
 !>     Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE temperature_control(simpar, md_env, md_ener,force_env,logger, error)
+  SUBROUTINE temperature_control(simpar, md_env, md_ener,force_env,logger)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
       routineP = moduleN//':'//routineN
@@ -1611,36 +1582,36 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(subsys, para_env)
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
+    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CALL force_env_get(force_env,subsys=subsys,para_env=para_env)
     iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
-         extension=".mdLog",error=error)
+         extension=".mdLog")
 
     ! Control the particle motion
     IF(simpar%do_thermal_region) THEN
-       CALL scale_velocity_region(md_env, subsys, md_ener, simpar, iw, error)
+       CALL scale_velocity_region(md_env, subsys, md_ener, simpar, iw)
     ELSE
       IF (simpar%temp_tol > 0.0_dp ) THEN
-         CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw, error)
+         CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw)
       END IF
     END IF
     ! Control the internal core-shell motion
     IF(simpar%temp_sh_tol > 0.0_dp) THEN
-       CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw, error)
+       CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw)
     END IF
     ! Control cell motion
     SELECT CASE (simpar%ensemble)
     CASE( nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
             npt_f_ensemble, npt_i_ensemble, npe_f_ensemble, npe_i_ensemble)
        IF(simpar%temp_baro_tol > 0.0_dp) THEN
-          CALL scale_velocity_baro(md_env, md_ener, simpar%temp_baro_ext, simpar%temp_baro_tol, iw, error)
+          CALL scale_velocity_baro(md_env, md_ener, simpar%temp_baro_ext, simpar%temp_baro_tol, iw)
        END IF
     END SELECT
 
     CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-         "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
+         "MOTION%MD%PRINT%PROGRAM_RUN_INFO")
     CALL timestop(handle)
   END SUBROUTINE temperature_control
 
@@ -1650,18 +1621,16 @@ CONTAINS
 !> \param force_env ...
 !> \param md_section ...
 !> \param logger ...
-!> \param error ...
 !> \par History
 !>      Creation (29.04.2007,MI)
 !>      Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE comvel_control(md_ener,force_env, md_section, logger, error)
+  SUBROUTINE comvel_control(md_ener,force_env, md_section, logger)
 
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comvel_control', &
       routineP = moduleN//':'//routineN
@@ -1674,31 +1643,31 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(subsys)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CALL force_env_get(force_env,subsys=subsys)
 
     ! Print COMVEL and COM Position
-    iw = cp_print_key_unit_nr(logger,md_section,"PRINT%CENTER_OF_MASS",extension=".mdLog",error=error)
+    iw = cp_print_key_unit_nr(logger,md_section,"PRINT%CENTER_OF_MASS",extension=".mdLog")
     IF (iw>0) THEN
        WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
             "Centre of mass motion (COM):","x =",md_ener%vcom(1),"y =",md_ener%vcom(2),"z =",md_ener%vcom(3)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,md_section,"PRINT%CENTER_OF_MASS", error=error)
+    CALL cp_print_key_finished_output(iw,logger,md_section,"PRINT%CENTER_OF_MASS")
 
     ! If requested rescale COMVEL
-    CALL section_vals_val_get(md_section,"COMVEL_TOL",explicit=explicit,error=error)
+    CALL section_vals_val_get(md_section,"COMVEL_TOL",explicit=explicit)
     IF ( explicit ) THEN
-       CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=comvel_tol,error=error)
+       CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=comvel_tol)
        iw = cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
-            extension=".mdLog",error=error)
+            extension=".mdLog")
        vel_com = SQRT(md_ener%vcom(1)**2+md_ener%vcom(2)**2+md_ener%vcom(3)**2)
 
        ! Subtract the velocity of the COM, if requested
        IF (vel_com > comvel_tol) THEN
           temp_old = md_ener%temp_part/kelvin
           vcom_old = md_ener%vcom
-          CALL reset_vcom( subsys, md_ener, vsubtract=vcom_old, error=error)
-          CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
+          CALL reset_vcom( subsys, md_ener, vsubtract=vcom_old)
+          CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw)
           IF (iw>0) THEN
              WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
                   "Old VCOM = ",vcom_old(1:3)," a.u.",&
@@ -1706,7 +1675,7 @@ CONTAINS
           END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,md_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)
+            "PRINT%PROGRAM_RUN_INFO")
     END IF
 
     CALL timestop(handle)
@@ -1718,17 +1687,15 @@ CONTAINS
 !> \param force_env ...
 !> \param md_section ...
 !> \param logger ...
-!> \param error ...
 !> \par History
 !>      Creation (10.2009) Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE angvel_control(md_ener, force_env, md_section, logger, error)
+  SUBROUTINE angvel_control(md_ener, force_env, md_section, logger)
 
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'angvel_control', &
       routineP = moduleN//':'//routineN
@@ -1752,24 +1719,24 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     ! If requested rescale ANGVEL
-    CALL section_vals_val_get(md_section,"ANGVEL_TOL",explicit=explicit,error=error)
+    CALL section_vals_val_get(md_section,"ANGVEL_TOL",explicit=explicit)
     IF ( explicit ) THEN
        NULLIFY(subsys, cell)
-       CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-       CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+       CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+       CALL force_env_get(force_env,subsys=subsys,cell=cell)
 
        IF (SUM(cell%perd(1:3)) == 0) THEN
-          CALL section_vals_val_get(md_section,"ANGVEL_TOL",r_val=angvel_tol,error=error)
+          CALL section_vals_val_get(md_section,"ANGVEL_TOL",r_val=angvel_tol)
           iw = cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
-               extension=".mdLog",error=error)
+               extension=".mdLog")
 
           CALL cp_subsys_get(subsys,molecule_kinds_new=molecule_kinds,&
-               particles=particles, error=error)
+               particles=particles)
 
           natoms = SIZE(particles%els)
           ! Build a list of all fixed atoms (if any)
           ALLOCATE (is_fixed(natoms),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
@@ -1786,14 +1753,14 @@ CONTAINS
 
           ! If requested and the system is not periodic, subtract the angular velocity
           CALL compute_rcom(particles%els,is_fixed,rcom)
-          CALL compute_vang(particles%els,is_fixed,rcom,vang,error)
+          CALL compute_vang(particles%els,is_fixed,rcom,vang)
           IF (SQRT(DOT_PRODUCT(vang,vang))>angvel_tol) THEN
              CALL subtract_vang(particles%els,is_fixed,rcom,vang)
 
              ! Rescale velocities after removal
              temp_old = md_ener%temp_part/kelvin
-             CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
-             CALL compute_vang(particles%els,is_fixed,rcom,vang_new,error)
+             CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw)
+             CALL compute_vang(particles%els,is_fixed,rcom,vang_new)
              IF (iw>0) THEN
                 WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
                      "Old VANG = ",vang(1:3)," a.u.",&
@@ -1802,10 +1769,10 @@ CONTAINS
           END IF
 
           DEALLOCATE (is_fixed,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
           CALL cp_print_key_finished_output(iw,logger,md_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
+               "PRINT%PROGRAM_RUN_INFO")
        END IF
     END IF
 
@@ -1821,13 +1788,11 @@ CONTAINS
 !> \param md_section ...
 !> \param constraint_section ...
 !> \param write_binary_restart_file ...
-!> \param error ...
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
   SUBROUTINE setup_velocities(force_env, simpar, globenv, md_env, md_section, &
-                              constraint_section, write_binary_restart_file, &
-                              error)
+                              constraint_section, write_binary_restart_file)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
@@ -1835,7 +1800,6 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, constraint_section
     LOGICAL, INTENT(IN)                      :: write_binary_restart_file
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_velocities', &
       routineP = moduleN//':'//routineN
@@ -1866,23 +1830,22 @@ CONTAINS
     NULLIFY (shell_particles,core_particle_set,particle_set,shell_particle_set)
     NULLIFY (force_env_section,print_section,subsys_section)
 
-    print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
+    print_section => section_vals_get_subs_vals(md_section,"PRINT")
     apply_cns0 = .FALSE.
     IF (simpar%constraint) THEN
-       CALL section_vals_val_get(constraint_section,"CONSTRAINT_INIT",l_val=apply_cns0,error=error)
+       CALL section_vals_val_get(constraint_section,"CONSTRAINT_INIT",l_val=apply_cns0)
     END IF
     ! Always initialize velocities and possibly restart them
     CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env,&
-         force_env_section=force_env_section, error=error )
-    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+         force_env_section=force_env_section)
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
 
     CALL cp_subsys_get(subsys,&
                        atomic_kinds=atomic_kinds,&
                        core_particles=core_particles,&
                        molecule_kinds_new=molecule_kinds,&
                        particles=particles,&
-                       shell_particles=shell_particles,&
-                       error=error)
+                       shell_particles=shell_particles)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
                              shell_present=shell_present,&
@@ -1902,9 +1865,9 @@ CONTAINS
                       cp_fatal_level,cp_assertion_failed,routineP,&
                       "Only the fixed atom constraint is implemented for core-shell models",&
                       only_ionode=.TRUE.)
-!MK    CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(shell_particles),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(core_particles),cp_failure_level,routineP,error,failure)
+!MK    CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,failure)
+       CPPostcondition(ASSOCIATED(shell_particles),cp_failure_level,routineP,failure)
+       CPPostcondition(ASSOCIATED(core_particles),cp_failure_level,routineP,failure)
        shell_particle_set => shell_particles%els
        core_particle_set  =>  core_particles%els
     END IF
@@ -1914,44 +1877,43 @@ CONTAINS
          label="Velocities initialization",print_section=print_section, &
          subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
          shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
-         para_env=para_env,error=error)
+         para_env=para_env)
 
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
        IF (apply_cns0) THEN
-          CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.,error=error)
+          CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.)
           CALL force_env_shake(force_env,shake_tol=simpar%shake_tol,&
                log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-               dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
+               dump_lm=simpar%dump_lm,compold=.TRUE.)
           CALL force_env_rattle(force_env,shake_tol=simpar%shake_tol,&
                log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-               dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
+               dump_lm=simpar%dump_lm,reset=.TRUE.)
           IF (simpar%do_respa)THEN
              CALL force_env_calc_energy_force (force_env%sub_force_env(1)%force_env,&
-                  calc_force=.TRUE.,error=error)
+                  calc_force=.TRUE.)
              CALL force_env_shake(force_env%sub_force_env(1)%force_env,&
                   shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
-                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
+                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,compold=.TRUE.)
              CALL force_env_rattle(force_env%sub_force_env(1)%force_env,&
                   shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
-                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
+                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.)
           END IF
           ! Reinitialize velocities rescaling properly after rattle
-          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-          CALL update_subsys(subsys_section,force_env,.FALSE.,write_binary_restart_file,error)
+          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
+          CALL update_subsys(subsys_section,force_env,.FALSE.,write_binary_restart_file)
 
           CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds,&
                force_env=force_env, globenv=globenv, md_env=md_env,&
                label="Re-Initializing velocities after applying constraints",print_section=print_section, &
                subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
                shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
-               para_env=para_env,error=error)
+               para_env=para_env)
        END IF
     END IF
 
     ! Perform setup for a cascade run
-    CALL initialize_cascade(simpar,particle_set,molecule_kinds,md_section,&
-                            error=error)
+    CALL initialize_cascade(simpar,particle_set,molecule_kinds,md_section)
 
     CALL timestop(handle)
 
@@ -1963,20 +1925,17 @@ CONTAINS
 !> \param particle_set ...
 !> \param molecule_kinds ...
 !> \param md_section ...
-!> \param error ...
 !> \date    05.02.2012
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE initialize_cascade(simpar,particle_set,molecule_kinds,md_section,&
-                                error)
+  SUBROUTINE initialize_cascade(simpar,particle_set,molecule_kinds,md_section)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: md_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_cascade', &
       routineP = moduleN//':'//routineN
@@ -2020,24 +1979,24 @@ CONTAINS
     NULLIFY (logger)
     NULLIFY (val)
 
-    logger => cp_error_get_logger(error)
-    print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
-    iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
+    logger => cp_get_default_logger()
+    print_section => section_vals_get_subs_vals(md_section,"PRINT")
+    iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log")
 
-    cascade_section => section_vals_get_subs_vals(md_section,"CASCADE",error=error)
-    CALL section_vals_val_get(cascade_section,"_SECTION_PARAMETERS_",l_val=init_cascade,error=error)
+    cascade_section => section_vals_get_subs_vals(md_section,"CASCADE")
+    CALL section_vals_val_get(cascade_section,"_SECTION_PARAMETERS_",l_val=init_cascade)
 
     nparticle = SIZE(particle_set)
 
     IF (init_cascade) THEN
 
-       CALL section_vals_val_get(cascade_section,"ENERGY",r_val=energy,error=error)
+       CALL section_vals_val_get(cascade_section,"ENERGY",r_val=energy)
        CALL cp_assert((energy >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
                       "Error occurred reading &CASCADE section: Negative energy found",&
                       only_ionode=.TRUE.)
 
        IF (iw > 0) THEN
-          ekin = cp_unit_from_cp2k(energy,"keV",error=error)
+          ekin = cp_unit_from_cp2k(energy,"keV")
           WRITE (UNIT=iw,FMT="(T2,A,T61,F20.6)")&
            "CASCADE| Energy [keV]",ekin
           WRITE (UNIT=iw,FMT="(T2,A)")&
@@ -2045,9 +2004,9 @@ CONTAINS
        END IF
 
        ! Read the atomic velocities given in the input file
-       atom_list_section => section_vals_get_subs_vals(cascade_section,"ATOM_LIST",error=error)
-       CALL section_vals_val_get(atom_list_section,"_DEFAULT_KEYWORD_",n_rep_val=natom,error=error)
-       CALL section_vals_list_get(atom_list_section,"_DEFAULT_KEYWORD_",list=atom_list,error=error)
+       atom_list_section => section_vals_get_subs_vals(cascade_section,"ATOM_LIST")
+       CALL section_vals_val_get(atom_list_section,"_DEFAULT_KEYWORD_",n_rep_val=natom)
+       CALL section_vals_list_get(atom_list_section,"_DEFAULT_KEYWORD_",list=atom_list)
        CALL cp_assert((natom > 0),cp_fatal_level,cp_assertion_failed,routineP,&
                       "Error occurred reading &CASCADE section: No atom list found",&
                       only_ionode=.TRUE.)
@@ -2058,17 +2017,17 @@ CONTAINS
        END IF
 
        ALLOCATE (atom_index(natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
        ALLOCATE (matom(natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
        ALLOCATE (vatom(3,natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
        ALLOCATE (weight(natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
 
        DO iatom=1,natom
-          is_ok = cp_sll_val_next(atom_list,val,error=error)
-          CALL val_get(val,c_val=line,error=error)
+          is_ok = cp_sll_val_next(atom_list,val)
+          CALL val_get(val,c_val=line)
           ! Read atomic index, velocity vector, and weight
           no_read_error = .FALSE.
           READ (UNIT=line,FMT=*,ERR=999) atom_index(iatom),vatom(1:3,iatom),weight(iatom)
@@ -2115,7 +2074,7 @@ CONTAINS
           WRITE (UNIT=iw,FMT="(T2,A,T11,A,3(11X,A),9X,A)")&
            "CASCADE| ","Atom index","v(x)","v(y)","v(z)","E(kin)"
           DO iatom=1,natom
-             ekin = cp_unit_from_cp2k(weight(iatom),"keV",error=error)
+             ekin = cp_unit_from_cp2k(weight(iatom),"keV")
              WRITE (UNIT=iw,FMT="(T2,A,I10,4(1X,F14.6))")&
               "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),ekin
           END DO
@@ -2129,18 +2088,18 @@ CONTAINS
        END DO
 
        DEALLOCATE (atom_index,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
        DEALLOCATE (matom,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
        DEALLOCATE (vatom,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
        DEALLOCATE (weight,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
 
        IF (iw > 0) THEN
           ! Build a list of all fixed atoms (if any)
           ALLOCATE (is_fixed(nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
           DO imolecule_kind=1,molecule_kinds%n_els
@@ -2156,12 +2115,12 @@ CONTAINS
           CALL compute_vcom(particle_set,is_fixed,vcom,ecom)
           ekin = compute_ekin(particle_set) - ecom
           IF (simpar%nfree == 0) THEN
-             CPPostcondition((ekin == 0.0_dp),cp_failure_level,routineP,error,failure)
+             CPPostcondition((ekin == 0.0_dp),cp_failure_level,routineP,failure)
              temp = 0.0_dp
           ELSE
              temp = 2.0_dp*ekin/REAL(simpar%nfree,KIND=dp)
           END IF
-          temperature = cp_unit_from_cp2k(temp,"K",error=error)
+          temperature = cp_unit_from_cp2k(temp,"K")
           WRITE (UNIT=iw,FMT="(T2,A)")&
            "CASCADE|"
           WRITE (UNIT=iw,FMT="(T2,A,T61,F18.2,A2)")&
@@ -2169,20 +2128,20 @@ CONTAINS
           WRITE (UNIT=iw,FMT="(T2,A,T30,3(1X,ES16.8),/)")&
            "CASCADE| COM velocity: ",vcom(1:3)
 !MK          ! compute and log rcom and vang if not periodic
-!MK          CALL force_env_get(force_env,cell=cell,error=error)
+!MK          CALL force_env_get(force_env,cell=cell)
 !MK          IF (SUM(cell%perd(1:3)) == 0) THEN
 !MK             CALL compute_rcom(particle_set,is_fixed,rcom)
-!MK             CALL compute_vang(particle_set,is_fixed,rcom,vang,error)
+!MK             CALL compute_vang(particle_set,is_fixed,rcom,vang)
 !MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:',rcom(1:3)
 !MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:',vang(1:3)
 !MK          END IF
           DEALLOCATE (is_fixed,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
 
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 

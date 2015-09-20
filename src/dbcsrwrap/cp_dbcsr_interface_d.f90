@@ -11,10 +11,9 @@
 !> \param error ...
 !> \retval encapsulated ...
 ! *****************************************************************************
-  FUNCTION make_conformant_scalar_d (scalar, matrix, error) RESULT (encapsulated)
+  FUNCTION make_conformant_scalar_d (scalar, matrix) RESULT (encapsulated)
     REAL(kind=real_8), INTENT(IN)                      :: scalar
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_conformant_scalar_d', &
       routineP = moduleN//':'//routineN
@@ -31,7 +30,7 @@
        CALL cp_assert (data_type .EQ. dbcsr_type_complex_4 .OR.&
             data_type .EQ. dbcsr_type_complex_8,&
             cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Can not conform a complex to a real number", error=error)
+            "Can not conform a complex to a real number")
     END IF
     CALL dbcsr_scalar_set_type (encapsulated,data_type)
   END FUNCTION make_conformant_scalar_d
@@ -252,10 +251,9 @@
 !> \param trace ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_trace_a_d (matrix_a, trace, error)
+  SUBROUTINE cp_dbcsr_trace_a_d (matrix_a, trace)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(kind=real_8), INTENT(OUT)                     :: trace
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_d', &
       routineP = moduleN//':'//routineN
@@ -280,12 +278,11 @@
 !> \param local_sum ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_trace_ab_d (matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
+  SUBROUTINE cp_dbcsr_trace_ab_d (matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a, matrix_b
     REAL(kind=real_8), INTENT(INOUT)                   :: trace
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
     LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_d', &
       routineP = moduleN//':'//routineN
@@ -323,7 +320,7 @@
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, match_matrix_sizes, &
        filter_eps,&
-       error, flop)
+       flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(kind=real_8), INTENT(IN)                      :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -334,7 +331,6 @@
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity, match_matrix_sizes
     REAL(kind=real_8), INTENT(IN), OPTIONAL :: filter_eps
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_d', &
@@ -358,12 +354,12 @@
     my_match_matrix_sizes=.FALSE.
     IF(PRESENT(match_matrix_sizes)) my_match_matrix_sizes=match_matrix_sizes
     IF(my_match_matrix_sizes)THEN
-       CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb, new_a, new_b, error)
+       CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb, new_a, new_b)
     ELSE
-       CALL cp_dbcsr_init(new_a,error=error)
-       CALL cp_dbcsr_init(new_b,error=error)
-       CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE., error=error)
-       CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE., error=error)
+       CALL cp_dbcsr_init(new_a)
+       CALL cp_dbcsr_init(new_b)
+       CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE.)
+       CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE.)
     END IF
 
     CALL dbcsr_multiply(transa, transb,&
@@ -373,8 +369,8 @@
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
 
-    CALL cp_dbcsr_release (new_a, error=error)
-    CALL cp_dbcsr_release (new_b, error=error)
+    CALL cp_dbcsr_release (new_a)
+    CALL cp_dbcsr_release (new_b)
 
   END SUBROUTINE cp_dbcsr_multiply_d
 
@@ -386,11 +382,10 @@
 !> \param side ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_scale_by_vector_d (matrix_a, alpha, side, error)
+  SUBROUTINE cp_dbcsr_scale_by_vector_d (matrix_a, alpha, side)
     TYPE(cp_dbcsr_type), INTENT(INOUT)        :: matrix_a
     REAL(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: alpha
     CHARACTER(LEN=*), INTENT(IN)              :: side
-    TYPE(cp_error_type), INTENT(INOUT)        :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_d ', &
       routineP = moduleN//':'//routineN
@@ -408,11 +403,10 @@
 !> \param last_column ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_scale_d (matrix_a, alpha_scalar, last_column, error)
+  SUBROUTINE cp_dbcsr_scale_d (matrix_a, alpha_scalar, last_column)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar
     INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_d', &
       routineP = moduleN//':'//routineN
@@ -429,17 +423,16 @@
 !> \param alpha ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_set_d (matrix, alpha, error)
+  SUBROUTINE cp_dbcsr_set_d (matrix, alpha)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     REAL(kind=real_8), INTENT(IN)                      :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_d', &
       routineP = moduleN//':'//routineN
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix, error), dbcsr_error)
+    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix), dbcsr_error)
   END SUBROUTINE cp_dbcsr_set_d
 
 
@@ -451,11 +444,10 @@
 !> \param beta_scalar ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_add_d (matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+  SUBROUTINE cp_dbcsr_add_d (matrix_a, matrix_b, alpha_scalar, beta_scalar)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
     REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar, beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_d', &
       routineP = moduleN//':'//routineN

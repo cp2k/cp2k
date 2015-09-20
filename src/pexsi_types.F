@@ -112,15 +112,13 @@ CONTAINS
 !> \param pexsi_env All data needed by PEXSI 
 !> \param mp_group message-passing group ID
 !> \param nspin number of spins
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE lib_pexsi_init(pexsi_env, mp_group, nspin, error)
+  SUBROUTINE lib_pexsi_init(pexsi_env, mp_group, nspin)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
     INTEGER, INTENT(IN)                      :: mp_group, nspin
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lib_pexsi_init', &
       routineP = moduleN//':'//routineN
@@ -129,7 +127,7 @@ CONTAINS
                                                 npSymbFact, numnodes, unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
     ELSE
@@ -158,11 +156,10 @@ CONTAINS
       pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole + 1
     ENDDO
 
-    CALL cp_pexsi_get_options(pexsi_env%options,npSymbFact=npSymbFact,error=error)
+    CALL cp_pexsi_get_options(pexsi_env%options,npSymbFact=npSymbFact)
     IF ((npSymbFact .GT. pexsi_env%num_ranks_per_pole) .OR. (npSymbFact .EQ. 0)) THEN
       ! Use maximum possible number of ranks for symbolic factorization
-      CALL cp_pexsi_set_options(pexsi_env%options, npSymbFact=pexsi_env%num_ranks_per_pole, &
-                                error=error)
+      CALL cp_pexsi_set_options(pexsi_env%options, npSymbFact=pexsi_env%num_ranks_per_pole)
     ENDIF
 
     ! Create dimensions for MPI cartesian grid for PEXSI
@@ -180,12 +177,12 @@ CONTAINS
 
     ! Initialize PEXSI
     pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group,pexsi_env%mp_dims(1),&
-                                              pexsi_env%mp_dims(2),mynode,error)
+                                              pexsi_env%mp_dims(2),mynode)
     
     pexsi_env%do_adaptive_tol_nel = .FALSE.
 
     ! Print PEXSI infos
-    IF(unit_nr>0) CALL print_pexsi_info(pexsi_env, unit_nr, error)
+    IF(unit_nr>0) CALL print_pexsi_info(pexsi_env, unit_nr)
 
     CALL timestop(handle)
   END SUBROUTINE lib_pexsi_init
@@ -193,14 +190,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Release all PEXSI data
 !> \param pexsi_env ...
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE lib_pexsi_finalize(pexsi_env, error)
+  SUBROUTINE lib_pexsi_finalize(pexsi_env)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lib_pexsi_finalize', &
       routineP = moduleN//':'//routineN
@@ -208,7 +203,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin
 
     CALL timeset(routineN,handle)
-    CALL cp_pexsi_plan_finalize(pexsi_env%plan, error)
+    CALL cp_pexsi_plan_finalize(pexsi_env%plan)
     DEALLOCATE(pexsi_env%kTS)
     DEALLOCATE(pexsi_env%max_ev_vector)
     DO ispin = 1, pexsi_env%nspin
@@ -227,12 +222,11 @@ CONTAINS
 !> \param matrix_p ...
 !> \param matrix_w ...
 !> \param kTS ...
-!> \param error ...
 !> \par History
 !>      01.2015 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_nspin_cp2k_pexsi(direction, numElectron, matrix_p, matrix_w, kTS, error)
+  SUBROUTINE convert_nspin_cp2k_pexsi(direction, numElectron, matrix_p, matrix_w, kTS)
     INTEGER, INTENT(IN)                      :: direction
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: numElectron
     TYPE(cp_dbcsr_type), INTENT(INOUT), &
@@ -240,7 +234,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), INTENT(INOUT), &
       OPTIONAL                               :: matrix_w
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: kTS
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'convert_nspin_cp2k_pexsi', &
       routineP = moduleN//':'//routineN
@@ -258,8 +251,8 @@ CONTAINS
     END SELECT
 
     IF (PRESENT(numElectron)) numElectron = scaling*numElectron
-    IF (PRESENT(matrix_p)) CALL cp_dbcsr_scale(matrix_p, scaling, error=error)
-    IF (PRESENT(matrix_w)) CALL cp_dbcsr_scale(matrix_w%matrix, scaling, error=error)
+    IF (PRESENT(matrix_p)) CALL cp_dbcsr_scale(matrix_p, scaling)
+    IF (PRESENT(matrix_w)) CALL cp_dbcsr_scale(matrix_w%matrix, scaling)
     IF (PRESENT(kTS)) kTS = scaling*kTS
 
     CALL timestop(handle)
@@ -269,12 +262,10 @@ CONTAINS
 !> \brief Print relevant options of PEXSI
 !> \param pexsi_env ...
 !> \param unit_nr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE print_pexsi_info(pexsi_env,unit_nr, error)
+  SUBROUTINE print_pexsi_info(pexsi_env,unit_nr)
     TYPE(lib_pexsi_env), INTENT(IN)          :: pexsi_env
     INTEGER, INTENT(IN)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: mynode, npSymbFact, numnodes, &
                                                 numPole, ordering
@@ -286,8 +277,7 @@ CONTAINS
     CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
            numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance=&
            muInertiaTolerance, muInertiaExpansion=muInertiaExpansion, &
-           muPEXSISafeGuard=muPEXSISafeGuard, ordering=ordering, npSymbFact=npSymbFact, &
-           error = error)
+           muPEXSISafeGuard=muPEXSISafeGuard, ordering=ordering, npSymbFact=npSymbFact)
 
     WRITE(unit_nr,'(/A)') " PEXSI| Initialized with parameters"
     WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Electronic temperature", temperature

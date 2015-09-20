@@ -94,15 +94,13 @@ CONTAINS
 !> \param mm_atom_index ...
 !> \param mm_link_atoms ...
 !> \param mm_link_scale_factor ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE assign_mm_charges_and_radius(subsys, charges, mm_atom_chrg,mm_el_pot_radius,&
                                          mm_el_pot_radius_corr, mm_atom_index, mm_link_atoms,&
-                                         mm_link_scale_factor, error)
+                                         mm_link_scale_factor)
     TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
@@ -110,7 +108,6 @@ CONTAINS
                                                 mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms
     REAL(dp), DIMENSION(:), POINTER          :: mm_link_scale_factor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_mm_charges_and_radius', &
       routineP = moduleN//':'//routineN
@@ -124,7 +121,7 @@ CONTAINS
       POINTER                                :: particle_set
 
     NULLIFY(particle_set, my_kind)
-    CALL cp_subsys_get(subsys=subsys,particles=particles,error=error)
+    CALL cp_subsys_get(subsys=subsys,particles=particles)
     particle_set => particles%els
 
     DO I = 1, SIZE(mm_atom_index)
@@ -162,14 +159,12 @@ CONTAINS
 !> \param added_charges ...
 !> \param qmmm_section ...
 !> \param nocompatibility ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                               added_charges, qmmm_section, nocompatibility, error)
+                               added_charges, qmmm_section, nocompatibility)
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
@@ -177,7 +172,6 @@ CONTAINS
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(IN)                      :: nocompatibility
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_qmmm_charges', &
       routineP = moduleN//':'//routineN
@@ -187,9 +181,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     qtot = 0.0_dp
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%QMMM_CHARGES",&
-                                         extension=".log",error=error)
+                                         extension=".log")
     IF (iw>0) THEN
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
        WRITE(iw,FMT='(/5X,A)')"MM    POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
@@ -234,23 +228,20 @@ CONTAINS
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
-               "PRINT%QMMM_CHARGES", error=error)
+               "PRINT%QMMM_CHARGES")
   END SUBROUTINE print_qmmm_charges
 
 ! *****************************************************************************
 !> \brief Print info on qm/mm links
 !> \param qmmm_section ...
 !> \param qmmm_links ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
- SUBROUTINE print_qmmm_links( qmmm_section, qmmm_links, error)
+ SUBROUTINE print_qmmm_links( qmmm_section, qmmm_links)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_qmmm_links', &
       routineP = moduleN//':'//routineN
@@ -259,8 +250,8 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%qmmm_link_info", extension=".log",error=error)
+    logger => cp_get_default_logger()
+    iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%qmmm_link_info", extension=".log")
     IF (iw>0) THEN
        IF (ASSOCIATED(qmmm_links)) THEN
           WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
@@ -293,7 +284,7 @@ CONTAINS
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
-               "PRINT%qmmm_link_info", error=error)
+               "PRINT%qmmm_link_info")
   END SUBROUTINE print_qmmm_links
 
 ! *****************************************************************************
@@ -305,22 +296,19 @@ CONTAINS
 !> \param added_charges ...
 !> \param print_section ...
 !> \param qmmm_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, para_env, &
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
-                                    qmmm_section, error )
+                                    qmmm_section)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type', &
       routineP = moduleN//':'//routineN
@@ -336,7 +324,7 @@ CONTAINS
     NULLIFY(maxradius, maxradius2, pw_env)
 
     maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
-    CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
+    CALL get_qs_env(qs_env, pw_env=pw_env)
     IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   para_env=para_env,&
@@ -349,8 +337,7 @@ CONTAINS
                                   maxchrg=maxchrg,&
                                   compatibility=qmmm_env_qm%compatibility,&
                                   print_section=print_section,&
-                                  qmmm_section=qmmm_section,&
-                                  error=error)
+                                  qmmm_section=qmmm_section)
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
@@ -364,8 +351,7 @@ CONTAINS
                                      maxchrg=maxchrg,&
                                      compatibility=qmmm_env_qm%compatibility,&
                                      print_section=print_section,&
-                                     qmmm_section=qmmm_section,&
-                                     error=error)
+                                     qmmm_section=qmmm_section)
 
        SELECT CASE(qmmm_env_qm%qmmm_coupl_type)
        CASE(do_qmmm_gauss,do_qmmm_swave,do_qmmm_pcharge)
@@ -375,7 +361,7 @@ CONTAINS
        END SELECT
 
        IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     qmmm_env_qm%maxradius => maxradius
@@ -388,19 +374,16 @@ CONTAINS
 !> \param mm_cell ...
 !> \param added_charges ...
 !> \param print_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE qmmm_init_potential(qmmm_env_qm, mm_cell, &
-                                added_charges, print_section, error)
+                                added_charges, print_section)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_potential', &
       routineP = moduleN//':'//routineN
@@ -411,8 +394,7 @@ CONTAINS
                              pgfs=qmmm_env_qm%pgfs,&
                              mm_cell=mm_cell,&
                              compatibility=qmmm_env_qm%compatibility,&
-                             print_section=print_section,&
-                             error=error)
+                             print_section=print_section)
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
 
@@ -422,8 +404,7 @@ CONTAINS
                                 pgfs=added_charges%pgfs,&
                                 mm_cell=mm_cell,&
                                 compatibility=qmmm_env_qm%compatibility,&
-                                print_section=print_section,&
-                                error=error)
+                                print_section=print_section)
     END IF
 
  END SUBROUTINE qmmm_init_potential
@@ -439,14 +420,12 @@ CONTAINS
 !> \param qmmm_periodic ...
 !> \param print_section ...
 !> \param mm_atom_chrg ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      7.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
-                                         added_charges, qmmm_periodic, print_section, mm_atom_chrg, error)
+                                         added_charges, qmmm_periodic, print_section, mm_atom_chrg)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -454,7 +433,6 @@ CONTAINS
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_periodic_potential', &
       routineP = moduleN//':'//routineN
@@ -465,21 +443,20 @@ CONTAINS
    IF (qmmm_env_qm%periodic) THEN
 
       NULLIFY(dft_control)
-      CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       IF(dft_control%qs_control%semi_empirical) THEN
          CALL cp_unimplemented_error(fromWhere=routineP, &
             message="QM/MM periodic calculations not implemented for semi empirical methods", &
-            error=error, error_level=cp_fatal_level)
+            error_level=cp_fatal_level)
       ELSE IF(dft_control%qs_control%dftb) THEN
          CALL qmmm_ewald_potential_init(qmmm_env_qm%ewald_env, qmmm_env_qm%ewald_pw,&
               qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, mm_cell=mm_cell,&
-              para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section,&
-              error=error)
+              para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section)
       ELSE IF(dft_control%qs_control%scptb) THEN
          CALL cp_unimplemented_error(fromWhere=routineP, &
             message="QM/MM periodic calculations not implemented for SCPTB method", &
-            error=error, error_level=cp_fatal_level)
+            error_level=cp_fatal_level)
       ELSE
  
          ! setup for GPW/GPAW
@@ -499,8 +476,7 @@ CONTAINS
               eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
               maxchrg=maxchrg,&
               ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
-              ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-              error=error)
+              ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local)
 
          IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
 
@@ -517,8 +493,7 @@ CONTAINS
                  eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                  maxchrg=maxchrg,&
                  ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
-                 ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-                 error=error)
+                 ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local)
          END IF
 
       END IF
@@ -540,15 +515,13 @@ CONTAINS
 !> \param eps_mm_rspace ...
 !> \param qmmm_link ...
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE setup_qmmm_vars_qm( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
        qm_atom_index, mm_atom_index, qm_cell_small, qmmm_coupl_type, eps_mm_rspace,&
-       qmmm_link, para_env, error)
+       qmmm_link, para_env)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_subsys_type), POINTER            :: subsys_mm
@@ -560,7 +533,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: eps_mm_rspace
     LOGICAL, INTENT(OUT)                     :: qmmm_link
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm', &
       routineP = moduleN//':'//routineN
@@ -585,18 +557,18 @@ CONTAINS
     qmmm_link = .FALSE.
     failure   = .FALSE.
 
-    CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
+    CALL section_vals_get(qmmm_section,explicit=explicit)
     IF (explicit) THEN
        !
        ! QM_CELL
        !
-       cell_section => section_vals_get_subs_vals(qmmm_section,"CELL",error=error)
+       cell_section => section_vals_get_subs_vals(qmmm_section,"CELL")
        CALL read_cell( qm_cell_small, qm_cell_small, cell_section=cell_section,&
-            check_for_ref=.FALSE., para_env=para_env, error=error)
-       CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
-       CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace,error=error)
-       CALL section_vals_val_get(qmmm_section,"SPHERICAL_CUTOFF",r_vals=tmp_sph_cut,error=error)
-       CPPostcondition(SIZE(tmp_sph_cut)==2,cp_failure_level,routineP,error,failure)
+            check_for_ref=.FALSE., para_env=para_env)
+       CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type)
+       CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace)
+       CALL section_vals_val_get(qmmm_section,"SPHERICAL_CUTOFF",r_vals=tmp_sph_cut)
+       CPPostcondition(SIZE(tmp_sph_cut)==2,cp_failure_level,routineP,failure)
        qmmm_env%spherical_cutoff = tmp_sph_cut
        IF (qmmm_env%spherical_cutoff(1)<=0.0_dp) THEN
           qmmm_env%spherical_cutoff(2) = 0.0_dp
@@ -606,14 +578,13 @@ CONTAINS
           CALL cp_assert(tmp_radius>0.0_dp,cp_failure_level,cp_assertion_failed,routineP,&
                "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
                "the Spherical Cutoff in order to satisfy the previous condition!"//&
-               CPSourceFileRef,error,failure)
+               CPSourceFileRef,failure)
        END IF
        !
        ! Initialization of arrays and core_charge_radius...
        !
        tmp_radius=0.0_dp
-       CALL cp_subsys_get(subsys=subsys_mm,atomic_kinds=atomic_kinds,&
-                          error=error)
+       CALL cp_subsys_get(subsys=subsys_mm,atomic_kinds=atomic_kinds)
        DO Ikind = 1, SIZE(atomic_kinds%els)
           atomic_kind => atomic_kinds%els(Ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -628,17 +599,16 @@ CONTAINS
                                qm_atom_index=qm_atom_index,&
                                qm_atom_type=qm_atom_type,&
                                mm_link_atoms=mm_link_atoms,&
-                               qmmm_link=qmmm_link,&
-                               error=error)
+                               qmmm_link=qmmm_link)
        !
        ! MM_KINDS
        !
-       mm_kinds => section_vals_get_subs_vals(qmmm_section,"MM_KIND",error=error)
-       CALL section_vals_get(mm_kinds,explicit=explicit,n_repetition=nkind,error=error)
+       mm_kinds => section_vals_get_subs_vals(qmmm_section,"MM_KIND")
+       CALL section_vals_get(mm_kinds,explicit=explicit,n_repetition=nkind)
        !
        ! Default
        !
-       tmp_radius = cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT,"angstrom",error=error)
+       tmp_radius = cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT,"angstrom")
        Set_Radius_Pot_0: DO IkindR = 1, SIZE(atomic_kinds%els)
           atomic_kind => atomic_kinds%els(IkindR)
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
@@ -655,13 +625,12 @@ CONTAINS
        IF (explicit) THEN
           DO ikind=1,nkind
              CALL section_vals_val_get(mm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
-                  c_val=mm_atom_kind,error=error)
-             CALL section_vals_val_get(mm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
+                  c_val=mm_atom_kind)
+             CALL section_vals_val_get(mm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius)
              tmp_radius_c = tmp_radius
-             CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,&
-                  error=error)
+             CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val)
              IF (n_rep_val == 1) CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,&
-                  r_val=tmp_radius_c,error=error)
+                  r_val=tmp_radius_c)
              Set_Radius_Pot_1: DO IkindR = 1, SIZE(atomic_kinds%els)
                 atomic_kind => atomic_kinds%els(IkindR)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
@@ -681,13 +650,13 @@ CONTAINS
 
        !Image charge section
 
-       image_charge_section => section_vals_get_subs_vals(qmmm_section,"IMAGE_CHARGE",error=error)
-       CALL section_vals_get(image_charge_section,explicit=qmmm_env%image_charge,error=error)
+       image_charge_section => section_vals_get_subs_vals(qmmm_section,"IMAGE_CHARGE")
+       CALL section_vals_get(image_charge_section,explicit=qmmm_env%image_charge)
 
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
-          CPSourceFileRef,error,failure)
+          CPSourceFileRef,failure)
     ENDIF
     !
     ! Build MM atoms list
@@ -710,34 +679,34 @@ CONTAINS
           IF (icount <= size_mm_system) mm_atom_index(icount) = i
        END IF
     END DO
-    CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,error,failure)
+    CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,failure)
     IF (ASSOCIATED(mm_link_atoms)) THEN
        DEALLOCATE(mm_link_atoms, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     ! Build image charge atom list + set up variables
     !
     IF (qmmm_env%image_charge) THEN
        CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
-                                 explicit=explicit,error=error)
+                                 explicit=explicit)
        IF(explicit) qmmm_env%image_charge_pot%all_mm=.FALSE.
 
        IF(qmmm_env%image_charge_pot%all_mm) THEN
          qmmm_env%image_charge_pot%image_mm_list => mm_atom_index
        ELSE
          CALL setup_image_atom_list(image_charge_section,qmmm_env,&
-                                    qm_atom_index,subsys_mm,error)
+                                    qm_atom_index,subsys_mm)
        END IF
 
        qmmm_env%image_charge_pot%particles_all => subsys_mm%particles%els
 
        CALL section_vals_val_get(image_charge_section,"EXT_POTENTIAL",&
-                                 r_val=qmmm_env%image_charge_pot%V0,error=error)
+                                 r_val=qmmm_env%image_charge_pot%V0)
        CALL section_vals_val_get(image_charge_section,"WIDTH",&
-                                 r_val=qmmm_env%image_charge_pot%eta,error=error)
+                                 r_val=qmmm_env%image_charge_pot%eta)
        CALL section_vals_val_get(image_charge_section,"DETERM_COEFF",&
-                                 i_val=my_type,error=error)
+                                 i_val=my_type)
        SELECT CASE(my_type)
        CASE(do_qmmm_image_calcmatrix)
          qmmm_env%image_charge_pot%coeff_iterative=.FALSE.
@@ -746,8 +715,7 @@ CONTAINS
        END SELECT
 
        CALL section_vals_val_get(image_charge_section,"RESTART_IMAGE_MATRIX",&
-                                l_val=qmmm_env%image_charge_pot%image_restart,&
-                                error=error)
+                                l_val=qmmm_env%image_charge_pot%image_restart)
     END IF
 
   END SUBROUTINE setup_qmmm_vars_qm
@@ -762,8 +730,6 @@ CONTAINS
 !> \param fist_scale_charge_link ...
 !> \param qmmm_coupl_type ...
 !> \param qmmm_link ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -771,7 +737,7 @@ CONTAINS
   SUBROUTINE setup_qmmm_vars_mm( qmmm_section, qmmm_env, qm_atom_index,  &
                                  mm_link_atoms, mm_link_scale_factor, &
                                  fist_scale_charge_link, qmmm_coupl_type,&
-                                 qmmm_link, error)
+                                 qmmm_link)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_link_atoms
@@ -779,7 +745,6 @@ CONTAINS
                                                 fist_scale_charge_link
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm', &
       routineP = moduleN//':'//routineN
@@ -789,21 +754,21 @@ CONTAINS
 
     NULLIFY(qmmm_ff_section)
     qmmm_link = .FALSE.
-    CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
+    CALL section_vals_get(qmmm_section,explicit=explicit)
     IF (explicit) THEN
-       CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
+       CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type)
        CALL setup_qm_atom_list(qmmm_section,qm_atom_index=qm_atom_index,qmmm_link=qmmm_link,&
             mm_link_atoms=mm_link_atoms, mm_link_scale_factor = mm_link_scale_factor,&
-            fist_scale_charge_link=fist_scale_charge_link, error=error)
+            fist_scale_charge_link=fist_scale_charge_link)
        !
        ! Do we want to use a different FF for the non-bonded QM/MM interactions?
        !
-       qmmm_ff_section => section_vals_get_subs_vals(qmmm_section,"FORCEFIELD",error=error)
-       CALL section_vals_get(qmmm_ff_section,explicit=qmmm_env%use_qmmm_ff,error=error)
+       qmmm_ff_section => section_vals_get_subs_vals(qmmm_section,"FORCEFIELD")
+       CALL section_vals_get(qmmm_ff_section,explicit=qmmm_env%use_qmmm_ff)
        IF (qmmm_env%use_qmmm_ff) THEN
           CALL section_vals_val_get(qmmm_ff_section,"MULTIPLE_POTENTIAL",&
-               l_val=qmmm_env%multiple_potential,error=error)
-          CALL read_qmmm_ff_section(qmmm_ff_section, qmmm_env%inp_info, error=error)
+               l_val=qmmm_env%multiple_potential)
+          CALL read_qmmm_ff_section(qmmm_ff_section, qmmm_env%inp_info)
        END IF
     END IF
   END SUBROUTINE setup_qmmm_vars_mm
@@ -813,16 +778,13 @@ CONTAINS
 !>      interactions
 !> \param qmmm_ff_section ...
 !> \param inp_info ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info, error)
+  SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info)
     TYPE(section_vals_type), POINTER         :: qmmm_ff_section
     TYPE(input_info_type), POINTER           :: inp_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_qmmm_ff_section', &
       routineP = moduleN//':'//routineN
@@ -836,64 +798,64 @@ CONTAINS
     !
     ! NONBONDED
     !
-    lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES",error=error)
-    wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
-    gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
-    gp_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GENPOT",error=error)
-    CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
+    lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES")
+    wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS")
+    gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN")
+    gp_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GENPOT")
+    CALL section_vals_get(lj_section,n_repetition=n_lj)
     np = n_lj
     IF (n_lj /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj_charmm=.TRUE.,error=error)
-       CALL read_lj_section(inp_info%nonbonded,lj_section, start=0,      error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj_charmm=.TRUE.)
+       CALL read_lj_section(inp_info%nonbonded,lj_section, start=0)
     END IF
-    CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
+    CALL section_vals_get(wl_section,n_repetition=n_wl)
     np = n_lj + n_wl
     IF (n_wl /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,williams=.TRUE.,error=error)
-       CALL read_wl_section(inp_info%nonbonded,wl_section, start=n_lj, error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,williams=.TRUE.)
+       CALL read_wl_section(inp_info%nonbonded,wl_section, start=n_lj)
     END IF
-    CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
+    CALL section_vals_get(gd_section,n_repetition=n_gd)
     np = n_lj + n_wl + n_gd
     IF (n_gd /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,goodwin=.TRUE.,error=error)
-       CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl, error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,goodwin=.TRUE.)
+       CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl)
     END IF
-    CALL section_vals_get(gp_section,n_repetition=n_gp,error=error)
+    CALL section_vals_get(gp_section,n_repetition=n_gp)
     np = n_lj + n_wl + n_gd + n_gp
     IF (n_gp /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,gp=.TRUE.,error=error)
-       CALL read_gp_section(inp_info%nonbonded,gp_section, start=n_lj+n_wl+n_gd, error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,gp=.TRUE.)
+       CALL read_gp_section(inp_info%nonbonded,gp_section, start=n_lj+n_wl+n_gd)
     END IF
     !
     ! NONBONDED14
     !
-    lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%LENNARD-JONES",error=error)
-    wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%WILLIAMS",error=error)
-    gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GOODWIN",error=error)
-    gp_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GENPOT",error=error)
-    CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
+    lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%LENNARD-JONES")
+    wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%WILLIAMS")
+    gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GOODWIN")
+    gp_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GENPOT")
+    CALL section_vals_get(lj_section,n_repetition=n_lj)
     np = n_lj
     IF (n_lj /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj_charmm=.TRUE.,error=error)
-       CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0,      error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj_charmm=.TRUE.)
+       CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0)
     END IF
-    CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
+    CALL section_vals_get(wl_section,n_repetition=n_wl)
     np = n_lj + n_wl
     IF (n_wl /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,williams=.TRUE.,error=error)
-       CALL read_wl_section(inp_info%nonbonded14,wl_section, start=n_lj, error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,williams=.TRUE.)
+       CALL read_wl_section(inp_info%nonbonded14,wl_section, start=n_lj)
     END IF
-    CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
+    CALL section_vals_get(gd_section,n_repetition=n_gd)
     np = n_lj + n_wl + n_gd
     IF (n_gd /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,goodwin=.TRUE.,error=error)
-       CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl, error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,goodwin=.TRUE.)
+       CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl)
     END IF
-    CALL section_vals_get(gp_section,n_repetition=n_gp,error=error)
+    CALL section_vals_get(gp_section,n_repetition=n_gp)
     np = n_lj + n_wl + n_gd + n_gp
     IF (n_gp /= 0) THEN
-       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,gp=.TRUE.,error=error)
-       CALL read_gp_section(inp_info%nonbonded14,gp_section, start=n_lj+n_wl+n_gd, error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,gp=.TRUE.)
+       CALL read_gp_section(inp_info%nonbonded14,gp_section, start=n_lj+n_wl+n_gd)
     END IF
 
   END SUBROUTINE read_qmmm_ff_section
@@ -907,14 +869,12 @@ CONTAINS
 !> \param mm_link_scale_factor ...
 !> \param qmmm_link ...
 !> \param fist_scale_charge_link ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE setup_qm_atom_list(qmmm_section,qm_atom_index,qm_atom_type,&
-       mm_link_atoms, mm_link_scale_factor, qmmm_link, fist_scale_charge_link, error)
+       mm_link_atoms, mm_link_scale_factor, qmmm_link, fist_scale_charge_link)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_atom_index
     CHARACTER(len=default_string_length), &
@@ -925,7 +885,6 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm_link
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: fist_scale_charge_link
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list', &
       routineP = moduleN//':'//routineN
@@ -948,29 +907,28 @@ CONTAINS
     !
     ! QM_KINDS
     !
-    qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
-    CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
+    qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND")
+    CALL section_vals_get(qm_kinds,n_repetition=nkind)
     DO ikind=1,nkind
-       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
-            error=error)
+       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var)
        DO k = 1, n_var
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
-               i_vals=mm_indexes,error=error)
+               i_vals=mm_indexes)
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
        END DO
     END DO
     !
     ! QM/MM LINKS
     !
-    qmmm_links => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
-    CALL section_vals_get(qmmm_links,explicit=explicit,error=error)
+    qmmm_links => section_vals_get_subs_vals(qmmm_section,"LINK")
+    CALL section_vals_get(qmmm_links,explicit=explicit)
     IF (explicit) THEN
        qmmm_link = .TRUE.
-       CALL section_vals_get(qmmm_links,n_repetition=nlinks,error=error)
+       CALL section_vals_get(qmmm_links,n_repetition=nlinks)
        ! Take care of the various link types
        DO ikind = 1, nlinks
           CALL section_vals_val_get(qmmm_links,"LINK_TYPE",i_rep_section=ikind,&
-               i_val=link_type,error=error)
+               i_val=link_type)
           SELECT CASE(link_type)
           CASE(do_qmmm_link_imomm)
              num_qm_atom_tot = num_qm_atom_tot + 1
@@ -980,38 +938,37 @@ CONTAINS
           CASE(do_qmmm_link_gho)
              ! do nothing for the moment
           CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
           END SELECT
        END DO
     END IF
     IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) &
          ALLOCATE(mm_link_scale_factor(link_involv_mm), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) &
          ALLOCATE(fist_scale_charge_link(link_involv_mm), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0)) &
          ALLOCATE(mm_link_atoms(link_involv_mm),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(qm_atom_type))    ALLOCATE(qm_atom_type(num_qm_atom_tot),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (PRESENT(qm_atom_index))   qm_atom_index    =   0
     IF (PRESENT(qm_atom_type))    qm_atom_type     = " "
     num_qm_atom_tot = 1
     DO ikind=1,nkind
-       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
-            error=error)
+       CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var)
        DO k = 1, n_var
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
-               i_vals=mm_indexes,error=error)
+               i_vals=mm_indexes)
           IF (PRESENT(qm_atom_index)) THEN
              qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
           END IF
           IF (PRESENT(qm_atom_type)) THEN
              CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
-                  c_val=qm_atom_kind,error=error)
+                  c_val=qm_atom_kind)
              qm_atom_type (num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = qm_atom_kind
           END IF
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
@@ -1023,35 +980,30 @@ CONTAINS
     IF (explicit) THEN
        DO ikind = 1, nlinks
           IF (PRESENT(qm_atom_type)) THEN
-              CALL section_vals_val_get(qmmm_links,"QM_KIND",i_rep_section=ikind,c_val=qm_link_element,&
-                  error=error)
+              CALL section_vals_val_get(qmmm_links,"QM_KIND",i_rep_section=ikind,c_val=qm_link_element)
              qm_atom_type (num_qm_atom_tot:num_qm_atom_tot)   = TRIM(qm_link_element)//"_LINK"
           END IF
           IF (PRESENT(qm_atom_index)) THEN
-             CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,&
-                  error=error)
-             CPPostcondition(ALL(qm_atom_index/=mm_index),cp_failure_level,routineP,error,failure)
+             CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
+             CPPostcondition(ALL(qm_atom_index/=mm_index),cp_failure_level,routineP,failure)
              qm_atom_index(num_qm_atom_tot:num_qm_atom_tot )  = mm_index
              num_qm_atom_tot = num_qm_atom_tot + 1
           END IF
           IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0))  THEN
-             CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,&
-                  error=error)
+             CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
              mm_link_atoms (ikind) = mm_index
           END IF
           IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) THEN
-             CALL section_vals_val_get(qmmm_links,"QMMM_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
-                  error=error)
+             CALL section_vals_val_get(qmmm_links,"QMMM_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f)
              mm_link_scale_factor(ikind) = scale_f
           END IF
           IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0))  THEN
-             CALL section_vals_val_get(qmmm_links,"FIST_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f,&
-                  error=error)
+             CALL section_vals_val_get(qmmm_links,"FIST_SCALE_FACTOR",i_rep_section=ikind,r_val=scale_f)
              fist_scale_charge_link(ikind) = scale_f
           END IF
        END DO
     END IF
-    CPPostcondition(num_qm_atom_tot-1==SIZE(qm_atom_index),cp_failure_level,routineP,error,failure)
+    CPPostcondition(num_qm_atom_tot-1==SIZE(qm_atom_index),cp_failure_level,routineP,failure)
 
   END SUBROUTINE setup_qm_atom_list
 
@@ -1063,21 +1015,18 @@ CONTAINS
 !> \param mm_el_pot_radius_corr ...
 !> \param mm_atom_index ...
 !> \param iw ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_el_pot_radius_corr,&
-       mm_atom_index, iw, error)
+       mm_atom_index, iw)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links', &
       routineP = moduleN//':'//routineN
@@ -1096,53 +1045,53 @@ CONTAINS
     n_imomm = 0
     n_gho   = 0
     n_pseudo= 0
-    qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
-    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
-    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+    qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK")
+    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks)
+    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,failure)
     DO ikind= 1, nlinks
-       CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
+       CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type)
        IF (link_type ==  do_qmmm_link_imomm)  n_imomm  = n_imomm  + 1
        IF (link_type ==  do_qmmm_link_gho  )  n_gho    = n_gho    + 1
        IF (link_type ==  do_qmmm_link_pseudo) n_pseudo = n_pseudo + 1
     END DO
     n_tot = n_imomm + n_gho + n_pseudo
-    CPPostcondition(n_tot /= 0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(n_tot /= 0,cp_failure_level,routineP,failure)
     ALLOCATE(qmmm_links, stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
     NULLIFY(qmmm_links%imomm,&
             qmmm_links%pseudo)
     ! IMOMM
     IF ( n_imomm /= 0 ) THEN
        ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
        ALLOCATE(wrk_tmp(n_imomm), stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
        DO ikind = 1, n_imomm
           NULLIFY(qmmm_links%imomm(ikind)%link)
           ALLOCATE(qmmm_links%imomm(ikind)%link,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
        END DO
        n_imomm = 0
        DO ikind = 1, nlinks
-          CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
+          CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type)
           IF (link_type ==  do_qmmm_link_imomm) THEN
              n_imomm = n_imomm + 1
-             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
-             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
-             CALL section_vals_val_get(qmmm_link_section,"ALPHA_IMOMM",i_rep_section=ikind,r_val=alpha,error=error)
-             CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index)
+             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
+             CALL section_vals_val_get(qmmm_link_section,"ALPHA_IMOMM",i_rep_section=ikind,r_val=alpha)
+             CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val)
              qmmm_links%imomm(n_imomm)%link%qm_index = qm_index
              qmmm_links%imomm(n_imomm)%link%mm_index = mm_index
              qmmm_links%imomm(n_imomm)%link%alpha    = alpha
              wrk_tmp(n_imomm) = mm_index
              IF (n_rep_val == 1) THEN
-                CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
+                CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius)
                 WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius
                 WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius
              END IF
-             CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val)
              IF (n_rep_val == 1) THEN
-                CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
+                CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,r_val=my_radius)
                 WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius
              END IF
           END IF
@@ -1154,28 +1103,28 @@ CONTAINS
           IF (COUNT(wrk_tmp == wrk_tmp(ikind)) > 1) THEN
              WRITE(iw,'(/A)')"In the IMOMM scheme no more than one QM atom can be bounded to the same MM atom."
              WRITE(iw, '(A)')"Multiple link MM atom not allowed. Check your link sections."
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
           END IF
        END DO
        DEALLOCATE(wrk_tmp, stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
     END IF
     ! PSEUDO
     IF ( n_pseudo /= 0 ) THEN
        ALLOCATE(qmmm_links%pseudo(n_pseudo), stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
        DO ikind = 1, n_pseudo
           NULLIFY(qmmm_links%pseudo(ikind)%link)
           ALLOCATE(qmmm_links%pseudo(ikind)%link,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
        END DO
        n_pseudo = 0
        DO ikind = 1, nlinks
-          CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
+          CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type)
           IF (link_type ==  do_qmmm_link_pseudo) THEN
              n_pseudo = n_pseudo + 1
-             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
-             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index)
+             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
              qmmm_links%pseudo(n_pseudo)%link%qm_index = qm_index
              qmmm_links%pseudo(n_pseudo)%link%mm_index = mm_index
           END IF
@@ -1185,7 +1134,7 @@ CONTAINS
     IF ( n_gho /= 0) THEN
        ! not yet implemented
        ! still to define : type, implementation into QS
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
     END IF
   END SUBROUTINE setup_qmmm_links
 
@@ -1199,15 +1148,13 @@ CONTAINS
 !> \param mm_el_pot_radius_corr ...
 !> \param added_charges ...
 !> \param mm_atom_index ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                                mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                               added_charges, mm_atom_index,  error)
+                               added_charges, mm_atom_index)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(OUT)                     :: move_mm_charges, &
                                                 add_mm_charges
@@ -1216,7 +1163,6 @@ CONTAINS
                                                 mm_el_pot_radius_corr
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms', &
       routineP = moduleN//':'//routineN
@@ -1234,19 +1180,19 @@ CONTAINS
     move_mm_charges = .FALSE.
     add_mm_charges  = .FALSE.
     NULLIFY( qmmm_link_section, move_section, add_section)
-    qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
-    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
-    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+    qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK")
+    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks)
+    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,failure)
     icount     = 0
     n_move_tot = 0
     n_add_tot  = 0
     DO ikind= 1, nlinks
        move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
-            i_rep_section=ikind, error=error)
-       CALL section_vals_get(move_section,n_repetition=n_moves,error=error)
+            i_rep_section=ikind)
+       CALL section_vals_get(move_section,n_repetition=n_moves)
        add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
-            i_rep_section=ikind, error=error)
-       CALL section_vals_get(add_section,n_repetition=n_adds,error=error)
+            i_rep_section=ikind)
+       CALL section_vals_get(add_section,n_repetition=n_adds)
        n_move_tot = n_move_tot + n_moves
        n_add_tot  = n_add_tot  + n_adds
     END DO
@@ -1256,62 +1202,61 @@ CONTAINS
     !
     ! create add_set_type
     !
-    CALL create_add_set_type(added_charges, ndim=icount, error=error)
+    CALL create_add_set_type(added_charges, ndim=icount)
     !
     ! Fill in structures
     !
     icount = 0
     DO ikind= 1, nlinks
        move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
-                                                  i_rep_section=ikind, error=error)
-       CALL section_vals_get(move_section, explicit=explicit, n_repetition=n_moves, error=error)
+                                                  i_rep_section=ikind)
+       CALL section_vals_get(move_section, explicit=explicit, n_repetition=n_moves)
        !
        ! Moving charge atoms
        !
        IF (explicit) THEN
           DO i_add = 1, n_moves
              icount = icount + 1
-             CALL section_vals_val_get(move_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(move_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(move_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(move_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(move_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add)
+             CALL section_vals_val_get(move_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add)
+             CALL section_vals_val_get(move_section,"ALPHA",r_val=alpha,i_rep_section=i_add)
+             CALL section_vals_val_get(move_section,"RADIUS",r_val=radius,i_rep_section=i_add)
+             CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add)
              c_radius = radius
              IF (n_rep_val == 1) &
-                  CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
+                  CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add)
 
              CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius,&
                                    mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
                                    mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
-                                   mm_atom_index=mm_atom_index, move=n_moves, Ind1=ind1,&
-                                   error=error)
+                                   mm_atom_index=mm_atom_index, move=n_moves, Ind1=ind1)
           END DO
           mm_atom_chrg(ind1) = 0.0_dp
        END IF
 
        add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
-                                                 i_rep_section=ikind, error=error)
-       CALL section_vals_get(add_section, explicit=explicit, n_repetition=n_adds, error=error)
+                                                 i_rep_section=ikind)
+       CALL section_vals_get(add_section, explicit=explicit, n_repetition=n_adds)
        !
        ! Adding charge atoms
        !
        IF (explicit) THEN
           DO i_add = 1, n_adds
              icount = icount + 1
-             CALL section_vals_val_get(add_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(add_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add,error=error)
-             CALL section_vals_val_get(add_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(add_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add)
+             CALL section_vals_val_get(add_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add)
+             CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add)
+             CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add)
+             CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add)
+             CALL section_vals_val_get(add_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add)
              c_radius = radius
              IF (n_rep_val == 1) &
-                  CALL section_vals_val_get(add_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
+                  CALL section_vals_val_get(add_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add)
 
              CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
                                    mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
                                    mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
-                                   mm_atom_index=mm_atom_index, error=error)
+                                   mm_atom_index=mm_atom_index)
           END DO
        END IF
     END DO
@@ -1334,14 +1279,12 @@ CONTAINS
 !> \param mm_atom_index ...
 !> \param move ...
 !> \param ind1 ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
    SUBROUTINE set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
-        mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr, mm_atom_index, move, ind1, error)
+        mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr, mm_atom_index, move, ind1)
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, INTENT(IN)                      :: icount, Index1, Index2
     REAL(KIND=dp), INTENT(IN)                :: alpha, radius, c_radius
@@ -1352,7 +1295,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(in), OPTIONAL            :: move
     INTEGER, INTENT(OUT), OPTIONAL           :: ind1
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type', &
       routineP = moduleN//':'//routineN
@@ -1374,7 +1316,7 @@ CONTAINS
         i = i+1
      END DO GetId
      IF (PRESENT(ind1)) ind1 = i
-     CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,error,failure)
+     CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,failure)
      IF (.NOT.PRESENT(charge)) my_charge = mm_atom_chrg(i)/REAL(my_move,KIND=dp)
      IF (my_radius   == 0.0_dp) my_radius   = mm_el_pot_radius(i)
      IF (my_c_radius == 0.0_dp) my_c_radius = mm_el_pot_radius_corr(i)
@@ -1396,19 +1338,16 @@ CONTAINS
 !> \param qmmm_env ...
 !> \param qm_cell_small ...
 !> \param dr ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
    SUBROUTINE setup_origin_mm_cell(qmmm_section, qmmm_env, qm_cell_small, &
-        dr, error)
+        dr)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cell_type), POINTER                 :: qm_cell_small
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: dr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
       routineP = moduleN//':'//routineN
@@ -1422,17 +1361,17 @@ CONTAINS
      tmp(1) =  qm_cell_small%hmat(1,1)
      tmp(2) =  qm_cell_small%hmat(2,2)
      tmp(3) =  qm_cell_small%hmat(3,3)
-     CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,error,failure)
+     CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,failure)
      qmmm_env%dOmmOqm = tmp/2.0_dp
      ! This is unit vector to translate the QM system in order to center it
      ! in QM cell
-     CALL section_vals_val_get(qmmm_section,"CENTER_GRID",l_val=center_grid,error=error)
+     CALL section_vals_val_get(qmmm_section,"CENTER_GRID",l_val=center_grid)
      IF (center_grid) THEN
         qmmm_env%utrasl = dr
      ELSE
         qmmm_env%utrasl = 1.0_dp
      ENDIF
-     CALL section_vals_val_get(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
+     CALL section_vals_val_get(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals=vec)
      qmmm_env%transl_v = vec
    END SUBROUTINE setup_origin_mm_cell
 
@@ -1442,20 +1381,17 @@ CONTAINS
 !> \param qmmm_env ...
 !> \param qm_atom_index ...
 !> \param subsys_mm ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
    SUBROUTINE setup_image_atom_list(image_charge_section, qmmm_env,&
-                                    qm_atom_index, subsys_mm, error)
+                                    qm_atom_index, subsys_mm)
 
     TYPE(section_vals_type), POINTER         :: image_charge_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     TYPE(cp_subsys_type), POINTER            :: subsys_mm
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_image_atom_list', &
       routineP = moduleN//':'//routineN
@@ -1477,22 +1413,22 @@ CONTAINS
     max_index=0
 
     CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
-                              n_rep_val=n_var,error=error)
+                              n_rep_val=n_var)
     DO i = 1, n_var
        CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
-                                 i_rep_val=i,i_vals=mm_indexes,error=error)
+                                 i_rep_val=i,i_vals=mm_indexes)
        num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
     END DO
 
     ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     qmmm_env%image_charge_pot%image_mm_list=0
     num_image_mm_atom=1
 
     DO i = 1, n_var
        CALL section_vals_val_get(image_charge_section,"MM_ATOM_LIST",&
-                                 i_rep_val=i,i_vals=mm_indexes,error=error)
+                                 i_rep_val=i,i_vals=mm_indexes)
        qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom:num_image_mm_atom &
                                              + SIZE(mm_indexes)-1) = mm_indexes(:)
        num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
@@ -1503,10 +1439,10 @@ CONTAINS
 
    max_index=SIZE(subsys_mm%particles%els)
 
-   CPPrecondition(SIZE(qmmm_env%image_charge_pot%image_mm_list) /= 0,cp_failure_level,routineP,error,failure)
+   CPPrecondition(SIZE(qmmm_env%image_charge_pot%image_mm_list) /= 0,cp_failure_level,routineP,failure)
    imageind_in_range=(MAXVAL(qmmm_env%image_charge_pot%image_mm_list)<= max_index)&
                      .AND.(MINVAL(qmmm_env%image_charge_pot%image_mm_list) > 0)
-   CPPostcondition(imageind_in_range,cp_failure_level,routineP,error,failure)
+   CPPostcondition(imageind_in_range,cp_failure_level,routineP,failure)
 
    DO i=1,num_image_mm_atom
       atom_a=qmmm_env%image_charge_pot%image_mm_list(i)
@@ -1562,17 +1498,14 @@ CONTAINS
 !> \brief Print info on image charges
 !> \param qmmm_env ...
 !> \param qmmm_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
- SUBROUTINE print_image_charge_info(qmmm_env, qmmm_section, error)
+ SUBROUTINE print_image_charge_info(qmmm_env, qmmm_section)
 
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_charge_info', &
       routineP = moduleN//':'//routineN
@@ -1581,13 +1514,13 @@ CONTAINS
     REAL(KIND=dp)                            :: eta, eta_conv, V0, V0_conv
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
+                                         extension=".log")
     eta=qmmm_env%image_charge_pot%eta
-    eta_conv = cp_unit_from_cp2k(eta,"angstrom",power=-2,error=error)
+    eta_conv = cp_unit_from_cp2k(eta,"angstrom",power=-2)
     V0=qmmm_env%image_charge_pot%V0
-    V0_conv = cp_unit_from_cp2k(V0,"volt",error=error)
+    V0_conv = cp_unit_from_cp2k(V0,"volt")
 
     IF (iw>0) THEN
        WRITE(iw,FMT="(T25,A)")"IMAGE CHARGE PARAMETERS"
@@ -1604,7 +1537,7 @@ CONTAINS
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
+               "PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE print_image_charge_info
 

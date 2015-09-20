@@ -58,8 +58,6 @@ CONTAINS
 !> \param compatibility ...
 !> \param print_section ...
 !> \param qmmm_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -67,7 +65,7 @@ CONTAINS
   SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, para_env, pw_env,&
        mm_el_pot_radius, mm_el_pot_radius_corr,  &
        qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility,&
-       print_section, qmmm_section, error)
+       print_section, qmmm_section)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -80,7 +78,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: maxchrg
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN
@@ -101,14 +98,14 @@ CONTAINS
 
     NULLIFY(mypgf, gridlevel_info, radius, c_radius, logger)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
-    CALL section_vals_val_get(qmmm_section,"USE_GEEP_LIB",i_val=num_geep_gauss,error=error)
+    logger => cp_get_default_logger()
+    CALL section_vals_val_get(qmmm_section,"USE_GEEP_LIB",i_val=num_geep_gauss)
     IF (num_geep_gauss == 0) THEN
        use_geep_lib = .FALSE.
     ELSE
        use_geep_lib = .TRUE.
-       CPPostcondition(num_geep_gauss>=min_geep_lib_gauss,cp_failure_level,routineP,error,failure)
-       CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,error,failure)
+       CPPostcondition(num_geep_gauss>=min_geep_lib_gauss,cp_failure_level,routineP,failure)
+       CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,failure)
     END IF
     SELECT CASE(qmmm_coupl_type)
     CASE(do_qmmm_gauss,do_qmmm_swave)
@@ -116,9 +113,9 @@ CONTAINS
        ! Preprocessing...
        !
        ALLOCATE(radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        ALLOCATE(c_radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        Ndim = SIZE(radius)
        Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
           Found=.FALSE.
@@ -143,19 +140,19 @@ CONTAINS
           CALL REALLOCATE(c_radius,1,Ndim-1)
        ELSE IF (Ndim-1 == 0) THEN
           DEALLOCATE(radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
           DEALLOCATE(c_radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,Failure)
        END IF
        !
        ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        DO I = 1, Ndim-1
           NULLIFY(qmmm_gaussian_fns(I)%pgf)
           ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
@@ -167,35 +164,34 @@ CONTAINS
        END DO
        IF (ASSOCIATED(radius)) THEN
           DEALLOCATE(radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        END IF
        IF (ASSOCIATED(c_radius)) THEN
           DEALLOCATE(c_radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
        END IF
        !
        IF (use_geep_lib) THEN
           IF     (qmmm_coupl_type==do_qmmm_gauss) THEN
              CALL  set_mm_potential_erf(qmmm_gaussian_fns,&
-                  compatibility, num_geep_gauss, error)
+                  compatibility, num_geep_gauss)
           ELSEIF (qmmm_coupl_type==do_qmmm_swave) THEN
              CALL  set_mm_potential_swave(qmmm_gaussian_fns,&
-                  num_geep_gauss, error)
+                  num_geep_gauss)
           END IF
        ELSE
           CALL read_mm_potential(para_env, qmmm_gaussian_fns,&
-               (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)), qmmm_section, error)
+               (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)), qmmm_section)
        END IF
        !
-       CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&
-            error=error)
+       CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info)
        ALLOCATE(maxradius(SIZE(pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        maxradius = 0.0_dp
        DO J = 1, SIZE(qmmm_gaussian_fns)
           mypgf => qmmm_gaussian_fns(J)%pgf
           ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           mypgf%grid_level=0
           mymaxradius = 0.0_dp
           DO I = 1, mypgf%number_of_gaussians
@@ -214,9 +210,9 @@ CONTAINS
        ! End of gaussian initialization...
     CASE DEFAULT
        output_unit =cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
-       extension=".qmmmLog",error=error)
+       extension=".qmmmLog")
        IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Gaussian Data Not Initialized!"
-       CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO")
     END SELECT
   END SUBROUTINE qmmm_gaussian_initialize
 

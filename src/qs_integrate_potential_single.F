@@ -105,15 +105,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param scpv ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE integrate_scp_rspace(scp_pot,qs_env,scpv,calculate_forces,error)
+  SUBROUTINE integrate_scp_rspace(scp_pot,qs_env,scpv,calculate_forces)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: scp_pot
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(scp_vector_type), POINTER           :: scpv
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_scp_rspace', &
       routineP = moduleN//':'//routineN
@@ -149,11 +147,11 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pw_env,cores)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
-    CALL rs_grid_retain(rs_v,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
+    CALL rs_grid_retain(rs_v)
 
-    CALL rs_pw_transfer(rs_v,scp_pot%pw,pw2rs,error=error)
+    CALL rs_pw_transfer(rs_v,scp_pot%pw,pw2rs)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -162,7 +160,7 @@ CONTAINS
          dft_control=dft_control,&
          particle_set=particle_set,&
          pw_env=pw_env,&
-         force=force,virial=virial,error=error)
+         force=force,virial=virial)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
 
@@ -172,18 +170,18 @@ CONTAINS
     DO ikind=1,SIZE(atomic_kind_set)
 
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind,error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
        CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
        IF (.NOT.defined) CYCLE
 
        ni = ncoset(lmaxscp)
        ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        pab = 0._dp
        hab = 0._dp
 
        ALLOCATE(cores(natom_of_kind),STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
        cores = 0
        npme = 0
 
@@ -236,7 +234,7 @@ CONTAINS
               eps_gvg_rspace=eps_rho_rspace,&
               calculate_forces=calculate_forces,force_a=force_a,&
               force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
          DO l=0,lmaxscp
             pp = (2._dp*l+3._dp)/2._dp
@@ -261,11 +259,11 @@ CONTAINS
        END DO
 
        DEALLOCATE(cores,hab,pab,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     END DO
 
-    CALL rs_grid_release(rs_v, error=error)
+    CALL rs_grid_release(rs_v)
 
     CALL timestop(handle)
 
@@ -274,12 +272,10 @@ CONTAINS
 !> \brief computes the forces/virial due to the local pseudopotential
 !> \param rho_rspace ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE integrate_ppl_rspace(rho_rspace,qs_env,error)
+  SUBROUTINE integrate_ppl_rspace(rho_rspace,qs_env)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace', &
       routineP = moduleN//':'//routineN
@@ -314,11 +310,11 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pw_env,cores)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
-    CALL rs_grid_retain(rs_v,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
+    CALL rs_grid_retain(rs_v)
 
-    CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
+    CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -327,7 +323,7 @@ CONTAINS
          dft_control=dft_control,&
          particle_set=particle_set,&
          pw_env=pw_env,&
-         force=force,virial=virial,error=error)
+         force=force,virial=virial)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -336,7 +332,7 @@ CONTAINS
     DO ikind=1,SIZE(atomic_kind_set)
 
        CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_of_kind,atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential,error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
 
        IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
        CALL get_potential(potential=gth_potential,alpha_ppl=alpha,nexp_ppl=lppl,cexp_ppl=cexp_ppl)
@@ -345,7 +341,7 @@ CONTAINS
 
        ni = ncoset(2*lppl-2)
        ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
        pab = 0._dp
 
        CALL reallocate ( cores, 1, natom_of_kind )
@@ -399,7 +395,7 @@ CONTAINS
              n = coset(2,2,2)
              pab(n,1) = 6._dp*cexp_ppl(4)
            CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
          END SELECT
        END DO
 
@@ -438,7 +434,7 @@ CONTAINS
               eps_gvg_rspace=eps_rho_rspace,&
               calculate_forces=.TRUE.,force_a=force_a,&
               force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
          force(ikind)%gth_ppl(:,iatom) =&
            force(ikind)%gth_ppl(:,iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -447,19 +443,19 @@ CONTAINS
            virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Virial not debuged for CORE_PPL", &
-                error=error, error_level=cp_failure_level)
+                error_level=cp_failure_level)
          END IF
        END DO
 
        DEALLOCATE(hab,pab,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     END DO
 
-    CALL rs_grid_release(rs_v, error=error)
+    CALL rs_grid_release(rs_v)
 
     DEALLOCATE(cores,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -469,12 +465,10 @@ CONTAINS
 !> \brief computes the forces/virial due to the nlcc pseudopotential
 !> \param rho_rspace ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE integrate_rho_nlcc(rho_rspace,qs_env,error)
+  SUBROUTINE integrate_rho_nlcc(rho_rspace,qs_env)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc', &
       routineP = moduleN//':'//routineN
@@ -510,11 +504,11 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pw_env,cores)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
-    CALL rs_grid_retain(rs_v,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
+    CALL rs_grid_retain(rs_v)
 
-    CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
+    CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -523,7 +517,7 @@ CONTAINS
          dft_control=dft_control,&
          particle_set=particle_set,&
          pw_env=pw_env,&
-         force=force,virial=virial,error=error)
+         force=force,virial=virial)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -532,7 +526,7 @@ CONTAINS
    DO ikind=1,SIZE(atomic_kind_set)
 
       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
-      CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential,error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
 
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nexp_nlcc=nexp_nlcc,&
@@ -551,7 +545,7 @@ CONTAINS
          ithread=0
 
          ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
          pab = 0._dp
 
          CALL reallocate ( cores, 1, natom )
@@ -605,7 +599,7 @@ CONTAINS
                n = coset(2,2,2)
                pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
              CASE DEFAULT
-               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
            END SELECT
          END DO
          IF(dft_control%nspins==2)pab=pab*0.5_dp
@@ -645,7 +639,7 @@ CONTAINS
                 eps_gvg_rspace=eps_rho_rspace,&
                 calculate_forces=.TRUE.,force_a=force_a,&
                 force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-                my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+                my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
            force(ikind)%gth_nlcc(:,iatom) =&
              force(ikind)%gth_nlcc(:,iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -656,16 +650,16 @@ CONTAINS
          END DO
 
          DEALLOCATE(hab,pab,STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
       END DO
 
     END DO
 
-    CALL rs_grid_release(rs_v, error=error)
+    CALL rs_grid_release(rs_v)
 
     DEALLOCATE(cores,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -676,12 +670,10 @@ CONTAINS
 !>      grid
 !> \param v_rspace ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env,error)
+  SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace', &
       routineP = moduleN//':'//routineN
@@ -715,7 +707,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(virial, atprop, dft_control)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
     !If gapw, check for gpw kinds
     skip_fcore = .FALSE.
@@ -727,17 +719,17 @@ CONTAINS
     IF(.NOT. skip_fcore) THEN
         NULLIFY(pw_env)
         ALLOCATE (cores(1),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
         ALLOCATE (hab(1,1),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
         ALLOCATE (pab(1,1),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
-        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-        CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
-        CALL rs_grid_retain(rs_v,error=error)
+        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+        CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
+        CALL rs_grid_retain(rs_v)
 
-        CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
+        CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
         CALL get_qs_env(qs_env=qs_env,&
              atomic_kind_set=atomic_kind_set,&
@@ -748,13 +740,12 @@ CONTAINS
              pw_env=pw_env,&
              force=force,&
              virial=virial,&
-             atprop=atprop,&
-             error=error)
+             atprop=atprop)
 
         ! atomic energy contributions
         IF(ASSOCIATED(atprop)) THEN
            natom = SIZE(particle_set)
-           CALL atprop_array_init(atprop%ateb,natom,error)
+           CALL atprop_array_init(atprop%ateb,natom)
         END IF
 
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -766,7 +757,7 @@ CONTAINS
            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
            CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
                             alpha_core_charge=alpha_core_charge,&
-                            ccore_charge=ccore_charge,error=error)
+                            ccore_charge=ccore_charge)
 
            IF(paw_atom) THEN
                 force(ikind)%rho_core(:,:) =  0.0_dp
@@ -818,7 +809,7 @@ CONTAINS
                  eps_gvg_rspace=eps_rho_rspace,&
                  calculate_forces=.TRUE.,force_a=force_a,&
                  force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-                 my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+                 my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
             IF (ASSOCIATED(force)) THEN
                force(ikind)%rho_core(:,iatom) =&
@@ -836,10 +827,10 @@ CONTAINS
 
         END DO
 
-        CALL rs_grid_release(rs_v, error=error)
+        CALL rs_grid_release(rs_v)
 
         DEALLOCATE (hab,pab,cores,STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     END IF
 
@@ -854,17 +845,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param int_res ...
 !> \param calculate_forces ...
-!> \param error ...
 !> \author Dorothea Golze
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace_one_center(v_rspace,qs_env,int_res,&
-                                           calculate_forces,error)
+                                           calculate_forces)
     TYPE(pw_p_type), INTENT(IN)              :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: int_res
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'integrate_v_rspace_one_center', &
@@ -912,17 +901,17 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
-    CALL pw_env_get(pw_env, rs_grids=rs_v, error=error)
+    CALL pw_env_get(pw_env, rs_grids=rs_v)
     DO i=1,SIZE(rs_v)
-      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
+      CALL rs_grid_retain(rs_v(i)%rs_grid)
       CALL rs_grid_zero(rs_v(i)%rs_grid)
     END DO
 
     gridlevel_info=>pw_env%gridlevel_info
     
-    CALL potential_pw2rs(rs_v,v_rspace,pw_env,error)
+    CALL potential_pw2rs(rs_v,v_rspace,pw_env)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -932,7 +921,7 @@ CONTAINS
          nkind=nkind,&
          particle_set=particle_set,&
          para_env=para_env,pw_env=pw_env,&
-         virial=virial,error=error)
+         virial=virial)
     
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -951,7 +940,7 @@ CONTAINS
     DO ikind=1,nkind
 
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind),basis_set=lri_basis_set,basis_type="LRI",error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=lri_basis_set,basis_type="LRI")
        CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
             first_sgf=first_sgfa,&
             lmax=la_max,&
@@ -1040,8 +1029,7 @@ CONTAINS
                            cube_info=pw_env%cube_info(igrid_level),&
                            hab=hab,o1=na1,o2=0, eps_gvg_rspace=eps_rho_rspace,&
                            calculate_forces=calculate_forces,&
-                           map_consistent=map_consistent,&
-                           error=error)
+                           map_consistent=map_consistent)
                    ELSE
                       CALL integrate_pgf_product_rspace(la_max=la_max(iset),&
                            zeta=zeta(ipgf,iset),la_min=la_min(iset),&
@@ -1054,8 +1042,7 @@ CONTAINS
                            force_a=force_a,force_b=force_b,&
                            use_virial=use_virial,&
                            my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
-                           map_consistent=map_consistent,&
-                           error=error)
+                           map_consistent=map_consistent)
                    ENDIF
                 ENDIF               
              ENDDO
@@ -1077,10 +1064,10 @@ CONTAINS
           ENDIF
 
           DEALLOCATE (work_i, STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           IF (calculate_forces) THEN
              DEALLOCATE (work_f, STAT=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
           ENDIF
 
        END DO
@@ -1088,11 +1075,11 @@ CONTAINS
       CALL mp_sum(int_res(ikind)%v_int,para_env%group)
      
       DEALLOCATE (hab,pab,STAT=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     END DO
 
     DO i=1,SIZE(rs_v)
-      CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
+      CALL rs_grid_release(rs_v(i)%rs_grid)
     END DO
  
     CALL timestop(handle)

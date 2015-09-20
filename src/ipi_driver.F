@@ -289,16 +289,14 @@ MODULE ipi_driver
 !> \brief ...
 !> \param force_env ...
 !> \param globenv ...
-!> \param error ...
 !> \par History
 !>       12.2013 included in repository 
 !> \author Ceriotti
 ! *****************************************************************************
  
-  SUBROUTINE run_driver ( force_env, globenv, error )
+  SUBROUTINE run_driver ( force_env, globenv)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'run_driver', &
       routineP = moduleN//':'//routineN
@@ -331,12 +329,12 @@ MODULE ipi_driver
     ionode=(default_para_env%source==default_para_env%mepos)
 
     ! reads driver parameters from input
-    motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
-    drv_section     => section_vals_get_subs_vals(motion_section,"DRIVER",error=error)
+    motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION")
+    drv_section     => section_vals_get_subs_vals(motion_section,"DRIVER")
 
-    CALL section_vals_val_get(drv_section,"HOST",c_val=drv_hostname,error=error)
-    CALL section_vals_val_get(drv_section,"PORT",i_val=drv_port,error=error)
-    CALL section_vals_val_get(drv_section,"UNIX",l_val=drv_unix,error=error)
+    CALL section_vals_val_get(drv_section,"HOST",c_val=drv_hostname)
+    CALL section_vals_val_get(drv_section,"PORT",i_val=drv_port)
+    CALL section_vals_val_get(drv_section,"UNIX",l_val=drv_unix)
 
 #ifdef __NO_IPI_DRIVER
     CALL stop_program(routineN,moduleN,__LINE__,"CP2K was compiled with the __NO_IPI_DRIVER option!")
@@ -356,7 +354,7 @@ MODULE ipi_driver
     
     !now we have a socket, so we can initialize the CP2K environments. 
     NULLIFY(cpcell)
-    CALL cell_create(cpcell,error=error)
+    CALL cell_create(cpcell)
     driver_loop: DO
       ! do communication on master node only...
       header = ""
@@ -398,7 +396,7 @@ MODULE ipi_driver
          IF (ionode) CALL readbuffer(socket, combuf, nat*3)
          CALL mp_bcast(combuf,default_para_env%source, default_para_env%group)
          
-         CALL force_env_get(force_env,subsys=subsys,error=error)
+         CALL force_env_get(force_env,subsys=subsys)
          IF (nat/=subsys%particles%n_els) WRITE(*,*) &
                 " @DRIVER MODE: Uh-oh! Particle number mismatch between i-PI and cp2k input!"
          ii=0
@@ -409,9 +407,9 @@ MODULE ipi_driver
           END DO
          END DO
          CALL init_cell(cpcell, hmat=cellh)
-         CALL cp_subsys_set(subsys, cell=cpcell, error=error)
+         CALL cp_subsys_set(subsys, cell=cpcell)
          
-         CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=error)
+         CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
     
          IF (ionode) WRITE(*,*) " @ DRIVER MODE: Received positions "
          
@@ -423,12 +421,12 @@ MODULE ipi_driver
              combuf(ii)=subsys%particles%els(ip)%f(idir)
           END DO
          END DO         
-         CALL force_env_get(force_env, potential_energy=pot, error=error)
-         CALL force_env_get(force_env,cell=cpcell, error=error)
-         CALL cp_subsys_get(subsys, virial=virial, error=error)
+         CALL force_env_get(force_env, potential_energy=pot)
+         CALL force_env_get(force_env,cell=cpcell)
+         CALL cp_subsys_get(subsys, virial=virial)
          vir = TRANSPOSE(virial%pv_virial)
          
-         CALL external_control(should_stop,"IPI",globenv=globenv,error=error)
+         CALL external_control(should_stop,"IPI",globenv=globenv)
          IF (should_stop) EXIT
        
          hasdata=.TRUE.

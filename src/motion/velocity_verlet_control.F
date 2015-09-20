@@ -41,16 +41,14 @@ CONTAINS
 !> \brief ...
 !> \param md_env ...
 !> \param globenv ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE velocity_verlet ( md_env, globenv, error )
+  SUBROUTINE velocity_verlet ( md_env, globenv)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'velocity_verlet', &
       routineP = moduleN//':'//routineN
@@ -62,7 +60,7 @@ CONTAINS
     CALL timeset (routineN, handle )
 
     ! Get force environment
-    CALL get_md_env ( md_env, force_env=force_env, simpar=simpar, error=error)
+    CALL get_md_env ( md_env, force_env=force_env, simpar=simpar)
 
     ! RESPA implemented only for NVE
     IF(simpar%do_respa .AND. nve_ensemble.NE.simpar % ensemble) THEN
@@ -77,32 +75,32 @@ CONTAINS
                          "Integrator not implemented")
     CASE (nve_ensemble)
        IF(simpar%do_respa)THEN
-          CALL nve_respa(md_env,error)
+          CALL nve_respa(md_env)
        ELSE
-          CALL nve (md_env, globenv, error)
+          CALL nve (md_env, globenv)
        END IF
     CASE (nvt_ensemble)
-       CALL nvt (md_env, globenv, error)
+       CALL nvt (md_env, globenv)
     CASE (nvt_adiabatic_ensemble)
-       CALL nvt_adiabatic (md_env, globenv, error)
+       CALL nvt_adiabatic (md_env, globenv)
     CASE (isokin_ensemble)
-       CALL isokin (md_env, error)
+       CALL isokin (md_env)
     CASE (npt_i_ensemble)
-       CALL npt_i (md_env, globenv, error)
+       CALL npt_i (md_env, globenv)
     CASE (npt_f_ensemble)
-       CALL npt_f (md_env, globenv, error)
+       CALL npt_f (md_env, globenv)
     CASE (nph_uniaxial_ensemble)
-       CALL nph_uniaxial (md_env, error)
+       CALL nph_uniaxial (md_env)
     CASE (nph_uniaxial_damped_ensemble)
-       CALL nph_uniaxial_damped (md_env, error)
+       CALL nph_uniaxial_damped (md_env)
     CASE (reftraj_ensemble)
-       CALL reftraj (md_env, error)
+       CALL reftraj (md_env)
     CASE (langevin_ensemble)
-       CALL langevin(md_env, error)
+       CALL langevin(md_env)
     CASE (npe_f_ensemble)
-       CALL npt_f (md_env, globenv, error)
+       CALL npt_f (md_env, globenv)
     CASE (npe_i_ensemble)
-       CALL npt_i (md_env, globenv, error)
+       CALL npt_i (md_env, globenv)
     END SELECT
 
     CALL timestop(handle)

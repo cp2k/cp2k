@@ -44,14 +44,12 @@ CONTAINS
 !> \param subsys ...
 !> \param potential_energy ...
 !> \param kinetic_energy ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qmmm_env_get(qmmm_env,subsys,potential_energy,kinetic_energy,error)
+  SUBROUTINE qmmm_env_get(qmmm_env,subsys,potential_energy,kinetic_energy)
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
                                                 kinetic_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_get', &
       routineP = moduleN//':'//routineN
@@ -63,21 +61,21 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(qs_energy, thermo)
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
 
     IF (PRESENT(kinetic_energy)) THEN
-        CALL fist_env_get(qmmm_env%fist_env,thermo=thermo,error=error)
+        CALL fist_env_get(qmmm_env%fist_env,thermo=thermo)
         kinetic_energy = thermo%kin
     END IF
     IF (PRESENT(subsys)) THEN
-        CALL fist_env_get(qmmm_env%fist_env,subsys=subsys,error=error)
+        CALL fist_env_get(qmmm_env%fist_env,subsys=subsys)
     ENDIF
     IF (PRESENT(potential_energy)) THEN
          ! get the underlying energies from primary subsys.  This is the only subsys
          ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
-         CALL fist_env_get(qmmm_env%fist_env, thermo=thermo, error=error)
-         CALL get_qs_env(qmmm_env%qs_env,energy=qs_energy,error=error)
+         CALL fist_env_get(qmmm_env%fist_env, thermo=thermo)
+         CALL get_qs_env(qmmm_env%qs_env,energy=qs_energy)
          potential_energy = thermo%pot + qs_energy%total
     ENDIF
   END SUBROUTINE qmmm_env_get
@@ -86,13 +84,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases the given qmmm_env (see doc/ReferenceCounting.html)
 !> \param qmmm_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE qmmm_env_release(qmmm_env,error)
+  SUBROUTINE qmmm_env_release(qmmm_env)
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_release', &
       routineP = moduleN//':'//routineN
@@ -102,12 +97,12 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qmmm_env)) THEN
-       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
-          CALL qs_env_release(qmmm_env%qs_env, error)
-          CALL fist_env_release(qmmm_env%fist_env, error)
-          CALL qmmm_env_qm_release(qmmm_env%qm, error)
+          CALL qs_env_release(qmmm_env%qs_env)
+          CALL fist_env_release(qmmm_env%fist_env)
+          CALL qmmm_env_qm_release(qmmm_env%qm)
           DEALLOCATE(qmmm_env)
        END IF
     END IF
@@ -117,13 +112,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qmmm_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE qmmm_env_retain(qmmm_env,error)
+  SUBROUTINE qmmm_env_retain(qmmm_env)
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_retain', &
       routineP = moduleN//':'//routineN
@@ -132,8 +124,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
     qmmm_env%ref_count=qmmm_env%ref_count+1
   END SUBROUTINE qmmm_env_retain
 

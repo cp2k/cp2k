@@ -53,20 +53,18 @@ CONTAINS
 !> \param f  input function
 !> \param df derivative of f
 !> \param rs_grid real-space grid
-!> \param error cp2k error
 !> \par History:
 !>      - Creation (15.11.2013,MK)
 !>      - Refactored and moved here from qs_sccs.F (12.2014, Hossein Bani-Hashemian)
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
-  SUBROUTINE derive_fdm_cd3(f,df,rs_grid,error)
+  SUBROUTINE derive_fdm_cd3(f,df,rs_grid)
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
       INTENT(OUT)                            :: df
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fdm_cd3', &
       routineP = moduleN//':'//routineN
@@ -85,13 +83,13 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
 
     ! Setup
     rs_desc => rs_grid%desc
-    CALL rs_pw_transfer(rs_grid,f,pw2rs,error=error)
+    CALL rs_pw_transfer(rs_grid,f,pw2rs)
     DO i=1,3
-       CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc,error=error)
+       CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc)
        CALL rs_grid_zero(drs_grid(i)%rs_grid)
     END DO
 
@@ -120,8 +118,8 @@ CONTAINS
 
     ! Cleanup
     DO i=1,3
-       CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw,rs2pw,error=error)
-       CALL rs_grid_release(drs_grid(i)%rs_grid,error=error)
+       CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw,rs2pw)
+       CALL rs_grid_release(drs_grid(i)%rs_grid)
     END DO
 
     CALL timestop(handle)
@@ -133,20 +131,18 @@ CONTAINS
 !> \param f  input function
 !> \param df derivative of f
 !> \param rs_grid real-space grid
-!> \param error cp2k error
 !> \par History:
 !>      - Creation (15.11.2013,MK)
 !>      - Refactored and moved here from qs_sccs.F (12.2014, Hossein Bani-Hashemian)
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
-  SUBROUTINE derive_fdm_cd5(f,df,rs_grid,error)
+  SUBROUTINE derive_fdm_cd5(f,df,rs_grid)
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
       INTENT(INOUT)                          :: df
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fdm_cd5', &
       routineP = moduleN//':'//routineN
@@ -165,13 +161,13 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
 
     ! Setup
     rs_desc => rs_grid%desc
-    CALL rs_pw_transfer(rs_grid,f,pw2rs,error=error)
+    CALL rs_pw_transfer(rs_grid,f,pw2rs)
     DO i=1,3
-       CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc,error=error)
+       CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc)
        CALL rs_grid_zero(drs_grid(i)%rs_grid)
     END DO
 
@@ -200,8 +196,8 @@ CONTAINS
 
     ! Cleanup
     DO i=1,3
-       CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw,rs2pw,error=error)
-       CALL rs_grid_release(drs_grid(i)%rs_grid,error=error)
+       CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw,rs2pw)
+       CALL rs_grid_release(drs_grid(i)%rs_grid)
     END DO
 
     CALL timestop(handle)
@@ -213,20 +209,18 @@ CONTAINS
 !> \param f  input function
 !> \param df derivative of f
 !> \param rs_grid real-space grid
-!> \param error cp2k error
 !> \par History:
 !>      - Creation (15.11.2013,MK)
 !>      - Refactored and moved here from qs_sccs.F (12.2014, Hossein Bani-Hashemian)
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
-  SUBROUTINE derive_fdm_cd7(f,df,rs_grid,error)
+  SUBROUTINE derive_fdm_cd7(f,df,rs_grid)
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
       INTENT(OUT)                            :: df
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derive_fdm_cd7', &
       routineP = moduleN//':'//routineN
@@ -245,13 +239,13 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
 
     ! Setup
     rs_desc => rs_grid%desc
-    CALL rs_pw_transfer(rs_grid,f,pw2rs,error=error)
+    CALL rs_pw_transfer(rs_grid,f,pw2rs)
     DO i=1,3
-       CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc,error=error)
+       CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc)
        CALL rs_grid_zero(drs_grid(i)%rs_grid)
     END DO
 
@@ -283,8 +277,8 @@ CONTAINS
 
     ! Cleanup
     DO i=1,3
-       CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw,rs2pw,error=error)
-       CALL rs_grid_release(drs_grid(i)%rs_grid,error=error)
+       CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw,rs2pw)
+       CALL rs_grid_release(drs_grid(i)%rs_grid)
     END DO
 
     CALL timestop(handle)
@@ -301,19 +295,17 @@ CONTAINS
 !> \param x_locl x grid vetor of the simulation box local to this process
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !>       07.2015 moved here from dirichlet_bc_utils.F [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+  SUBROUTINE setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
 
     TYPE(pw_grid_type), INTENT(IN), POINTER  :: pw_grid
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(OUT)                            :: x_glbl, y_glbl, z_glbl, &
                                                 x_locl, y_locl, z_locl
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_grid_axes', &
       routineP = moduleN//':'//routineN
@@ -399,13 +391,12 @@ CONTAINS
 !> \param z_glbl z grid vetor of the simulation box
 !> \param pw_in the input function
 !> \param pw_out the convoluted function
-!> \param error cp2k error
 !> \par History
 !>       10.2014 created [Hossein Bani-Hashemian]
 !>       07.2015 moved here from ps_implicit_methods.F [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, pw_in, pw_out, error)
+  SUBROUTINE pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     REAL(dp), INTENT(IN)                     :: zeta
@@ -413,7 +404,6 @@ CONTAINS
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_mollifier', &
       routineP = moduleN//':'//routineN
@@ -438,12 +428,12 @@ CONTAINS
     lb2 = bounds_local(1,2);     ub2 = bounds_local(2,2)
     lb3 = bounds_local(1,3);     ub3 = bounds_local(2,3)
 
-    CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(pw_pool, pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-    CALL pw_zero(G, error=error)
+    CALL pw_zero(G)
     xmin = x_glbl(bounds(1,1));     xmax = x_glbl(bounds(2,1))
     ymin = y_glbl(bounds(1,2));     ymax = y_glbl(bounds(2,2))
     zmin = z_glbl(bounds(1,3));     zmax = z_glbl(bounds(2,3))
@@ -472,19 +462,19 @@ CONTAINS
         END DO
       END DO
     END DO
-    CALL pw_scale(G, (1.0_dp/zeta)**3, error)
-    normfact = pw_integrate_function(G,error=error)
-    CALL pw_scale(G, 1.0_dp/normfact, error)
+    CALL pw_scale(G, (1.0_dp/zeta)**3)
+    normfact = pw_integrate_function(G)
+    CALL pw_scale(G, 1.0_dp/normfact)
 
-    CALL pw_transfer(G, G_gs, error=error)
-    CALL pw_transfer(pw_in, pw_in_gs, error=error)
+    CALL pw_transfer(G, G_gs)
+    CALL pw_transfer(pw_in, pw_in_gs)
     pw_out_gs%cc = G_gs%cc * pw_in_gs%cc
-    CALL pw_transfer(pw_out_gs, pw_out, error=error)
+    CALL pw_transfer(pw_out_gs, pw_out)
 
     ! multiply by the reciprocal of the forward Fourier transform normalization prefactor (here 1/N, by convention)
-    CALL pw_scale(pw_out, REAL(pw_grid%ngpts,KIND=dp), error=error)
+    CALL pw_scale(pw_out, REAL(pw_grid%ngpts,KIND=dp))
     ! from discrete convolution to continuous convolution
-    CALL pw_scale(pw_out, pw_grid%dvol, error=error)
+    CALL pw_scale(pw_out, pw_grid%dvol)
 
     DO k = lb3, ub3
       DO j = lb2, ub2
@@ -494,10 +484,10 @@ CONTAINS
       END DO
     END DO
 
-    CALL pw_pool_give_back_pw(pw_pool, G, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, G_gs, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, pw_out_gs, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, G)
+    CALL pw_pool_give_back_pw(pw_pool, G_gs)
+    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
+    CALL pw_pool_give_back_pw(pw_pool, pw_out_gs)
     CALL timestop(handle)
 
     CONTAINS

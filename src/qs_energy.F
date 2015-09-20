@@ -44,7 +44,6 @@ CONTAINS
 !> \param qs_env ...
 !> \param consistent_energies ...
 !> \param calc_forces ...
-!> \param error ...
 !> \date    29.10.2002
 !> \par History
 !>          - consistent_energies option added (25.08.2005, TdK)
@@ -53,12 +52,10 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_energies (qs_env, consistent_energies, calc_forces, &
-                          error)
+  SUBROUTINE qs_energies (qs_env, consistent_energies, calc_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
                                                 calc_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies', &
       routineP = moduleN//':'//routineN
@@ -68,11 +65,11 @@ CONTAINS
     my_calc_forces = .FALSE.
     IF(PRESENT(calc_forces)) my_calc_forces = calc_forces
 
-    CALL qs_env_rebuild_pw_env(qs_env, error=error)
+    CALL qs_env_rebuild_pw_env(qs_env)
 
-    CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp,error=error)
+    CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp)
     IF(.NOT.run_rtp)THEN
-       CALL qs_energies_scf(qs_env, consistent_energies, my_calc_forces, error)
+       CALL qs_energies_scf(qs_env, consistent_energies, my_calc_forces)
     END IF
 
   END SUBROUTINE qs_energies
@@ -83,19 +80,16 @@ CONTAINS
 !> \param qs_env ...
 !> \param consistent_energies ...
 !> \param calc_forces ...
-!> \param error ...
 !> \date    29.10.2002
 !> \par History
 !>          - consistent_energies option added (25.08.2005, TdK)
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_energies_scf (qs_env, consistent_energies, calc_forces, &
-                          error)
+  SUBROUTINE qs_energies_scf (qs_env, consistent_energies, calc_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies
     LOGICAL, INTENT(IN)                      :: calc_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
@@ -107,28 +101,28 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(dft_control, energy)
-    CALL qs_energies_init(qs_env, calc_forces, error=error)
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
+    CALL qs_energies_init(qs_env, calc_forces)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy)
 
     ! *** Perform a SCF run ***
     IF (dft_control%qs_control%do_ls_scf) THEN
-      CALL ls_scf(qs_env=qs_env, error=error)
+      CALL ls_scf(qs_env=qs_env)
     ELSE IF (dft_control%qs_control%do_almo_scf) THEN
-      CALL almo_entry_scf(qs_env=qs_env, calc_forces=calc_forces, error=error)
+      CALL almo_entry_scf(qs_env=qs_env, calc_forces=calc_forces)
     ELSE
-      CALL scf(qs_env=qs_env, error=error)
+      CALL scf(qs_env=qs_env)
 
       ! Compute MP2 energy
-      CALL qs_energies_mp2(qs_env, calc_forces, error=error)
+      CALL qs_energies_mp2(qs_env, calc_forces)
        
       ! if calculate forces, time to compute the w matrix
-      CALL qs_energies_compute_matrix_w(qs_env,calc_forces,error=error)
+      CALL qs_energies_compute_matrix_w(qs_env,calc_forces)
 
     END IF
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
-        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE., error=error)
+        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
         ! add MP2 energy if necessary
         IF(ASSOCIATED(qs_env%mp2_env)) THEN
           energy%total = energy%total + energy%mp2
@@ -136,7 +130,7 @@ CONTAINS
       END IF
     END IF
 
-    CALL qs_energies_properties(qs_env,error=error)
+    CALL qs_energies_properties(qs_env)
 
     CALL timestop(handle)
 

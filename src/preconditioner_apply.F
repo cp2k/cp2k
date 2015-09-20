@@ -51,13 +51,11 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out, error)
+  SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_fm', &
       routineP = moduleN//':'//routineN
@@ -70,15 +68,15 @@ CONTAINS
     CASE (0)
        CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
     CASE (ot_precond_full_single)
-       CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+       CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
     CASE (ot_precond_full_all)
-       CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
+       CALL apply_full_all(preconditioner_env, matrix_in, matrix_out)
     CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
        SELECT CASE (preconditioner_env%solver)
        CASE(ot_precond_solver_inv_chol,ot_precond_solver_update)
-          CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+          CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
        CASE(ot_precond_solver_direct)
-          CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)
+          CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,"Solver not implemented")
        END SELECT
@@ -95,13 +93,11 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out, error)
+  SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type)                      :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr', &
       routineP = moduleN//':'//routineN
@@ -114,16 +110,16 @@ CONTAINS
     CASE (0)
        CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
     CASE (ot_precond_full_single)
-       CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
+       CALL apply_single(preconditioner_env, matrix_in, matrix_out)
     CASE (ot_precond_full_all)
-       CALL apply_all(preconditioner_env, matrix_in, matrix_out,error=error)
+       CALL apply_all(preconditioner_env, matrix_in, matrix_out)
     CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
        SELECT CASE (preconditioner_env%solver)
        CASE(ot_precond_solver_inv_chol,ot_precond_solver_update)
-          CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
+          CALL apply_single(preconditioner_env, matrix_in, matrix_out)
        CASE(ot_precond_solver_direct)
           CALL stop_program(routineN,moduleN,__LINE__,"Apply_full_direct not supported with ot")
-          !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)
+          !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,"Wrong solver")
        END SELECT
@@ -140,13 +136,11 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
+SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_full_single', &
       routineP = moduleN//':'//routineN
@@ -155,9 +149,9 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
     CALL timeset(routineN,handle)
  
-    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
+    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
     CALL cp_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
-                    matrix_in,0.0_dp,matrix_out,error=error)
+                    matrix_in,0.0_dp,matrix_out)
     CALL timestop(handle)
 
   END SUBROUTINE apply_full_single
@@ -167,13 +161,11 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out,error)
+  SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type)                      :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_single', &
       routineP = moduleN//':'//routineN
@@ -186,7 +178,7 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
     CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix,matrix_in,&
-         0.0_dp,matrix_out,error=error)
+         0.0_dp,matrix_out)
 
     CALL timestop(handle)
 
@@ -198,13 +190,11 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
+  SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_full_direct', &
       routineP = moduleN//':'//routineN
@@ -214,14 +204,14 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
     CALL timeset(routineN,handle)
   
-    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
+    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
     CALL cp_fm_create(work,matrix_in%matrix_struct,name="apply_full_single",&
-                      use_sp=matrix_in%use_sp,error=error)
+                      use_sp=matrix_in%use_sp)
     CALL cp_fm_cholesky_restore(matrix_in,k,preconditioner_env%fm,work,&
-         &                      "SOLVE",transa="T",error=error)
+         &                      "SOLVE",transa="T")
     CALL cp_fm_cholesky_restore(work,k,preconditioner_env%fm,matrix_out,&
-         &                      "SOLVE",transa="N",error=error)
-    CALL cp_fm_release(work,error=error)
+         &                      "SOLVE",transa="N")
+    CALL cp_fm_release(work)
   
     CALL timestop(handle)
   
@@ -232,13 +222,11 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out, error)
+  SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_full_all', &
       routineP = moduleN//':'//routineN
@@ -252,15 +240,15 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
     CALL timeset(routineN,handle)
   
-    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
+    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
   
-    CALL cp_fm_create(matrix_tmp,matrix_in%matrix_struct,name="apply_full_all",error=error)
+    CALL cp_fm_create(matrix_tmp,matrix_in%matrix_struct,name="apply_full_all")
     CALL cp_fm_get_info(matrix_tmp, nrow_local=nrow_local, ncol_local=ncol_local, &
-                               row_indices=row_indices, col_indices=col_indices, local_data=local_data,error=error)
+                               row_indices=row_indices, col_indices=col_indices, local_data=local_data)
   
     !
     CALL cp_gemm('T','N',n,k,n,1.0_dp,preconditioner_env%fm, &
-                    matrix_in,0.0_dp,matrix_tmp,error=error)
+                    matrix_in,0.0_dp,matrix_tmp)
   
     ! do the right scaling
     DO j=1,ncol_local
@@ -273,9 +261,9 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
   
     ! mult back
     CALL cp_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
-                    matrix_tmp,0.0_dp,matrix_out,error=error)
+                    matrix_tmp,0.0_dp,matrix_out)
   
-    CALL cp_fm_release(matrix_tmp,error=error)
+    CALL cp_fm_release(matrix_tmp)
   
     CALL timestop(handle)
   
@@ -286,13 +274,11 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 !> \param preconditioner_env ...
 !> \param matrix_in ...
 !> \param matrix_out ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
+  SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type)                      :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_all', &
       routineP = moduleN//':'//routineN
@@ -307,10 +293,10 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
     CALL timeset(routineN,handle)
   
-    CALL cp_dbcsr_init(matrix_tmp,error=error)
-    CALL cp_dbcsr_copy(matrix_tmp,matrix_in,name="apply_full_all",error=error)
+    CALL cp_dbcsr_init(matrix_tmp)
+    CALL cp_dbcsr_copy(matrix_tmp,matrix_in,name="apply_full_all")
     CALL cp_dbcsr_multiply('T','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
-                    matrix_in,0.0_dp,matrix_tmp,error=error)
+                    matrix_in,0.0_dp,matrix_tmp)
     ! do the right scaling
     CALL cp_dbcsr_iterator_start(iter, matrix_tmp)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
@@ -330,8 +316,8 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
     ! mult back
     CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
-                    matrix_tmp,0.0_dp,matrix_out,error=error)
-    CALL cp_dbcsr_release(matrix_tmp, error=error)
+                    matrix_tmp,0.0_dp,matrix_out)
+    CALL cp_dbcsr_release(matrix_tmp)
     CALL timestop(handle)
   
   END SUBROUTINE apply_all

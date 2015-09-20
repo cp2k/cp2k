@@ -237,14 +237,12 @@ CONTAINS
 !> \param cell ...
 !> \param rcutsq ...
 !> \param use_virial ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siep_a_ij_d(siepmann,r_last_update_pbc,iparticle,jparticle,f_nonbond,&
                          pv_nonbond,prefactor,n_loc_size,full_loc_list,loc_cell_v,&
-                         cell_v,cell,rcutsq,use_virial, error)
+                         cell_v,cell,rcutsq,use_virial)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
@@ -259,7 +257,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     LOGICAL, INTENT(IN)                      :: use_virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_a_ij_d', &
       routineP = moduleN//':'//routineN
@@ -324,7 +321,7 @@ CONTAINS
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="using virial with Siepmann-Sprik"//&
              " not implemented", &
-             error=error, error_level=cp_failure_level)
+             error_level=cp_failure_level)
        END IF
      END DO
   END SUBROUTINE siep_a_ij_d
@@ -447,14 +444,12 @@ CONTAINS
 !> \param rcutsq ...
 !> \param use_virial ...
 !> \param particle_set ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siep_Phi_ij_d(siepmann,r_last_update_pbc,iparticle,jparticle,f_nonbond,&
                            prefactor,n_loc_size,full_loc_list, loc_cell_v,&
-                           cell_v, cell, rcutsq,use_virial, particle_set, error)
+                           cell_v, cell, rcutsq,use_virial, particle_set)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
@@ -471,7 +466,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij_d', &
       routineP = moduleN//':'//routineN
@@ -568,7 +562,7 @@ CONTAINS
       CALL cp_unimplemented_error(fromWhere=routineP, &
            message="using virial with Siepmann-Sprik"//&
            " not implemented", &
-           error=error, error_level=cp_failure_level)
+           error_level=cp_failure_level)
      END IF
 
     ENDIF
@@ -590,14 +584,12 @@ CONTAINS
 !> \param rcutsq ...
 !> \param cell ...
 !> \param particle_set ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siepmann_forces_v3(siepmann,r_last_update_pbc, cell_v, n_loc_size,&
        full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,pv_nonbond,&
-       use_virial, rcutsq, cell, particle_set, error)
+       use_virial, rcutsq, cell, particle_set)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
@@ -613,7 +605,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_forces_v3', &
       routineP = moduleN//':'//routineN
@@ -652,7 +643,7 @@ CONTAINS
     IF (use_virial) THEN
      CALL cp_unimplemented_error(fromWhere=routineP, &
           message="using virial with Siepmann-Sprik"//&
-          " not implemented", error=error, error_level=cp_failure_level)
+          " not implemented",error_level=cp_failure_level)
     END IF
 
     ! Lets do the f_A2 piece derivative of rji**(-beta)
@@ -667,14 +658,14 @@ CONTAINS
     IF (use_virial) THEN
      CALL cp_unimplemented_error(fromWhere=routineP, &
           message="using virial with Siepmann-Sprik"//&
-          " not implemented", error=error, error_level=cp_failure_level)
+          " not implemented",error_level=cp_failure_level)
     END IF
 
     ! Lets do the f_A3 piece derivative: of a_ij
     prefactor = E * f2 * drji**(-beta) * fac  
     CALL siep_a_ij_d(siepmann, r_last_update_pbc, iparticle, jparticle, f_nonbond,&
          pv_nonbond, prefactor, n_loc_size, full_loc_list,loc_cell_v, cell_v,&
-         cell, rcutsq, use_virial, error)
+         cell, rcutsq, use_virial)
 
   END SUBROUTINE siepmann_forces_v3
 
@@ -694,14 +685,12 @@ CONTAINS
 !> \param use_virial ...
 !> \param rcutsq ...
 !> \param particle_set ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siepmann_forces_v2(siepmann,r_last_update_pbc, cell_v, cell, n_loc_size,&
        full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,pv_nonbond,&
-       use_virial, rcutsq, particle_set, error)
+       use_virial, rcutsq, particle_set)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
@@ -717,7 +706,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_forces_v2', &
       routineP = moduleN//':'//routineN
@@ -754,7 +742,7 @@ CONTAINS
     IF (use_virial) THEN
      CALL cp_unimplemented_error(fromWhere=routineP, &
           message="using virial with Siepmann-Sprik"//&
-          " not implemented", error=error, error_level=cp_failure_level)
+          " not implemented",error_level=cp_failure_level)
     END IF
 
 !   ! Lets do the f_A2 piece derivative of rji**(-3)
@@ -769,14 +757,14 @@ CONTAINS
     IF (use_virial) THEN
      CALL cp_unimplemented_error(fromWhere=routineP, &
           message="using virial with Siepmann-Sprik"//&
-          " not implemented", error=error, error_level=cp_failure_level)
+          " not implemented",error_level=cp_failure_level)
     END IF
 
     ! Lets do the f_A3 piece derivative: of Phi_ij
     prefactor = -D * f2 * drji**(-3) * fac  
     CALL siep_Phi_ij_d(siepmann, r_last_update_pbc, iparticle, jparticle, f_nonbond,&
          prefactor, n_loc_size, full_loc_list, loc_cell_v,cell_v, cell,&
-         rcutsq, use_virial, particle_set, error)
+         rcutsq, use_virial, particle_set)
 
   END SUBROUTINE siepmann_forces_v2
 
@@ -788,19 +776,16 @@ CONTAINS
 !> \param glob_cell_v ...
 !> \param glob_loc_list_a ...
 !> \param cell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 ! *****************************************************************************
   SUBROUTINE setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v,&
-                                   glob_loc_list_a, cell, error)
+                                   glob_loc_list_a, cell)
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_siepmann_arrays', &
       routineP = moduleN//':'//routineN
@@ -818,9 +803,9 @@ CONTAINS
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list_a),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(glob_cell_v),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list_a),cp_failure_level,routineP,failure)
+    CPPostcondition(.NOT.ASSOCIATED(glob_cell_v),cp_failure_level,routineP,failure)
     failure = .FALSE.
     CALL timeset ( routineN, handle )
     npairs_tot = 0
@@ -843,13 +828,13 @@ CONTAINS
        END DO Kind_Group_Loop1
     END DO
     ALLOCATE(work_list(npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(work_list2(npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(glob_loc_list(2,npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(glob_cell_v(3,npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Fill arrays with data
     npairs_tot = 0
     DO ilist=1,nonbonded%nlists
@@ -886,19 +871,19 @@ CONTAINS
     END DO
     glob_loc_list(2,:) = work_list2
     DEALLOCATE(work_list2, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(rwork_list(3,npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
      DO ipair = 1, npairs_tot
        rwork_list(:,ipair)=glob_cell_v(:,work_list(ipair))
     END DO
     glob_cell_v = rwork_list
     DEALLOCATE(rwork_list, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(work_list, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(glob_loc_list_a(npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     glob_loc_list_a = glob_loc_list(1,:)
     CALL timestop ( handle )
   END SUBROUTINE setup_siepmann_arrays
@@ -908,14 +893,11 @@ CONTAINS
 !> \param glob_loc_list ...
 !> \param glob_cell_v ...
 !> \param glob_loc_list_a ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+  SUBROUTINE destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_siepmann_arrays', &
       routineP = moduleN//':'//routineN
@@ -926,15 +908,15 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(glob_loc_list)) THEN
        DEALLOCATE(glob_loc_list, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF (ASSOCIATED(glob_loc_list_a)) THEN
        DEALLOCATE(glob_loc_list_a, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     IF (ASSOCIATED(glob_cell_v)) THEN
        DEALLOCATE(glob_cell_v, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
   END SUBROUTINE destroy_siepmann_arrays
@@ -944,15 +926,12 @@ CONTAINS
 !> \param nr_oh ...
 !> \param mm_section ...
 !> \param para_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE print_nr_oh_siepmann(nr_oh,mm_section,para_env,error)
+  SUBROUTINE print_nr_oh_siepmann(nr_oh,mm_section,para_env)
     INTEGER, INTENT(INOUT)                   :: nr_oh
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_oh_siepmann', &
       routineP = moduleN//':'//routineN
@@ -965,17 +944,16 @@ CONTAINS
     NULLIFY(logger)
 
     CALL mp_sum(nr_oh,para_env%group)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     iw= cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
-        extension=".mmLog",error=error)
+        extension=".mmLog")
 
     IF(iw > 0 .AND. nr_oh > 0) THEN
       WRITE(iw,'(/,A,T71,I10,/)') " SIEPMANN: number of OH ions at surface", nr_oh
     ENDIF
 
-    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
-         error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE print_nr_oh_siepmann
 

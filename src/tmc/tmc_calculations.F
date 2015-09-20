@@ -63,17 +63,14 @@ CONTAINS
 !> \param exact_approx_pot flag if result should be stores in exact or approx 
 !>        energy variable
 !> \param tmc_env TMC environment parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
   SUBROUTINE calc_potential_energy(conf, env_id, exact_approx_pot, &
-                                   tmc_env, error)
+                                   tmc_env)
     TYPE(tree_type), POINTER                 :: conf
     INTEGER                                  :: env_id
     LOGICAL                                  :: exact_approx_pot
     TYPE(tmc_env_type), POINTER              :: tmc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_energy', &
       routineP = moduleN//':'//routineN
@@ -86,9 +83,9 @@ CONTAINS
     rnd = 0.0_dp
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,error,failure)
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
+    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
 
     SELECT CASE(tmc_env%params%task_type)
     CASE(task_type_gaussian_adaptation)
@@ -97,9 +94,9 @@ CONTAINS
       IF(tmc_env%params%pressure.GE.0.0_dp) THEN
         ALLOCATE(tmp_cell)
         CALL get_scaled_cell(cell=tmc_env%params%cell , box_scale=conf%box_scale, &
-                             scaled_cell=tmp_cell , error=error)
+                             scaled_cell=tmp_cell)
         CALL set_cell(env_id=env_id, new_cell=tmp_cell%hmat, ierr=ierr)
-        CPPostcondition(ierr.EQ.0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(ierr.EQ.0,cp_failure_level,routineP,failure)
         DEALLOCATE(tmp_cell)
       END IF
 
@@ -125,11 +122,11 @@ CONTAINS
     CASE DEFAULT
       CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                      "worker task typ is unknown "//&
-                     cp_to_string(tmc_env%params%task_type), error)
+                     cp_to_string(tmc_env%params%task_type))
     END SELECT
 
     ! ---     wait a bit
-    rnd = next_random_number(rng_stream=tmc_env%rng_stream, error=error)
+    rnd = next_random_number(rng_stream=tmc_env%rng_stream)
     !rnd = 0.5
 !TODO    IF(worker_random_wait.AND.exact_approx_pot)THEN
 !      CALL SYSTEM_CLOCK(time0, time_rate, time_max)
@@ -156,12 +153,10 @@ CONTAINS
 !> \param vol returns the cell volume
 !> \param abc ...
 !> \param vec a vector, which will be folded (pbc) in the cell
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE get_scaled_cell(cell, box_scale, scaled_hmat, scaled_cell, vol, &
-                             abc, vec, error)
+                             abc, vec)
     TYPE(cell_type), INTENT(IN), POINTER     :: cell
     REAL(KIND=dp), DIMENSION(:), POINTER     :: box_scale
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: scaled_hmat
@@ -170,7 +165,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: abc
     REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: vec
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_scaled_cell', &
       routineP = moduleN//':'//routineN
@@ -179,8 +173,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: tmp_cell
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(box_scale),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(box_scale),cp_failure_level,routineP,failure)
 
     new_scaled_cell = .FALSE.
 
@@ -190,7 +184,7 @@ CONTAINS
     ELSE
       tmp_cell => scaled_cell
     END IF
-    CALL cell_copy(cell_in=cell, cell_out=tmp_cell, error=error)
+    CALL cell_copy(cell_in=cell, cell_out=tmp_cell)
     tmp_cell%hmat(:,1) = tmp_cell%hmat(:,1) * box_scale(1)
     tmp_cell%hmat(:,2) = tmp_cell%hmat(:,2) * box_scale(2)
     tmp_cell%hmat(:,3) = tmp_cell%hmat(:,3) * box_scale(3)
@@ -213,16 +207,13 @@ CONTAINS
 !> \param cell .. original cell
 !> \param scaled_hmat returns the scaled h matrix (matrix of cell vectors)
 !> \param box_scale scaling factors for each direction
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE get_cell_scaling(cell, scaled_hmat, box_scale, error)
+  SUBROUTINE get_cell_scaling(cell, scaled_hmat, box_scale)
     TYPE(cell_type), INTENT(IN), POINTER     :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: scaled_hmat
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: box_scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell_scaling', &
       routineP = moduleN//':'//routineN
@@ -232,10 +223,10 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: tmp_cell
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
 
     ALLOCATE(tmp_cell)
-    CALL cell_copy(cell_in=cell, cell_out=tmp_cell, error=error)
+    CALL cell_copy(cell_in=cell, cell_out=tmp_cell)
     tmp_cell%hmat(:,:) = scaled_hmat(:,:)
     CALL init_cell(cell=tmp_cell)
     CALL get_cell(cell=cell, abc=abc_orig)
@@ -252,17 +243,14 @@ CONTAINS
 !> \param x2 ...
 !> \param cell ...
 !> \param box_scale ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION nearest_distance(x1, x2, cell, box_scale, error) RESULT(res)
+  FUNCTION nearest_distance(x1, x2, cell, box_scale) RESULT(res)
     REAL(KIND=dp), DIMENSION(:)              :: x1, x2
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: box_scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nearest_distance', &
@@ -275,19 +263,19 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_box_scale)
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(x1).EQ.3,cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(x2).EQ.3,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(x1).EQ.3,cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(x2).EQ.3,cp_failure_level,routineP,failure)
 
     dist_vec(:) = x2(:)-x1(:) ! distance vector between atoms
     ALLOCATE(tmp_box_scale(3))
     IF(PRESENT(box_scale)) THEN
-      CPPrecondition(SIZE(box_scale).EQ.3,cp_failure_level,routineP,error,failure)
+      CPPrecondition(SIZE(box_scale).EQ.3,cp_failure_level,routineP,failure)
       tmp_box_scale(:) = box_scale
     ELSE
       tmp_box_scale(:) = 1.0_dp
     END IF
-    CALL get_scaled_cell(cell=cell, box_scale=box_scale, vec=dist_vec, error=error)
+    CALL get_scaled_cell(cell=cell, box_scale=box_scale, vec=dist_vec)
     res = SQRT(SUM(dist_vec(:)*dist_vec(:)))
     DEALLOCATE(tmp_box_scale)
   END FUNCTION nearest_distance
@@ -297,14 +285,11 @@ CONTAINS
 !>        array size should be multiple of dim_per_elem
 !> \param pos list of atoms 
 !> \param center return value, the geometrical center
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE geometrical_center(pos, center, error)
+  SUBROUTINE geometrical_center(pos, center)
     REAL(KIND=dp), DIMENSION(:)              :: pos
     REAL(KIND=dp), DIMENSION(:), POINTER     :: center
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'geometrical_center', &
       routineP = moduleN//':'//routineN
@@ -313,8 +298,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -334,18 +319,15 @@ CONTAINS
 !> \param pos ...
 !> \param atoms ...
 !> \param center ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param 
 !> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE center_of_mass(pos, atoms, center, error)
+  SUBROUTINE center_of_mass(pos, atoms, center)
     REAL(KIND=dp), DIMENSION(:)              :: pos
     TYPE(tmc_atom_type), DIMENSION(:), &
       OPTIONAL                               :: atoms
     REAL(KIND=dp), DIMENSION(:), POINTER     :: center
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'center_of_mass', &
       routineP = moduleN//':'//routineN
@@ -355,8 +337,8 @@ CONTAINS
     REAL(KIND=dp)                            :: mass_sum, mass_tmp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,failure)
+    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -365,7 +347,7 @@ CONTAINS
     mass_sum = 0.0_dp
     DO i=1, SIZE(pos), SIZE(center)
       IF(PRESENT(atoms)) THEN
-        CPPrecondition(SIZE(atoms).EQ.SIZE(pos)/SIZE(center),cp_failure_level,routineP,error,failure)
+        CPPrecondition(SIZE(atoms).EQ.SIZE(pos)/SIZE(center),cp_failure_level,routineP,failure)
         mass_tmp = atoms(INT(i/REAL(SIZE(center),KIND=dp))+1)%mass
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))*mass_tmp
@@ -373,7 +355,7 @@ CONTAINS
       ELSE
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                  "try to calculate center of mass without any mass.",&
-                 error,failure)
+                 failure)
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))
         mass_sum = 1.0_dp
@@ -392,18 +374,15 @@ CONTAINS
 !> \param temerature ...
 !> \param rng_stream ...
 !> \param rnd_seed ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE init_vel(vel, atoms, temerature, rng_stream, rnd_seed, error)
+  SUBROUTINE init_vel(vel, atoms, temerature, rng_stream, rnd_seed)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
     REAL(KIND=dp)                            :: temerature
     TYPE(rng_stream_type), POINTER           :: rng_stream
     REAL(KIND=dp), DIMENSION(3, 2, 3)        :: rnd_seed
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_vel', &
       routineP = moduleN//':'//routineN
@@ -413,14 +392,14 @@ CONTAINS
 
     kB = boltzmann/joule
 
-    CPPreconditionNoFail(ASSOCIATED(vel),cp_failure_level,routineP,error)
-    CPPreconditionNoFail(ASSOCIATED(atoms),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(ASSOCIATED(vel),cp_failure_level,routineP)
+    CPPreconditionNoFail(ASSOCIATED(atoms),cp_failure_level,routineP)
 
     CALL set_rng_stream(rng_stream=rng_stream, bg=rnd_seed(:,:,1), &
-                        cg=rnd_seed(:,:,2), ig=rnd_seed(:,:,3), error=error)
+                        cg=rnd_seed(:,:,2), ig=rnd_seed(:,:,3))
     DO i=1, SIZE(vel)
-       rnd1 = next_random_number(rng_stream, error=error)
-       rnd2 = next_random_number(rng_stream, error=error)
+       rnd1 = next_random_number(rng_stream)
+       rnd2 = next_random_number(rng_stream)
 
        mass_tmp = atoms(INT(i/REAL(3,KIND=dp))+1)%mass
        
@@ -428,7 +407,7 @@ CONTAINS
                   SQRT(kB*temerature/mass_tmp)
     END DO
     CALL get_rng_stream(rng_stream=rng_stream, bg=rnd_seed(:,:,1), &
-                        cg=rnd_seed(:,:,2), ig=rnd_seed(:,:,3), error=error)
+                        cg=rnd_seed(:,:,2), ig=rnd_seed(:,:,3))
 
   END SUBROUTINE init_vel
 
@@ -437,16 +416,13 @@ CONTAINS
 !>        and atom mass, both in atomic units
 !> \param vel ...
 !> \param atoms ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval ekin ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  FUNCTION calc_e_kin(vel, atoms, error) RESULT(ekin)
+  FUNCTION calc_e_kin(vel, atoms) RESULT(ekin)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(tmc_atom_type), DIMENSION(:), &
       POINTER                                :: atoms
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: ekin
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_e_kin', &
@@ -455,8 +431,8 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: mass_tmp
 
-    CPPreconditionNoFail(ASSOCIATED(vel),cp_failure_level,routineP,error)
-    CPPreconditionNoFail(ASSOCIATED(atoms),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(ASSOCIATED(vel),cp_failure_level,routineP)
+    CPPreconditionNoFail(ASSOCIATED(atoms),cp_failure_level,routineP)
     ekin = 0.0_dp
 
     DO i=1, SIZE(vel)
@@ -473,14 +449,11 @@ CONTAINS
 !> \param v3 function values
 !> \param extrapolate extrapolated final value (result)
 !> \param res_err error of the result
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE three_point_extrapolate(v1,v2,v3, extrapolate, res_err, error)
+  SUBROUTINE three_point_extrapolate(v1,v2,v3, extrapolate, res_err)
     REAL(KIND=dp)                            :: v1,v2,v3
     REAL(KIND=dp), INTENT(OUT)               :: extrapolate, res_err
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'three_point_extrapolate', &
       routineP = moduleN//':'//routineN
@@ -522,7 +495,7 @@ CONTAINS
        extrapolate=a**7*b+c
        res_err=e3-extrapolate
     ENDIF
-    CPPostcondition(extrapolate.NE.HUGE(extrapolate),cp_failure_level,routineP,error,failure)
+    CPPostcondition(extrapolate.NE.HUGE(extrapolate),cp_failure_level,routineP,failure)
   CONTAINS
 ! *****************************************************************************
 !> \brief ...
@@ -557,18 +530,15 @@ CONTAINS
 !>         energies
 !> \param p the random number, the criteria has to be smaller than this
 !> \param beta ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval prob return probability of acceptance
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_prob(E_n_mu,E_n_sigma,E_o_mu,E_o_sigma,E_classical_diff,&
-                        prior_mu,prior_sigma,p,beta,error) RESULT(prob)
+                        prior_mu,prior_sigma,p,beta) RESULT(prob)
     REAL(KIND=dp)                            :: E_n_mu, E_n_sigma, E_o_mu, &
                                                 E_o_sigma, E_classical_diff, &
-                                                prior_mu, prior_sigma, p, beta
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: prob
+                                                prior_mu, prior_sigma, p, &
+                                                beta, prob
 
 !    INTEGER       :: io,in
 !    REAL(KIND=dp) :: diff,E_n,E_o,surface,lower_bound,upper_bound,delta
@@ -592,17 +562,14 @@ CONTAINS
 !> \param rnd_nr random number acceptance check will be done with
 !> \param beta 1/(kB*T) can differ for different acceptance checks
 !> \param tmc_params TMC environment parameters
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval prob estimated acceptance probability
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_estimated_prob(elem_old, elem_new, E_classical_diff, &
-                rnd_nr, beta, tmc_params, error) RESULT(prob)
+                rnd_nr, beta, tmc_params) RESULT(prob)
     TYPE(tree_type), POINTER                 :: elem_old, elem_new
     REAL(KIND=dp)                            :: E_classical_diff, rnd_nr, beta
     TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: prob
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_estimated_prob', &
@@ -615,9 +582,9 @@ CONTAINS
                                                 E_sigma_tmp, prior_sigma
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem_old),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elem_new),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rnd_nr.GT.0.0_dp,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(elem_old),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(elem_new),cp_failure_level,routineP,failure)
+    CPPrecondition(rnd_nr.GT.0.0_dp,cp_failure_level,routineP,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -633,12 +600,12 @@ CONTAINS
       CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count-3,4)+1), &
                                    v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count-2,4)+1), &
                                    v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count-1,4)+1), &
-                                   extrapolate=E_mu_tmp,res_err=E_sigma_tmp, error=error)
+                                   extrapolate=E_mu_tmp,res_err=E_sigma_tmp)
       IF((elem_new%scf_energies_count.GT.3))THEN
          CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count-4,4)+1), &
                                       v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count-3,4)+1), &
                                       v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count-2,4)+1), &
-                                      extrapolate=E_n_mu,res_err=E_n_sigma, error=error)
+                                      extrapolate=E_n_mu,res_err=E_n_sigma)
          E_n_sigma = MAX(E_n_sigma, ABS(E_n_mu-E_mu_tmp))
       ELSE
          E_n_sigma = E_sigma_tmp
@@ -649,12 +616,12 @@ CONTAINS
       CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count-3,4)+1), &
                                    v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count-2,4)+1), &
                                    v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count-1,4)+1), &
-                                   extrapolate=E_mu_tmp,res_err=E_sigma_tmp, error=error)
+                                   extrapolate=E_mu_tmp,res_err=E_sigma_tmp)
       IF((elem_old%scf_energies_count.GT.3))THEN
          CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count-4,4)+1), &
                                       v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count-3,4)+1), &
                                       v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count-2,4)+1), &
-                                      extrapolate=E_o_mu,res_err=E_o_sigma, error=error)
+                                      extrapolate=E_o_mu,res_err=E_o_sigma)
          E_o_sigma = MAX(E_o_sigma, ABS(E_o_mu-E_mu_tmp))
       ELSE
          E_o_sigma = E_sigma_tmp
@@ -670,7 +637,7 @@ CONTAINS
       prob = compute_prob(E_n_mu=E_n_mu,E_n_sigma=E_n_sigma,E_o_mu=E_o_mu,E_o_sigma=E_o_sigma,&
                           E_classical_diff=E_classical_diff,&
                           prior_mu=tmc_params%prior_NMC_acc%aver,prior_sigma=prior_sigma, &
-                          p=rnd_nr, beta=beta, error=error)
+                          p=rnd_nr, beta=beta)
     END IF
     ! end the timing
     CALL timestop(handle)
@@ -681,14 +648,11 @@ CONTAINS
 !>        for every temperature
 !> \param tmc_env TMC environment variables
 !> \param eff result efficiency
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Mandes 01.2013
 ! *****************************************************************************
-  SUBROUTINE get_subtree_efficiency(tmc_env, eff, error)
+  SUBROUTINE get_subtree_efficiency(tmc_env, eff)
     TYPE(tmc_env_type), POINTER              :: tmc_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_subtree_efficiency', &
       routineP = moduleN//':'//routineN
@@ -697,9 +661,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
 
     eff(:) = 0.0_dp
 

@@ -63,13 +63,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE shake_colv_int( molecule, particle_set, pos, vel, dt, ishake,&
-       cell,  imass, max_sigma, error )
+       cell,  imass, max_sigma)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -79,7 +78,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_int', &
       routineP = moduleN//':'//routineN
@@ -99,8 +97,7 @@ CONTAINS
     CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Shake
     CALL shake_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
-       error )
+       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma)
 
   END SUBROUTINE shake_colv_int
 
@@ -110,15 +107,13 @@ CONTAINS
 !> \param molecule ...
 !> \param dt ...
 !> \param motion_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE shake_update_colv_int( molecule, dt, motion_section, error)
+  SUBROUTINE shake_update_colv_int( molecule, dt, motion_section)
 
     TYPE(molecule_type), POINTER             :: molecule
     REAL(kind=dp), INTENT(in)                :: dt
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_int', &
       routineP = moduleN//':'//routineN
@@ -131,7 +126,7 @@ CONTAINS
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list=colv_list)
     ! Real update of the Shake target
-    CALL shake_update_colv_low( colv_list, dt, motion_section, error)
+    CALL shake_update_colv_low( colv_list, dt, motion_section)
 
   END SUBROUTINE shake_update_colv_int
 
@@ -147,13 +142,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE rattle_colv_int( molecule, particle_set, vel, dt, irattle,&
-       cell, imass, max_sigma, error )
+       cell, imass, max_sigma)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -163,7 +157,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -178,7 +171,7 @@ CONTAINS
     CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Rattle
     CALL rattle_colv_low ( fixd_list, colv_list, lcolv, &
-       particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
+       particle_set, vel, dt, irattle, cell, imass, max_sigma)
 
   END SUBROUTINE rattle_colv_int
 
@@ -197,13 +190,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE shake_roll_colv_int( molecule, particle_set, pos, vel, r_shake, v_shake, &
-       dt, ishake, cell, imass, max_sigma, error )
+       dt, ishake, cell, imass, max_sigma)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -215,7 +207,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -231,7 +222,7 @@ CONTAINS
     ! Real Shake
     CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
-       imass, max_sigma, error )
+       imass, max_sigma)
 
   END SUBROUTINE shake_roll_colv_int
 
@@ -249,13 +240,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE rattle_roll_colv_int ( molecule, particle_set, vel, r_rattle,  &
-       dt, irattle, veps,  cell, imass, max_sigma, error )
+       dt, irattle, veps,  cell, imass, max_sigma)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -266,7 +256,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -282,7 +271,7 @@ CONTAINS
     ! Real Rattle
     CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
-       imass, max_sigma, error )
+       imass, max_sigma)
 
   END SUBROUTINE rattle_roll_colv_int
 
@@ -299,13 +288,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE shake_colv_ext( gci, particle_set, pos, vel, dt, ishake,&
-       cell,  imass, max_sigma, error )
+       cell,  imass, max_sigma)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -315,7 +303,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_ext', &
       routineP = moduleN//':'//routineN
@@ -331,8 +318,7 @@ CONTAINS
     lcolv => gci%lcolv
     ! Real Shake
     CALL shake_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
-       error )
+       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma)
 
   END SUBROUTINE shake_colv_ext
 
@@ -342,15 +328,13 @@ CONTAINS
 !> \param gci ...
 !> \param dt ...
 !> \param motion_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE shake_update_colv_ext( gci, dt, motion_section, error)
+  SUBROUTINE shake_update_colv_ext( gci, dt, motion_section)
 
     TYPE(global_constraint_type), POINTER    :: gci
     REAL(kind=dp), INTENT(in)                :: dt
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_ext', &
       routineP = moduleN//':'//routineN
@@ -359,7 +343,7 @@ CONTAINS
 
     colv_list => gci%colv_list
     ! Real update of the Shake target
-    CALL shake_update_colv_low( colv_list, dt, motion_section, error)
+    CALL shake_update_colv_low( colv_list, dt, motion_section)
 
   END SUBROUTINE shake_update_colv_ext
 
@@ -375,13 +359,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE rattle_colv_ext( gci, particle_set, vel, dt, irattle,&
-       cell, imass, max_sigma, error )
+       cell, imass, max_sigma)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -391,7 +374,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -404,7 +386,7 @@ CONTAINS
     lcolv => gci%lcolv
     ! Real Rattle
     CALL rattle_colv_low ( fixd_list, colv_list, lcolv, &
-       particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
+       particle_set, vel, dt, irattle, cell, imass, max_sigma)
 
   END SUBROUTINE rattle_colv_ext
 
@@ -423,13 +405,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake, v_shake, &
-       dt, ishake, cell, imass, max_sigma, error )
+       dt, ishake, cell, imass, max_sigma)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -441,7 +422,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -455,7 +435,7 @@ CONTAINS
     ! Real Shake
     CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
-       imass, max_sigma, error )
+       imass, max_sigma)
 
   END SUBROUTINE shake_roll_colv_ext
 
@@ -473,13 +453,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE rattle_roll_colv_ext ( gci, particle_set, vel, r_rattle,  &
-       dt, irattle, veps,  cell, imass, max_sigma, error )
+       dt, irattle, veps,  cell, imass, max_sigma)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -490,7 +469,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -504,7 +482,7 @@ CONTAINS
     ! Real Rattle
     CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
-       imass, max_sigma, error )
+       imass, max_sigma)
 
   END SUBROUTINE rattle_roll_colv_ext
 
@@ -523,14 +501,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE shake_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
-       error )
+       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma)
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
@@ -543,7 +519,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_low', &
       routineP = moduleN//':'//routineN
@@ -562,40 +537,40 @@ CONTAINS
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                lambda=lcolv(iconst)%lambda,&
-               imass=imass, error=error)
+               imass=imass)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=lcolv(iconst)%lambda,&
-               imass=imass, error=error)
+               imass=imass)
        END DO
     ELSE
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
           ! Update colvar
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-               pos=pos, fixd_list=fixd_list, error=error)
+               pos=pos, fixd_list=fixd_list)
           lcolv ( iconst ) % sigma = diff_colvar(lcolv(iconst)%colvar,&
                colv_list(iconst)%expected_value)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
-               lcolv ( iconst ) % colvar_old, imass=imass, error=error)
+               lcolv ( iconst ) % colvar_old, imass=imass)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
 
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                lambda=del_lam,&
-               imass=imass, error=error)
+               imass=imass)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=del_lam,&
-               imass=imass, error=error)
+               imass=imass)
        END DO
     END IF
     ! computing the constraint and value of tolerance
     DO iconst = 1, SIZE(colv_list)
        IF (colv_list(iconst)%restraint%active) CYCLE
        CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-            pos=pos, fixd_list=fixd_list, error=error)
+            pos=pos, fixd_list=fixd_list)
        lcolv ( iconst ) % sigma = diff_colvar(lcolv ( iconst ) % colvar,&
             colv_list ( iconst ) % expected_value)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
@@ -607,15 +582,13 @@ CONTAINS
 !> \param colv_list ...
 !> \param dt ...
 !> \param motion_section ...
-!> \param error ...
 !> \date 02.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE shake_update_colv_low(colv_list, dt, motion_section, error )
+  SUBROUTINE shake_update_colv_low(colv_list, dt, motion_section)
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     REAL(kind=dp), INTENT(in)                :: dt
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_low', &
       routineP = moduleN//':'//routineN
@@ -629,23 +602,23 @@ CONTAINS
 
     failure = .FALSE.
     ! Update globally for restart
-    collective_sections => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLLECTIVE",error=error)
-    CALL section_vals_get(collective_sections, n_repetition=n_rep, error=error)
+    collective_sections => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLLECTIVE")
+    CALL section_vals_get(collective_sections, n_repetition=n_rep)
     IF (n_rep/=0) THEN
        DO irep = 1, n_rep
           CALL section_vals_val_get(collective_sections, "TARGET_GROWTH", r_val=value,&
-             i_rep_section=irep, error=error)
+             i_rep_section=irep)
           IF ( value /= 0.0_dp ) THEN
              CALL section_vals_val_get(collective_sections, "TARGET", r_val=clv_target,&
-                i_rep_section=irep, error=error)
+                i_rep_section=irep)
              new_clv_target = clv_target + value * dt
              ! Check limits..
              CALL section_vals_val_get(collective_sections, "TARGET_LIMIT", explicit=explicit,&
-                i_rep_section=irep, error=error)
+                i_rep_section=irep)
              do_update_colvar = .TRUE.
              IF (explicit) THEN
                 CALL section_vals_val_get(collective_sections, "TARGET_LIMIT", r_val=limit,&
-                   i_rep_section=irep, error=error)
+                   i_rep_section=irep)
                 IF (value>0.0_dp) THEN
                    IF (clv_target==limit) THEN
                       do_update_colvar = .FALSE.
@@ -662,7 +635,7 @@ CONTAINS
              END IF
              IF (do_update_colvar) THEN
                 CALL section_vals_val_set(collective_sections, "TARGET", r_val=new_clv_target,&
-                   i_rep_section=irep, error=error)
+                   i_rep_section=irep)
              END IF
           END IF
        END DO
@@ -674,7 +647,7 @@ CONTAINS
        IF (colv_list(iconst)%expected_value_growth_speed == 0.0_dp) CYCLE
        CALL section_vals_val_get(collective_sections, "TARGET", &
              r_val=colv_list(iconst)%expected_value,&
-             i_rep_section=colv_list(iconst)%inp_seq_num, error=error)
+             i_rep_section=colv_list(iconst)%inp_seq_num)
     END DO
 
   END SUBROUTINE shake_update_colv_low
@@ -693,13 +666,12 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE rattle_colv_low ( fixd_list, colv_list, lcolv, &
-       particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
+       particle_set, vel, dt, irattle, cell, imass, max_sigma)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -713,7 +685,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst
     REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum
@@ -724,31 +695,31 @@ CONTAINS
           IF (colv_list(iconst)%restraint%active) CYCLE
           ! Update colvar_old
           CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-               particles=particle_set, fixd_list=fixd_list, error=error)
+               particles=particle_set, fixd_list=fixd_list)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=lcolv(iconst)%lambda,&
-               imass=imass,error=error)
+               imass=imass)
        END DO
     ELSE
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
-          lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
+          lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
-               lcolv ( iconst ) % colvar_old, imass=imass,error=error)
+               lcolv ( iconst ) % colvar_old, imass=imass)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
 
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=del_lam,&
-               imass=imass,error=error)
+               imass=imass)
        END DO
     END IF
 
     DO iconst = 1, SIZE(colv_list)
        IF (colv_list(iconst)%restraint%active) CYCLE
-       lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
+       lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
 
@@ -771,14 +742,13 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
-       imass, max_sigma, error )
+       imass, max_sigma)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -794,7 +764,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
@@ -808,41 +777,41 @@ CONTAINS
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                lambda=lcolv(iconst)%lambda,&
-               roll=.TRUE.,rmat=r_shake,imass=imass,error=error)
+               roll=.TRUE.,rmat=r_shake,imass=imass)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=lcolv(iconst)%lambda,&
-               roll=.TRUE.,rmat=v_shake,imass=imass,error=error)
+               roll=.TRUE.,rmat=v_shake,imass=imass)
        END DO
     ELSE
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
           ! Update colvar
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-               pos=pos, fixd_list=fixd_list, error=error)
+               pos=pos, fixd_list=fixd_list)
           lcolv ( iconst ) % sigma = diff_colvar(lcolv ( iconst ) % colvar,&
                colv_list ( iconst ) % expected_value)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
                lcolv ( iconst ) % colvar_old, roll=.TRUE., rmat=r_shake,&
-               imass=imass, error=error)
+               imass=imass)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
 
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                lambda=del_lam,&
-               roll=.TRUE., rmat=r_shake, imass=imass,error=error)
+               roll=.TRUE., rmat=r_shake, imass=imass)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=del_lam,&
-               roll=.TRUE., rmat=v_shake, imass=imass,error=error)
+               roll=.TRUE., rmat=v_shake, imass=imass)
        END DO
     END IF
     ! computing the constraint and value of tolerance
     DO iconst = 1, SIZE(colv_list)
        IF (colv_list(iconst)%restraint%active) CYCLE
        CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-            pos=pos, fixd_list=fixd_list, error=error)
+            pos=pos, fixd_list=fixd_list)
        lcolv ( iconst ) % sigma = diff_colvar(lcolv ( iconst ) % colvar,&
             colv_list ( iconst ) % expected_value)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
@@ -866,14 +835,13 @@ CONTAINS
 !> \param cell ...
 !> \param imass ...
 !> \param max_sigma ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
-       imass, max_sigma, error )
+       imass, max_sigma)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -888,7 +856,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst
     REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum
@@ -899,35 +866,33 @@ CONTAINS
           IF (colv_list(iconst)%restraint%active) CYCLE
           ! Update colvar_old
           CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-               particles=particle_set, fixd_list=fixd_list, error=error)
+               particles=particle_set, fixd_list=fixd_list)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=lcolv(iconst)%lambda,&
-               imass=imass,error=error)
+               imass=imass)
        END DO
     ELSE
        DO iconst = 1, SIZE ( colv_list )
           IF (colv_list(iconst)%restraint%active) CYCLE
           lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,&
-               roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set,&
-               error=error)
+               roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
                lcolv ( iconst ) % colvar_old, roll=.TRUE.,&
-               rmat=r_rattle,imass=imass, error=error)
+               rmat=r_rattle,imass=imass)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                lambda=del_lam,&
-               roll=.TRUE.,rmat=r_rattle,imass=imass,error=error)
+               roll=.TRUE.,rmat=r_rattle,imass=imass)
        END DO
     END IF
     ! computing the constraint and value of the tolerance
     DO iconst = 1, SIZE(colv_list)
        IF (colv_list(iconst)%restraint%active) CYCLE
        lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,&
-            roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set,&
-            error=error)
+            roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
 
@@ -942,12 +907,11 @@ CONTAINS
 !> \param roll ...
 !> \param rmat ...
 !> \param imass ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino [teo] created 04.2006
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE  update_con_colv(wrk, fac, lcolv, lambda, roll, rmat, imass, error)
+  SUBROUTINE  update_con_colv(wrk, fac, lcolv, lambda, roll, rmat, imass)
     REAL(KIND=dp), INTENT(INOUT)             :: wrk( :, : )
     REAL(KIND=dp), INTENT(IN)                :: fac
     TYPE(local_colvar_constraint_type), &
@@ -957,7 +921,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_con_colv', &
       routineP = moduleN//':'//routineN
@@ -971,7 +934,7 @@ CONTAINS
     IF (PRESENT(roll)) THEN
        my_roll = roll
        IF (my_roll) THEN
-          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,failure)
        END IF
     END IF
     DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
@@ -994,19 +957,17 @@ CONTAINS
 !> \param roll ...
 !> \param rmat ...
 !> \param imass ...
-!> \param error ...
 !> \retval res ...
 !> \par History
 !>      Teodoro Laino [teo] created 04.2006
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION eval_Jac_colvar(colvar, colvar_old, roll, rmat, imass, error) RESULT(res)
+  FUNCTION eval_Jac_colvar(colvar, colvar_old, roll, rmat, imass) RESULT(res)
     TYPE(colvar_type), POINTER               :: colvar, colvar_old
     LOGICAL, INTENT(IN), OPTIONAL            :: roll
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_Jac_colvar', &
@@ -1021,7 +982,7 @@ CONTAINS
     IF (PRESENT(roll)) THEN
        my_roll = roll
        IF (my_roll) THEN
-          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,failure)
        END IF
     END IF
 
@@ -1048,13 +1009,12 @@ CONTAINS
 !> \param veps ...
 !> \param rmat ...
 !> \param particles ...
-!> \param error ...
 !> \retval res ...
 !> \par History
 !>      Teodoro Laino [teo] created 04.2006
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION rattle_con_eval(colvar, vel, roll, veps, rmat, particles, error) RESULT(res)
+  FUNCTION rattle_con_eval(colvar, vel, roll, veps, rmat, particles) RESULT(res)
     TYPE(colvar_type), POINTER               :: colvar
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     LOGICAL, INTENT(IN), OPTIONAL            :: roll
@@ -1062,7 +1022,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: veps, rmat
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rattle_con_eval', &
@@ -1078,9 +1037,9 @@ CONTAINS
     IF (PRESENT(roll)) THEN
        my_roll = roll
        IF (my_roll) THEN
-          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,error,failure)
-          CPPostcondition(PRESENT(veps),cp_failure_level,routineP,error,failure)
-          CPPostcondition(PRESENT(particles),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,failure)
+          CPPostcondition(PRESENT(veps),cp_failure_level,routineP,failure)
+          CPPostcondition(PRESENT(particles),cp_failure_level,routineP,failure)
        END IF
     END IF
     res = 0.0_dp

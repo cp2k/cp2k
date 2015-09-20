@@ -84,13 +84,11 @@ CONTAINS
 !> \param globenv ...
 !> \param geo_opt_section ...
 !> \param eval_opt_geo ...
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
   RECURSIVE SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, geo_opt_section,&
-       eval_opt_geo, error)
+       eval_opt_geo)
 
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -98,7 +96,6 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: geo_opt_section
     LOGICAL, INTENT(IN), OPTIONAL            :: eval_opt_geo
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
       routineP = moduleN//':'//routineN
@@ -110,9 +107,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(gopt_env),cp_failure_level,routineP,failure)
     ALLOCATE (gopt_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     nshell = 0
 
     NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
@@ -121,23 +118,22 @@ CONTAINS
     gopt_env%id_nr=last_gopt_f_id
     gopt_env%dimer_rotation=.FALSE.
     gopt_env%do_line_search=.FALSE.
-    CALL force_env_retain(force_env, error=error)
+    CALL force_env_retain(force_env)
     gopt_env%force_env      => force_env
-    gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
+    gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION")
     gopt_env%geo_section    => geo_opt_section
     gopt_env%globenv        => globenv
     gopt_env%eval_opt_geo=.TRUE.
     IF (PRESENT(eval_opt_geo)) gopt_env%eval_opt_geo = eval_opt_geo
     gopt_env%require_consistent_energy_force=.TRUE.
 
-    CALL force_env_get(force_env,subsys=subsys,error=error)
+    CALL force_env_get(force_env,subsys=subsys)
     gopt_env%type_id        = gopt_param%type_id
     SELECT CASE(gopt_env%type_id)
     CASE (default_ts_method_id,default_minimization_method_id)
        CALL cp_subsys_get(subsys,&
                           particles=particles,&
-                          shell_particles=shell_particles,&
-                          error=error)
+                          shell_particles=shell_particles)
        IF (ASSOCIATED(shell_particles)) nshell = shell_particles%n_els
        ! The same number of shell and core particles is assumed
        gopt_env%nfree   = particles%n_els + nshell
@@ -150,19 +146,19 @@ CONTAINS
           CASE(default_dimer_method_id)
              ! For the Dimer method we use the same framework of geometry optimizers
              ! already defined for cp2k..
-             natom = force_env_get_natom(force_env,error)
-             dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
-             CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section, error)
+             natom = force_env_get_natom(force_env)
+             dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER")
+             CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section)
 
              ! Setup the GEO_OPT environment for the rotation of the Dimer
-             rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT",error=error)
+             rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT")
              CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section,&
-                  type_id=default_minimization_method_id,error=error)
+                  type_id=default_minimization_method_id)
              gopt_env%gopt_dimer_param%type_id = default_ts_method_id
 
              CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
-                  globenv=globenv, geo_opt_section=rot_opt_section, eval_opt_geo=eval_opt_geo, error=error)
-             CALL dimer_env_retain(gopt_env%dimer_env, error)
+                  globenv=globenv, geo_opt_section=rot_opt_section, eval_opt_geo=eval_opt_geo)
+             CALL dimer_env_retain(gopt_env%dimer_env)
              gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
              gopt_env%gopt_dimer_env%label          = "ROT_OPT"
              gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
@@ -173,7 +169,7 @@ CONTAINS
        gopt_env%label   = "CELL_OPT"
        gopt_env%tag     = "  CELL  "
        gopt_env%cell_method_id = gopt_param%cell_method_id
-       CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section, error)
+       CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section)
     CASE(default_shellcore_method_id)
        gopt_env%nfree   = subsys%shell_particles%n_els
        gopt_env%label   = "SHELL_OPT"
@@ -185,14 +181,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param gopt_env the geometry optimization environment to retain
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE gopt_f_retain(gopt_env, error)
+  SUBROUTINE gopt_f_retain(gopt_env)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_retain', &
       routineP = moduleN//':'//routineN
@@ -201,22 +194,19 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
+    CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,failure)
+    CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP)
     gopt_env%ref_count=gopt_env%ref_count+1
   END SUBROUTINE gopt_f_retain
 
 ! *****************************************************************************
 !> \brief ...
 !> \param gopt_env the geometry optimization environment to release
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE gopt_f_release(gopt_env, error)
+  RECURSIVE SUBROUTINE gopt_f_release(gopt_env)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_release', &
       routineP = moduleN//':'//routineN
@@ -227,20 +217,20 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(gopt_env)) THEN
-       CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP,error)
+       CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP)
        gopt_env%ref_count=gopt_env%ref_count-1
        IF (gopt_env%ref_count==0) THEN
-          CALL force_env_release(gopt_env%force_env,error=error)
+          CALL force_env_release(gopt_env%force_env)
           NULLIFY(gopt_env%force_env,&
                   gopt_env%globenv,&
                   gopt_env%motion_section,&
                   gopt_env%geo_section)
-          CALL cell_opt_env_release(gopt_env%cell_env,error)
-          CALL dimer_env_release(gopt_env%dimer_env, error)
-          CALL gopt_f_release(gopt_env%gopt_dimer_env, error=error)
-          CALL gopt_param_release(gopt_env%gopt_dimer_param, error=error)
+          CALL cell_opt_env_release(gopt_env%cell_env)
+          CALL dimer_env_release(gopt_env%dimer_env)
+          CALL gopt_f_release(gopt_env%gopt_dimer_env)
+          CALL gopt_param_release(gopt_env%gopt_dimer_param)
           DEALLOCATE(gopt_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
        END IF
     END IF
   END SUBROUTINE gopt_f_release

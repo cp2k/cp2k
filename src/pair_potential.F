@@ -127,13 +127,12 @@ CONTAINS
 !> \param do_zbl ...
 !> \param shift_cutoff ...
 !> \param nonbonded_type ...
-!> \param error ...
 !> \par History
 !>      Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
 ! *****************************************************************************
   SUBROUTINE spline_nonbond_control(spline_env, potparm, atomic_kind_set, &
        eps_spline, max_energy, rlow_nb, emax_spline, npoints, iw, iw2, iw3, do_zbl, &
-       shift_cutoff, nonbonded_type, error)
+       shift_cutoff, nonbonded_type)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -144,7 +143,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: npoints, iw, iw2, iw3
     LOGICAL, INTENT(IN)                      :: do_zbl, shift_cutoff
     CHARACTER(LEN=*), INTENT(IN)             :: nonbonded_type
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
@@ -202,7 +200,7 @@ CONTAINS
                 ! Do nothing..
              CASE DEFAULT
                 ! Never reach this point
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
              END SELECT
              ! Special case for EAM
              SELECT CASE(pot%type(k))
@@ -232,7 +230,7 @@ CONTAINS
           CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints_spline, locut, &
                hicut, eps_spline, iw, iw2, i, j, n, ncount, max_energy, pot, &
                energy_cutoff, found_locut, do_zbl, atomic_kind_set, &
-               nonbonded_type, error)
+               nonbonded_type)
 
           pot%undef = .FALSE.
           ! Unique Spline working only for a pure LJ potential..
@@ -344,14 +342,13 @@ CONTAINS
 !> \param do_zbl ...
 !> \param atomic_kind_set ...
 !> \param nonbonded_type ...
-!> \param error ...
 !> \par History
 !>      Splitting in order to make some season cleaning..
 !> \author Teodoro Laino [tlaino] 2007.06
 ! *****************************************************************************
   SUBROUTINE generate_spline_low(spl_p, npoints, locut, hicut,  eps_spline, &
        iw, iw2, i, j, n, ncount, max_energy, pot, energy_cutoff, &
-       found_locut, do_zbl, atomic_kind_set, nonbonded_type, error)
+       found_locut, do_zbl, atomic_kind_set, nonbonded_type)
 
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -366,7 +363,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     CHARACTER(LEN=*), INTENT(IN)             :: nonbonded_type
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
@@ -384,9 +380,9 @@ CONTAINS
     TYPE(spline_factor_type), POINTER        :: spl_f
 
     NULLIFY (logger,spl_f)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CALL spline_factor_create(spl_f, error)
+    CALL spline_factor_create(spl_f)
     mfac    =  5
     IF (npoints>0) THEN
        fixed_spline_points=.TRUE.
@@ -554,7 +550,7 @@ CPSourceFileRef,&
        CALL close_file(unit_number=unit_number)
     END IF
 
-    CALL spline_factor_release(spl_f,error)
+    CALL spline_factor_release(spl_f)
 
   END SUBROUTINE generate_spline_low
 
@@ -565,18 +561,16 @@ CPSourceFileRef,&
 !> \param atomic_kind_set ...
 !> \param do_zbl ...
 !> \param shift_cutoff ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 2006.05
 ! *****************************************************************************
   SUBROUTINE get_nonbond_storage(spline_env, potparm, atomic_kind_set, do_zbl, &
-       shift_cutoff, error)
+       shift_cutoff)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     LOGICAL, INTENT(IN)                      :: do_zbl, shift_cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
       routineP = moduleN//':'//routineN
@@ -600,7 +594,7 @@ CPSourceFileRef,&
        END DO
     END DO
     ALLOCATE(tmp_index(ntype,ntype),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !
     nunique = 0
     tmp_index = HUGE(0)
@@ -648,11 +642,11 @@ CPSourceFileRef,&
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
        END SELECT
        ! Setup a table of the indexes..
        ALLOCATE(my_index(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        n  = 0
        nk = 0
        DO i = 1, ntype
@@ -667,7 +661,7 @@ CPSourceFileRef,&
        END DO
        IF (nvar /=0) THEN
           ALLOCATE(pot_par(ndim,nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           n  = 0
           nk = 0
           DO i = 1, ntype
@@ -760,7 +754,7 @@ CPSourceFileRef,&
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
                    END SELECT
                    IF (ANY(potential_single_allocation==pot_target)) THEN
                       pot_par(nk,:) = REAL(pot_target, KIND=dp)
@@ -770,13 +764,13 @@ CPSourceFileRef,&
           END DO
           ! Main Sorting Loop
           ALLOCATE(Rwork(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(Iwork1(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(Iwork2(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(wtmp(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           CALL sort(pot_par(:,1),ndim,Iwork1)
           ! Sort all the other components of the potential
           DO k = 2, nvar
@@ -828,18 +822,18 @@ CPSourceFileRef,&
              END DO
           END DO
           DEALLOCATE(wtmp,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(Iwork1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(Iwork2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(Rwork,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           !
           ! Let's determine the number of unique potentials and tag them
           !
           ALLOCATE(Cwork(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           Cwork(:) = pot_par(1,:)
           locij = my_index(1)
           CALL get_indexes(locij,ntype,tmpij0)
@@ -854,7 +848,7 @@ CPSourceFileRef,&
                 ! check the array components
                 CALL compare_pot(potparm%pot(tmpij(1) ,tmpij(2) )%pot,&
                                  potparm%pot(tmpij0(1),tmpij0(2))%pot,&
-                                 check, error)
+                                 check)
              CASE(gp_type)
                 check = .TRUE.
                 IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%set(1)%gp%parameters).AND.&
@@ -881,7 +875,7 @@ CPSourceFileRef,&
              nunique = nunique + 1
              iend    = j - 1
              CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
-                  ntype, tmpij, atomic_kind_set, shift_cutoff, do_zbl, error)
+                  ntype, tmpij, atomic_kind_set, shift_cutoff, do_zbl)
              !
              DO i = istart, iend
                 locij = my_index(i)
@@ -896,7 +890,7 @@ CPSourceFileRef,&
           nunique = nunique + 1
           iend    = ndim
           CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
-               ntype, tmpij, atomic_kind_set, shift_cutoff, do_zbl, error)
+               ntype, tmpij, atomic_kind_set, shift_cutoff, do_zbl)
           DO i = istart, iend
              locij = my_index(i)
              CALL get_indexes(locij,ntype,tmpij)
@@ -904,16 +898,16 @@ CPSourceFileRef,&
              tmp_index(tmpij(2),tmpij(1))=nunique
           END DO
           DEALLOCATE(Cwork,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(pot_par,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ELSE
           nunique = nunique + 1
           CALL set_potparm_index(potparm, my_index, pot_target, ntype, tmpij,&
-               atomic_kind_set, shift_cutoff, do_zbl, error)
+               atomic_kind_set, shift_cutoff, do_zbl)
        END IF
        DEALLOCATE(my_index,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END DO
     ! Multiple defined potential
     n = 0
@@ -926,14 +920,14 @@ CPSourceFileRef,&
           tmp_index(j,i) = nunique
           !
           CALL set_potparm_index(potparm, (/n/), multi_type, ntype, tmpij, &
-               atomic_kind_set, shift_cutoff, do_zbl, error)
+               atomic_kind_set, shift_cutoff, do_zbl)
        END DO
     END DO
     ! Concluding the postprocess..
-    CALL spline_env_create(spline_env, ntype, nunique, error=error)
+    CALL spline_env_create(spline_env, ntype, nunique)
     spline_env%spltab=tmp_index
     DEALLOCATE(tmp_index,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
   END SUBROUTINE get_nonbond_storage
 
@@ -948,11 +942,10 @@ CPSourceFileRef,&
 !> \param atomic_kind_set ...
 !> \param shift_cutoff ...
 !> \param do_zbl ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] 2007.06
 ! *****************************************************************************
   SUBROUTINE set_potparm_index(potparm, my_index, pot_target, ntype, tmpij_out,&
-       atomic_kind_set, shift_cutoff, do_zbl, error)
+       atomic_kind_set, shift_cutoff, do_zbl)
 
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: my_index(:), pot_target, ntype
@@ -960,7 +953,6 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     LOGICAL, INTENT(IN)                      :: shift_cutoff, do_zbl
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_potparm_index', &
       routineP = moduleN//':'//routineN
@@ -984,9 +976,9 @@ CPSourceFileRef,&
     nvalues = SIZE(my_index)
     IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
        ALLOCATE(sigma6(nvalues),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(wrk(nvalues),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        min_sigma6= HUGE(0.0_dp)
        m_epsilon =-HUGE(0.0_dp)
        DO i = 1, nvalues
@@ -995,7 +987,7 @@ CPSourceFileRef,&
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
           ! Preliminary check..
           check = SIZE(pot%type)==1
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
 
           sigma6(i) = pot%set(1)%lj%sigma6
           l_epsilon = pot%set(1)%lj%epsilon
@@ -1011,9 +1003,9 @@ CPSourceFileRef,&
        IF (m_epsilon  == -HUGE(0.0_dp)) m_epsilon  = 0.0_dp
        IF (min_sigma6 ==  HUGE(0.0_dp)) min_sigma6 = 0.0_dp
        DEALLOCATE(sigma6,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(wrk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        min_val = MINVAL(my_index(:))
     END IF
@@ -1031,7 +1023,7 @@ CPSourceFileRef,&
           value = my_index(i)
           CALL get_indexes(value,ntype,tmpij)
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
-          CALL spline_factor_create(pot%spl_f, error)
+          CALL spline_factor_create(pot%spl_f)
           pot%spl_f%rcutsq_f  = 1.0_dp
           pot%spl_f%rscale    = 1.0_dp
           pot%spl_f%fscale    = 1.0_dp
@@ -1044,7 +1036,7 @@ CPSourceFileRef,&
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
 
           check = SIZE(pot%type)==1
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
           ! Undef potential.. this will be used to compute the splines..
           IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
              l_sigma6 = pot%set(1)%lj%sigma6

@@ -61,7 +61,6 @@ CONTAINS
 !> \param topology ...
 !> \param para_env ...
 !> \param subsys_section ...
-!> \param error ...
 !> \date   12.2008
 !> \par    Format Information implemented:
 !>            _chemical_name
@@ -83,11 +82,10 @@ CONTAINS
 !>
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE read_coordinate_cif (topology,para_env,subsys_section,error)
+  SUBROUTINE read_coordinate_cif (topology,para_env,subsys_section)
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_cif', &
       routineP = moduleN//':'//routineN
@@ -111,11 +109,11 @@ CONTAINS
 
     NULLIFY(parser, logger)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/CIF_INFO",&
-         extension=".subsysLog",error=error)
+         extension=".subsysLog")
     CALL timeset(routineN,handle)
-    pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR",error)
+    pfactor=section_get_rval(subsys_section,"TOPOLOGY%MEMORY_PROGRESSION_FACTOR")
 
     ! Element is assigned on the basis of the atm_name
     topology%aa_element = .TRUE.
@@ -134,18 +132,18 @@ CONTAINS
 
     IF (iw>0)  WRITE(iw,*) "    Reading in CIF file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,&
-         para_env=para_env,apply_preprocessing=.FALSE.,error=error)
+         para_env=para_env,apply_preprocessing=.FALSE.)
 
     ! Check for   _chemical_name
     CALL parser_search_string(parser,"_chemical_name",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(/,A)')" CIF_INFO| _chemical_name :: "//TRIM(parser%input_line(parser%icol:))
     END IF
 
     ! Check for   _chemical_formula_sum
     CALL parser_search_string(parser,"_chemical_formula_sum",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(A)')" CIF_INFO| _chemical_formula_sum :: "//TRIM(parser%input_line(parser%icol:))
     END IF
@@ -154,79 +152,79 @@ CONTAINS
     periodic = 1
     ! Check for   _cell_length_a
     CALL parser_search_string(parser,"_cell_length_a",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_length_a) was not found in CIF file! "//&
 CPSourceFileRef)
-    CALL cif_get_real(parser,cell_lengths(1),error)
-    cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1),"angstrom",error=error)
+    CALL cif_get_real(parser,cell_lengths(1))
+    cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1),"angstrom")
 
     ! Check for   _cell_length_b
     CALL parser_search_string(parser,"_cell_length_b",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_length_b) was not found in CIF file! "//&
 CPSourceFileRef)
-    CALL cif_get_real(parser,cell_lengths(2),error)
-    cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2),"angstrom",error=error)
+    CALL cif_get_real(parser,cell_lengths(2))
+    cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2),"angstrom")
 
     ! Check for   _cell_length_c
     CALL parser_search_string(parser,"_cell_length_c",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_length_c) was not found in CIF file! "//&
 CPSourceFileRef)
-    CALL cif_get_real(parser,cell_lengths(3),error)
-    cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3),"angstrom",error=error)
+    CALL cif_get_real(parser,cell_lengths(3))
+    cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3),"angstrom")
 
     ! Check for   _cell_angle_alpha
     CALL parser_search_string(parser,"_cell_angle_alpha",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_angle_alpha) was not found in CIF file! "//&
 CPSourceFileRef)
-    CALL cif_get_real(parser,cell_angles(1),error)
-    cell_angles(1) = cp_unit_to_cp2k(cell_angles(1),"deg",error=error)
+    CALL cif_get_real(parser,cell_angles(1))
+    cell_angles(1) = cp_unit_to_cp2k(cell_angles(1),"deg")
 
     ! Check for   _cell_angle_beta
     CALL parser_search_string(parser,"_cell_angle_beta",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_angle_beta) was not found in CIF file! "//&
 CPSourceFileRef)
-    CALL cif_get_real(parser,cell_angles(2),error)
-    cell_angles(2) = cp_unit_to_cp2k(cell_angles(2),"deg",error=error)
+    CALL cif_get_real(parser,cell_angles(2))
+    cell_angles(2) = cp_unit_to_cp2k(cell_angles(2),"deg")
 
     ! Check for   _cell_angle_gamma
     CALL parser_search_string(parser,"_cell_angle_gamma",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_angle_gamma) was not found in CIF file! "//&
 CPSourceFileRef)
-    CALL cif_get_real(parser,cell_angles(3),error)
-    cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg",error=error)
+    CALL cif_get_real(parser,cell_angles(3))
+    cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg")
 
     ! Create cell
     NULLIFY (cell)
-    CALL cell_create(cell,error=error)
+    CALL cell_create(cell)
     CALL set_cell_param(cell,cell_lengths,cell_angles,periodic=periodic,&
-                        do_init_cell=.TRUE.,error=error)
-    CALL write_cell(cell,subsys_section,label="CELL_CIF|",error=error)
+                        do_init_cell=.TRUE.)
+    CALL write_cell(cell,subsys_section,label="CELL_CIF|")
 
     ! Parse atoms info and fractional coordinates
     ! Check for   _atom_site_label
     CALL parser_search_string(parser,"_atom_site_label",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field _atom_site_label was not found in CIF file! "//&
 CPSourceFileRef)
     ifield     = 0
     ii         = 1
     ifield(ii) = 0
-    CALL parser_get_next_line(parser,1,error=error)
+    CALL parser_get_next_line(parser,1)
     DO WHILE (INDEX(parser%input_line,"_atom_site_")/=0)
        ii          = ii + 1
-       CPPostcondition(ii<=20,cp_failure_level,routineP,error,failure)
+       CPPostcondition(ii<=20,cp_failure_level,routineP,failure)
 
        ifield (ii) = -1
        ! Check for   _atom_site_type_symbol
@@ -237,7 +235,7 @@ CPSourceFileRef)
        IF (INDEX(parser%input_line,"_atom_site_fract_y")/=0) ifield(ii) = 2
        ! Check for   _atom_site_fract_z
        IF (INDEX(parser%input_line,"_atom_site_fract_z")/=0) ifield(ii) = 3
-       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_next_line(parser,1)
     END DO
     ! Parse real info
     natom = 0
@@ -263,29 +261,29 @@ CPSourceFileRef)
           SELECT CASE (ifield(ii))
           CASE (-1)
              ! Skip this field
-             CALL parser_get_object (parser,s_tag,error=error)
+             CALL parser_get_object (parser,s_tag)
           CASE (0)
-             CALL parser_get_object  (parser,strtmp,error=error)
+             CALL parser_get_object  (parser,strtmp)
              atom_info%id_atmname(natom) = str2id(strtmp)
              atom_info%id_molname(natom) = str2id(s2s("MOL"//TRIM(ADJUSTL(cp_to_string(natom)))))
              atom_info%id_resname(natom) = atom_info%id_molname(natom)
              atom_info%resid(natom)      = 1
              atom_info%id_element(natom) = atom_info%id_atmname(natom)
           CASE (1)
-             CALL cif_get_real(parser,atom_info%r(1,natom),error)
+             CALL cif_get_real(parser,atom_info%r(1,natom))
           CASE (2)
-             CALL cif_get_real(parser,atom_info%r(2,natom),error)
+             CALL cif_get_real(parser,atom_info%r(2,natom))
           CASE (3)
-             CALL cif_get_real(parser,atom_info%r(3,natom),error)
+             CALL cif_get_real(parser,atom_info%r(3,natom))
           CASE DEFAULT
              ! Never reach this point..
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
           END SELECT
           ii = ii + 1
        END DO
        s = atom_info%r(1:3,natom)
        CALL scaled_to_real(atom_info%r(1:3,natom),s,cell)
-       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       CALL parser_get_next_line(parser,1,at_end=my_end)
        IF (my_end) EXIT
     END DO
     ! Preliminary check: check if atoms provided are really unique.. this is a paranoic
@@ -296,13 +294,13 @@ CPSourceFileRef)
           r2 = atom_info%r(1:3,jj)
           r  = pbc(r1-r2,cell)
           check = (SQRT(DOT_PRODUCT(r,r))>=threshold)
-          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          CPPostcondition(check,cp_failure_level,routineP,failure)
        END DO
     END DO
     ! Parse Symmetry Group and generation elements..
     ! Check for   _symmetry_space_group_name_h-m
     CALL parser_search_string(parser,"_symmetry_space_group_name_h-m",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (found) THEN
        IF (iw>0) WRITE(iw,'(A)')" CIF_INFO| _symmetry_space_group_name_h-m :: "//TRIM(parser%input_line(parser%icol:))
     END IF
@@ -310,10 +308,10 @@ CPSourceFileRef)
     ! Check for   _symmetry_equiv_pos_as_xyz
     ! Check for   _space_group_symop_operation_xyz
     CALL parser_search_string(parser,"_symmetry_equiv_pos_as_xyz",ignore_case=.FALSE.,found=found,&
-         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+         begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     IF (.NOT. found) THEN
        CALL parser_search_string(parser,"_space_group_symop_operation_xyz",ignore_case=.FALSE.,found=found,&
-            begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+            begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     END IF
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
          "The fields (_symmetry_equiv_pos_as_xyz) or (_space_group_symop_operation_xyz) were not found in CIF file! "//&
@@ -324,7 +322,7 @@ CPSourceFileRef,&
     isym = 0
     IF (found) THEN
        ! Apply symmetry elements and generate the whole set of atoms in the unit cell
-       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_next_line(parser,1)
        isym       = 0
        natom_orig = natom
        DO WHILE ((INDEX(parser%input_line,"loop_")==0).AND.(parser%input_line(1:1)/="_"))
@@ -337,9 +335,9 @@ CPSourceFileRef,&
           ELSE
             iln3 = INDEX(parser%input_line(iln2+1:),"'")+iln2
           END IF
-          CPPostcondition(iln1/=0,cp_failure_level,routineP,error,failure)
-          CPPostcondition(iln2/=iln1,cp_failure_level,routineP,error,failure)
-          CPPostcondition(iln3/=iln2,cp_failure_level,routineP,error,failure)
+          CPPostcondition(iln1/=0,cp_failure_level,routineP,failure)
+          CPPostcondition(iln2/=iln1,cp_failure_level,routineP,failure)
+          CPPostcondition(iln3/=iln2,cp_failure_level,routineP,failure)
           CALL initf(3)
           CALL parsef(1,TRIM(parser%input_line(iln0+1:iln1-1)),s2a("x","y","z"))
           CALL parsef(2,TRIM(parser%input_line(iln1+1:iln2-1)),s2a("x","y","z"))
@@ -385,7 +383,7 @@ CPSourceFileRef,&
              END IF
           END DO Loop_over_unique_atoms
           CALL finalizef()
-          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+          CALL parser_get_next_line(parser,1,at_end=my_end)
           IF (my_end) EXIT
        END DO
     END IF
@@ -394,8 +392,8 @@ CPSourceFileRef,&
     IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
 
     ! Releasse local cell type and parser
-    CALL cell_release(cell,error=error)
-    CALL parser_release(parser,error=error)
+    CALL cell_release(cell)
+    CALL parser_release(parser)
 
     ! Reallocate all structures with the exact NATOM size
     CALL reallocate(atom_info%id_molname,1,natom)
@@ -412,7 +410,7 @@ CPSourceFileRef,&
     topology%natoms            = natom
     topology%molname_generated = .TRUE.
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/CIF_INFO",error=error)
+         "PRINT%TOPOLOGY_INFO/CIF_INFO")
     CALL timestop(handle)
   END SUBROUTINE read_coordinate_cif
 
@@ -421,14 +419,12 @@ CPSourceFileRef,&
 !>         treat properly the accuracy specified in the CIF file, i.e. 3.45(6)
 !> \param parser ...
 !> \param r ...
-!> \param error ...
 !> \date   12.2008
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE cif_get_real(parser, r, error)
+  SUBROUTINE cif_get_real(parser, r)
     TYPE(cp_parser_type), POINTER            :: parser
     REAL(KIND=dp), INTENT(OUT)               :: r
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cif_get_real', &
       routineP = moduleN//':'//routineN
@@ -436,7 +432,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: s_tag
     INTEGER                                  :: iln
 
-    CALL parser_get_object (parser,s_tag,error=error)
+    CALL parser_get_object (parser,s_tag)
     iln = LEN_TRIM(s_tag)
     IF (INDEX(s_tag,"(")/=0) iln = INDEX(s_tag,"(")-1
     READ(s_tag(1:iln),*) r

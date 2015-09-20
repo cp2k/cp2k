@@ -46,13 +46,11 @@ CONTAINS
 !> \param mc_env the mc_environment you want to create
 !>
 !>    Suitable for parallel use.
-!> \param error ...
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE mc_env_create ( mc_env, error )
+  SUBROUTINE mc_env_create ( mc_env)
 
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_env_create', &
       routineP = moduleN//':'//routineN
@@ -60,7 +58,7 @@ CONTAINS
     INTEGER                                  :: istat
 
     ALLOCATE ( mc_env, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
 
     last_mc_env_id=last_mc_env_id+1
     mc_env%id_nr=last_mc_env_id
@@ -122,17 +120,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given mc env
 !> \param mc_env the force environment to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>
-!>    Suitable for parallel.
 !> \author MJM
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-SUBROUTINE mc_env_retain(mc_env, error)
+SUBROUTINE mc_env_retain(mc_env)
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_retain', &
       routineP = moduleN//':'//routineN
@@ -141,25 +134,20 @@ SUBROUTINE mc_env_retain(mc_env, error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(mc_env),cp_failure_level,routineP,error,failure)
-  CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP,error)
+  CPPrecondition(ASSOCIATED(mc_env),cp_failure_level,routineP,failure)
+  CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP)
   mc_env%ref_count=mc_env%ref_count+1
 END SUBROUTINE mc_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given mc env
 !> \param mc_env the mc environment to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>
-!>    Suitable for parallel.
 !> \author MJM
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-SUBROUTINE mc_env_release(mc_env, error)
+SUBROUTINE mc_env_release(mc_env)
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_release', &
       routineP = moduleN//':'//routineN
@@ -170,7 +158,7 @@ SUBROUTINE mc_env_release(mc_env, error)
   failure=.FALSE.
 
   IF (ASSOCIATED(mc_env)) THEN
-     CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP,error)
+     CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP)
      mc_env%ref_count=mc_env%ref_count-1
      IF (mc_env%ref_count==0) THEN
         mc_env%ref_count=1
@@ -178,7 +166,7 @@ SUBROUTINE mc_env_release(mc_env, error)
         NULLIFY ( mc_env % force_env)
         mc_env%ref_count=0
         DEALLOCATE(mc_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
      END IF
   END IF
   NULLIFY(mc_env)

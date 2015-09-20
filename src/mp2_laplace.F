@@ -56,7 +56,6 @@ MODULE mp2_laplace
 !> \param fm_mat_S ...
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
-!> \param error ...
 !> \param homo_beta ...
 !> \param virtual_beta ...
 !> \param dimen_ia_beta ...
@@ -67,7 +66,7 @@ MODULE mp2_laplace
 ! *****************************************************************************
   SUBROUTINE laplace_minimax_approx(Emp2,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
-                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
+                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,&
                                     homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                     fm_mat_Q_gemm_beta,fm_mat_Q_beta)
     REAL(KIND=dp)                            :: Emp2
@@ -80,7 +79,6 @@ MODULE mp2_laplace
                                                 color_rpa_group
     TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
                                                 fm_mat_Q
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
                                                 dimen_ia_beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
@@ -126,7 +124,7 @@ MODULE mp2_laplace
 
     ! Calculate weights and exponents with minimax approximation
     ALLOCATE(awj(2*num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     awj=0.0_dp
 
     Emin=2.0_dp*(Eigenval(homo+1)-Eigenval(homo))
@@ -143,13 +141,13 @@ MODULE mp2_laplace
     IF(E_Range<2.0_dp) E_Range=2.0_dp
 
     ierr=0
-    CALL get_minimax_coeff(num_integ_points,E_Range,awj,ierr,error)
+    CALL get_minimax_coeff(num_integ_points,E_Range,awj,ierr)
 
     ALLOCATE(aj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     aj=0.0_dp
     ALLOCATE(wj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     wj=0.0_dp
 
     DO jquad=1, num_integ_points
@@ -176,11 +174,11 @@ MODULE mp2_laplace
     ! initialize buffer for matrix redistribution
     CALL initialize_buffer(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
                            number_of_rec,number_of_send,&
-                           map_send_size,map_rec_size,local_size_source,para_env_RPA,error)
+                           map_send_size,map_rec_size,local_size_source,para_env_RPA)
     IF(my_open_shell) THEN
       CALL initialize_buffer(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
                              number_of_rec_beta,number_of_send_beta,&
-                             map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA,error)
+                             map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA)
     END IF    
 
     Emp2=0.0_dp
@@ -193,23 +191,22 @@ MODULE mp2_laplace
       IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
       
       !XXX ! copy fm_mat_S into fm_mat_G
-      !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
+      !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G)
 
       !XXX ! get info of fm_mat_G
       !XXX CALL cp_fm_get_info(matrix=fm_mat_G,&
       !XXX                     nrow_local=nrow_local,&
       !XXX                     ncol_local=ncol_local,&
       !XXX                     row_indices=row_indices,&
-      !XXX                     col_indices=col_indices,&
-      !XXX                     error=error)
+      !XXX                     col_indices=col_indices)
+      !XXX                     
 
       ! get info of fm_mat_S
       CALL cp_fm_get_info(matrix=fm_mat_S,&
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
-                          col_indices=col_indices,&
-                          error=error)
+                          col_indices=col_indices)
 
       ! update G matrix with the new value of w and a
       IF(first_cycle) THEN
@@ -250,37 +247,36 @@ MODULE mp2_laplace
       t_start=m_walltime()
       CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=1.0_dp,&
                       matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
-                      matrix_c=fm_mat_Q_gemm,error=error)
+                      matrix_c=fm_mat_Q_gemm)
       t_end=m_walltime()
       actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
       IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
       my_num_dgemm_call=my_num_dgemm_call+1
 
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
-      CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp,error=error)
+      CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp)
       CALL fm_redistribute(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
                            number_of_send,&
-                           map_send_size,map_rec_size,local_size_source,para_env_RPA,error)
+                           map_send_size,map_rec_size,local_size_source,para_env_RPA)
 
       IF(my_open_shell) THEN
         !XXX  the same for the beta spin
         !XXX ! copy fm_mat_S into fm_mat_G
-        !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta,error=error)
+        !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta)
         !XXX ! get info of fm_mat_G_beta
         !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
         !XXX                     nrow_local=nrow_local,&
         !XXX                     ncol_local=ncol_local,&
         !XXX                     row_indices=row_indices,&
-        !XXX                     col_indices=col_indices,&
-        !XXX                     error=error)
+        !XXX                     col_indices=col_indices)
+        !XXX                     
 
         ! the same for the beta spin
         CALL cp_fm_get_info(matrix=fm_mat_S_beta,&
                             nrow_local=nrow_local,&
                             ncol_local=ncol_local,&
                             row_indices=row_indices,&
-                            col_indices=col_indices,&
-                            error=error)
+                            col_indices=col_indices)
         ! update G matrix with the new value of w and a
         IF(first_cycle) THEN
           DO jjB=1, ncol_local
@@ -322,17 +318,17 @@ MODULE mp2_laplace
         t_start=m_walltime()
         CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=1.0_dp,&
                         matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
-                        matrix_c=fm_mat_Q_gemm_beta,error=error)
+                        matrix_c=fm_mat_Q_gemm_beta)
         t_end=m_walltime()
         actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
         IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
         my_num_dgemm_call=my_num_dgemm_call+1
 
         ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
-        CALL cp_fm_set_all(matrix=fm_mat_Q_beta,alpha=0.0_dp,error=error)
+        CALL cp_fm_set_all(matrix=fm_mat_Q_beta,alpha=0.0_dp)
         CALL fm_redistribute(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
                              number_of_send_beta,&
-                             map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA,error)
+                             map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA)
 
       END IF
 
@@ -341,8 +337,7 @@ MODULE mp2_laplace
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
-                          col_indices=col_indices,&
-                          error=error)
+                          col_indices=col_indices)
 
       ! calcualte the trace of the product Q*Q
       trace_XX=0.0_dp
@@ -377,12 +372,12 @@ MODULE mp2_laplace
     ! release buffer
     CALL release_buffer(RPA_proc_map,buffer_rec,buffer_send,&
                         number_of_rec,number_of_send,&
-                        map_send_size,map_rec_size,local_size_source,error)
+                        map_send_size,map_rec_size,local_size_source)
 
     IF(my_open_shell) THEN
       CALL release_buffer(RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
                           number_of_rec_beta,number_of_send_beta,&
-                          map_send_size_beta,map_rec_size_beta,local_size_source_beta,error)
+                          map_send_size_beta,map_rec_size_beta,local_size_source_beta)
     END IF    
 
     DEALLOCATE(aj)

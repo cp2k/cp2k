@@ -81,15 +81,13 @@ MODULE qs_rho0_methods
 !> \param harmonics ...
 !> \param nchannels ...
 !> \param nsotot ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE  calculate_mpole_gau(mp_gau,orb_basis,harmonics,nchannels,nsotot,error)
+  SUBROUTINE  calculate_mpole_gau(mp_gau,orb_basis,harmonics,nchannels,nsotot)
 
     TYPE(mpole_gau_overlap)                  :: mp_gau
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: nchannels, nsotot
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_mpole_gau', &
       routineP = moduleN//':'//routineN
@@ -121,7 +119,7 @@ MODULE qs_rho0_methods
     llmax = harmonics%llmax
 
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     my_CG => harmonics%my_CG
 
@@ -131,7 +129,7 @@ MODULE qs_rho0_methods
        DO iset2 = 1,nset
 
           CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
-                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local)
 
           n1 = nsoset(lmax(iset1))
           DO ipgf1 = 1,npgf(iset1)
@@ -165,7 +163,7 @@ MODULE qs_rho0_methods
     END DO  ! iset1
 
     DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
   END SUBROUTINE calculate_mpole_gau
@@ -184,13 +182,11 @@ MODULE qs_rho0_methods
 !> \param qs_kind ...
 !> \param harmonics ...
 !> \param rho0_h_tot ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_rho0_atom(gapw_control,rho_atom_set, rho0_atom_set, &
                                  rho0_mp,a_list,g_atom,&
                                  paw_atom,natom,ikind,qs_kind,harmonics,&
-                                 rho0_h_tot,&
-                                 error)
+                                 rho0_h_tot)
 
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -205,7 +201,6 @@ MODULE qs_rho0_methods
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), INTENT(INOUT)                  :: rho0_h_tot
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
       routineP = moduleN//':'//routineN
@@ -263,14 +258,14 @@ MODULE qs_rho0_methods
             nspins = SIZE(cpc_h)
             nsotot = SIZE(mpole_gau%Qlm_gg,1)
             ALLOCATE(cpc_ah(nsotot,nsotot,nspins),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             cpc_ah=0._dp
             ALLOCATE(cpc_as(nsotot,nsotot,nspins),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
             cpc_as=0._dp
             DO ispin = 1,nspins
-              CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),qs_kind,error)
-              CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_as(:,:,ispin),qs_kind,error)
+              CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),qs_kind)
+              CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_as(:,:,ispin),qs_kind)
             END DO
          END IF
 
@@ -317,7 +312,7 @@ MODULE qs_rho0_methods
          END DO  ! iso
          IF(paw_atom) THEN
             DEALLOCATE(cpc_ah,cpc_as,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
          END IF
       END DO  ! iat
     END IF
@@ -373,16 +368,14 @@ MODULE qs_rho0_methods
 !> \param gapw_control ...
 !> \param tddft ...
 !> \param tddft_local_rho_set ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_rho0(qs_env, gapw_control, &
-                       tddft, tddft_local_rho_set, error)
+                       tddft, tddft_local_rho_set)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(local_rho_type), OPTIONAL, POINTER  :: tddft_local_rho_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0', &
       routineP = moduleN//':'//routineN
@@ -416,7 +409,7 @@ MODULE qs_rho0_methods
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     NULLIFY(qs_kind_set)
     NULLIFY(atomic_kind_set)
@@ -432,7 +425,7 @@ MODULE qs_rho0_methods
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                     atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,error=error)
+                    dft_control=dft_control)
 
     nkind = SIZE(atomic_kind_set)
     eps_Vrho0 = gapw_control%eps_Vrho0
@@ -444,7 +437,7 @@ MODULE qs_rho0_methods
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
 !   Initialize the multipole and the compensation charge type
-    CALL allocate_rho0_mpole(rho0_mpole,error=error)
+    CALL allocate_rho0_mpole(rho0_mpole)
     CALL allocate_rho0_atom(rho0_atom_set,natom)
 
 !   Allocate the multipole set
@@ -472,7 +465,7 @@ MODULE qs_rho0_methods
                        paw_atom=paw_atom,&
                        hard0_radius=rc_orb,&
                        zeff=zeff,&
-                       alpha_core_charge=alpha_core,error=error)
+                       alpha_core_charge=alpha_core)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
                              maxl=maxl,&
@@ -487,7 +480,7 @@ MODULE qs_rho0_methods
         rho0_mpole%lmax0_kind(ikind) = 0
       END IF
 
-      CALL set_qs_kind(qs_kind_set(ikind), lmax_rho0 = rho0_mpole%lmax0_kind(ikind),error=error)
+      CALL set_qs_kind(qs_kind_set(ikind), lmax_rho0 = rho0_mpole%lmax0_kind(ikind))
 
       IF(gapw_control%lrho1_eq_lrho0) harmonics%max_iso_not0 = &
            nsoset(rho0_mpole%lmax0_kind(ikind))
@@ -511,7 +504,7 @@ MODULE qs_rho0_methods
       IF(paw_atom) THEN
 !        Calculate multipoles given by the product of 2 primitives Qlm_gg
          CALL calculate_mpole_gau(rho0_mpole%mp_gau(ikind),&
-                                  orb_basis,harmonics,nchan_s,nsotot,error)
+                                  orb_basis,harmonics,nchan_s,nsotot)
       END IF
 
 !     Calculate the core density rhoz
@@ -548,7 +541,7 @@ MODULE qs_rho0_methods
 !   and calculate the interaction radii
     max_rpgf0_s = 0.0_dp
     DO ikind = 1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom,error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom)
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
       CALL interaction_radii_g0(rho0_mpole,ikind,eps_Vrho0,max_rpgf0_s)
     END DO
@@ -558,25 +551,24 @@ MODULE qs_rho0_methods
        CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
                                       rho0_atom_set=rho0_atom_set,&
                                       rhoz_set = rhoz_set,&
-                                      rhoz_tot=total_rho_core_rspace,error=error)
+                                      rhoz_tot=total_rho_core_rspace)
     ELSE
        tddft_local_rho_set%rho0_mpole => rho0_mpole
        tddft_local_rho_set%rho0_atom_set => rho0_atom_set
        tddft_local_rho_set%rhoz_set => rhoz_set
        tddft_local_rho_set%rhoz_tot = total_rho_core_rspace
-       CALL rho0_s_grid_create(qs_env, rho0_mpole, .TRUE., error)
+       CALL rho0_s_grid_create(qs_env, rho0_mpole, .TRUE.)
     END IF
 
-    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
     output_unit = cp_print_key_unit_nr(logger,dft_section,"PRINT%GAPW%RHO0_INFORMATION",&
-         extension=".Log",error=error)
-    CALL section_vals_val_get(dft_section,"PRINT%GAPW%RHO0_INFORMATION%UNIT",c_val=unit_str,&
-         error=error)
+         extension=".Log")
+    CALL section_vals_val_get(dft_section,"PRINT%GAPW%RHO0_INFORMATION%UNIT",c_val=unit_str)
     IF (output_unit>0) THEN
-       CALL write_rho0_info(rho0_mpole,unit_str,output_unit,error)
+       CALL write_rho0_info(rho0_mpole,unit_str,output_unit)
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%GAPW%RHO0_INFORMATION",error=error)
+         "PRINT%GAPW%RHO0_INFORMATION")
 
     CALL timestop(handle)
 

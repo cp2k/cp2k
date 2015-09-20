@@ -99,17 +99,14 @@ CONTAINS
 !> \brief Evaluates Nabla V_KS on the grids
 !> \param epr_env ...
 !> \param qs_env ...
-!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_nablavks(epr_env,qs_env,error)
+  SUBROUTINE epr_nablavks(epr_env,qs_env)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_nablavks', &
       routineP = moduleN//':'//routineN
@@ -217,12 +214,12 @@ CONTAINS
     NULLIFY(ks_env)
     NULLIFY(rho_r, rho_ao, rho1_r, rho2_r)
 
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    logger => cp_get_default_logger()
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
     ionode = logger%para_env%mepos==logger%para_env%source
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+         extension=".linresLog")
 
     failure = .FALSE.
 
@@ -231,9 +228,9 @@ CONTAINS
 !   -------------------------------------
 
     g_section => section_vals_get_subs_vals(lr_section,&
-                 "EPR%PRINT%G_TENSOR",error=error)
+                 "EPR%PRINT%G_TENSOR")
 
-    CALL section_vals_val_get(g_section,"gapw_max_alpha",r_val=gapw_max_alpha, error=error)
+    CALL section_vals_val_get(g_section,"gapw_max_alpha",r_val=gapw_max_alpha)
 
     gth_gspace = .TRUE.
 
@@ -242,21 +239,21 @@ CONTAINS
 !   -------------------------------------
 
     CALL get_epr_env(epr_env,nablavks_set=nablavks_set,& ! R0
-                     nablavks_atom_set=nablavks_atom_set,& ! R0
-                     error=error) ! R0
+                     nablavks_atom_set=nablavks_atom_set) ! R0
+                     ! R0
 
     DO ispin = 1,SIZE(nablavks_set,2)
        DO idir = 1,SIZE(nablavks_set,1)
-          CALL qs_rho_get(nablavks_set(idir,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_zero(rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(idir,ispin)%rho, rho_r=rho_r)
+          CALL pw_zero(rho_r(1)%pw)
        END DO
     END DO
 
-    CALL qs_rho_get(nablavks_set(1, 1)%rho, rho_r=rho_r, error=error)
+    CALL qs_rho_get(nablavks_set(1, 1)%rho, rho_r=rho_r)
     pwx => rho_r(1)%pw
-    CALL qs_rho_get(nablavks_set(2, 1)%rho, rho_r=rho_r, error=error)
+    CALL qs_rho_get(nablavks_set(2, 1)%rho, rho_r=rho_r)
     pwy => rho_r(1)%pw
-    CALL qs_rho_get(nablavks_set(3, 1)%rho, rho_r=rho_r, error=error)
+    CALL qs_rho_get(nablavks_set(3, 1)%rho, rho_r=rho_r)
     pwz => rho_r(1)%pw
 
     roffset = -REAL(MODULO(pwx%pw_grid%npts,2),dp)*pwx%pw_grid%dr/2.0_dp
@@ -280,14 +277,12 @@ CONTAINS
                     rho0_atom_set=rho0_atom_set,&
                     rhoz_set=rhoz_set,&
                     subsys=subsys,&
-                    ks_env=ks_env,&
-                    error=error)
+                    ks_env=ks_env)
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
-                    poisson_env=poisson_env,&
-                    error=error)
+                    poisson_env=poisson_env)
 
-    CALL qs_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles)
 
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
@@ -312,32 +307,28 @@ CONTAINS
                                      "rho_tot_gspace",0)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw, &
-                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                           error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gtemp%pw, &
-                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                           error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rtemp%pw,&
-                           use_data=REALDATA3D,in_space=REALSPACE,&
-                           error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
-                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                           error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
 
     IF (gapw) THEN
        ! need to rebuild the coeff !
-       CALL qs_rho_get(rho, rho_ao_kp=rho_ao, error=error)
-       CALL calculate_rho_atom_coeff(qs_env,rho_ao,error=error)
-       CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
+       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
+       CALL calculate_rho_atom_coeff(qs_env,rho_ao)
+       CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.)
     END IF
 
-    CALL pw_zero(rho_tot_gspace%pw, error=error)
+    CALL pw_zero(rho_tot_gspace%pw)
 
     CALL calc_rho_tot_gspace(rho_tot_gspace,qs_env,rho,&
-                             skip_nuclear_density=.NOT. gapw,error=error)
+                             skip_nuclear_density=.NOT. gapw)
 
     CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,ehartree,&
-                          v_hartree_gspace%pw,error=error)
+                          v_hartree_gspace%pw)
 
     !   -------------------------------------
     !   Atomic grids part
@@ -361,13 +352,13 @@ CONTAINS
                            hard_radius=hard_radius,&
                            paw_atom=paw_atom,&
                            zeff=charge,&
-                           alpha_core_charge=alpha_core, error=error)
+                           alpha_core_charge=alpha_core)
 
           IF (paw_atom) THEN
 
              ALLOCATE(vh1_rad_h(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
              ALLOCATE(vh1_rad_s(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
              ! DO iat = 1, natom ! natom = # atoms for ikind
              !
@@ -466,7 +457,7 @@ CONTAINS
 
              DEALLOCATE(vh1_rad_h,STAT=istat)
              DEALLOCATE(vh1_rad_s,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
           END IF ! paw_atom
 
@@ -474,25 +465,25 @@ CONTAINS
 
     END IF ! gapw
 
-    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw, error=error)
-    CALL pw_derive(v_hartree_gtemp%pw, (/1,0,0/) , error=error)
-    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw, error=error)
-    CALL pw_copy(v_hartree_rtemp%pw, pwx, error=error)
+    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
+    CALL pw_derive(v_hartree_gtemp%pw, (/1,0,0/))
+    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
+    CALL pw_copy(v_hartree_rtemp%pw, pwx)
 
-    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw, error=error)
-    CALL pw_derive(v_hartree_gtemp%pw, (/0,1,0/) , error=error)
-    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw, error=error)
-    CALL pw_copy(v_hartree_rtemp%pw, pwy, error=error)
+    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
+    CALL pw_derive(v_hartree_gtemp%pw, (/0,1,0/))
+    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
+    CALL pw_copy(v_hartree_rtemp%pw, pwy)
 
-    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw, error=error)
-    CALL pw_derive(v_hartree_gtemp%pw, (/0,0,1/) , error=error)
-    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw, error=error)
-    CALL pw_copy(v_hartree_rtemp%pw, pwz, error=error)
+    CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
+    CALL pw_derive(v_hartree_gtemp%pw, (/0,0,1/))
+    CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
+    CALL pw_copy(v_hartree_rtemp%pw, pwz)
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gtemp%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rtemp%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gtemp%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rtemp%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw)
 
     DEALLOCATE(v_hartree_gspace,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -524,7 +515,7 @@ CONTAINS
                         hard_radius=hard_radius,&
                         gth_potential=gth_potential,&
                         all_potential=all_potential,&
-                        paw_atom=paw_atom, error=error)
+                        paw_atom=paw_atom)
 
        IF (ASSOCIATED(gth_potential)) THEN
 
@@ -561,16 +552,13 @@ CONTAINS
                                               "v_coulomb_rtemp",0)
 
              CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
-                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                    error=error)
+                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
              CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
-                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                    error=error)
+                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
              CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
-                                    use_data=REALDATA3D,in_space=REALSPACE,&
-                                    error=error)
+                                    use_data=REALDATA3D,in_space=REALSPACE)
 
-             CALL pw_zero(v_coulomb_gspace%pw, error=error)
+             CALL pw_zero(v_coulomb_gspace%pw)
 
              DO iat = 1, natom ! natom = # atoms for ikind
 
@@ -649,24 +637,24 @@ CONTAINS
 
              END DO
 
-             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw,error=error)
-             CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/),error=error )
-             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw,error=error)
-             CALL pw_axpy(v_coulomb_rtemp%pw, pwx,error=error)
+             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+             CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/))
+             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+             CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
 
-             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw,error=error)
-             CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/),error=error )
-             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw,error=error)
-             CALL pw_axpy(v_coulomb_rtemp%pw, pwy,error=error)
+             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+             CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/))
+             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+             CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
 
-             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw,error=error)
-             CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/),error=error )
-             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw,error=error)
-             CALL pw_axpy(v_coulomb_rtemp%pw, pwz,error=error)
+             CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+             CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/))
+             CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+             CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
 
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw)
 
              DEALLOCATE(v_coulomb_gspace,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -906,9 +894,9 @@ CONTAINS
     END DO
 
     DO idir = 1,3
-       CALL qs_rho_get(nablavks_set(idir,1)%rho, rho_r=rho1_r, error=error)
-       CALL qs_rho_get(nablavks_set(idir,2)%rho, rho_r=rho2_r, error=error)
-       CALL pw_copy(rho1_r(1)%pw,rho2_r(1)%pw,error=error)
+       CALL qs_rho_get(nablavks_set(idir,1)%rho, rho_r=rho1_r)
+       CALL qs_rho_get(nablavks_set(idir,2)%rho, rho_r=rho2_r)
+       CALL pw_copy(rho1_r(1)%pw,rho2_r(1)%pw)
     END DO
 
 !   -------------------------------------
@@ -923,49 +911,44 @@ CONTAINS
                                      "v_xc_rtemp",0)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_gtemp%pw, &
-                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                           error=error)
+                           use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_xc_rtemp%pw,&
-                           use_data=REALDATA3D,in_space=REALSPACE,&
-                           error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE)
 
-    xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC", error=error)
+    xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
     ! a possible vdW section in xc_section will be ignored
 
     IF (gapw_xc) THEN
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=xc_section,&
-           vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
-           error=error)
+           vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.) 
     ELSE
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section,&
-           vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
-           error=error)
+           vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.) 
     END IF
 
     IF (ASSOCIATED(v_rspace_new)) THEN
 
        DO ispin = 1,nspins
 
-          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw, error=error)
-          CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) , error=error)
-          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL qs_rho_get(nablavks_set(1,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
+          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
+          CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/))
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+          CALL qs_rho_get(nablavks_set(1,ispin)%rho, rho_r=rho_r)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
-          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw, error=error)
-          CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) , error=error)
-          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL qs_rho_get(nablavks_set(2,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
+          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
+          CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/))
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+          CALL qs_rho_get(nablavks_set(2,ispin)%rho, rho_r=rho_r)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
-          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw, error=error)
-          CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) , error=error)
-          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL qs_rho_get(nablavks_set(3,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
+          CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
+          CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/))
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+          CALL qs_rho_get(nablavks_set(3,ispin)%rho, rho_r=rho_r)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
-               error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
 
        END DO
 
@@ -978,26 +961,25 @@ CONTAINS
 
        DO ispin = 1,nspins
 
-          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw, error=error)
-          CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) , error=error)
-          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL qs_rho_get(nablavks_set(1,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
+          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
+          CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/))
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+          CALL qs_rho_get(nablavks_set(1,ispin)%rho, rho_r=rho_r)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
-          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw, error=error)
-          CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) , error=error)
-          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL qs_rho_get(nablavks_set(2,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
+          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
+          CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/))
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+          CALL qs_rho_get(nablavks_set(2,ispin)%rho, rho_r=rho_r)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
-          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw, error=error)
-          CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) , error=error)
-          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL qs_rho_get(nablavks_set(3,ispin)%rho, rho_r=rho_r, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
+          CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
+          CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/))
+          CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+          CALL qs_rho_get(nablavks_set(3,ispin)%rho, rho_r=rho_r)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
-               error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw)
 
        END DO
 
@@ -1006,8 +988,8 @@ CONTAINS
                                         "v_tau_rspace")
     END IF
 
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_gtemp%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_rtemp%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_gtemp%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_rtemp%pw)
 
     DEALLOCATE(v_xc_gtemp,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1018,8 +1000,7 @@ CONTAINS
 
     IF (gapw .OR. gapw_xc) THEN
        CALL calculate_vxc_atom(qs_env=qs_env,energy_only=.FALSE.,&
-                               gradient_atom_set=nablavks_atom_set,&
-                               error=error)
+                               gradient_atom_set=nablavks_atom_set)
     END IF
 
 !   -------------------------------------
@@ -1027,38 +1008,37 @@ CONTAINS
 !   -------------------------------------
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,lr_section,&
-                  "EPR%PRINT%NABLAVKS_CUBES",error=error),cp_p_file)) THEN
+                  "EPR%PRINT%NABLAVKS_CUBES"),cp_p_file)) THEN
        ALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "wf_r",0)
        CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
+               in_space = REALSPACE)
        DO idir = 1,3
-          CALL pw_zero(wf_r%pw, error=error)
-          CALL qs_rho_get(nablavks_set(idir,1)%rho, rho_r=rho_r, error=error)
-          CALL pw_copy(rho_r(1)%pw,wf_r%pw, error=error) ! RA
+          CALL pw_zero(wf_r%pw)
+          CALL qs_rho_get(nablavks_set(idir,1)%rho, rho_r=rho_r)
+          CALL pw_copy(rho_r(1)%pw,wf_r%pw) ! RA
           filename="nablavks"
           WRITE(ext,'(a2,I1,a5)')  "_d",idir,".cube"
           unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%NABLAVKS_CUBES",&
                   extension=TRIM(ext),middle_name=TRIM(filename),&
-                  log_filename=.FALSE.,file_position="REWIND",error=error)
+                  log_filename=.FALSE.,file_position="REWIND")
           CALL cp_pw_to_cube(wf_r%pw,unit_nr,"NABLA V_KS ",&
                   particles=particles,&
                   stride=section_get_ivals(lr_section,&
-                  "EPR%PRINT%NABLAVKS_CUBES%STRIDE",error=error),&
-                  error=error)
+                  "EPR%PRINT%NABLAVKS_CUBES%STRIDE"))
           CALL cp_print_key_finished_output(unit_nr,logger,lr_section,&
-                  "EPR%PRINT%NABLAVKS_CUBES",error=error)
+                  "EPR%PRINT%NABLAVKS_CUBES")
        END DO
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
        DEALLOCATE(wf_r,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "wf_r")
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
+         "PRINT%PROGRAM_RUN_INFO")
 
   END SUBROUTINE epr_nablavks
 

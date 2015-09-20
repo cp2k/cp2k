@@ -34,11 +34,10 @@ CONTAINS
 !> \param matrix_p ...
 !> \param calculate_forces ...
 !> \param store_int_env ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - 04.2009
 ! *****************************************************************************
   SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
-       calculate_forces, store_int_env, error)
+       calculate_forces, store_int_env)
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
@@ -48,7 +47,6 @@ CONTAINS
       POINTER                                :: matrix_p
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure
@@ -58,17 +56,16 @@ CONTAINS
     ! Zero structures only for debugging purpose
     CALL init_qs_energy(energy)
     DO ispin = 1, nspins
-       CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp)
     END DO
 
     ! Evaluate Coulomb Long-Range
     CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-         store_int_env,error)
+         store_int_env)
 
     ! Compute the Hartree energy
     DO ispin=1,nspins
-       CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
-            error=error)
+       CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul)
        energy%hartree = energy%hartree + ecoul
 
        WRITE(*,*)ispin,"ECOUL ",ecoul

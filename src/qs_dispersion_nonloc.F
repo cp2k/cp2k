@@ -70,12 +70,10 @@ CONTAINS
 !> \brief ...
 !> \param dispersion_env ...
 !> \param para_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_nonloc_init(dispersion_env,para_env,error)
+  SUBROUTINE qs_dispersion_nonloc_init(dispersion_env,para_env)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_nonloc_init', &
       routineP = moduleN//':'//routineN
@@ -118,7 +116,7 @@ CONTAINS
           CALL mp_bcast(dispersion_env%r_max,para_env%source,para_env%group)
           ALLOCATE(dispersion_env%q_mesh(nqs),dispersion_env%kernel(0:nr_points,nqs,nqs),&
                    dispersion_env%d2phi_dk2(0:nr_points,nqs,nqs),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           dispersion_env%nqs = nqs
           dispersion_env%nr_points = nr_points
           IF(para_env%source==para_env%mepos) THEN
@@ -150,7 +148,7 @@ CONTAINS
           CALL mp_bcast(dispersion_env%d2phi_dk2,para_env%source,para_env%group)
           ! 2nd derivates for interpolation
           ALLOCATE(dispersion_env%d2y_dx2(nqs,nqs),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           CALL initialize_spline_interpolation (dispersion_env%q_mesh, dispersion_env%d2y_dx2)
           !
           dispersion_env%q_cut = dispersion_env%q_mesh(nqs)
@@ -176,10 +174,9 @@ CONTAINS
 !> \param xc_pw_pool ...
 !> \param para_env ...
 !> \param virial ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_dispersion_nonloc(vxc_rho,rho_r,rho_g,edispersion,&
-             dispersion_env,energy_only,pw_pool,xc_pw_pool,para_env,virial,error)
+             dispersion_env,energy_only,pw_pool,xc_pw_pool,para_env,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, rho_r, rho_g
     REAL(KIND=dp), INTENT(OUT)               :: edispersion
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
@@ -187,7 +184,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool, xc_pw_pool
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_nonloc', &
       routineP = moduleN//':'//routineN
@@ -213,9 +209,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
 
     IF (PRESENT(virial)) THEN
        use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
@@ -223,43 +219,43 @@ CONTAINS
        use_virial = .FALSE.
     ENDIF
     IF(use_virial) THEN
-       CPPrecondition(.NOT.energy_only,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.energy_only,cp_failure_level,routineP,failure)
     END IF
     IF (.NOT. energy_only) THEN
-       CPPrecondition(ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(vxc_rho),cp_failure_level,routineP,failure)
     END IF
 
     b_value = dispersion_env%b_value
     beta = 0.03125_dp * (3.0_dp / (b_value**2.0_dp) )**0.75_dp
 
     ! tempory arrays for FFT
-    CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE)
 
     ! get density derivatives
     nspin=SIZE(rho_r)
     ALLOCATE ( drho_r(3,nspin), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ispin=1,nspin
        DO idir=1,3
           NULLIFY(drho_r(idir,ispin)%pw)
           CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-               use_data=REALDATA3D, in_space=REALSPACE, error=error)
-          CALL pw_transfer ( rho_g(ispin)%pw, tmp_g, error=error)
-          CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
-          CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw, error=error)
+               use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_transfer ( rho_g(ispin)%pw, tmp_g)
+          CALL pw_derive ( tmp_g, nd(:,idir))
+          CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
        END DO
     END DO
 
     np = SIZE(tmp_r%cr3d)
     ALLOCATE ( rho(np), drho(np,3), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     rho = 0.0_dp
     drho = 0.0_dp
     DO ispin=1,nspin
-       CPPrecondition(rho_r(ispin)%pw%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-       CALL pw_transfer ( rho_g(ispin)%pw, tmp_g, error=error)
-       CALL pw_transfer ( tmp_g, tmp_r, error=error)
+       CPPrecondition(rho_r(ispin)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+       CALL pw_transfer ( rho_g(ispin)%pw, tmp_g)
+       CALL pw_transfer ( tmp_g, tmp_r)
        rho(:) = rho(:) + RESHAPE(tmp_r%cr3d,(/np/))
        drho(:,1) = drho(:,1) + RESHAPE(drho_r(1,ispin)%pw%cr3d,(/np/))
        drho(:,2) = drho(:,2) + RESHAPE(drho_r(2,ispin)%pw%cr3d,(/np/))
@@ -275,7 +271,7 @@ CONTAINS
 
     IF (energy_only) THEN
        ALLOCATE ( q0(np), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
              STOP 'Unknown vdW-DF functional'
@@ -286,7 +282,7 @@ CONTAINS
        END SELECT
     ELSE
        ALLOCATE ( q0(np), dq0_drho(np), dq0_dgradrho(np), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
              STOP 'Unknown vdW-DF functional'
@@ -312,7 +308,7 @@ CONTAINS
     !! for the convolution (equation 11 of SOLER).
     !! --------------------------------------------------------------------------------------------------
     ALLOCATE ( thetas(np,dispersion_env%nqs), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     !! Interpolate the P_i polynomials defined in equation 3 in SOLER for the particular
     !! q0 values we have.
     CALL spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2, q0, thetas)
@@ -345,12 +341,12 @@ CONTAINS
     n2 = SIZE(tmp_r%cr3d,2)
     n3 = SIZE(tmp_r%cr3d,3)
     ALLOCATE ( thetas_g(dispersion_env%nqs), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO i=1,dispersion_env%nqs
        tmp_r%cr3d = RESHAPE(thetas(:,i),(/n1,n2,n3/))
        NULLIFY(thetas_g(i)%pw)
-       CALL pw_pool_create_pw(pw_pool, thetas_g(i)%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-       CALL pw_transfer ( tmp_r, thetas_g(i)%pw ,error=error)
+       CALL pw_pool_create_pw(pw_pool, thetas_g(i)%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+       CALL pw_transfer ( tmp_r, thetas_g(i)%pw)
     END DO
     grid => thetas_g(1)%pw%pw_grid
     !! ---------------------------------------------------------------------------------------------
@@ -362,7 +358,7 @@ CONTAINS
     CALL mp_sum(sumnp,para_env%group)
     IF (use_virial) THEN
        ! calculates kernel contribution to stress
-       CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial, error=error)
+       CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial)
        SELECT CASE (dispersion_env%nl_type)
           CASE (vdw_nl_RVV10)
              Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
@@ -373,7 +369,7 @@ CONTAINS
           virial%pv_xc(idir,idir) = virial%pv_xc(idir,idir) + Ec_nl
        END DO
     ELSE
-       CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, error=error)
+       CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only)
        SELECT CASE (dispersion_env%nl_type)
           CASE (vdw_nl_RVV10)
              Ec_nl = 0.5_dp*Ec_nl + beta*SUM(rho(:))*grid%vol/sumnp
@@ -387,7 +383,7 @@ CONTAINS
        !! Inverse Fourier transform the u_i(k) to get the u_i(r) of SOLER equation 11.
        !!-----------------------------------------------------------------------------
        DO i=1,dispersion_env%nqs
-          CALL pw_transfer ( thetas_g(i)%pw, tmp_r ,error=error)
+          CALL pw_transfer ( thetas_g(i)%pw, tmp_r)
           thetas(:,i) = RESHAPE(tmp_r%cr3d,(/np/))
        END DO
        !! -------------------------------------------------------------------------
@@ -398,68 +394,68 @@ CONTAINS
        !! to access grid points outside their allocated regions.
        !! -------------------------------------------------------------------------
        ALLOCATE ( potential(np), hpot(np), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        IF(use_virial) THEN
           ! calculates gradient contribution to stress
           grid => tmp_g%pw_grid
           CALL get_potential(q0, dq0_drho, dq0_dgradrho, rho, thetas, potential, hpot, &
-                             dispersion_env, drho, grid%dvol, virial, error=error)
+                             dispersion_env, drho, grid%dvol, virial)
        ELSE
           CALL get_potential(q0, dq0_drho, dq0_dgradrho, rho, thetas, potential, hpot, &
-                             dispersion_env, error=error)
+                             dispersion_env)
        END IF
        SELECT CASE (dispersion_env%nl_type)
           CASE (vdw_nl_RVV10)
              potential(:) = 0.5_dp*potential(:) + beta
              hpot(:) = 0.5_dp*hpot(:)
        END SELECT
-       CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+       CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
        vxc_r%cr3d = RESHAPE(potential,(/n1,n2,n3/))
        DO idir=1,3
           tmp_r%cr3d = 0.0_dp
           DO ispin=1,nspin
              tmp_r%cr3d = tmp_r%cr3d + RESHAPE(hpot,(/n1,n2,n3/)) * drho_r(idir,ispin)%pw%cr3d
           END DO
-          CALL pw_transfer ( tmp_r, tmp_g ,error=error)
-          CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
-          CALL pw_transfer ( tmp_g, tmp_r ,error=error)
-          CALL pw_axpy(tmp_r,vxc_r,-1._dp,error)
+          CALL pw_transfer ( tmp_r, tmp_g)
+          CALL pw_derive ( tmp_g, nd(:,idir))
+          CALL pw_transfer ( tmp_g, tmp_r)
+          CALL pw_axpy(tmp_r,vxc_r,-1._dp)
        END DO
-       CALL pw_transfer ( vxc_r, tmp_g ,error=error)
-       CALL pw_pool_give_back_pw(pw_pool, vxc_r, error=error)
-       CALL pw_pool_create_pw(xc_pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-       CALL pw_pool_create_pw(xc_pw_pool, vxc_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-       CALL pw_transfer ( tmp_g, vxc_g ,error=error)
-       CALL pw_transfer ( vxc_g, vxc_r ,error=error)
+       CALL pw_transfer ( vxc_r, tmp_g)
+       CALL pw_pool_give_back_pw(pw_pool, vxc_r)
+       CALL pw_pool_create_pw(xc_pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
+       CALL pw_pool_create_pw(xc_pw_pool, vxc_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+       CALL pw_transfer ( tmp_g, vxc_g)
+       CALL pw_transfer ( vxc_g, vxc_r)
        DO ispin=1,nspin
-          CALL pw_axpy(vxc_r,vxc_rho(ispin)%pw,1._dp,error)
+          CALL pw_axpy(vxc_r,vxc_rho(ispin)%pw,1._dp)
        END DO
-       CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r, error=error)
-       CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g, error=error)
+       CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r)
+       CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g)
     END IF
 
     DEALLOCATE ( thetas, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO i=1,dispersion_env%nqs
-       CALL pw_pool_give_back_pw(pw_pool, thetas_g(i)%pw, error=error)
+       CALL pw_pool_give_back_pw(pw_pool, thetas_g(i)%pw)
     END DO
     DO ispin=1,nspin
        DO idir=1,3
-          CALL pw_pool_give_back_pw(pw_pool, drho_r(idir,ispin)%pw, error=error)
+          CALL pw_pool_give_back_pw(pw_pool, drho_r(idir,ispin)%pw)
        END DO
     END DO
-    CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, tmp_r)
+    CALL pw_pool_give_back_pw(pw_pool, tmp_g)
 
     DEALLOCATE ( rho, drho, drho_r, thetas_g, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF (energy_only) THEN
        DEALLOCATE ( q0, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        DEALLOCATE ( q0, dq0_drho, dq0_dgradrho, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
 
     CALL timestop(handle)
@@ -476,16 +472,14 @@ CONTAINS
 !> \param vdW_xc_energy ...
 !> \param energy_only ...
 !> \param virial ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial, error)
+  SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial)
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: thetas_g
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     REAL(KIND=dp), INTENT(OUT)               :: vdW_xc_energy
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vdW_energy', &
       routineP = moduleN//':'//routineN
@@ -508,9 +502,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     nqs = dispersion_env%nqs
     ALLOCATE(kernel_of_k(nqs,nqs),dkernel_of_dk(nqs,nqs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(theta(nqs),thetam(nqs),theta_g(nqs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     IF (PRESENT(virial)) THEN
        use_virial = .TRUE.
@@ -524,7 +518,7 @@ CONTAINS
 
     IF (.NOT.energy_only) THEN
        ALLOCATE(u_vdW(grid%ngpts_cut_local,nqs),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        u_vdW(:,:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
     END IF
 
@@ -540,8 +534,8 @@ CONTAINS
           g2_last = g2
           igs = igs + 1
           g = SQRT(g2)
-          CALL interpolate_kernel(g,kernel_of_k,dispersion_env,error)
-          IF (use_virial) CALL interpolate_dkernel_dk(g,dkernel_of_dk,dispersion_env,error)
+          CALL interpolate_kernel(g,kernel_of_k,dispersion_env)
+          IF (use_virial) CALL interpolate_dkernel_dk(g,dkernel_of_dk,dispersion_env)
        END IF
        DO iq=1,nqs
           theta(iq) = thetas_g(iq)%pw%cc(ig)
@@ -583,12 +577,12 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(u_vdW,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     DEALLOCATE(theta,thetam,theta_g,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(kernel_of_k,dkernel_of_dk,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -616,10 +610,9 @@ CONTAINS
 !> \param drho ...
 !> \param dvol ...
 !> \param virial ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_potential(q0, dq0_drho, dq0_dgradrho, total_rho, u_vdW, potential, h_prefactor, &
-                         dispersion_env, drho, dvol, virial, error)
+                         dispersion_env, drho, dvol, virial)
 
     REAL(dp), DIMENSION(:), INTENT(in)       :: q0, dq0_drho, dq0_dgradrho, &
                                                 total_rho
@@ -629,7 +622,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), OPTIONAL      :: drho
     REAL(dp), INTENT(IN), OPTIONAL           :: dvol
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_potential', &
       routineP = moduleN//':'//routineN
@@ -648,8 +640,8 @@ CONTAINS
 
     IF (PRESENT(virial)) THEN
        use_virial = .TRUE.
-       CPPrecondition(PRESENT(drho),cp_failure_level,routineP,error,failure)
-       CPPrecondition(PRESENT(dvol),cp_failure_level,routineP,error,failure)
+       CPPrecondition(PRESENT(drho),cp_failure_level,routineP,failure)
+       CPPrecondition(PRESENT(dvol),cp_failure_level,routineP,failure)
     ELSE
        use_virial = .FALSE.
     END IF
@@ -663,7 +655,7 @@ CONTAINS
     q_mesh => dispersion_env%q_mesh
     nqs = dispersion_env%nqs
     ALLOCATE(y(nqs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     DO i_grid = 1,SIZE(u_vdw,1)
        q_low = 1
@@ -732,7 +724,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(y,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -1228,14 +1220,12 @@ CONTAINS
 !> \param k ...
 !> \param kernel_of_k ...
 !> \param dispersion_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE interpolate_kernel(k, kernel_of_k, dispersion_env,error)
+  SUBROUTINE interpolate_kernel(k, kernel_of_k, dispersion_env)
 
     REAL(dp), INTENT(in)                     :: k
     REAL(dp), INTENT(inout)                  :: kernel_of_k(:,:)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_kernel', &
       routineP = moduleN//':'//routineN
@@ -1257,7 +1247,7 @@ CONTAINS
     !! interpolation.  In that case, a kernel file should be generated with a larger number
     !! of radial points.
     !! -------------------------------------------------------------------------------------
-    CPPrecondition(k < Nr_points*dk,cp_failure_level,routineP,error,failure)
+    CPPrecondition(k < Nr_points*dk,cp_failure_level,routineP,failure)
     !! -------------------------------------------------------------------------------------
     kernel_of_k = 0.0_dp
     !! This integer division figures out which bin k is in since the kernel
@@ -1299,13 +1289,11 @@ CONTAINS
 !> \param k ...
 !> \param dkernel_of_dk ...
 !> \param dispersion_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE interpolate_dkernel_dk(k, dkernel_of_dk, dispersion_env, error)
+  SUBROUTINE interpolate_dkernel_dk(k, dkernel_of_dk, dispersion_env)
     REAL(dp), INTENT(in)                     :: k
     REAL(dp), INTENT(inout)                  :: dkernel_of_dk(:,:)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_dkernel_dk', &
       routineP = moduleN//':'//routineN
@@ -1323,7 +1311,7 @@ CONTAINS
     kernel => dispersion_env%kernel
     d2phi_dk2 => dispersion_env%d2phi_dk2
 
-    CPPrecondition(k < Nr_points*dk,cp_failure_level,routineP,error,failure)
+    CPPrecondition(k < Nr_points*dk,cp_failure_level,routineP,failure)
 
     dkernel_of_dk = 0.0_dp
     k_i = INT(k/dk)

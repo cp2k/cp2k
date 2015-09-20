@@ -84,17 +84,15 @@ CONTAINS
 !> \param mixing_section ...
 !> \param mixing_method ...
 !> \param ecut ...
-!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
 ! *****************************************************************************
-  SUBROUTINE mixing_storage_create(mixing_store,  mixing_section, mixing_method, ecut, error)
+  SUBROUTINE mixing_storage_create(mixing_store,  mixing_section, mixing_method, ecut)
     TYPE(mixing_storage_type), POINTER       :: mixing_store
     TYPE(section_vals_type), POINTER         :: mixing_section
     INTEGER, INTENT(IN)                      :: mixing_method
     REAL(dp), INTENT(IN)                     :: ecut
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_create', &
       routineP = moduleN//':'//routineN
@@ -105,9 +103,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mixing_store),cp_failure_level,routineP,failure)
     ALLOCATE(mixing_store, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
 
     mixing_store%ref_count=1
     mixing_store%nbuffer=0
@@ -148,12 +146,12 @@ CONTAINS
     NULLIFY(mixing_store%cpc_h_lastres)
     NULLIFY(mixing_store%cpc_s_lastres)
 
-    CALL section_vals_val_get(mixing_section,"ALPHA",r_val=mixing_store%alpha,error=error)
-    CALL section_vals_val_get(mixing_section,"BETA",r_val=mixing_store%beta,error=error)
-    CALL section_vals_val_get(mixing_section,"N_SIMPLE_MIX",i_val=mixing_store%n_simple_mix,error=error)
-    CALL section_vals_val_get(mixing_section,"NBUFFER",i_val=mixing_store%nbuffer,error=error)
-    CALL section_vals_val_get(mixing_section,"NSKIP",i_val=mixing_store%nskip_mixing,error=error)
-    CALL section_vals_val_get(mixing_section,"MAX_GVEC_EXP",r_val=mixing_store%max_gvec_exp,error=error)
+    CALL section_vals_val_get(mixing_section,"ALPHA",r_val=mixing_store%alpha)
+    CALL section_vals_val_get(mixing_section,"BETA",r_val=mixing_store%beta)
+    CALL section_vals_val_get(mixing_section,"N_SIMPLE_MIX",i_val=mixing_store%n_simple_mix)
+    CALL section_vals_val_get(mixing_section,"NBUFFER",i_val=mixing_store%nbuffer)
+    CALL section_vals_val_get(mixing_section,"NSKIP",i_val=mixing_store%nskip_mixing)
+    CALL section_vals_val_get(mixing_section,"MAX_GVEC_EXP",r_val=mixing_store%max_gvec_exp)
 
     IF(mixing_store%max_gvec_exp > 0._dp) THEN
       alpha = 0.25_dp/mixing_store%max_gvec_exp
@@ -166,20 +164,20 @@ CONTAINS
     CASE(gspace_mixing_nr)
        mixing_store%nbuffer = 1
     CASE(pulay_mixing_nr)
-       CALL section_vals_val_get(mixing_section,"PULAY_ALPHA",r_val=mixing_store%pulay_alpha,error=error)
-       CALL section_vals_val_get(mixing_section,"PULAY_BETA",r_val=mixing_store%pulay_beta,error=error)
+       CALL section_vals_val_get(mixing_section,"PULAY_ALPHA",r_val=mixing_store%pulay_alpha)
+       CALL section_vals_val_get(mixing_section,"PULAY_BETA",r_val=mixing_store%pulay_beta)
     CASE(broyden_mixing_nr)
-       CALL section_vals_val_get(mixing_section,"BROY_W0",r_val=mixing_store%broy_w0,error=error)
+       CALL section_vals_val_get(mixing_section,"BROY_W0",r_val=mixing_store%broy_w0)
        mixing_store%bconst = 20.0_dp
     CASE(broyden_mixing_new_nr)
-       CALL section_vals_val_get(mixing_section,"BROY_WREF",r_val=mixing_store%wc,error=error)
-       CALL section_vals_val_get(mixing_section,"BROY_WMAX",r_val=mixing_store%wmax,error=error)
+       CALL section_vals_val_get(mixing_section,"BROY_WREF",r_val=mixing_store%wc)
+       CALL section_vals_val_get(mixing_section,"BROY_WMAX",r_val=mixing_store%wmax)
        mixing_store%bconst = 20.0_dp
        mixing_store%p_metric_method=1
     CASE(multisecant_mixing_nr)
-       CALL section_vals_val_get(mixing_section,"REGULARIZATION",r_val=mixing_store%reg_par,error=error)
-       CALL section_vals_val_get(mixing_section,"MAX_STEP",r_val=mixing_store%sigma_max,error=error)
-       CALL section_vals_val_get(mixing_section,"R_FACTOR",r_val=mixing_store%r_step,error=error)
+       CALL section_vals_val_get(mixing_section,"REGULARIZATION",r_val=mixing_store%reg_par)
+       CALL section_vals_val_get(mixing_section,"MAX_STEP",r_val=mixing_store%sigma_max)
+       CALL section_vals_val_get(mixing_section,"R_FACTOR",r_val=mixing_store%r_step)
     END SELECT
 
  END SUBROUTINE mixing_storage_create
@@ -187,14 +185,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases a mixing_storage
 !> \param mixing_store ...
-!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
 ! *****************************************************************************
- SUBROUTINE mixing_storage_release(mixing_store,error)
+ SUBROUTINE mixing_storage_release(mixing_store)
     TYPE(mixing_storage_type), POINTER       :: mixing_store
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_release', &
       routineP = moduleN//':'//routineN
@@ -205,71 +201,71 @@ CONTAINS
   failure=.FALSE.
 
   IF (ASSOCIATED(mixing_store)) THEN
-     CPPreconditionNoFail(mixing_store%ref_count>0,cp_failure_level,routineP,error)
+     CPPreconditionNoFail(mixing_store%ref_count>0,cp_failure_level,routineP)
      mixing_store%ref_count=mixing_store%ref_count-1
      IF (mixing_store%ref_count==0) THEN
 
         IF (ASSOCIATED(mixing_store%kerker_factor)) THEN
            DEALLOCATE(mixing_store%kerker_factor,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%special_metric)) THEN
            DEALLOCATE(mixing_store%special_metric,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%pulay_matrix)) THEN
            DEALLOCATE(mixing_store%pulay_matrix,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
            DO i = 1,SIZE(mixing_store%rhoin_buffer,2)
              DO j = 1,SIZE(mixing_store%rhoin_buffer,1)
                 DEALLOCATE(mixing_store%rhoin_buffer(j,i)%cc,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END DO
            END DO
            DEALLOCATE(mixing_store%rhoin_buffer,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%paw)) THEN
           DEALLOCATE(mixing_store%paw,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(mixing_store%cpc_h_in)) THEN
           DO j = 1,SIZE(mixing_store%cpc_h_in,2)
           DO k = 1,SIZE(mixing_store%cpc_h_in,1)
             IF(ASSOCIATED(mixing_store%cpc_h_in(k,j)%r_coef)) THEN
               DEALLOCATE(mixing_store%cpc_h_in(k,j)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
               DEALLOCATE(mixing_store%cpc_s_in(k,j)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
             END IF
           END DO
           END DO
           DEALLOCATE(mixing_store%cpc_h_in,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           DEALLOCATE(mixing_store%cpc_s_in,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(mixing_store%cpc_h_old)) THEN
           DO j = 1,SIZE(mixing_store%cpc_h_old,2)
           DO k = 1,SIZE(mixing_store%cpc_h_old,1)
             IF(ASSOCIATED(mixing_store%cpc_h_old(k,j)%r_coef)) THEN
               DEALLOCATE(mixing_store%cpc_h_old(k,j)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
               DEALLOCATE(mixing_store%cpc_s_old(k,j)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
             END IF
           END DO
           END DO
           DEALLOCATE(mixing_store%cpc_h_old,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           DEALLOCATE(mixing_store%cpc_s_old,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(mixing_store%dcpc_h_in)) THEN
           DO i = 1,SIZE(mixing_store%dcpc_h_in,3)
@@ -277,144 +273,144 @@ CONTAINS
           DO k = 1,SIZE(mixing_store%dcpc_h_in,1)
             IF(ASSOCIATED(mixing_store%dcpc_h_in(k,j,i)%r_coef)) THEN
               DEALLOCATE(mixing_store%dcpc_h_in(k,j,i)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
               DEALLOCATE(mixing_store%dcpc_s_in(k,j,i)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
             END IF
           END DO
           END DO
           END DO
           DEALLOCATE(mixing_store%dcpc_h_in,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           DEALLOCATE(mixing_store%dcpc_s_in,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
         IF (ASSOCIATED(mixing_store%cpc_h_lastres)) THEN
           DO j = 1,SIZE(mixing_store%cpc_h_lastres,2)
           DO k = 1,SIZE(mixing_store%cpc_h_lastres,1)
             IF(ASSOCIATED(mixing_store%cpc_h_lastres(k,j)%r_coef)) THEN
               DEALLOCATE(mixing_store%cpc_h_lastres(k,j)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
               DEALLOCATE(mixing_store%cpc_s_lastres(k,j)%r_coef,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END IF
           END DO
           END DO
           DEALLOCATE(mixing_store%cpc_h_lastres,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
           DEALLOCATE(mixing_store%cpc_s_lastres,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%res_buffer)) THEN
            DO i = 1,SIZE(mixing_store%res_buffer,2)
              DO j = 1,SIZE(mixing_store%res_buffer,1)
                 DEALLOCATE(mixing_store%res_buffer(j,i)%cc,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END DO
            END DO
            DEALLOCATE(mixing_store%res_buffer,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%norm_res_buffer)) THEN
            DEALLOCATE(mixing_store%norm_res_buffer,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%ig_global_index)) THEN
            DEALLOCATE(mixing_store%ig_global_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%drho_buffer)) THEN
            DO i = 1,SIZE(mixing_store%drho_buffer,2)
              DO j = 1,SIZE(mixing_store%drho_buffer,1)
                 DEALLOCATE(mixing_store%drho_buffer(j,i)%cc,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END DO
            END DO
            DEALLOCATE(mixing_store%drho_buffer,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         ENDIF
 
         IF (ASSOCIATED(mixing_store%last_res)) THEN
            DO i = 1,SIZE(mixing_store%last_res)
              DEALLOCATE(mixing_store%last_res(i)%cc,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
            END DO
            DEALLOCATE(mixing_store%last_res,STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%rhoin)) THEN
            DO i = 1,SIZE(mixing_store%rhoin)
              DEALLOCATE(mixing_store%rhoin(i)%cc,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
            END DO
            DEALLOCATE(mixing_store%rhoin,STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%rhoin_old)) THEN
            DO i = 1,SIZE(mixing_store%rhoin_old)
              DEALLOCATE(mixing_store%rhoin_old(i)%cc,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
            END DO
            DEALLOCATE(mixing_store%rhoin_old,STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%p_metric))THEN
            DEALLOCATE(mixing_store%p_metric, STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%weight))THEN
            DEALLOCATE(mixing_store%weight, STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%fmat))THEN
            DEALLOCATE(mixing_store%fmat, STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%delta_res))THEN
            DO i = 1,SIZE(mixing_store%delta_res,2)
              DO j = 1,SIZE(mixing_store%delta_res,1)
                DEALLOCATE(mixing_store%delta_res(j,i)%cc, STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END DO
            END DO
            DEALLOCATE(mixing_store%delta_res,STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%u_vec))THEN
            DO i = 1,SIZE(mixing_store%u_vec,2)
              DO j = 1,SIZE(mixing_store%u_vec,1)
                DEALLOCATE(mixing_store%u_vec(j,i)%cc, STAT=stat)
-               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END DO
            END DO
            DEALLOCATE(mixing_store%u_vec,STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         IF (ASSOCIATED(mixing_store%z_vec))THEN
            DO i = 1,SIZE(mixing_store%z_vec,2)
              DO j = 1,SIZE(mixing_store%z_vec,1)
                DEALLOCATE(mixing_store%z_vec(j,i)%cc, STAT=stat)
-               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
              END DO
            END DO
            DEALLOCATE(mixing_store%z_vec,STAT=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
         END IF
 
         DEALLOCATE(mixing_store, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
      END IF
      NULLIFY(mixing_store)
   END IF
@@ -426,7 +422,6 @@ CONTAINS
 !>             be used only with diagonalization methods, i.e. not with OT
 !> \param section ...
 !> \param ls_scf ...
-!> \param error ...
 !> \date       20.02.2009
 !> \par History
 !>      02.2015 moved here from input_cp2k_dft.F, modified for use in LS SCF 
@@ -434,11 +429,10 @@ CONTAINS
 !> \author     MI
 !> \version    1.0
 ! *****************************************************************************
-  SUBROUTINE create_mixing_section(section, ls_scf, error)
+  SUBROUTINE create_mixing_section(section, ls_scf)
 
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN), OPTIONAL            :: ls_scf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mixing_section', &
       routineP = moduleN//':'//routineN
@@ -450,7 +444,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
 
     IF (PRESENT(ls_scf)) THEN
       IF (ls_scf) THEN
@@ -479,8 +473,7 @@ CONTAINS
                         "on OT.",&
                         n_keywords=16,&
                         n_subsections=0,&
-                        repeats=.FALSE.,&
-                        error=error)
+                        repeats=.FALSE.)
 
     NULLIFY (keyword)
 
@@ -489,10 +482,9 @@ CONTAINS
                         description="Controls the activation of the mixing procedure",&
                         usage="&MIXING ON",&
                         default_l_val=.TRUE.,&
-                        lone_keyword_l_val=.TRUE.,&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     IF (.NOT. ls) THEN
       default_mix = direct_p_mix
@@ -519,11 +511,10 @@ CONTAINS
                            "Direct mixing of new and old density matrices",&
                            "Mixing of the potential in reciprocal space using the Kerker damping",&
                            "Pulay mixing","Broyden mixing","Broyden mixing second version",&
-                           "Multisecant scheme for mixing" ),&
-                        error=error)
+                           "Multisecant scheme for mixing" ))
 
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="ALPHA",&
@@ -532,10 +523,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=0.4_dp,&
-                        usage="ALPHA 0.2",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="ALPHA 0.2")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="BETA",&
@@ -548,10 +538,9 @@ CONTAINS
                         type_of_var=real_t,&
                         default_r_val=0.5_dp,&
                         unit_str="bohr^-1",&
-                        usage="BETA 1.5",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="BETA 1.5")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="PULAY_ALPHA",&
@@ -560,10 +549,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=0.0_dp,&
-                        usage="PULAY_ALPHA 0.2",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="PULAY_ALPHA 0.2")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="PULAY_BETA",&
@@ -572,24 +560,23 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=1.0_dp,&
-                        usage="PULAY_BETA 0.2",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="PULAY_BETA 0.2")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NMIXING",&
           description="Minimal number of density mixing (should be greater than 0),"//&
           "before starting DIIS",&
-          usage="NMIXING 1", default_i_val=2,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+          usage="NMIXING 1", default_i_val=2)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NBUFFER",&
                         variants=s2a("NPULAY","NBROYDEN","NMULTISECANT"),&
                         description="Number of previous steps stored for the actual mixing scheme",&
-                        usage="NBUFFER 2", default_i_val=4,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="NBUFFER 2", default_i_val=4)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="BROY_W0",&
@@ -598,10 +585,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=0.01_dp,&
-                        usage="BROY_W0 0.03",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="BROY_W0 0.03")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="BROY_WREF",&
@@ -610,10 +596,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=100.0_dp,&
-                        usage="BROY_WREF 0.2",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="BROY_WREF 0.2")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="BROY_WMAX",&
@@ -622,10 +607,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=30.0_dp,&
-                        usage="BROY_WMAX 10.0",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="BROY_WMAX 10.0")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="REGULARIZATION",&
@@ -636,10 +620,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=0.00001_dp,&
-                        usage="REGULARIZATION 0.000001",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="REGULARIZATION 0.000001")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="MAX_STEP",&
@@ -650,10 +633,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=0.1_dp,&
-                        usage="MAX_STEP .2",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="MAX_STEP .2")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword,&
                         name="R_FACTOR",&
@@ -664,24 +646,23 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=0.05_dp,&
-                        usage="R_FACTOR .12",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="R_FACTOR .12")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NSKIP",&
                         variants=(/"NSKIP_MIXING"/),&
           description="Number of initial iteration for which the mixing is skipped",&
-          usage="NSKIP 10", default_i_val=0,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+          usage="NSKIP 10", default_i_val=0)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="N_SIMPLE_MIX",&
                         variants=(/"NSIMPLEMIX"/),&
           description="Number of kerker damping iterations before starting other mixing procedures",&
-          usage="NSIMPLEMIX", default_i_val=0,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+          usage="NSIMPLEMIX", default_i_val=0)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="MAX_GVEC_EXP",&
                         description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
@@ -691,10 +672,9 @@ CONTAINS
                         n_var=1,&
                         type_of_var=real_t,&
                         default_r_val=-1._dp,&
-                        usage="MAX_GVEC_EXP 3.",&
-                        error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+                        usage="MAX_GVEC_EXP 3.")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
 
 
   END SUBROUTINE create_mixing_section

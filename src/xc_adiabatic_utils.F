@@ -63,10 +63,9 @@ CONTAINS
 !> \param just_energy ...
 !> \param calculate_forces ...
 !> \param use_virial ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE  rescale_xc_potential(qs_env,ks_matrix,rho,energy,v_rspace_new,v_tau_rspace,&
-              hf_energy, just_energy,calculate_forces,use_virial,error)
+              hf_energy, just_energy,calculate_forces,use_virial)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -77,7 +76,6 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: hf_energy
     LOGICAL, INTENT(in)                      :: just_energy, &
                                                 calculate_forces, use_virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_xc_potential', &
       routineP = moduleN//':'//routineN
@@ -109,31 +107,30 @@ CONTAINS
                     para_env=para_env,&
                     input=input,&
                     rho_xc=rho_xc,&
-                    ks_env=ks_env,&
-                    error=error)
+                    ks_env=ks_env)
 
     nimages = dft_control%nimages
-    CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
 
-    CALL qs_rho_get(rho, rho_ao_kp=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
 
-    adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
-    CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
-    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+    adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING")
+    CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling)
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
+    CALL section_vals_get(hfx_sections,explicit=do_hfx)
+    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
 
     gapw=dft_control%qs_control%gapw
     gapw_xc=dft_control%qs_control%gapw_xc
 
     CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_TYPE",&
-         i_val=adiabatic_functional,error=error)
+         i_val=adiabatic_functional)
     CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_MODEL",&
-         i_val=adiabatic_model,error=error)
+         i_val=adiabatic_model)
     CALL section_vals_val_get(adiabatic_rescaling_section, "LAMBDA",&
-         r_val=adiabatic_lambda,error=error)
+         r_val=adiabatic_lambda)
     CALL section_vals_val_get(adiabatic_rescaling_section, "OMEGA",&
-         r_val=adiabatic_omega,error=error)
+         r_val=adiabatic_omega)
     SELECT CASE(adiabatic_functional)
     CASE (do_adiabatic_hybrid_mcy3)
        SELECT CASE(adiabatic_model)
@@ -141,43 +138,42 @@ CONTAINS
           CALL cp_assert( n_rep_hf == 2 , cp_failure_level,cp_assertion_failed,routineP,&
                " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
                " Please check your input file.",&
-               error,failure)
+               failure)
           CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
-               scale_dEx2, total_energy_xc, error)
+               scale_dEx2, total_energy_xc)
 
           !! Scale and add Fock matrix to KS matrix
           IF(do_hfx) THEN
              CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
-                                                  scale_dEx1, error)
+                                                  scale_dEx1)
              CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
-                                                  scale_dEx2, error)
+                                                  scale_dEx2)
           END IF
           IF( calculate_forces ) THEN
-             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,failure)
              !! we also have to scale the forces!!!!
              CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 1, use_virial, &
-                                          adiabatic_rescale_factor=scale_dEx1, error=error)
+                                          adiabatic_rescale_factor=scale_dEx1)
              CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 2, use_virial, &
-                                          adiabatic_rescale_factor=scale_dEx2, error=error)
+                                          adiabatic_rescale_factor=scale_dEx2)
           END IF
 
           ! Calculate vxc and rescale it
-          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+          xc_section => section_vals_get_subs_vals(input,"DFT%XC")
           IF (gapw_xc) THEN
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                 just_energy=just_energy ,adiabatic_rescale_factor=scale_dDFA, error=error)
+                 just_energy=just_energy ,adiabatic_rescale_factor=scale_dDFA)
           ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                 just_energy=just_energy, adiabatic_rescale_factor=scale_dDFA, error=error)
+                 just_energy=just_energy, adiabatic_rescale_factor=scale_dDFA)
           END IF
 
           ! Calculate vxc and rescale it
           IF (gapw .OR. gapw_xc) THEN
-             CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA,&
-                  error=error)
+             CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA)
           END IF
           !! Hack for the total energy expression
           energy%ex = 0.0_dp

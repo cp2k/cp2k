@@ -210,11 +210,10 @@ CONTAINS
 !> \param force_env_section ...
 !> \param subsys_section ...
 !> \param use_motion_section ...
-!> \param error ...
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init(qs_env,para_env,globenv,root_section,cp_subsys,cell,cell_ref,qmmm,&
-       qmmm_env_qm,force_env_section,subsys_section,use_motion_section,error)
+       qmmm_env_qm,force_env_section,subsys_section,use_motion_section)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -228,7 +227,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
@@ -259,9 +257,9 @@ CONTAINS
          qs_kind_set, kpoint_section, dft_section, &
          subsys, ks_env, dft_control, blacs_env)
 
-    CALL set_qs_env(qs_env,input=force_env_section,error=error)
+    CALL set_qs_env(qs_env,input=force_env_section)
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
-       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
     END IF
 
     ! QMMM 
@@ -276,14 +274,14 @@ CONTAINS
        END IF
        qs_env%qmmm_env_qm => qmmm_env_qm
     END IF
-    CALL set_qs_env(qs_env=qs_env,qmmm=my_qmmm,error=error)
+    CALL set_qs_env(qs_env=qs_env,qmmm=my_qmmm)
 
     ! Possibly initialize arrays for SE
-    CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=method_id,error=error)
+    CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=method_id)
     SELECT CASE (method_id)
     CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg,&
            do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl )
-       CALL init_se_intd_array(error)
+       CALL init_se_intd_array()
     CASE DEFAULT
        ! Do nothing
     END SELECT
@@ -292,12 +290,11 @@ CONTAINS
                           force_env_section=force_env_section,&
                           subsys_section=subsys_section,&
                           use_motion_section=use_motion_section,&
-                          cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
-                          error=error)
+                          cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref)
 
-    CALL qs_ks_env_create(ks_env, error=error)
-    CALL set_ks_env(ks_env, subsys=subsys, error=error)
-    CALL set_qs_env(qs_env, ks_env=ks_env, error=error)
+    CALL qs_ks_env_create(ks_env)
+    CALL set_ks_env(ks_env, subsys=subsys)
+    CALL set_qs_env(qs_env, ks_env=ks_env)
 
     CALL qs_subsys_get(subsys,&
                        cell=my_cell,&
@@ -305,110 +302,109 @@ CONTAINS
                        use_ref_cell=use_ref_cell,&
                        atomic_kind_set=atomic_kind_set,&
                        qs_kind_set=qs_kind_set,&
-                       particle_set=particle_set,&
-                       error=error)
+                       particle_set=particle_set)
 
-    CALL set_ks_env(ks_env, para_env=para_env, error=error)
+    CALL set_ks_env(ks_env, para_env=para_env)
     CALL cp_blacs_env_create(blacs_env, para_env, globenv%blacs_grid_layout,&
-                             globenv%blacs_repeatable,error=error)
-    CALL set_ks_env(ks_env, blacs_env=blacs_env, error=error)
-    CALL cp_blacs_env_release(blacs_env,error=error)
+                             globenv%blacs_repeatable)
+    CALL set_ks_env(ks_env, blacs_env=blacs_env)
+    CALL cp_blacs_env_release(blacs_env)
 
     !   *** Setup the grids for the G-space Interpolation if any
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, qmmm_decoupl, my_cell,& 
-         force_env_section, subsys_section, para_env, error)
+         force_env_section, subsys_section, para_env)
 
     CALL qs_init_subsys(qs_env,para_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
-         root_section,subsys_section,error=error)
+         root_section,subsys_section)
 
     ! kpoints
-    CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
-    kpoint_section => section_vals_get_subs_vals(qs_env%input,"DFT%KPOINTS",error=error)
-    CALL read_kpoint_section(kpoints,kpoint_section,error)
-    CALL kpoint_initialize(kpoints, particle_set, my_cell, error)
-    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    CALL write_kpoint_info(kpoints,dft_section,error)
+    CALL get_qs_env(qs_env=qs_env,kpoints=kpoints)
+    kpoint_section => section_vals_get_subs_vals(qs_env%input,"DFT%KPOINTS")
+    CALL read_kpoint_section(kpoints,kpoint_section)
+    CALL kpoint_initialize(kpoints, particle_set, my_cell)
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
+    CALL write_kpoint_info(kpoints,dft_section)
     kpoints%para_env => para_env
-    CALL cp_para_env_retain(para_env, error)
-    CALL get_qs_env(qs_env=qs_env,blacs_env=blacs_env,error=error)
+    CALL cp_para_env_retain(para_env)
+    CALL get_qs_env(qs_env=qs_env,blacs_env=blacs_env)
     kpoints%blacs_env_all => blacs_env
-    CALL cp_blacs_env_retain(blacs_env, error)
-    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints,error=error)
+    CALL cp_blacs_env_retain(blacs_env)
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints)
     IF(do_kpoints) THEN
-       CALL kpoint_env_initialize(kpoints, error)
-       CALL kpoint_initialize_mos(kpoints, qs_env%mos, error)
-       CALL get_qs_env(qs_env=qs_env, wf_history=wf_history, error=error)
-       CALL wfi_create_for_kp(wf_history, error)
+       CALL kpoint_env_initialize(kpoints)
+       CALL kpoint_initialize_mos(kpoints, qs_env%mos)
+       CALL get_qs_env(qs_env=qs_env, wf_history=wf_history)
+       CALL wfi_create_for_kp(wf_history)
     END IF
 
     do_hfx =.FALSE.
-    hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hfx_section,explicit=do_hfx,error=error)
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF")
+    CALL section_vals_get(hfx_section,explicit=do_hfx)
+    CALL get_qs_env(qs_env, dft_control=dft_control)
     IF (do_hfx) THEN
       ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                      qs_kind_set, dft_control, my_cell, error=error)
+                      qs_kind_set, dft_control, my_cell)
     END IF
 
-    mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION",error=error)
-    CALL section_vals_get(mp2_section,explicit=mp2_present,error=error)
+    mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION")
+    CALL section_vals_get(mp2_section,explicit=mp2_present)
     IF (mp2_present) THEN
-       CALL mp2_env_create(qs_env%mp2_env,error)
-       CALL read_mp2_section(qs_env%input,qs_env%mp2_env,error)
+       CALL mp2_env_create(qs_env%mp2_env)
+       CALL read_mp2_section(qs_env%input,qs_env%mp2_env)
        ! create the EXX section if necessary
        do_exx =.FALSE.
-       hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
-       CALL section_vals_get(hfx_section,explicit=do_exx,error=error)
+       hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
+       CALL section_vals_get(hfx_section,explicit=do_exx)
        IF (do_exx) THEN
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          natom=SIZE(particle_set)
          CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                         qs_kind_set, dft_control, my_cell, error=error, do_exx=.TRUE.)
+                         qs_kind_set, dft_control, my_cell,do_exx=.TRUE.)
        END IF
     END IF
 
     IF (dft_control%qs_control%do_kg) THEN
       CALL cite_reference(Iannuzzi2006)
-      CALL kg_env_create(qs_env%kg_env, qs_env%input, error)
+      CALL kg_env_create(qs_env%kg_env, qs_env%input)
     END IF
 
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
-                           "PROPERTIES%ET_COUPLING",error=error)
-    CALL section_vals_get(et_coupling_section,explicit=do_et,error=error)
-    IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
+                           "PROPERTIES%ET_COUPLING")
+    CALL section_vals_get(et_coupling_section,explicit=do_et)
+    IF (do_et) CALL et_coupling_create(qs_env%et_coupling)
 
     ! lri env
     IF (method_id == do_method_lrigpw.OR.dft_control%qs_control%lri_optbas) THEN
-       CALL lri_env_init(qs_env, force_env_section, qs_kind_set, error)
+       CALL lri_env_init(qs_env, force_env_section, qs_kind_set)
     END IF
 
-    transport_section => section_vals_get_subs_vals(qs_env%input,"DFT%TRANSPORT",error=error)
-    CALL section_vals_get(transport_section,explicit=qs_env%do_transport,error=error)
+    transport_section => section_vals_get_subs_vals(qs_env%input,"DFT%TRANSPORT")
+    CALL section_vals_get(transport_section,explicit=qs_env%do_transport)
     IF (qs_env%do_transport) THEN
-       CALL transport_env_create(qs_env,error)
+       CALL transport_env_create(qs_env)
     END IF
 
     IF (dft_control%qs_control%do_ls_scf) THEN
-       CALL ls_scf_create(qs_env,error)
+       CALL ls_scf_create(qs_env)
     ENDIF
 
     ! see if we have atomic relativistic corrections
-    CALL get_qs_env(qs_env,rel_control=rel_control,error=error)
+    CALL get_qs_env(qs_env,rel_control=rel_control)
     IF (rel_control%rel_method /= rel_none) THEN
        IF (rel_control%rel_transformation == rel_trans_atom) THEN
           nkind = SIZE(atomic_kind_set)
           DO ikind=1,nkind
              NULLIFY(rtmat)
-             CALL calculate_atomic_relkin(atomic_kind_set(ikind), qs_kind_set(ikind),rel_control,rtmat,error)
-             IF(ASSOCIATED(rtmat)) CALL set_qs_kind(qs_kind_set(ikind), reltmat=rtmat,error=error)
+             CALL calculate_atomic_relkin(atomic_kind_set(ikind), qs_kind_set(ikind),rel_control,rtmat)
+             IF(ASSOCIATED(rtmat)) CALL set_qs_kind(qs_kind_set(ikind), reltmat=rtmat)
           END DO
        END IF
     END IF
 
-    CALL qs_subsys_release(subsys, error=error)
-    CALL qs_ks_release(ks_env, error=error)
+    CALL qs_subsys_release(subsys)
+    CALL qs_ks_release(ks_env)
   END SUBROUTINE qs_init
 
 ! *****************************************************************************
@@ -421,11 +417,10 @@ CONTAINS
 !> \param use_ref_cell ...
 !> \param root_section ...
 !> \param subsys_section ...
-!> \param error ...
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init_subsys(qs_env,para_env,subsys,cell,cell_ref,use_ref_cell,&
-       root_section,subsys_section,error)
+       root_section,subsys_section)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -433,7 +428,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', &
       routineP = moduleN//':'//routineN
@@ -494,7 +488,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
     was_present = .FALSE.
 
@@ -509,28 +503,27 @@ CONTAINS
     NULLIFY (dft_section)
     NULLIFY (et_coupling_section)
     NULLIFY (ks_env)
-    dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
-    et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,"PROPERTIES%ET_COUPLING",error=error)
+    dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT")
+    qs_section =>  section_vals_get_subs_vals(dft_section,"QS")
+    et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,"PROPERTIES%ET_COUPLING")
 
     CALL qs_subsys_get(subsys, particle_set=particle_set,&
                        qs_kind_set=qs_kind_set,&
                        atomic_kind_set=atomic_kind_set,&
                        molecule_set=molecule_set,&
-                       molecule_kind_set=molecule_kind_set,&
-                       error=error)
+                       molecule_kind_set=molecule_kind_set)
 
     !   *** Read the input section with the DFT control parameters ***
-    CALL read_dft_control(dft_control,dft_section,error=error)
+    CALL read_dft_control(dft_control,dft_section)
 
     IF (dft_control % do_tddfpt_calculation) THEN
        CALL read_tddfpt_control(dft_control%tddfpt_control, &
-            dft_section,error)
+            dft_section)
     END IF
 
     !   *** Print the Quickstep program banner (copyright and version number) ***
-    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",extension=".Log",error=error)
-    CALL section_vals_val_get(qs_section,"METHOD",i_val=method_id,error=error)
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",extension=".Log")
+    CALL section_vals_val_get(qs_section,"METHOD",i_val=method_id)
     SELECT CASE (method_id)
     CASE DEFAULT
        CALL qs_header(iw)
@@ -544,83 +537,83 @@ CONTAINS
     END SELECT
 
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
-         "PRINT%PROGRAM_BANNER",error=error)
+         "PRINT%PROGRAM_BANNER")
 
     !   *** Read the input section with the Quickstep control parameters ***
-    CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
+    CALL read_qs_section(dft_control%qs_control,qs_section)
 
     !   *******  check if any kind of electron transfer calculation has to be performed
-    CALL  section_vals_val_get(et_coupling_section,"TYPE_OF_CONSTRAINT",i_val=my_ival,error=error)
+    CALL  section_vals_val_get(et_coupling_section,"TYPE_OF_CONSTRAINT",i_val=my_ival)
     dft_control%qs_control%et_coupling_calc=.FALSE.
     IF (my_ival==do_et_ddapc)THEN
-       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,"DDAPC_RESTRAINT_A",error=error)
+       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,"DDAPC_RESTRAINT_A")
        dft_control%qs_control%et_coupling_calc=.TRUE.
        dft_control%qs_control%ddapc_restraint=.TRUE.
-       CALL  read_ddapc_section(dft_control%qs_control,ddapc_restraint_section=et_ddapc_section,error=error)
+       CALL  read_ddapc_section(dft_control%qs_control,ddapc_restraint_section=et_ddapc_section)
     ENDIF
 
     IF (my_ival==do_et_becke)THEN
        dft_control%qs_control%becke_restraint=.TRUE.
        dft_control%qs_control%et_coupling_calc=.TRUE.
-       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_RESTRAINT_A",error=error)
-       CALL  read_becke_section(dft_control%qs_control,et_becke_section,error)
+       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_RESTRAINT_A")
+       CALL  read_becke_section(dft_control%qs_control,et_becke_section)
     END IF
-    CALL read_mgrid_section(dft_control%qs_control,dft_section,para_env=para_env,error=error)
+    CALL read_mgrid_section(dft_control%qs_control,dft_section,para_env=para_env)
 
     !   Create relativistic control section
-    CALL rel_c_create(rel_control,error=error)
-    CALL rel_c_read_parameters(rel_control,dft_section,error=error)
-    CALL set_qs_env(qs_env,rel_control=rel_control,error=error)
-    CALL rel_c_release(rel_control,error=error)
+    CALL rel_c_create(rel_control)
+    CALL rel_c_read_parameters(rel_control,dft_section)
+    CALL set_qs_env(qs_env,rel_control=rel_control)
+    CALL rel_c_release(rel_control)
 
     !   *** Read DFTB parameter files ***
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
        NULLIFY (ewald_env,ewald_pw,dftb_potential)
        dftb_control => dft_control%qs_control%dftb_control
        CALL qs_dftb_param_init (atomic_kind_set,qs_kind_set,dftb_control,dftb_potential,&
-            subsys_section=subsys_section,para_env=para_env,error=error)
-       CALL set_qs_env(qs_env,dftb_potential=dftb_potential,error=error)
+            subsys_section=subsys_section,para_env=para_env)
+       CALL set_qs_env(qs_env,dftb_potential=dftb_potential)
        ! check for Ewald
        IF ( dftb_control%do_ewald ) THEN
-          CALL ewald_env_create(ewald_env,para_env,error=error)
-          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
-          CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
-          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
-          print_section => section_vals_get_subs_vals(qs_env%input,"PRINT%GRID_INFORMATION",error=error)
-          CALL read_ewald_section(ewald_env,ewald_section,error=error)
-          CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,print_section=print_section,error=error)
-          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
-          CALL ewald_env_release(ewald_env,error=error)
-          CALL ewald_pw_release(ewald_pw,error=error)
+          CALL ewald_env_create(ewald_env,para_env)
+          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON")
+          CALL ewald_env_set(ewald_env,poisson_section=poisson_section)
+          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD")
+          print_section => section_vals_get_subs_vals(qs_env%input,"PRINT%GRID_INFORMATION")
+          CALL read_ewald_section(ewald_env,ewald_section)
+          CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,print_section=print_section)
+          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw)
+          CALL ewald_env_release(ewald_env)
+          CALL ewald_pw_release(ewald_pw)
        END IF
     ELSE IF ( dft_control%qs_control%method == "SCPTB" ) THEN
        scptb_control => dft_control%qs_control%scptb_control
-       print_section => section_vals_get_subs_vals(subsys_section,"PRINT",error=error)
-       CALL scptb_parameter_init(atomic_kind_set,qs_kind_set,scptb_control,print_section,para_env,error)
+       print_section => section_vals_get_subs_vals(subsys_section,"PRINT")
+       CALL scptb_parameter_init(atomic_kind_set,qs_kind_set,scptb_control,print_section,para_env)
        ! check for Ewald
        IF ( scptb_control%do_ewald ) THEN
-          CALL ewald_env_create(ewald_env,para_env,error=error)
-          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
-          CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
-          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
-          print_section => section_vals_get_subs_vals(qs_env%input,"PRINT%GRID_INFORMATION",error=error)
-          CALL read_ewald_section(ewald_env,ewald_section,error=error)
-          CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,print_section=print_section,error=error)
-          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
-          CALL ewald_env_release(ewald_env,error=error)
-          CALL ewald_pw_release(ewald_pw,error=error)
+          CALL ewald_env_create(ewald_env,para_env)
+          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON")
+          CALL ewald_env_set(ewald_env,poisson_section=poisson_section)
+          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD")
+          print_section => section_vals_get_subs_vals(qs_env%input,"PRINT%GRID_INFORMATION")
+          CALL read_ewald_section(ewald_env,ewald_section)
+          CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,print_section=print_section)
+          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw)
+          CALL ewald_env_release(ewald_env)
+          CALL ewald_pw_release(ewald_pw)
        END IF
     END IF
 
     ! DFT+U
-    CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u,error=error)
+    CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
 
     !   *** Check basis and fill in missing parts ***
     CALL check_qs_kind_set(qs_kind_set,dft_control,para_env,&
-         subsys_section=subsys_section,error=error)
+         subsys_section=subsys_section)
 
     !   *** Check that no all-electron potential is present if GPW or GAPW_XC
-    CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present,error=error)
+    CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
     IF ( (dft_control%qs_control%method == "GPW") .OR. &
          (dft_control%qs_control%method == "GAPW_XC") .OR. &
          (dft_control%qs_control%method == "OFGPW") ) THEN
@@ -633,7 +626,7 @@ CONTAINS
 
     !   *** Initialize the spherical harmonics and ***
     !   *** the orbital transformation matrices    ***
-    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl,error=error)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
 
     lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
     IF(lmax_sphere .LT.0) THEN
@@ -641,7 +634,7 @@ CONTAINS
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
     IF(dft_control%qs_control%method == "LRIGPW".OR.dft_control%qs_control%lri_optbas) THEN
-       CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto_lri,basis_type="LRI",error=error)
+       CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto_lri,basis_type="LRI")
        !take maxlgto from lri basis if larger (usually)
        maxlgto = MAX(maxlgto,maxlgto_lri)
     END IF
@@ -650,38 +643,38 @@ CONTAINS
     CALL init_orbital_pointers(maxl)
 
     output_unit = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
-           extension=".Log",error=error)
-    CALL init_spherical_harmonics(maxl,output_unit,error)
+           extension=".Log")
+    CALL init_spherical_harmonics(maxl,output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-            "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
+            "GLOBAL%PRINT/SPHERICAL_HARMONICS")
 
     !   *** Initialise the qs_kind_set ***
-    CALL init_qs_kind_set(qs_kind_set,error)
+    CALL init_qs_kind_set(qs_kind_set)
 
     !   *** Initialise GAPW soft basis and projectors
     IF(dft_control%qs_control%method == "GAPW" .OR. &
          dft_control%qs_control%method == "GAPW_XC")  THEN
        qs_control => dft_control%qs_control
        gapw_control => dft_control%qs_control%gapw_control
-       CALL init_gapw_basis_set(qs_kind_set,qs_control,qs_env%input,error)
+       CALL init_gapw_basis_set(qs_kind_set,qs_control,qs_env%input)
     ENDIF
 
     !   *** Initialize the pretabulation for the calculation of the   ***
     !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
-    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto,error=error)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
     maxl = MAX(3*maxlgto + 1,0)
     CALL init_md_ftable(maxl)
 
     !   *** Initialize the atomic interaction radii ***
-    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,qs_kind_set,error)
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,qs_kind_set)
 
-    CALL write_pgf_orb_radii("orb",atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_pgf_orb_radii("aux",atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_pgf_orb_radii("lri",atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_core_charge_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_ppl_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_ppnl_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_paw_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_pgf_orb_radii("orb",atomic_kind_set,qs_kind_set,subsys_section)
+    CALL write_pgf_orb_radii("aux",atomic_kind_set,qs_kind_set,subsys_section)
+    CALL write_pgf_orb_radii("lri",atomic_kind_set,qs_kind_set,subsys_section)
+    CALL write_core_charge_radii(atomic_kind_set,qs_kind_set,subsys_section)
+    CALL write_ppl_radii(atomic_kind_set,qs_kind_set,subsys_section)
+    CALL write_ppnl_radii(atomic_kind_set,qs_kind_set,subsys_section)
+    CALL write_paw_radii(atomic_kind_set,qs_kind_set,subsys_section)
 
 
     !   *** Distribute molecules and atoms using the new data structures ***
@@ -691,12 +684,11 @@ CONTAINS
                                  molecule_kind_set=molecule_kind_set,&
                                  molecule_set=molecule_set,&
                                  local_molecules=local_molecules,&
-                                 force_env_section=qs_env%input,&
-                                 error=error)
+                                 force_env_section=qs_env%input)
 
     !   *** SCF parameters ***
-    CALL scf_c_create(scf_control,error=error)
-    CALL scf_c_read_parameters(scf_control,dft_section,error=error)
+    CALL scf_c_create(scf_control)
+    CALL scf_c_read_parameters(scf_control,dft_section)
 
     !   *** Allocate the data structure for Quickstep energies ***
     CALL allocate_qs_energy(energy)
@@ -709,56 +701,53 @@ CONTAINS
     IF (dft_control%qs_control%dftb) THEN
       IF (dft_control%qs_control%dftb_control%orthogonal_basis) has_unit_metric = .TRUE.
     END IF
-    CALL set_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+    CALL set_qs_env(qs_env,has_unit_metric=has_unit_metric)
 
     !   *** Activate the interpolation ***
     CALL wfi_create(wf_history,&
                     interpolation_method_nr=&
                     dft_control%qs_control%wf_interpolation_method_nr,&
                     extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
-                    has_unit_metric = has_unit_metric, &
-                    error=error)
+                    has_unit_metric = has_unit_metric)
 
     !   *** Set the current Quickstep environment ***
     CALL set_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
-                    wf_history=wf_history,&
-                    error=error)
+                    wf_history=wf_history)
 
     CALL qs_subsys_set(subsys,&
                        cell_ref=cell_ref,&
                        use_ref_cell=use_ref_cell,&
                        energy=energy,&
-                       force=force,&
-                       error=error)
+                       force=force)
 
-    CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
-    CALL set_ks_env(ks_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, ks_env=ks_env)
+    CALL set_ks_env(ks_env, dft_control=dft_control)
 
     CALL qs_subsys_set(subsys,local_molecules_new=local_molecules,&
-         local_particles=local_particles,cell=cell,error=error)
+         local_particles=local_particles,cell=cell)
 
-    CALL distribution_1d_release(local_particles,error=error)
-    CALL distribution_1d_release(local_molecules,error=error)
-    CALL scf_c_release(scf_control,error=error)
-    CALL wfi_release(wf_history,error=error)
-    CALL dft_control_release(dft_control, error=error)
+    CALL distribution_1d_release(local_particles)
+    CALL distribution_1d_release(local_molecules)
+    CALL scf_c_release(scf_control)
+    CALL wfi_release(wf_history)
+    CALL dft_control_release(dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
-                    scf_control=scf_control,error=error)
+                    scf_control=scf_control)
 
     ! decide what conditions need mo_derivs
     ! right now, this only appears to be OT
     IF (dft_control%qs_control%do_ls_scf .OR. &
         dft_control%qs_control%do_almo_scf) THEN
-      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
+      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
     ELSE
       IF (scf_control%use_ot) THEN
-         CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.,error=error)
+         CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.)
       ELSE
-         CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
+         CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
       ENDIF
     ENDIF
 
@@ -769,24 +758,24 @@ CONTAINS
     IF  (dft_control%qs_control%method_id == do_method_gapw .OR. &
          dft_control%qs_control%method_id == do_method_gapw_xc) THEN
        !     *** Allocate and initialize the set of atomic densities ***
-       CALL init_rho_atom(qs_env,gapw_control,error=error)
+       CALL init_rho_atom(qs_env,gapw_control)
        IF(dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
-          CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
+          CALL get_qs_env(qs_env=qs_env,natom=natom)
           !       *** Allocate and initialize the compensation density rho0 ***
-          CALL init_rho0(qs_env,gapw_control,error=error)
+          CALL init_rho0(qs_env,gapw_control)
           !       *** Allocate and Initialize the local coulomb term ***
-          CALL init_coulomb_local(qs_env%hartree_local,natom,error=error)
+          CALL init_coulomb_local(qs_env%hartree_local,natom)
        END IF
     ELSE IF (dft_control%qs_control%method_id == do_method_lrigpw) THEN
        ! allocate local ri environment
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
        NULLIFY(se_store_int_env, se_nddo_mpole, se_nonbond_env)
        natom = SIZE(particle_set)
-       se_section => section_vals_get_subs_vals(qs_section,"SE",error=error)
+       se_section => section_vals_get_subs_vals(qs_section,"SE")
        se_control => dft_control%qs_control%se_control
 
        ! Make the cutoff radii choice a bit smarter
-       CALL se_cutoff_compatible(se_control, se_section, cell, output_unit, error)
+       CALL se_cutoff_compatible(se_control, se_section, cell, output_unit)
 
        SELECT CASE ( dft_control%qs_control%method_id)
        CASE DEFAULT
@@ -794,57 +783,55 @@ CONTAINS
              do_method_pm6,do_method_mndod,do_method_pnnl)
           ! Neighbor lists have to be MAX(interaction range, orbital range)
           ! set new kind radius
-          CALL init_se_nlradius(se_control,atomic_kind_set,qs_kind_set,subsys_section,error)
+          CALL init_se_nlradius(se_control,atomic_kind_set,qs_kind_set,subsys_section)
        END SELECT
        ! Initialize to zero the max multipole to treat in the EWALD scheme..
        se_control%max_multipole = do_multipole_none
        ! check for Ewald
        IF (se_control%do_ewald .OR. se_control%do_ewald_gks) THEN
-          CALL ewald_env_create(ewald_env,para_env,error=error)
-          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
-          CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
-          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+          CALL ewald_env_create(ewald_env,para_env)
+          poisson_section => section_vals_get_subs_vals(dft_section,"POISSON")
+          CALL ewald_env_set(ewald_env,poisson_section=poisson_section)
+          ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD")
           print_section => section_vals_get_subs_vals(qs_env%input,&
-               "PRINT%GRID_INFORMATION",error=error)
-          CALL read_ewald_section(ewald_env,ewald_section,error=error)
+               "PRINT%GRID_INFORMATION")
+          CALL read_ewald_section(ewald_env,ewald_section)
           ! Create ewald grids
           CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
-               print_section=print_section,error=error)
+               print_section=print_section)
           ! Initialize ewald grids
-          CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
+          CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
           ! Setup the nonbond environment (real space part of Ewald)
-          CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
+          CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
           ! Setup the maximum level of multipoles to be treated in the periodic SE scheme
           IF (se_control%do_ewald) THEN
-             CALL ewald_env_get(ewald_env, max_multipole=se_control%max_multipole, error=error)
+             CALL ewald_env_get(ewald_env, max_multipole=se_control%max_multipole)
           ENDIF
           CALL section_vals_val_get(se_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
-               r_val=verlet_skin,error=error)
+               r_val=verlet_skin)
           CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, &
                do_nonbonded=.TRUE., verlet_skin=verlet_skin, ewald_rcut=ewald_rcut, &
-               ei_scale14=0.0_dp, vdw_scale14=0.0_dp, shift_cutoff=.FALSE., &
-               error=error)
+               ei_scale14=0.0_dp, vdw_scale14=0.0_dp, shift_cutoff=.FALSE.)
           ! Create and Setup NDDO multipole environment
-          CALL nddo_mpole_setup(se_nddo_mpole, natom, error)
+          CALL nddo_mpole_setup(se_nddo_mpole, natom)
           CALL set_qs_env(qs_env,ewald_env=ewald_env, ewald_pw=ewald_pw,&
-               se_nonbond_env=se_nonbond_env, se_nddo_mpole=se_nddo_mpole,&
-               error=error)
-          CALL ewald_env_release(ewald_env,error=error)
-          CALL ewald_pw_release(ewald_pw,error=error)
+               se_nonbond_env=se_nonbond_env, se_nddo_mpole=se_nddo_mpole)
+          CALL ewald_env_release(ewald_env)
+          CALL ewald_pw_release(ewald_pw)
           ! Handle the residual integral part 1/R^3
           CALL semi_empirical_expns3_setup(qs_kind_set, se_control,&
-               dft_control%qs_control%method_id,error)
+               dft_control%qs_control%method_id)
        END IF
        ! Taper function
        CALL se_taper_create(se_taper, se_control%integral_screening, se_control%do_ewald,&
             se_control%taper_cou, se_control%range_cou, &
             se_control%taper_exc, se_control%range_exc, &
             se_control%taper_scr, se_control%range_scr, &
-            se_control%taper_lrc, se_control%range_lrc, error)
-       CALL set_qs_env(qs_env, se_taper=se_taper, error=error)
+            se_control%taper_lrc, se_control%range_lrc)
+       CALL set_qs_env(qs_env, se_taper=se_taper)
        ! Store integral environment
-       CALL semi_empirical_si_create(se_store_int_env, se_section, error=error)
-       CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env, error=error)
+       CALL semi_empirical_si_create(se_store_int_env, se_section)
+       CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env)
     ENDIF
 
     !   Initialize possible dispersion parameters
@@ -854,23 +841,23 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_lrigpw .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       NULLIFY(xc_section)
-      xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
-      CALL qs_dispersion_env_set(dispersion_env,xc_section,error)
+      xc_section => section_vals_get_subs_vals(dft_section,"XC")
+      CALL qs_dispersion_env_set(dispersion_env,xc_section)
       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
         NULLIFY(pp_section)
-        pp_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%PAIR_POTENTIAL",error=error)
-        CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env,error)
+        pp_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%PAIR_POTENTIAL")
+        CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env)
       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
         NULLIFY(nl_section)
-        nl_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%NON_LOCAL",error=error)
-        CALL qs_dispersion_nonloc_init(dispersion_env,para_env,error)
+        nl_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%NON_LOCAL")
+        CALL qs_dispersion_nonloc_init(dispersion_env,para_env)
       END IF
-      CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
+      CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -892,14 +879,14 @@ CONTAINS
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
          dispersion_env%parameter_file_name = scptb_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env,error=error)
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env)
       ELSE
          dispersion_env%type = xc_vdw_fun_none
       END IF
-      CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
+      CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF (dft_control%qs_control%method_id == do_method_dftb) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -921,14 +908,14 @@ CONTAINS
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
          dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env,error=error)
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env)
       ELSE
          dispersion_env%type = xc_vdw_fun_none
       END IF
-      CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
+      CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -950,15 +937,15 @@ CONTAINS
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
          dispersion_env%parameter_file_name = se_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env,error=error)
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env)
       ELSE
          dispersion_env%type = xc_vdw_fun_none
       END IF
-      CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
+      CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     END IF
 
     !   *** Allocate the MO data types ***
-    CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron,error=error)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron)
 
     ! the total number of electrons
     nelectron = nelectron - dft_control%charge
@@ -1065,8 +1052,7 @@ CONTAINS
     ! store the number of electrons once an for all
     CALL qs_subsys_set(subsys,&
                        nelectron_total=nelectron,&
-                       nelectron_spin=nelectron_spin,&
-                       error=error)
+                       nelectron_spin=nelectron_spin)
 
     ! Check and set number of added (unoccupied) MOs
     CALL cp_assert((scf_control%added_mos(1) <= n_ao - n_mo(1)),cp_warning_level,&
@@ -1108,7 +1094,7 @@ CONTAINS
 
     !   *** Some options require that all MOs are computed ... ***
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-         "PRINT%MO/CARTESIAN",error=error),&
+         "PRINT%MO/CARTESIAN"),&
          cp_p_file).OR.&
          (scf_control%level_shift /= 0.0_dp).OR.&
          (scf_control%diagonalization%eps_jacobi /= 0.0_dp).OR.&
@@ -1150,7 +1136,7 @@ CONTAINS
       NULLIFY(mos)
     ELSE
       ALLOCATE (mos(dft_control%nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       DO ispin=1,dft_control%nspins
          NULLIFY (mos(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
@@ -1159,19 +1145,18 @@ CONTAINS
                               nelectron=nelectron_spin(ispin),&
                               n_el_f=REAL(nelectron_spin(ispin),dp),&
                               maxocc=maxocc,&
-                              flexible_electron_count=dft_control%relax_multiplicity,&
-                              error=error)
+                              flexible_electron_count=dft_control%relax_multiplicity)
       END DO
     END IF
 
-    CALL set_qs_env(qs_env,mos=mos,error=error)
+    CALL set_qs_env(qs_env,mos=mos)
 
     ! If we use auxiliary density matrix methods , set mo_set_aux_fit
     IF( dft_control%do_admm ) THEN
       CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
-                           basis_type="AUX_FIT",error=error)
+                           basis_type="AUX_FIT")
       ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
       DO ispin=1,dft_control%nspins
          NULLIFY (mos_aux_fit(ispin)%mo_set)
@@ -1181,15 +1166,14 @@ CONTAINS
                               nelectron=nelectron_spin(ispin),&
                               n_el_f=REAL(nelectron_spin(ispin),dp),&
                               maxocc=maxocc,&
-                              flexible_electron_count=dft_control%relax_multiplicity,&
-                              error=error)
+                              flexible_electron_count=dft_control%relax_multiplicity)
       END DO
-      CALL set_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+      CALL set_qs_env(qs_env,mos_aux_fit=mos_aux_fit)
     END IF
 
 
     ! Print the DFT control parameters
-    CALL write_dft_control(dft_control,dft_section,error)
+    CALL write_dft_control(dft_control,dft_section)
 
     ! Print the vdW control parameters
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
@@ -1199,56 +1183,56 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_scptb .OR. &
         dft_control%qs_control%method_id == do_method_dftb .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
-      CALL get_qs_env(qs_env,dispersion_env=dispersion_env,error=error)
-      CALL qs_write_dispersion(qs_env,dispersion_env,error=error)
+      CALL get_qs_env(qs_env,dispersion_env=dispersion_env)
+      CALL qs_write_dispersion(qs_env,dispersion_env)
     END IF
 
     ! Print the Quickstep control parameters
-    CALL write_qs_control(dft_control%qs_control,dft_section,error)
+    CALL write_qs_control(dft_control%qs_control,dft_section)
 
     ! Print XES/XAS control parameters
     IF (dft_control%do_xas_calculation) THEN
        CALL cite_reference(Iannuzzi2007)
-!       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
+!       CALL write_xas_control(dft_control%xas_control,dft_section)
     END IF
 
     ! Print the unnormalized basis set information (input data)
-    CALL write_gto_basis_sets(qs_kind_set,subsys_section,error=error)
+    CALL write_gto_basis_sets(qs_kind_set,subsys_section)
 
     ! Print the atomic kind set
-    CALL write_qs_kind_set(qs_kind_set,subsys_section,error)
+    CALL write_qs_kind_set(qs_kind_set,subsys_section)
 
     ! Print the molecule kind set
-    CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
+    CALL write_molecule_kind_set(molecule_kind_set,subsys_section)
 
     ! Print the total number of kinds, atoms, basis functions etc.
-    CALL write_total_numbers(qs_kind_set,particle_set,qs_env%input,error)
+    CALL write_total_numbers(qs_kind_set,particle_set,qs_env%input)
 
     ! Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section,label="QUICKSTEP",error=error)
+    CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section,label="QUICKSTEP")
 
     ! Print the interatomic distances
-    CALL write_particle_distances(particle_set,cell,subsys_section,error)
+    CALL write_particle_distances(particle_set,cell,subsys_section)
 
     ! Print the requested structure data
-    CALL write_structure_data(particle_set,cell,subsys_section,error)
+    CALL write_structure_data(particle_set,cell,subsys_section)
 
     ! Print symmetry information
-    CALL write_symmetry(particle_set,cell,subsys_section,error)
+    CALL write_symmetry(particle_set,cell,subsys_section)
 
     ! Print the SCF parameters
     IF ((.NOT. dft_control%qs_control%do_ls_scf) .AND. &
         (.NOT. dft_control%qs_control%do_almo_scf) ) THEN
-       CALL scf_c_write_parameters(scf_control,dft_section,error=error)
+       CALL scf_c_write_parameters(scf_control,dft_section)
     ENDIF
 
     ! Sets up pw_env, qs_charges, mpools ...
-    CALL qs_env_setup(qs_env,cp_logger_get_default_io_unit(logger),error)
+    CALL qs_env_setup(qs_env,cp_logger_get_default_io_unit(logger))
 
     ! Allocate and Initialie rho0 soft on the global grid
     IF(dft_control%qs_control%method == "GAPW") THEN
-       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
-       CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
+       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+       CALL rho0_s_grid_create(qs_env, rho0_mpole)
     END IF
 
     IF (output_unit>0) CALL m_flush(output_unit)
@@ -1262,17 +1246,15 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param force_env_section ...
-!> \param error ...
 !> \author Creation (06.10.2000)
 ! *****************************************************************************
-  SUBROUTINE write_total_numbers(qs_kind_set,particle_set,force_env_section,error)
+  SUBROUTINE write_total_numbers(qs_kind_set,particle_set,force_env_section)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_total_numbers', &
       routineP = moduleN//':'//routineN
@@ -1284,9 +1266,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%TOTAL_NUMBERS",&
-         extension=".Log",error=error)
+         extension=".Log")
 
     IF (output_unit>0) THEN
        natom = SIZE(particle_set)
@@ -1300,7 +1282,7 @@ CONTAINS
                             nsgf=nsgf,&
                             nshell=nshell,&
                             maxlppl=maxlppl,&
-                            maxlppnl=maxlppnl,error=error)
+                            maxlppnl=maxlppnl)
 
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "TOTAL NUMBERS AND MAXIMUM NUMBERS"
@@ -1347,7 +1329,7 @@ CONTAINS
 
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "PRINT%TOTAL_NUMBERS",error=error)
+         "PRINT%TOTAL_NUMBERS")
 
   END SUBROUTINE write_total_numbers
 

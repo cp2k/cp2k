@@ -55,14 +55,12 @@ CONTAINS
 !> \param gopt_env ...
 !> \param x0 ...
 !> \param do_update ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,geo_section,&
-                                 gopt_env,x0,do_update,error)
+                                 gopt_env,x0,do_update)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -71,7 +69,6 @@ CONTAINS
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     LOGICAL, INTENT(OUT), OPTIONAL           :: do_update
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
@@ -82,17 +79,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     failure = .FALSE.
 
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".geoLog",error=error)
+         extension=".geoLog")
     CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
     CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
-          gopt_env, do_update=my_do_update,  error=error)
+          gopt_env, do_update=my_do_update)
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)
+         "PRINT%PROGRAM_RUN_INFO")
     IF(PRESENT(do_update)) do_update=my_do_update
 
     CALL timestop(handle)
@@ -108,14 +105,12 @@ CONTAINS
 !> \param globenv ...
 !> \param gopt_env ...
 !> \param do_update ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv,&
-  gopt_env, do_update,  error)
+  gopt_env, do_update)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -123,7 +118,6 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(gopt_f_type), POINTER               :: gopt_env
     LOGICAL, INTENT(OUT), OPTIONAL           :: do_update
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', &
       routineP = moduleN//':'//routineN
@@ -147,7 +141,7 @@ CONTAINS
     t_old=m_walltime()
     NULLIFY(logger,g, h, xi)
     root_section => force_env%root_section
-    logger       => cp_error_get_logger(error)
+    logger       => cp_get_default_logger()
     conv         = .FALSE.
     failure      = .FALSE.
     maxiter            = gopt_param%max_iter
@@ -155,47 +149,47 @@ CONTAINS
     Fletcher_Reeves    = gopt_param%Fletcher_Reeves
     res_lim            = gopt_param%restart_limit
     ALLOCATE(g (SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(h (SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(xi(SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(xold(SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,cell=cell,error=error)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CALL force_env_get(force_env,cell=cell)
 
     ! Evaluate energy and forces at the first step
     ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
     save_consistent_energy_force = gopt_env%require_consistent_energy_force
     gopt_env%require_consistent_energy_force = .FALSE.
     CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
-                    .FALSE., gopt_env%force_env%para_env, error)
+                    .FALSE., gopt_env%force_env%para_env)
     gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
     g    = -xi
     h    =   g
     xi   =   h
     emin = HUGE(0.0_dp)
-    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
+    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr)
     ! Main Loop
     wildcard = "   SD"
     t_now=m_walltime()
     t_diff=t_now-t_old
     t_old=t_now
-    CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, used_time=t_diff, its=iter_nr, error=error)
+    CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, used_time=t_diff, its=iter_nr)
     eold = opt_energy
     DO its = iter_nr+1, maxiter
-       CALL cp_iterate(logger%iter_info,last=(its==maxiter),error=error)
-       CALL section_vals_val_set(gopt_env%geo_section,"STEP_START_VAL",i_val=its,error=error)
+       CALL cp_iterate(logger%iter_info,last=(its==maxiter))
+       CALL section_vals_val_set(gopt_env%geo_section,"STEP_START_VAL",i_val=its)
        CALL gopt_f_ii(its, output_unit)
 
        xold(:) = x0
 
        ! Line minimization
-       CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv, error)
+       CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv)
 
        ! Check for an external exit command
-       CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
+       CALL external_control(should_stop,"GEO",globenv=globenv)
        IF(should_stop) EXIT
 
        ! Some IO and Convergence check
@@ -204,7 +198,7 @@ CONTAINS
        t_old=t_now
        CALL gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
             output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0-xold, xi, conv, &
-            used_time=t_diff,error=error)
+            used_time=t_diff)
        eold = opt_energy
        emin = MIN(emin, opt_energy)
 
@@ -213,12 +207,12 @@ CONTAINS
        save_consistent_energy_force = gopt_env%require_consistent_energy_force
        gopt_env%require_consistent_energy_force = .FALSE.
        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
-                       .FALSE., gopt_env%force_env%para_env, error)
+                       .FALSE., gopt_env%force_env%para_env)
        gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
        ! Get Conjugate Directions:  updates the searching direction (h)
        wildcard = "   CG"
-       CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
+       CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
 
        ! Reset Condition or Steepest Descent Requested
        IF ( ABS(DOT_PRODUCT(g,h))/SQRT((DOT_PRODUCT(g,g)*DOT_PRODUCT(h,h))) > res_lim &
@@ -236,18 +230,18 @@ CONTAINS
 
     ! Write final particle information and restart, if converged
     IF (PRESENT(do_update)) do_update = conv
-    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
+    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
-         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit, error)
+         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
     DEALLOCATE(xold, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(g, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(h, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(xi,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 

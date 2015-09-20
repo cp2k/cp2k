@@ -143,7 +143,6 @@ CONTAINS
 !> \param multipoles ...
 !> \param results ...
 !> \param exclusions ...
-!> \param error ...
 !> \par History
 !>      11/03
 !> \author CJM
@@ -152,7 +151,7 @@ CONTAINS
        local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
        cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
        qmmm_env, input, shell_model, shell_model_ad, shell_particle_set,&
-       core_particle_set, multipoles, results, exclusions, error )
+       core_particle_set, multipoles, results, exclusions)
 
     TYPE(fist_environment_type), INTENT(IN)  :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -187,7 +186,6 @@ CONTAINS
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_get', &
       routineP = moduleN//':'//routineN
@@ -229,8 +227,7 @@ CONTAINS
                           core_particles=core_particles,&
                           multipoles=fist_multipoles,&
                           results=results,&
-                          cell=cell,&
-                          error=error)
+                          cell=cell)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
@@ -244,16 +241,14 @@ CONTAINS
 !> \brief Initialise the FIST environment.
 !> \param fist_env the pointer to the fist_env
 !> \param para_env ...
-!> \param error ...
 !> \par History
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE init_fist_env ( fist_env, para_env, error )
+  SUBROUTINE init_fist_env ( fist_env, para_env)
 
     TYPE(fist_environment_type), INTENT(OUT) :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (fist_env%input)
     NULLIFY (fist_env%qmmm_env)
@@ -267,9 +262,9 @@ CONTAINS
     fist_env % qmmm = .FALSE.
     fist_env % shell_model = .FALSE.
     fist_env % shell_model_ad = .FALSE.
-    CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
+    CALL qmmm_env_mm_create(fist_env%qmmm_env)
     NULLIFY (fist_env%subsys)
-    CALL cp_para_env_retain(para_env,error=error)
+    CALL cp_para_env_retain(para_env)
     fist_env%para_env => para_env
     fist_env%ref_count=1
     last_fist_env_id_nr=last_fist_env_id_nr+1
@@ -298,7 +293,6 @@ CONTAINS
 !> \param shell_model ...
 !> \param shell_model_ad ...
 !> \param exclusions ...
-!> \param error ...
 !> \par History
 !>      11/03
 !> \author CJM
@@ -307,7 +301,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           input, shell_model, shell_model_ad, exclusions, error )
+                           input, shell_model, shell_model_ad, exclusions)
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -336,7 +330,6 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_set', &
       routineP = moduleN//':'//routineN
@@ -348,90 +341,80 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,failure)
 
     IF (PRESENT(qmmm)) fist_env%qmmm = qmmm
     IF (PRESENT(qmmm_env)) THEN
-       CALL qmmm_env_mm_retain(qmmm_env, error)
-       CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
+       CALL qmmm_env_mm_retain(qmmm_env)
+       CALL qmmm_env_mm_release(fist_env%qmmm_env)
        fist_env%qmmm_env => qmmm_env
     END IF
     IF ( PRESENT ( ewald_env ) ) THEN
-       CALL ewald_env_retain ( ewald_env, error = error )
-       CALL ewald_env_release ( fist_env % ewald_env, error = error )
+       CALL ewald_env_retain ( ewald_env)
+       CALL ewald_env_release ( fist_env % ewald_env)
        fist_env % ewald_env => ewald_env
     ENDIF
     IF ( PRESENT ( ewald_pw ) ) THEN
-       CALL ewald_pw_retain ( ewald_pw, error = error )
-       CALL ewald_pw_release ( fist_env % ewald_pw, error = error )
+       CALL ewald_pw_retain ( ewald_pw)
+       CALL ewald_pw_release ( fist_env % ewald_pw)
        fist_env % ewald_pw => ewald_pw
     ENDIF
     IF (PRESENT(cell_ref)) THEN
-       CALL cell_retain(cell_ref, error=error)
-       CALL cell_release(fist_env%cell_ref,error=error)
+       CALL cell_retain(cell_ref)
+       CALL cell_release(fist_env%cell_ref)
        fist_env%cell_ref => cell_ref
     END IF
     IF ( PRESENT ( fist_nonbond_env ) ) THEN
-       CALL fist_nonbond_env_retain ( fist_nonbond_env, error )
-       CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error )
+       CALL fist_nonbond_env_retain ( fist_nonbond_env)
+       CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env)
        fist_env % fist_nonbond_env => fist_nonbond_env
     ENDIF
     IF (PRESENT(input)) THEN
-       CALL section_vals_retain(input,error=error)
-       CALL section_vals_release(fist_env%input,error=error)
+       CALL section_vals_retain(input)
+       CALL section_vals_release(fist_env%input)
        fist_env%input => input
     END IF
     IF ( PRESENT ( thermo ) ) fist_env % thermo => thermo
     IF (PRESENT(subsys)) THEN
-       CALL cp_subsys_retain(subsys,error=error)
-       CALL cp_subsys_release(fist_env%subsys,error=error)
+       CALL cp_subsys_retain(subsys)
+       CALL cp_subsys_release(fist_env%subsys)
        fist_env%subsys => subsys
     END IF
     IF (PRESENT(atomic_kind_set)) THEN
       CALL atomic_kind_list_create(atomic_kinds,&
-                                   els_ptr=atomic_kind_set,&
-                                   error=error)
+                                   els_ptr=atomic_kind_set)
       CALL cp_subsys_set(fist_env%subsys,&
-                        atomic_kinds=atomic_kinds,&
-                        error=error)
-      CALL atomic_kind_list_release(atomic_kinds,error=error)
+                        atomic_kinds=atomic_kinds)
+      CALL atomic_kind_list_release(atomic_kinds)
     END IF
     IF (PRESENT(particle_set)) THEN
       CALL particle_list_create(particles,&
-                                els_ptr=particle_set,&
-                                error=error)
+                                els_ptr=particle_set)
       CALL cp_subsys_set(fist_env%subsys,&
-                        particles=particles,&
-                        error=error)
-      CALL particle_list_release(particles,error=error)
+                        particles=particles)
+      CALL particle_list_release(particles)
     END IF
     IF (PRESENT(local_particles)) THEN
       CALL cp_subsys_set(fist_env%subsys,&
-                        local_particles=local_particles,&
-                        error=error)
+                        local_particles=local_particles)
     END IF
     IF (PRESENT(local_molecules)) THEN
       CALL cp_subsys_set(fist_env%subsys,&
-                        local_molecules_new=local_molecules,&
-                        error=error)
+                        local_molecules_new=local_molecules)
     END IF
     IF (PRESENT(molecule_kind_set)) THEN
       CALL mol_kind_new_list_create(molecule_kinds_new,&
-                                    els_ptr=molecule_kind_set,&
-                                    error=error)
+                                    els_ptr=molecule_kind_set)
       CALL cp_subsys_set(fist_env%subsys,&
-                        molecule_kinds_new=molecule_kinds_new,&
-                        error=error)
-      CALL mol_kind_new_list_release(molecule_kinds_new,error=error)
+                        molecule_kinds_new=molecule_kinds_new)
+      CALL mol_kind_new_list_release(molecule_kinds_new)
     END IF
     IF (PRESENT(molecule_set)) THEN
       CALL mol_new_list_create(molecules_new,&
-                               els_ptr=molecule_set,&
-                               error=error)
+                               els_ptr=molecule_set)
       CALL cp_subsys_set(fist_env%subsys,&
-                        molecules_new=molecules_new,&
-                        error=error)
-      CALL mol_new_list_release(molecules_new,error=error)
+                        molecules_new=molecules_new)
+      CALL mol_new_list_release(molecules_new)
     END IF
     IF (PRESENT(exclusions)) fist_env%exclusions=>exclusions
     IF (PRESENT(shell_model)) THEN
@@ -447,16 +430,13 @@ CONTAINS
 !> \brief allocates and intitializes a fist_env
 !> \param fist_env the object to create
 !> \param para_env the parallel environement for the qs_env
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_env_create(fist_env,para_env,error)
+  SUBROUTINE fist_env_create(fist_env,para_env)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
       routineP = moduleN//':'//routineN
@@ -467,22 +447,19 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(fist_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL init_fist_env(fist_env,para_env=para_env, error=error)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CALL init_fist_env(fist_env,para_env=para_env)
   END SUBROUTINE fist_env_create
 
 ! *****************************************************************************
 !> \brief retains the given fist_env (see doc/ReferenceCounting.html)
 !> \param fist_env the object to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_env_retain(fist_env,error)
+  SUBROUTINE fist_env_retain(fist_env)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_retain', &
       routineP = moduleN//':'//routineN
@@ -490,23 +467,20 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,failure)
+    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,failure)
     fist_env%ref_count=fist_env%ref_count+1
   END SUBROUTINE fist_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given fist_env (see doc/ReferenceCounting.html)
 !> \param fist_env the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_env_release(fist_env,error)
+  SUBROUTINE fist_env_release(fist_env)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN
@@ -517,23 +491,23 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(fist_env)) THEN
-       CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,failure)
        fist_env%ref_count=fist_env%ref_count-1
        IF (fist_env%ref_count<1) THEN
-          CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
-          CALL cell_release(fist_env%cell_ref,error=error)
-          CALL ewald_pw_release(fist_env%ewald_pw,error=error)
-          CALL ewald_env_release(fist_env%ewald_env,error=error)
-          CALL cp_para_env_release(fist_env%para_env,error=error)
+          CALL qmmm_env_mm_release(fist_env%qmmm_env)
+          CALL cell_release(fist_env%cell_ref)
+          CALL ewald_pw_release(fist_env%ewald_pw)
+          CALL ewald_env_release(fist_env%ewald_env)
+          CALL cp_para_env_release(fist_env%para_env)
           CALL deallocate_fist_energy(fist_env%thermo)
 
-          CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-          CALL cp_subsys_release(fist_env%subsys,error=error)
-          CALL section_vals_release(fist_env%input,error=error)
-          CALL exclusion_release(fist_env%exclusions,error=error)
+          CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env)
+          CALL cp_subsys_release(fist_env%subsys)
+          CALL section_vals_release(fist_env%input)
+          CALL exclusion_release(fist_env%exclusions)
 
           DEALLOCATE(fist_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
        END IF
     END IF
     NULLIFY(fist_env)

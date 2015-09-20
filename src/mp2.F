@@ -116,13 +116,11 @@ MODULE mp2
 !> \brief the main entry point for MP2 calculations
 !> \param qs_env ...
 !> \param calc_forces ...
-!> \param error ...
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE mp2_main(qs_env,calc_forces,error)
+  SUBROUTINE mp2_main(qs_env,calc_forces)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calc_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp2_main', &
       routineP = moduleN//':'//routineN
@@ -183,7 +181,7 @@ MODULE mp2
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL cite_reference(DelBen2012)
 
@@ -203,11 +201,10 @@ MODULE mp2
                     matrix_s=matrix_s,&
                     matrix_ks_aux_fit=matrix_ks_aux,&
                     mp2_env=mp2_env,&
-                    admm_env=admm_env,&
-                    error=error)
+                    admm_env=admm_env)
 
     unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%WF_CORRELATION%MP2_INFO",&
-                                   extension=".mp2Log",error=error)
+                                   extension=".mp2Log")
 
     IF (unit_nr>0) THEN
        IF(mp2_env%method.NE.ri_rpa_method_gpw) THEN
@@ -269,13 +266,13 @@ MODULE mp2
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
 
 
-    CALL hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm=.FALSE., error=error)
+    CALL hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm=.FALSE.)
 
     dimen=0
     max_nset=0
@@ -286,7 +283,7 @@ MODULE mp2
     END DO
 
     CALL get_mo_set( mo_set=mos(1)%mo_set,nao=nao)
-    CPPostcondition(dimen==nao,cp_failure_level,routineP,error,failure)
+    CPPostcondition(dimen==nao,cp_failure_level,routineP,failure)
 
     ! diagonalize the KS matrix in order to have the full set of MO's
     ! get S and KS matrices in fm_type (create also a working array)
@@ -296,26 +293,26 @@ MODULE mp2
     NULLIFY(fm_struct)
     CALL cp_dbcsr_get_info(matrix_s(1)%matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
-                             ncol_global=nfullcols_total,para_env=para_env,error=error)
-    CALL cp_fm_create(fm_matrix_s,fm_struct,name="fm_matrix_s",error=error)
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s, error=error)
+                             ncol_global=nfullcols_total,para_env=para_env)
+    CALL cp_fm_create(fm_matrix_s,fm_struct,name="fm_matrix_s")
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s)
 
-    CALL cp_fm_create(fm_matrix_ks,fm_struct,name="fm_matrix_ks",error=error)
+    CALL cp_fm_create(fm_matrix_ks,fm_struct,name="fm_matrix_ks")
 
-    CALL cp_fm_create(fm_matrix_work,fm_struct,name="fm_matrix_work",error=error)
-    CALL cp_fm_set_all(matrix=fm_matrix_work,alpha=0.0_dp,error=error)
+    CALL cp_fm_create(fm_matrix_work,fm_struct,name="fm_matrix_work")
+    CALL cp_fm_set_all(matrix=fm_matrix_work,alpha=0.0_dp)
 
-    CALL cp_fm_struct_release(fm_struct,error=error)
+    CALL cp_fm_struct_release(fm_struct)
    
-    CALL cp_fm_get_info(matrix=fm_matrix_ks,nrow_block=nrow_block,ncol_block=ncol_block,error=error)
+    CALL cp_fm_get_info(matrix=fm_matrix_ks,nrow_block=nrow_block,ncol_block=ncol_block)
 
     ! calculate S^(-1/2) (cholescky decomposition)
-    CALL cp_fm_cholesky_decompose(fm_matrix_s,error=error)
-    CALL cp_fm_triangular_invert(fm_matrix_s,error=error)
+    CALL cp_fm_cholesky_decompose(fm_matrix_s)
+    CALL cp_fm_triangular_invert(fm_matrix_s)
 
     NULLIFY(mos_mp2)
     ALLOCATE(mos_mp2(nspins),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DO ispin=1, nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc,nelectron=nelectron)
 
@@ -326,37 +323,32 @@ MODULE mp2
                            nelectron=nelectron,&
                            n_el_f=REAL(nelectron,dp),&
                            maxocc=maxocc,&
-                           flexible_electron_count=dft_control%relax_multiplicity,&
-                           error=error)
+                           flexible_electron_count=dft_control%relax_multiplicity)
     END DO
 
     NULLIFY(my_mpools)
-    CALL mpools_create(mpools=my_mpools,error=error)
+    CALL mpools_create(mpools=my_mpools)
     CALL mpools_rebuild_fm_pools(mpools=my_mpools,&
                                  mos=mos_mp2,&
                                  blacs_env=blacs_env,&
-                                 para_env=para_env,&
-                                 error=error)
+                                 para_env=para_env)
 
     DO ispin=1, nspins
 
       ! If ADMM we should make the ks matrix up-to-date
       IF(dft_control%do_admm) THEN
-        CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
-                                          error)
+        CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
       END IF
 
-      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks, error=error)
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks)
 
       IF(dft_control%do_admm) THEN
-        CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
-                                          error)
+        CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
       END IF
 
       CALL init_mo_set(mos_mp2(ispin)%mo_set,&
                        my_mpools%ao_mo_fm_pools(ispin)%pool,&
-                       name="mp2_mos",&
-                       error=error)
+                       name="mp2_mos")
 
       ! diagonalize KS matrix
       cholesky_method=cholesky_inverse
@@ -365,21 +357,20 @@ MODULE mp2
                        ortho=fm_matrix_s,&
                        work=fm_matrix_work,&
                        cholesky_method=cholesky_method,&
-                       use_jacobi=.FALSE.,&
-                       error=error)
+                       use_jacobi=.FALSE.)
     END DO
       
-    CALL cp_fm_release(fm_matrix_s, error=error)
-    CALL cp_fm_release(fm_matrix_ks, error=error)
-    CALL cp_fm_release(fm_matrix_work, error=error)
-    CALL mpools_release(mpools=my_mpools, error=error)
+    CALL cp_fm_release(fm_matrix_s)
+    CALL cp_fm_release(fm_matrix_ks)
+    CALL cp_fm_release(fm_matrix_work)
+    CALL mpools_release(mpools=my_mpools)
 
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
 
     !   build the table of index
     t1=m_walltime()
     ALLOCATE(mp2_biel%index_table(natom,max_nset),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL build_index_table(natom,max_nset,mp2_biel%index_table,basis_parameter,kind_of)
 
@@ -397,11 +388,11 @@ MODULE mp2
     ! calculate the matrix sigma_x - vxc for G0W0
     t3=0
     IF(mp2_env%ri_rpa%do_ri_g0w0) THEN
-      CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env,mp2_env,mos_mp2,E_ex_from_GW,t3,error) 
+      CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env,mp2_env,mos_mp2,E_ex_from_GW,t3) 
     END IF
     IF(free_hfx_buffer) THEN
       CALL timeset(routineN//"_free_hfx",handle2)
-      CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+      CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
       n_threads = 1
 !$  n_threads = omp_get_max_threads()
 
@@ -419,16 +410,16 @@ MODULE mp2
           END IF
 
           IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
-            CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
-           !  CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+            CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
+           !  CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy)
            ! 
            !  DO bin=1, my_bin_size
            !    maxval_container => actual_x_data%maxval_container(bin)
            !    integral_containers => actual_x_data%integral_containers(:,bin)
-           !    CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+           !    CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE.)
            !    DO i=1,64
            !      CALL hfx_init_container(integral_containers(i), &
-           !               actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+           !               actual_x_data%memory_parameter%actual_memory_usage, .FALSE.)
            !    END DO
            !  END DO
           END IF
@@ -447,7 +438,7 @@ MODULE mp2
      CASE(mp2_method_laplace)
        CALL cp_unimplemented_error(fromWhere=routineP, &
               message="laplace not implemented",&
-              error=error, error_level=cp_failure_level)
+              error_level=cp_failure_level)
      CASE (mp2_method_direct)
        !DO i=1,SIZE(mos)
        !   CALL get_mo_set( mo_set=mos(i)%mo_set,&
@@ -472,12 +463,12 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C_alpha(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          ALLOCATE(Auto_alpha(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-         CALL cp_fm_get_submatrix(mo_coeff,C_alpha, 1, 1, dimen, dimen, .FALSE., error)
+         CALL cp_fm_get_submatrix(mo_coeff,C_alpha, 1, 1, dimen, dimen, .FALSE.)
          Auto_alpha(:)=mo_eigenvalues(:)
 
          ! get the beta coeff and eigenvalues
@@ -486,12 +477,12 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C_beta(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          ALLOCATE(Auto_beta(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-         CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE., error)
+         CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE.)
          Auto_beta(:)=mo_eigenvalues(:)
 
          ! calculate the alpha-alpha MP2
@@ -500,7 +491,7 @@ MODULE mp2
          Emp2_AA_ex=0.0_dp
          CALL mp2_direct_energy(dimen,nelec_alpha,nelec_alpha,mp2_biel,mp2_env,C_alpha,Auto_alpha,Emp2_AA,Emp2_AA_Cou,Emp2_AA_ex,&
                                 qs_env,rho,para_env, &
-                                unit_nr,error=error)
+                                unit_nr)
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Alpha = ', Emp2_AA
          IF (unit_nr>0) WRITE(unit_nr,*)
 
@@ -509,7 +500,7 @@ MODULE mp2
          Emp2_BB_ex=0.0_dp
          CALL mp2_direct_energy(dimen,nelec_beta,nelec_beta,mp2_biel,mp2_env,C_beta,Auto_beta,Emp2_BB,Emp2_BB_Cou,Emp2_BB_ex,&
                                 qs_env,rho,para_env, &
-                                unit_nr,error=error)
+                                unit_nr)
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Beta-Beta= ', Emp2_BB
          IF (unit_nr>0) WRITE(unit_nr,*)
 
@@ -519,7 +510,7 @@ MODULE mp2
          CALL mp2_direct_energy(dimen,nelec_alpha,nelec_beta,mp2_biel,mp2_env,C_alpha,&
                                 Auto_alpha,Emp2_AB,Emp2_AB_Cou,Emp2_AB_ex,&
                                 qs_env,rho,para_env, &
-                                unit_nr,C_beta,Auto_beta,error=error)
+                                unit_nr,C_beta,Auto_beta)
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Beta= ', Emp2_AB
          IF (unit_nr>0) WRITE(unit_nr,*)
 
@@ -538,18 +529,18 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          ALLOCATE(Auto(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
 
-         CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE., error)
+         CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE.)
          Auto(:)=mo_eigenvalues(:)
 
          CALL mp2_direct_energy(dimen,nelectron/2,nelectron/2,mp2_biel,mp2_env,C,Auto,Emp2,Emp2_Cou,Emp2_ex,&
                                 qs_env,rho,para_env, &
-                                unit_nr,error=error)
+                                unit_nr)
 
 
        END IF
@@ -566,12 +557,12 @@ MODULE mp2
                     eigenvalues=mo_eigenvalues,&
                     mo_coeff=mo_coeff)
        ALLOCATE(C(dimen,dimen),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
        ALLOCATE(Auto(dimen),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-       CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE., error)
+       CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE.)
        Auto(:)=mo_eigenvalues(:)
 
        IF(nspins==2) THEN
@@ -581,19 +572,19 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C_beta(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          ALLOCATE(Auto_beta(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-         CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE., error)
+         CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE.)
          Auto_beta(:)=mo_eigenvalues(:)
 
          ! optimize basis
          CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron, &
                                      mp2_biel,mp2_env,C,Auto,&
                                      kind_of,qs_env,rho,para_env, &
-                                     unit_nr,error,&
+                                     unit_nr,&
                                      nelec_beta,C_beta,Auto_beta)
 
        ELSE
@@ -601,7 +592,7 @@ MODULE mp2
          CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron/2, &
                                      mp2_biel,mp2_env,C,Auto,&
                                      kind_of,qs_env,rho,para_env, &
-                                     unit_nr,error)
+                                     unit_nr)
        END IF
 
      CASE (mp2_method_gpw)
@@ -610,7 +601,7 @@ MODULE mp2
 
        ! go with mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex)
 
      CASE (ri_mp2_method_gpw)
        ! check if calculate the exchange contribution
@@ -618,7 +609,7 @@ MODULE mp2
 
        ! go with mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error,do_ri_mp2=.TRUE.)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,do_ri_mp2=.TRUE.)
 
      CASE(ri_rpa_method_gpw)
        ! perform RI-RPA energy calculation (since most part of the calculation
@@ -629,7 +620,7 @@ MODULE mp2
 
        ! go with ri_rpa_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error,do_ri_rpa=.TRUE.)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,do_ri_rpa=.TRUE.)
 
      CASE(ri_mp2_laplace) 
        ! perform RI-SOS-Laplace-MP2 energy calculation, most part of the code in common
@@ -640,10 +631,10 @@ MODULE mp2
         
        ! go with sos_laplace_mp2_gpw
        CALL  mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
-                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,error,do_ri_sos_laplace_mp2=.TRUE.)
+                          mos_mp2,para_env,unit_nr,calc_forces,calc_ex,do_ri_sos_laplace_mp2=.TRUE.)
 
      CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
    END SELECT
    t2=m_walltime()
    IF (unit_nr>0) WRITE(unit_nr,*)
@@ -687,7 +678,7 @@ MODULE mp2
    energy%total=energy%total+Emp2
 
    DO ispin=1, nspins
-     CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set,error=error)
+     CALL deallocate_mo_set(mo_set=mos_mp2(ispin)%mo_set)
    END DO
    DEALLOCATE(mos_mp2)
 
@@ -708,15 +699,15 @@ MODULE mp2
          END IF
 
          IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
-          ! CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
-           CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+          ! CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
+           CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy)
           
            DO bin=1, my_bin_size
              maxval_container => actual_x_data%maxval_container(bin)
              integral_containers => actual_x_data%integral_containers(:,bin)
-             CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+             CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE.)
              DO i=1,64
-               CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+               CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE.)
              END DO
            END DO
          END IF
@@ -725,20 +716,20 @@ MODULE mp2
      CALL timestop(handle2)
    END IF
 
-   CALL hfx_release_basis_types(basis_parameter,error)
+   CALL hfx_release_basis_types(basis_parameter)
 
    ! if required calculate the EXX contribution from the DFT density
    IF(mp2_env%method==ri_rpa_method_gpw) THEN
      do_exx=.FALSE.
-     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
-     CALL section_vals_get(hfx_sections,explicit=do_exx,error=error)
+     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
+     CALL section_vals_get(hfx_sections,explicit=do_exx)
      IF(do_exx) THEN
-       CALL calculate_exx(qs_env,unit_nr,mp2_env%ri_rpa%do_ri_g0w0,E_ex_from_GW,t3,error)
+       CALL calculate_exx(qs_env,unit_nr,mp2_env%ri_rpa%do_ri_g0w0,E_ex_from_GW,t3)
      END IF
    END IF
 
    CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                                     "DFT%XC%WF_CORRELATION%MP2_INFO", error=error)
+                                     "DFT%XC%WF_CORRELATION%MP2_INFO")
 
    CALL timestop(handle)
 
@@ -794,11 +785,10 @@ MODULE mp2
 !> \param unit_nr ...
 !> \param C_j ...
 !> \param Auto_j ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE mp2_direct_energy(dimen,occ_i,occ_j,mp2_biel,mp2_env,C_i,Auto_i,Emp2,Emp2_Cou,Emp2_ex,&
                                qs_env,rho,para_env, &
-                               unit_nr,C_j,Auto_j,error)
+                               unit_nr,C_j,Auto_j)
     INTEGER                                  :: dimen, occ_i, occ_j
     TYPE(mp2_biel_type)                      :: mp2_biel
     TYPE(mp2_type), POINTER                  :: mp2_env
@@ -813,7 +803,6 @@ MODULE mp2
       OPTIONAL                               :: C_j
     REAL(KIND=dp), DIMENSION(dimen), &
       OPTIONAL                               :: Auto_j
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_direct_energy', &
       routineP = moduleN//':'//routineN
@@ -865,7 +854,7 @@ MODULE mp2
     color_sub=para_env%mepos/mp2_env%mp2_num_proc
     CALL mp_comm_split_direct(para_env%group,comm_sub,color_sub)
     NULLIFY(para_env_sub)
-    CALL cp_para_env_create(para_env_sub,comm_sub,error=error)
+    CALL cp_para_env_create(para_env_sub,comm_sub)
 
     ! calculate the maximal size of the batch, according to the maximum RS size
     max_set=SIZE(mp2_biel%index_table,2)
@@ -899,7 +888,7 @@ MODULE mp2
     total_I_size_batch_group=occ_i/number_i_subset
     IF(total_I_size_batch_group<1) total_I_size_batch_group=1
     ALLOCATE(vector_batch_I_size_group(0:number_i_subset-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     vector_batch_I_size_group=0
     DO i=0, number_i_subset-1
@@ -920,7 +909,7 @@ MODULE mp2
     total_J_size_batch_group=occ_j/number_j_subset
     IF(total_J_size_batch_group<1) total_J_size_batch_group=1
     ALLOCATE(vector_batch_J_size_group(0:number_j_subset-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     vector_batch_J_size_group=0
     DO i=0, number_J_subset-1
@@ -978,7 +967,7 @@ MODULE mp2
     ! create the size of the batches inside the group
     my_batch_size=my_I_batch_size
     ALLOCATE(batch_sizes(my_batch_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     batch_sizes=-HUGE(0)
     batch_number=0
@@ -994,11 +983,11 @@ MODULE mp2
     END IF
 
     ALLOCATE(batch_sizes_tmp(batch_number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     batch_sizes_tmp(1:batch_number)=batch_sizes(1:batch_number)
     DEALLOCATE(batch_sizes)
     ALLOCATE(batch_sizes(batch_number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     batch_sizes(:)=batch_sizes_tmp
     DEALLOCATE(batch_sizes_tmp)
 
@@ -1013,7 +1002,7 @@ MODULE mp2
     END IF
 
     ! Batches sizes exceed the occupied orbitals allocated for group
-    CPPostcondition(SUM(batch_sizes)<=my_batch_size,cp_failure_level,routineP,error,failure)
+    CPPostcondition(SUM(batch_sizes)<=my_batch_size,cp_failure_level,routineP,failure)
 
     virt_i=dimen-occ_i
     virt_j=dimen-occ_j
@@ -1032,7 +1021,7 @@ MODULE mp2
 
          counter=-1
          ALLOCATE(ij_matrix(Ni_occupied,Nj_occupied),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          ij_matrix=0
          DO i=1, Ni_occupied
@@ -1045,7 +1034,7 @@ MODULE mp2
          END DO
 
          ALLOCATE(ij_list_proc_temp(Ni_occupied*occ_j,2),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
          elements_ij_proc=0
          DO i=1, Ni_occupied
@@ -1068,13 +1057,12 @@ MODULE mp2
          IF(.NOT.alpha_beta_case) THEN
            CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
-                                        elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
-                                        error=error)
+                                        elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start)
          ELSE
            CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
                                         elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
-                                        occ_j,C_j,Auto_j,error=error)
+                                        occ_j,C_j,Auto_j)
          END IF
 
          i_batch_start=i_batch_start+Ni_occupied
@@ -1087,7 +1075,7 @@ MODULE mp2
     CALL mp_sum(Emp2_Ex,para_env%group)
     CALL mp_sum(Emp2,para_env%group)
 
-    CALL cp_para_env_release(para_env_sub,error)
+    CALL cp_para_env_release(para_env_sub)
 
     CALL timestop(handle)
 
@@ -1100,14 +1088,12 @@ MODULE mp2
 !> \param do_gw ...
 !> \param E_ex_from_GW ...
 !> \param t3 ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_exx(qs_env,unit_nr,do_gw,E_ex_from_GW,t3,error)
+  SUBROUTINE calculate_exx(qs_env,unit_nr,do_gw,E_ex_from_GW,t3)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: do_gw
     REAL(KIND=dp)                            :: E_ex_from_GW, t3
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', &
       routineP = moduleN//':'//routineN
@@ -1137,18 +1123,17 @@ MODULE mp2
                     para_env=para_env, &
                     energy=energy, &
                     rho=rho, &
-                    matrix_ks=matrix_ks, &
-                    error=error)
+                    matrix_ks=matrix_ks)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
 
-    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
 
     ! put matrix_ks to zero
     DO i=1, SIZE(matrix_ks)
-      CALL cp_dbcsr_set(matrix_ks(i)%matrix,0.0_dp,error=error)
+      CALL cp_dbcsr_set(matrix_ks(i)%matrix,0.0_dp)
     END DO
  
     ! Remove the Exchange-correlation energy contributions from the total energy
@@ -1172,7 +1157,7 @@ MODULE mp2
         matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
         CALL integrate_four_center(qs_env, matrix_ks_2d, energy, rho_ao_2d, hfx_sections,&
                                    para_env, .TRUE., irep, .TRUE.,&
-                                   ispin=1, error=error, do_exx=.TRUE.)
+                                   ispin=1,do_exx=.TRUE.)
       END DO
  
       ! include the EXX contribution to the total energy
@@ -1198,18 +1183,16 @@ MODULE mp2
 !> \param mos_mp2 ...
 !> \param energy_ex ...
 !> \param t3 ...
-!> \param error ...
 !> \par History
 !>      04.2015 created 
 !> \author Jan Wilhelm
 ! *****************************************************************************
-  SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env,mp2_env,mos_mp2,energy_ex,t3,error)
+  SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env,mp2_env,mos_mp2,energy_ex,t3)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos_mp2
     REAL(KIND=dp)                            :: energy_ex, t3
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'compute_vec_Sigma_x_minus_vxc_gw', &
@@ -1251,62 +1234,61 @@ MODULE mp2
                     input=input,&
                     dft_control=dft_control,&
                     para_env=para_env,&
-                    ks_env=ks_env,&
-                    error=error)
+                    ks_env=ks_env)
 
     ! GW on top of HFX with ADMM is not working. Please, converge an SCF with ADMM,
     ! print the restart file, remove the ADMM section, add the RPA and GW section,
     ! set very lax SCF convergence parameters to converge the SCF in one step.
     IF(dft_control%do_admm) STOP "GW on top of ADMM is not implemented." 
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     ! initialize matrix_sigma_x_minus_vxc
     ALLOCATE(matrix_sigma_x_minus_vxc(SIZE(matrix_ks)))
     DO ispin=1,SIZE(matrix_ks)
        NULLIFY(matrix_sigma_x_minus_vxc(ispin)%matrix)
-       CALL cp_dbcsr_init_p(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
        CALL cp_dbcsr_copy(matrix_sigma_x_minus_vxc(ispin)%matrix,matrix_ks(ispin)%matrix,&
-                                   name="Matrix VXC of spin "//cp_to_string(ispin),error=error)
-       CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+                                   name="Matrix VXC of spin "//cp_to_string(ispin))
+       CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp)
     ENDDO
 
     ! set DFT functional to none and hfx_fraction to zero
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
+    CALL section_vals_get(hfx_sections,explicit=do_hfx)
     IF(do_hfx) THEN
       hfx_fraction = qs_env%x_data(1,1)%general_parameter%fraction
       qs_env%x_data(:,:)%general_parameter%fraction = 0.0_dp
     END IF
-    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC")
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
-         i_val=myfun,error=error)
+         i_val=myfun)
     CALL section_vals_val_set(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
-         i_val=xc_none,error=error)
+         i_val=xc_none)
 
     ! calculate KS-matrix without XC and without HF
     CALL qs_ks_build_kohn_sham_matrix(qs_env=qs_env, calculate_forces=.FALSE.,&
-                                      just_energy=.FALSE.,error=error)
+                                      just_energy=.FALSE.)
 
     ! set the DFT functional and HF fraction back
     CALL section_vals_val_set(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
-         i_val=myfun,error=error)
+         i_val=myfun)
     IF(do_hfx) THEN
       qs_env%x_data(:,:)%general_parameter%fraction = hfx_fraction
     END IF
   
     ! remove the single-particle part (kin. En + Hartree pot) and change the sign
     DO ispin=1,dft_control%nspins
-      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp, error)
+      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp)
     END DO
 
     DO ispin=1,dft_control%nspins
-      CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+      CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp)
     END DO
 
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
 
-    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
 
     CALL allocate_qs_energy(energy_dummy)
 
@@ -1320,20 +1302,20 @@ MODULE mp2
       matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
       CALL integrate_four_center(qs_env,matrix_ks_2d,energy_dummy,rho_ao_2d,hfx_sections,&
                                  para_env,.TRUE.,irep,.TRUE.,&
-                                 ispin=1,error=error,do_exx=.TRUE.)
+                                 ispin=1,do_exx=.TRUE.)
     END DO
 
     DO ispin=1,dft_control%nspins
-      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp, error)
+      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp)
     END DO
 
     energy_ex = energy_dummy%ex
 
     CALL deallocate_qs_energy(energy_dummy)
 
-    CALL cp_dbcsr_init (mo_coeff_b, error)
-    CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix,mo_coeff_b,error)
-    CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp, error)
+    CALL cp_dbcsr_init (mo_coeff_b)
+    CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix,mo_coeff_b)
+    CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp)
 
     ! Transform matrix_sigma_x_minus_vxc to MO basis
     DO ispin=1,dft_control%nspins
@@ -1346,25 +1328,24 @@ MODULE mp2
 
       IF(ispin==1) THEN 
         ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         vec_Sigma_x_minus_vxc_gw=0.0_dp
       END IF
  
-      CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp, error)
-      CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,keep_sparsity=.TRUE.,&
-                            error=error)
+      CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp)
+      CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,keep_sparsity=.TRUE.)
 
       ! initialize matrix_tmp and matrix_tmp2
       IF(ispin==1) THEN
-        CALL cp_dbcsr_init(matrix_tmp, error=error)
-        CALL cp_dbcsr_create(matrix_tmp,template=mo_coeff_b,error=error)
-        CALL cp_dbcsr_copy(matrix_tmp,mo_coeff_b,error=error)
-        CALL cp_dbcsr_set(matrix_tmp, 0.0_dp, error)
+        CALL cp_dbcsr_init(matrix_tmp)
+        CALL cp_dbcsr_create(matrix_tmp,template=mo_coeff_b)
+        CALL cp_dbcsr_copy(matrix_tmp,mo_coeff_b)
+        CALL cp_dbcsr_set(matrix_tmp, 0.0_dp)
     
-        CALL cp_dbcsr_init(matrix_tmp_2, error=error)
-        CALL cp_dbcsr_create(matrix_tmp_2,template=mo_coeff_b,error=error)
-        CALL cp_dbcsr_copy(matrix_tmp_2,mo_coeff_b,error=error)
-        CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp, error)
+        CALL cp_dbcsr_init(matrix_tmp_2)
+        CALL cp_dbcsr_create(matrix_tmp_2,template=mo_coeff_b)
+        CALL cp_dbcsr_copy(matrix_tmp_2,mo_coeff_b)
+        CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp)
       END IF
  
       gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
@@ -1390,31 +1371,31 @@ MODULE mp2
 
       CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_sigma_x_minus_vxc(ispin)%matrix,&
                              mo_coeff_b,0.0_dp,matrix_tmp,first_column=homo+1-gw_corr_lev_occ,&
-                             last_column=homo+gw_corr_lev_virt,error=error)
+                             last_column=homo+gw_corr_lev_virt)
 
       CALL cp_dbcsr_multiply('T','N',1.0_dp,mo_coeff_b,&
                              matrix_tmp,0.0_dp,matrix_tmp_2,first_row=homo+1-gw_corr_lev_occ,&
-                             last_row=homo+gw_corr_lev_virt,error=error)
+                             last_row=homo+gw_corr_lev_virt)
 
-      CALL cp_dbcsr_get_diag(matrix_tmp_2,vec_Sigma_x_minus_vxc_gw(:,ispin),error=error)
+      CALL cp_dbcsr_get_diag(matrix_tmp_2,vec_Sigma_x_minus_vxc_gw(:,ispin))
 
-      CALL cp_dbcsr_set(matrix_tmp, 0.0_dp, error)
-      CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp, error)
+      CALL cp_dbcsr_set(matrix_tmp, 0.0_dp)
+      CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp)
 
     END DO
 
     CALL mp_sum(vec_Sigma_x_minus_vxc_gw,para_env%group)
 
-    CALL cp_dbcsr_release(mo_coeff_b,error)
-    CALL cp_dbcsr_release(matrix_tmp,error)
-    CALL cp_dbcsr_release(matrix_tmp_2,error)
+    CALL cp_dbcsr_release(mo_coeff_b)
+    CALL cp_dbcsr_release(matrix_tmp)
+    CALL cp_dbcsr_release(matrix_tmp_2)
 
     DO ispin=1,SIZE(matrix_ks)
-      CALL cp_dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
+      CALL cp_dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
     END DO
 
     ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,:) = vec_Sigma_x_minus_vxc_gw(:,:)

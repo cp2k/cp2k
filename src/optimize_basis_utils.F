@@ -48,15 +48,13 @@ CONTAINS
 !> \param opt_bas ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
    
-   SUBROUTINE optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
+   SUBROUTINE optimize_basis_init_read_input(opt_bas,root_section,para_env)
     TYPE(basis_optimization_type)            :: opt_bas
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'optimize_basis_init_read_input', &
@@ -67,23 +65,23 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section, optbas_section, &
                                                 powell_section, train_section
 
-      optbas_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_BASIS",error=error)
-      powell_section => section_vals_get_subs_vals(optbas_section,"OPTIMIZATION",error=error)
-      train_section => section_vals_get_subs_vals(optbas_section,"TRAINING_FILES",error=error)
-      kind_section => section_vals_get_subs_vals(optbas_section,"FIT_KIND",error=error)
+      optbas_section => section_vals_get_subs_vals(root_section,"OPTIMIZE_BASIS")
+      powell_section => section_vals_get_subs_vals(optbas_section,"OPTIMIZATION")
+      train_section => section_vals_get_subs_vals(optbas_section,"TRAINING_FILES")
+      kind_section => section_vals_get_subs_vals(optbas_section,"FIT_KIND")
 
-      CALL section_vals_val_get(optbas_section,"BASIS_TEMPLATE_FILE",c_val=opt_bas%template_basis_file,error=error)
-      CALL section_vals_val_get(optbas_section,"BASIS_WORK_FILE",c_val=opt_bas%work_basis_file,error=error)
-      CALL section_vals_val_get(optbas_section,"BASIS_OUTPUT_FILE",c_val=opt_bas%output_basis_file,error=error)
+      CALL section_vals_val_get(optbas_section,"BASIS_TEMPLATE_FILE",c_val=opt_bas%template_basis_file)
+      CALL section_vals_val_get(optbas_section,"BASIS_WORK_FILE",c_val=opt_bas%work_basis_file)
+      CALL section_vals_val_get(optbas_section,"BASIS_OUTPUT_FILE",c_val=opt_bas%output_basis_file)
       CALL m_getcwd(main_dir)
       opt_bas%work_basis_file=TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
 
-      CALL section_vals_val_get(optbas_section,"WRITE_FREQUENCY",i_val=opt_bas%write_frequency,error=error)
-      CALL section_vals_val_get(optbas_section,"USE_CONDITION_NUMBER",l_val=opt_bas%use_condition_number,error=error)
+      CALL section_vals_val_get(optbas_section,"WRITE_FREQUENCY",i_val=opt_bas%write_frequency)
+      CALL section_vals_val_get(optbas_section,"USE_CONDITION_NUMBER",l_val=opt_bas%use_condition_number)
 
-      CALL generate_initial_basis(kind_section,opt_bas,para_env,error)
+      CALL generate_initial_basis(kind_section,opt_bas,para_env)
       
-      CALL section_vals_get(train_section,n_repetition=opt_bas%ntraining_sets,error=error)
+      CALL section_vals_get(train_section,n_repetition=opt_bas%ntraining_sets)
       CALL cp_assert(opt_bas%ntraining_sets/=0,cp_fatal_level,cp_assertion_failed,&
                       routineP,"No training set was specified in the Input",&
                       only_ionode=.TRUE.)
@@ -92,48 +90,46 @@ CONTAINS
       ALLOCATE(opt_bas%training_dir(opt_bas%ntraining_sets))
       DO iset=1,opt_bas%ntraining_sets
           CALL section_vals_val_get(train_section,"DIRECTORY",c_val=opt_bas%training_dir(iset),&
-                                    i_rep_section=iset,error=error)
+                                    i_rep_section=iset)
           CALL section_vals_val_get(train_section,"INPUT_FILE_NAME",c_val=opt_bas%training_input(iset),&
-                                    i_rep_section=iset,error=error)
+                                    i_rep_section=iset)
       END DO
 
-      CALL init_powell_var(opt_bas%powell_param,powell_section,error)
+      CALL init_powell_var(opt_bas%powell_param,powell_section)
       opt_bas%powell_param%nvar=SIZE(opt_bas%x_opt)
 
-      CALL generate_derived_basis_sets(opt_bas,para_env,error)
+      CALL generate_derived_basis_sets(opt_bas,para_env)
  
-      CALL generate_basis_combinations(opt_bas,optbas_section,error)
+      CALL generate_basis_combinations(opt_bas,optbas_section)
 
-      CALL section_vals_val_get(optbas_section,"RESIDUUM_WEIGHT",n_rep_val=nrep,error=error)
+      CALL section_vals_val_get(optbas_section,"RESIDUUM_WEIGHT",n_rep_val=nrep)
       ALLOCATE(opt_bas%fval_weight(0:opt_bas%ncombinations))
       opt_bas%fval_weight=1.0_dp
       DO iweight=1,nrep
           CALL section_vals_val_get(optbas_section,"RESIDUUM_WEIGHT",r_val=opt_bas%fval_weight(iweight-1),&
-                                    i_rep_val=iweight,error=error)
+                                    i_rep_val=iweight)
       END DO
 
-      CALL section_vals_val_get(optbas_section,"CONDITION_WEIGHT",n_rep_val=nrep,error=error)
+      CALL section_vals_val_get(optbas_section,"CONDITION_WEIGHT",n_rep_val=nrep)
       ALLOCATE(opt_bas%condition_weight(0:opt_bas%ncombinations))
       opt_bas%condition_weight=1.0_dp
       DO iweight=1,nrep
           CALL section_vals_val_get(optbas_section,"CONDITION_WEIGHT",r_val=opt_bas%condition_weight(iweight-1),&
-                                    i_rep_val=iweight,error=error)
+                                    i_rep_val=iweight)
       END DO
 
-      CALL generate_computation_groups(opt_bas,optbas_section,para_env,error)            
+      CALL generate_computation_groups(opt_bas,optbas_section,para_env)            
      
-      CALL print_opt_info(opt_bas,error) 
+      CALL print_opt_info(opt_bas) 
               
    END SUBROUTINE optimize_basis_init_read_input
 
 ! *****************************************************************************
 !> \brief ...
 !> \param opt_bas ...
-!> \param error ...
 ! *****************************************************************************
-   SUBROUTINE print_opt_info(opt_bas,error)
+   SUBROUTINE print_opt_info(opt_bas)
     TYPE(basis_optimization_type)            :: opt_bas
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_opt_info', &
       routineP = moduleN//':'//routineN
@@ -141,7 +137,7 @@ CONTAINS
     INTEGER                                  :: icomb, ikind, unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     unit_nr=-1
     IF(logger%para_env%ionode)&
        unit_nr=cp_logger_get_default_unit_nr(logger)
@@ -167,13 +163,11 @@ CONTAINS
 !>        are fitted at the same time (if not specified create all possible)
 !> \param opt_bas ...
 !> \param optbas_section ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
-   SUBROUTINE generate_basis_combinations(opt_bas,optbas_section,error)
+   SUBROUTINE generate_basis_combinations(opt_bas,optbas_section)
     TYPE(basis_optimization_type)            :: opt_bas
     TYPE(section_vals_type), POINTER         :: optbas_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_basis_combinations', &
       routineP = moduleN//':'//routineN
@@ -184,7 +178,7 @@ CONTAINS
 
 !setup the basis combinations to optimize
 
-      CALL section_vals_val_get(optbas_section,"BASIS_COMBINATIONS",explicit=explicit,n_rep_val=n_rep,error=error)
+      CALL section_vals_val_get(optbas_section,"BASIS_COMBINATIONS",explicit=explicit,n_rep_val=n_rep)
       IF(.NOT.explicit)THEN
          opt_bas%ncombinations=1
          ALLOCATE(tmp_i(opt_bas%nkind))
@@ -215,7 +209,7 @@ CONTAINS
           opt_bas%ncombinations=n_rep
           ALLOCATE(opt_bas%combination(opt_bas%ncombinations,opt_bas%nkind))
           DO i=1,n_rep
-             CALL section_vals_val_get(optbas_section,"BASIS_COMBINATIONS",i_vals=i_vals,i_rep_val=i,error=error)
+             CALL section_vals_val_get(optbas_section,"BASIS_COMBINATIONS",i_vals=i_vals,i_rep_val=i)
              opt_bas%combination(i,:)=i_vals(:)
           END DO
        END IF
@@ -257,15 +251,13 @@ CONTAINS
 !> \param opt_bas ...
 !> \param optbas_section ...
 !> \param para_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE  generate_computation_groups(opt_bas,optbas_section,para_env,error)
+   SUBROUTINE  generate_computation_groups(opt_bas,optbas_section,para_env)
     TYPE(basis_optimization_type)            :: opt_bas
     TYPE(section_vals_type), POINTER         :: optbas_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_computation_groups', &
       routineP = moduleN//':'//routineN
@@ -277,7 +269,7 @@ CONTAINS
 
       nproc=para_env%num_pe
       ncalc=opt_bas%ncombinations*opt_bas%ntraining_sets
-      CALL section_vals_val_get(optbas_section,"GROUP_PARTITION",explicit=explicit,error=error)
+      CALL section_vals_val_get(optbas_section,"GROUP_PARTITION",explicit=explicit)
 
       ! No input information available, try to equally distribute 
       IF(.NOT.explicit)THEN
@@ -312,7 +304,7 @@ CONTAINS
        ELSE
 
       ! Group partition from input. see if all systems can be assigned. If not add to existing group 
-          CALL section_vals_val_get(optbas_section,"GROUP_PARTITION",i_vals=i_vals,error=error)
+          CALL section_vals_val_get(optbas_section,"GROUP_PARTITION",i_vals=i_vals)
           isize=SIZE(i_vals)
           nptot=SUM(i_vals)
           CALL cp_assert(nptot==nproc,cp_fatal_level,cp_assertion_failed,&
@@ -355,15 +347,13 @@ CONTAINS
 !> \param write_it ...
 !> \param output_file ...
 !> \param para_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
-   SUBROUTINE update_derived_basis_sets(opt_bas,write_it,output_file,para_env,error)
+   SUBROUTINE update_derived_basis_sets(opt_bas,write_it,output_file,para_env)
     TYPE(basis_optimization_type)            :: opt_bas
     LOGICAL                                  :: write_it
     CHARACTER(LEN=default_path_length)       :: output_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_derived_basis_sets', &
       routineP = moduleN//':'//routineN
@@ -374,7 +364,7 @@ CONTAINS
        DO ibasis=1,opt_bas%kind_basis(ikind)%nbasis_deriv
            CALL update_used_parts(opt_bas%kind_basis(ikind)%deriv_info(ibasis),&
                                   opt_bas%kind_basis(ikind)%flex_basis(0),&
-                                  opt_bas%kind_basis(ikind)%flex_basis(ibasis),error)
+                                  opt_bas%kind_basis(ikind)%flex_basis(ibasis))
         END DO
     END DO
 
@@ -401,14 +391,12 @@ CONTAINS
 !> \param info_new ...
 !> \param basis ...
 !> \param basis_new ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE update_used_parts(info_new,basis,basis_new,error)
+   SUBROUTINE update_used_parts(info_new,basis,basis_new)
     TYPE(derived_basis_info)                 :: info_new
     TYPE(flex_basis_type)                    :: basis, basis_new
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_used_parts', &
       routineP = moduleN//':'//routineN
@@ -436,14 +424,12 @@ CONTAINS
 !> \brief Initial generation of the basis set from the file and DERIVED_SET
 !> \param opt_bas ...
 !> \param para_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE generate_derived_basis_sets(opt_bas,para_env,error)
+   SUBROUTINE generate_derived_basis_sets(opt_bas,para_env)
     TYPE(basis_optimization_type)            :: opt_bas
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_derived_basis_sets', &
       routineP = moduleN//':'//routineN
@@ -452,7 +438,7 @@ CONTAINS
                                                 unit_nr
 
       DO ikind=1,opt_bas%nkind
-         CALL init_deriv_info_ref(opt_bas%kind_basis(ikind)%deriv_info(0),opt_bas%kind_basis(ikind)%flex_basis(0),error)
+         CALL init_deriv_info_ref(opt_bas%kind_basis(ikind)%deriv_info(0),opt_bas%kind_basis(ikind)%flex_basis(0))
          ! initialize the reference set used as template for the rest
          DO ibasis=1,opt_bas%kind_basis(ikind)%nbasis_deriv
              iref=opt_bas%kind_basis(ikind)%deriv_info(ibasis)%reference_set
@@ -460,7 +446,7 @@ CONTAINS
                 IF(iref==jbasis)CALL setup_used_parts_init_basis(opt_bas%kind_basis(ikind)%deriv_info(ibasis),&
                                                       opt_bas%kind_basis(ikind)%deriv_info(iref),&
                                                       opt_bas%kind_basis(ikind)%flex_basis(0),&
-                                                      opt_bas%kind_basis(ikind)%flex_basis(ibasis),error)
+                                                      opt_bas%kind_basis(ikind)%flex_basis(ibasis))
              END DO
           END DO
       END DO
@@ -522,14 +508,12 @@ CONTAINS
 !> \param info_ref ...
 !> \param basis ...
 !> \param basis_new ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE setup_used_parts_init_basis(info_new,info_ref,basis,basis_new,error)
+   SUBROUTINE setup_used_parts_init_basis(info_new,info_ref,basis,basis_new)
     TYPE(derived_basis_info)                 :: info_new, info_ref
     TYPE(flex_basis_type)                    :: basis, basis_new
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_used_parts_init_basis', &
       routineP = moduleN//':'//routineN
@@ -566,7 +550,7 @@ CONTAINS
       DO i=1,basis%nsets
          IF(info_new%in_use_set(i))THEN
             jset=jset+1
-            CALL create_new_subset(basis%subset(i),basis_new%subset(jset),info_new%use_contr(jset)%in_use,error)
+            CALL create_new_subset(basis%subset(i),basis_new%subset(jset),info_new%use_contr(jset)%in_use)
          END IF
       END DO
   
@@ -577,14 +561,12 @@ CONTAINS
 !> \param subset ...
 !> \param subset_new ...
 !> \param in_use ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE create_new_subset(subset,subset_new,in_use,error)
+   SUBROUTINE create_new_subset(subset,subset_new,in_use)
     TYPE(subset_type)                        :: subset, subset_new
     LOGICAL, DIMENSION(:)                    :: in_use
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_new_subset', &
       routineP = moduleN//':'//routineN
@@ -630,14 +612,12 @@ CONTAINS
 !> \brief for completeness generate the derived info for set 0(reference from file)
 !> \param info ...
 !> \param basis ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE init_deriv_info_ref(info,basis,error)
+   SUBROUTINE init_deriv_info_ref(info,basis)
     TYPE(derived_basis_info)                 :: info
     TYPE(flex_basis_type)                    :: basis
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_deriv_info_ref', &
       routineP = moduleN//':'//routineN
@@ -659,15 +639,13 @@ CONTAINS
 !> \param kind_section ...
 !> \param opt_bas ...
 !> \param para_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE generate_initial_basis(kind_section,opt_bas,para_env,error)
+   SUBROUTINE generate_initial_basis(kind_section,opt_bas,para_env)
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(basis_optimization_type)            :: opt_bas
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_initial_basis', &
       routineP = moduleN//':'//routineN
@@ -677,29 +655,29 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: set_section
 
       failure=.FALSE.
-      CALL section_vals_get(kind_section,n_repetition=opt_bas%nkind,error=error)
+      CALL section_vals_get(kind_section,n_repetition=opt_bas%nkind)
       ALLOCATE(opt_bas%kind_basis(opt_bas%nkind))
 
       ! counter to get the number of free variables in optimization
       variable_counter=0
       DO ikind=1,opt_bas%nkind
          CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",c_val=opt_bas%kind_basis(ikind)%element,&
-                                   i_rep_section=ikind,error=error)
+                                   i_rep_section=ikind)
          CALL section_vals_val_get(kind_section,"BASIS_SET",c_val=opt_bas%kind_basis(ikind)%basis_name,&
-                                   i_rep_section=ikind,error=error)
+                                   i_rep_section=ikind)
          set_section=>section_vals_get_subs_vals(kind_section,"DERIVED_BASIS_SETS",&
-                                     i_rep_section=ikind,error=error)
-         CALL section_vals_get(set_section,n_repetition=opt_bas%kind_basis(ikind)%nbasis_deriv,explicit=explicit,error=error)
+                                     i_rep_section=ikind)
+         CALL section_vals_get(set_section,n_repetition=opt_bas%kind_basis(ikind)%nbasis_deriv,explicit=explicit)
          IF(.NOT.explicit)opt_bas%kind_basis(ikind)%nbasis_deriv=0
          ALLOCATE(opt_bas%kind_basis(ikind)%flex_basis(0:opt_bas%kind_basis(ikind)%nbasis_deriv))
          ALLOCATE(opt_bas%kind_basis(ikind)%deriv_info(0:opt_bas%kind_basis(ikind)%nbasis_deriv))
 
          CALL fill_basis_template(kind_section, opt_bas%kind_basis(ikind)%flex_basis(0), opt_bas%template_basis_file,&
-                                 opt_bas%kind_basis(ikind)%element,opt_bas%kind_basis(ikind)%basis_name,para_env,ikind,error)
+                                 opt_bas%kind_basis(ikind)%element,opt_bas%kind_basis(ikind)%basis_name,para_env,ikind)
 
-         CALL setup_exp_constraints(kind_section, opt_bas%kind_basis(ikind)%flex_basis(0),error)
+         CALL setup_exp_constraints(kind_section, opt_bas%kind_basis(ikind)%flex_basis(0))
 
-         CALL parse_derived_basis(kind_section,opt_bas%kind_basis(ikind)%deriv_info,ikind,error)
+         CALL parse_derived_basis(kind_section,opt_bas%kind_basis(ikind)%deriv_info,ikind)
 
          variable_counter= variable_counter+opt_bas%kind_basis(ikind)%flex_basis(0)%nopt 
       END DO       
@@ -708,10 +686,10 @@ CONTAINS
 
       variable_counter=0
       DO ikind=1,opt_bas%nkind
-          CALL assign_x_to_basis(opt_bas%x_opt, opt_bas%kind_basis(ikind)%flex_basis(0),variable_counter,error)
+          CALL assign_x_to_basis(opt_bas%x_opt, opt_bas%kind_basis(ikind)%flex_basis(0),variable_counter)
       END DO
 
-      CPPostcondition(variable_counter==SIZE(opt_bas%x_opt),cp_failure_level,routineP,error,failure)
+      CPPostcondition(variable_counter==SIZE(opt_bas%x_opt),cp_failure_level,routineP,failure)
       
    END SUBROUTINE generate_initial_basis
 
@@ -720,15 +698,13 @@ CONTAINS
 !> \param kind_section ...
 !> \param deriv_info ...
 !> \param ikind ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE parse_derived_basis(kind_section,deriv_info,ikind,error)
+   SUBROUTINE parse_derived_basis(kind_section,deriv_info,ikind)
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(derived_basis_info), DIMENSION(:)   :: deriv_info
     INTEGER                                  :: ikind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parse_derived_basis', &
       routineP = moduleN//':'//routineN
@@ -741,31 +717,31 @@ CONTAINS
 
       nsets=SIZE(deriv_info)-1
       set1_section=>section_vals_get_subs_vals(kind_section,"DERIVED_BASIS_SETS",&
-                        i_rep_section=ikind,error=error)
+                        i_rep_section=ikind)
       DO jset=1,nsets
          ! stracnge but as derive info is allcated from 0 to n the count over here has to be shifted
          iset=jset+1
-         CALL section_vals_val_get(set1_section,"REFERENCE_SET",i_vals=i_vals, i_rep_section=jset,error=error)
+         CALL section_vals_val_get(set1_section,"REFERENCE_SET",i_vals=i_vals, i_rep_section=jset)
          deriv_info(iset)%reference_set=i_vals(1)
          CALL section_vals_val_get(set1_section,"REMOVE_CONTRACTION",explicit=explicit,n_rep_val=n_rep,&
-                                    i_rep_section=jset,error=error)
+                                    i_rep_section=jset)
          deriv_info(iset)%ncontr=n_rep
          IF(explicit)THEN
             ALLOCATE(deriv_info(iset)%remove_contr(n_rep,3))
             DO i_rep=1,n_rep
                CALL section_vals_val_get(set1_section,"REMOVE_CONTRACTION",i_rep_val=i_rep,i_vals=i_vals,&
-                                          i_rep_section=jset,error=error)
+                                          i_rep_section=jset)
                deriv_info(iset)%remove_contr(i_rep,:)=i_vals(:)
             END DO
          END IF
          CALL section_vals_val_get(set1_section,"REMOVE_SET",explicit=explicit,n_rep_val=n_rep,&
-                                    i_rep_section=jset,error=error)
+                                    i_rep_section=jset)
          deriv_info(iset)%nsets=n_rep
          IF(explicit)THEN
             ALLOCATE(deriv_info(iset)%remove_set(n_rep))
             DO i_rep=1,n_rep
                CALL section_vals_val_get(set1_section,"REMOVE_SET",i_rep_val=i_rep,i_vals=i_vals,&
-                                          i_rep_section=jset,error=error)
+                                          i_rep_section=jset)
                deriv_info(iset)%remove_set(i_rep)=i_vals(1)
             END DO
          END IF
@@ -777,14 +753,12 @@ CONTAINS
 !> \brief get low level information about constraint on exponents
 !> \param kind1_section ...
 !> \param flex_basis ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE setup_exp_constraints(kind1_section,flex_basis,error)
+   SUBROUTINE setup_exp_constraints(kind1_section,flex_basis)
     TYPE(section_vals_type), POINTER         :: kind1_section
     TYPE(flex_basis_type)                    :: flex_basis
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_exp_constraints', &
       routineP = moduleN//':'//routineN
@@ -794,12 +768,12 @@ CONTAINS
     LOGICAL                                  :: is_bound, is_varlim
     TYPE(section_vals_type), POINTER         :: const_section
 
-      const_section=>section_vals_get_subs_vals(kind1_section,"CONSTRAIN_EXPONENTS",error=error)
-      CALL section_vals_get(const_section,n_repetition=nrep,error=error)
+      const_section=>section_vals_get_subs_vals(kind1_section,"CONSTRAIN_EXPONENTS")
+      CALL section_vals_get(const_section,n_repetition=nrep)
       DO irep=1,nrep
-         CALL section_vals_val_get(const_section,"USE_EXP",i_vals=def_exp,i_rep_section=irep,error=error)
-         CALL section_vals_val_get(const_section,"BOUNDARIES",explicit=is_bound,i_rep_section=irep,error=error)
-         CALL section_vals_val_get(const_section,"MAX_VAR_FRACTION",explicit=is_varlim,i_rep_section=irep,error=error)
+         CALL section_vals_val_get(const_section,"USE_EXP",i_vals=def_exp,i_rep_section=irep)
+         CALL section_vals_val_get(const_section,"BOUNDARIES",explicit=is_bound,i_rep_section=irep)
+         CALL section_vals_val_get(const_section,"MAX_VAR_FRACTION",explicit=is_varlim,i_rep_section=irep)
          CALL cp_assert(.NOT.(is_bound.AND.is_varlim),cp_fatal_level,cp_assertion_failed,&
                         routineP,"Exponent has two constraints. This is not possible at the moment."//&
                         " Please change input.",only_ionode=.TRUE.) 
@@ -810,13 +784,13 @@ CONTAINS
             DO iset=1,flex_basis%nsets
                IF(def_exp(2)==-1)THEN
                   DO ipgf=1,flex_basis%subset(iset)%nexp
-                     CALL set_constraint(flex_basis,iset,ipgf,const_section,is_bound,is_varlim,irep,error)
+                     CALL set_constraint(flex_basis,iset,ipgf,const_section,is_bound,is_varlim,irep)
                   END DO
                ELSE 
                   CALL cp_assert(def_exp(2).gt.flex_basis%subset(iset)%nexp,cp_fatal_level,cp_assertion_failed,&
                        routineP,"Exponent declared in constraint is larger than number of exponents in the set"//&
                        " Please change input.",only_ionode=.TRUE.)
-                  CALL set_constraint(flex_basis,iset,def_exp(2),const_section,is_bound,is_varlim,irep,error)
+                  CALL set_constraint(flex_basis,iset,def_exp(2),const_section,is_bound,is_varlim,irep)
                END IF
             END DO
          ELSE
@@ -825,13 +799,13 @@ CONTAINS
                   " Please change input.",only_ionode=.TRUE.)
             IF(def_exp(2)==-1)THEN
                DO ipgf=1,flex_basis%subset(iset)%nexp
-                  CALL set_constraint(flex_basis,def_exp(1),ipgf,const_section,is_bound,is_varlim,irep,error)
+                  CALL set_constraint(flex_basis,def_exp(1),ipgf,const_section,is_bound,is_varlim,irep)
                END DO
             ELSE
                CALL cp_assert(def_exp(2).le.flex_basis%subset(def_exp(1))%nexp,cp_fatal_level,cp_assertion_failed,&
                        routineP,"Exponent declared in constraint is larger than number of exponents in the set"//&
                        " Please change input.",only_ionode=.TRUE.)
-                CALL set_constraint(flex_basis,def_exp(1),def_exp(2),const_section,is_bound,is_varlim,irep,error)
+                CALL set_constraint(flex_basis,def_exp(1),def_exp(2),const_section,is_bound,is_varlim,irep)
             END IF
          END IF
       END DO
@@ -848,17 +822,15 @@ CONTAINS
 !> \param is_bound ...
 !> \param is_varlim ...
 !> \param irep ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
          
-   SUBROUTINE set_constraint(flex_basis,iset,ipgf,const_section,is_bound,is_varlim,irep,error)
+   SUBROUTINE set_constraint(flex_basis,iset,ipgf,const_section,is_bound,is_varlim,irep)
     TYPE(flex_basis_type)                    :: flex_basis
     INTEGER                                  :: iset, ipgf
     TYPE(section_vals_type), POINTER         :: const_section
     LOGICAL                                  :: is_bound, is_varlim
     INTEGER                                  :: irep
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_constraint', &
       routineP = moduleN//':'//routineN
@@ -872,7 +844,7 @@ CONTAINS
       flex_basis%subset(iset)%exp_has_const(ipgf)=.TRUE.
       IF(is_bound)THEN
          flex_basis%subset(iset)%exp_const(ipgf)%const_type=0
-         CALL section_vals_val_get(const_section,"BOUNDARIES",r_vals=r_vals,i_rep_section=irep,error=error)
+         CALL section_vals_val_get(const_section,"BOUNDARIES",r_vals=r_vals,i_rep_section=irep)
          flex_basis%subset(iset)%exp_const(ipgf)%llim=MINVAL(r_vals)
          flex_basis%subset(iset)%exp_const(ipgf)%ulim=MAXVAL(r_vals)
          r_val=flex_basis%subset(iset)%exps(ipgf)
@@ -887,7 +859,7 @@ CONTAINS
       END IF
       IF(is_varlim)THEN
          flex_basis%subset(iset)%exp_const(ipgf)%const_type=1
-         CALL section_vals_val_get(const_section,"MAX_VAR_FRACTION",r_vals=r_vals,i_rep_section=irep,error=error)
+         CALL section_vals_val_get(const_section,"MAX_VAR_FRACTION",r_vals=r_vals,i_rep_section=irep)
          flex_basis%subset(iset)%exp_const(ipgf)%var_fac=r_vals(1)
          flex_basis%subset(iset)%exp_const(ipgf)%init=flex_basis%subset(iset)%exps(ipgf)
       END IF
@@ -899,15 +871,13 @@ CONTAINS
 !> \param x ...
 !> \param basis ...
 !> \param x_ind ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
                   
-   SUBROUTINE assign_x_to_basis(x,basis,x_ind,error)
+   SUBROUTINE assign_x_to_basis(x,basis,x_ind)
     REAL(KIND=dp), DIMENSION(:)              :: x
     TYPE(flex_basis_type)                    :: basis
     INTEGER                                  :: x_ind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'assign_x_to_basis', &
       routineP = moduleN//':'//routineN
@@ -942,18 +912,16 @@ CONTAINS
 !> \param basis_name ...
 !> \param para_env ...
 !> \param ikind ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE fill_basis_template(kind1_section, flex_basis, template_basis_file, element, basis_name, para_env, ikind,error)
+   SUBROUTINE fill_basis_template(kind1_section, flex_basis, template_basis_file, element, basis_name, para_env, ikind)
     TYPE(section_vals_type), POINTER         :: kind1_section
     TYPE(flex_basis_type)                    :: flex_basis
     CHARACTER(LEN=default_path_length)       :: template_basis_file
     CHARACTER(LEN=default_string_length)     :: element, basis_name
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: ikind
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fill_basis_template', &
       routineP = moduleN//':'//routineN
@@ -962,12 +930,12 @@ CONTAINS
                                                 iset, nrep
     INTEGER, DIMENSION(:), POINTER           :: switch
 
-      CALL parse_basis( flex_basis, template_basis_file, element, basis_name, para_env, error )
+      CALL parse_basis( flex_basis, template_basis_file, element, basis_name, para_env)
 
       ! get the optimizable parameters. Many way to modify them but in the end only logical matrix
       ! is either set or values get flipped according to the input
       CALL section_vals_val_get(kind1_section,"INITIAL_DEGREES_OF_FREEDOM", i_val=idof,&
-                                i_rep_section=ikind, error=error)
+                                i_rep_section=ikind)
       DO iset=1,flex_basis%nsets
          SELECT CASE(idof)
          CASE(do_opt_none)
@@ -986,36 +954,36 @@ CONTAINS
          END SELECT
       END DO
 
-      CALL section_vals_val_get(kind1_section,"SWITCH_CONTRACTION_STATE",n_rep_val=nrep,i_rep_section=ikind,error=error)
+      CALL section_vals_val_get(kind1_section,"SWITCH_CONTRACTION_STATE",n_rep_val=nrep,i_rep_section=ikind)
       DO irep=1, nrep
          CALL section_vals_val_get(kind1_section,"SWITCH_CONTRACTION_STATE", i_rep_val=irep,&
-                                   i_rep_section=ikind,i_vals=switch,error=error)
+                                   i_rep_section=ikind,i_vals=switch)
          icont=convert_l_contr_to_entry(flex_basis%subset(switch(1))%lmin,flex_basis%subset(switch(1))%l,switch(3),switch(2))
          DO ipgf=1, flex_basis%subset(switch(1))%nexp
             flex_basis%subset(switch(1))%opt_coeff(ipgf,icont)=.NOT.flex_basis%subset(switch(1))%opt_coeff(ipgf,icont)
          END DO
       END DO
  
-      CALL section_vals_val_get(kind1_section,"SWITCH_COEFF_STATE",n_rep_val=nrep,i_rep_section=ikind,error=error)
+      CALL section_vals_val_get(kind1_section,"SWITCH_COEFF_STATE",n_rep_val=nrep,i_rep_section=ikind)
       DO irep=1, nrep
          CALL section_vals_val_get(kind1_section,"SWITCH_COEFF_STATE", i_rep_val=irep,&
-                                   i_rep_section=ikind,i_vals=switch,error=error)
+                                   i_rep_section=ikind,i_vals=switch)
          icont=convert_l_contr_to_entry(flex_basis%subset(switch(1))%lmin,flex_basis%subset(switch(1))%l,switch(3),switch(2))
          flex_basis%subset(switch(1))%opt_coeff(switch(4),icont)=&
                      .NOT.flex_basis%subset(switch(1))%opt_coeff(switch(4),icont)
       END DO
 
-      CALL section_vals_val_get(kind1_section,"SWITCH_EXP_STATE",n_rep_val=nrep,i_rep_section=ikind,error=error)
+      CALL section_vals_val_get(kind1_section,"SWITCH_EXP_STATE",n_rep_val=nrep,i_rep_section=ikind)
       DO irep=1, nrep
          CALL section_vals_val_get(kind1_section,"SWITCH_EXP_STATE", i_rep_val=irep,&
-                                   i_rep_section=ikind,i_vals=switch,error=error)
+                                   i_rep_section=ikind,i_vals=switch)
          flex_basis%subset(switch(1))%opt_exps(switch(2))=.NOT.flex_basis%subset(switch(1))%opt_exps(switch(2))
       END DO
 
-      CALL section_vals_val_get(kind1_section,"SWITCH_SET_STATE",n_rep_val=nrep,i_rep_section=ikind,error=error)
+      CALL section_vals_val_get(kind1_section,"SWITCH_SET_STATE",n_rep_val=nrep,i_rep_section=ikind)
       DO irep=1, nrep
           CALL section_vals_val_get(kind1_section,"SWITCH_SET_STATE", i_rep_val=irep,&
-                                    i_rep_section=ikind,i_vals=switch,error=error)
+                                    i_rep_section=ikind,i_vals=switch)
          DO ipgf=1, flex_basis%subset(switch(2))%nexp
             SELECT CASE(switch(1))
             CASE(0) ! switch all states in the set
@@ -1096,16 +1064,14 @@ CONTAINS
 !> \param element ...
 !> \param basis_name ...
 !> \param para_env ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE parse_basis(flex_basis, template_basis_file,element, basis_name, para_env ,error)
+   SUBROUTINE parse_basis(flex_basis, template_basis_file,element, basis_name, para_env)
     TYPE(flex_basis_type)                    :: flex_basis
     CHARACTER(LEN=default_path_length)       :: template_basis_file
     CHARACTER(LEN=default_string_length)     :: element, basis_name
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parse_basis', &
       routineP = moduleN//':'//routineN
@@ -1122,10 +1088,10 @@ CONTAINS
       CALL uppercase(element)
       CALL uppercase(basis_name)
       NULLIFY(parser)
-      CALL parser_create(parser,template_basis_file,para_env=para_env,error=error)
+      CALL parser_create(parser,template_basis_file,para_env=para_env)
 
       search_loop: DO 
-         CALL parser_search_string(parser,TRIM(basis_name),.TRUE.,found,line,error=error)
+         CALL parser_search_string(parser,TRIM(basis_name),.TRUE.,found,line)
          IF(found)THEN
             match = .FALSE.
             CALL uppercase(line)
@@ -1138,10 +1104,10 @@ CONTAINS
             IF ( (INDEX(line2,element2(:strlen1)) > 0).AND.&
                          (INDEX(line2,basis_name2(:strlen2)) > 0) ) match = .TRUE.
             IF (match) THEN
-               CALL parser_get_object(parser,flex_basis%nsets,newline=.TRUE.,error=error)
+               CALL parser_get_object(parser,flex_basis%nsets,newline=.TRUE.)
                ALLOCATE(flex_basis%subset(flex_basis%nsets))
                DO iset=1,flex_basis%nsets
-                  CALL parse_subset(parser,flex_basis%subset(iset),error)
+                  CALL parse_subset(parser,flex_basis%subset(iset))
                END DO
                basis_found = .TRUE.
                EXIT
@@ -1150,7 +1116,7 @@ CONTAINS
             EXIT search_loop
          END IF     
       END DO search_loop
-      CALL parser_release(parser,error=error)
+      CALL parser_release(parser)
 
       IF( .NOT. basis_found ) CALL stop_program(routineN,moduleN,__LINE__,&
                               "The requested basis set <"//TRIM(basis_name)//&
@@ -1163,14 +1129,12 @@ CONTAINS
 !> \brief Read the subset information from the template basis file
 !> \param parser ...
 !> \param subset ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE parse_subset(parser,subset,error)
+   SUBROUTINE parse_subset(parser,subset)
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(subset_type)                        :: subset
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parse_subset', &
       routineP = moduleN//':'//routineN
@@ -1182,10 +1146,10 @@ CONTAINS
     REAL(KIND=dp), POINTER                   :: r_val
 
       line_att=""
-      CALL parser_get_object(parser,subset%n,newline=.TRUE.,error=error)
-      CALL parser_get_object(parser,subset%lmin,error=error)
-      CALL parser_get_object(parser,subset%lmax,error=error)
-      CALL parser_get_object(parser,subset%nexp,error=error)
+      CALL parser_get_object(parser,subset%n,newline=.TRUE.)
+      CALL parser_get_object(parser,subset%lmin)
+      CALL parser_get_object(parser,subset%lmax)
+      CALL parser_get_object(parser,subset%nexp)
       subset%nl=subset%lmax-subset%lmin+1
       ALLOCATE(r_val)
       ALLOCATE(subset%l(subset%nl))
@@ -1197,7 +1161,7 @@ CONTAINS
       ALLOCATE(subset%exp_const(subset%nexp))
       ALLOCATE(subset%exp_x_ind(subset%nexp))
       DO ishell=1,subset%nl
-         CALL parser_get_object(parser,subset%l(ishell),error=error)
+         CALL parser_get_object(parser,subset%l(ishell))
       END DO
       subset%ncon_tot=SUM(subset%l)
       ALLOCATE(subset%coeff(subset%nexp,subset%ncon_tot))
@@ -1205,10 +1169,10 @@ CONTAINS
       subset%opt_coeff=.FALSE.
       ALLOCATE(subset%coeff_x_ind(subset%nexp,subset%ncon_tot))
       DO ipgf=1,subset%nexp
-         CALL parser_get_object(parser,r_val,newline=.TRUE.,error=error)
+         CALL parser_get_object(parser,r_val,newline=.TRUE.)
          subset%exps(ipgf)=r_val
          DO ishell=1,subset%ncon_tot
-            CALL parser_get_object(parser,r_val,error=error)
+            CALL parser_get_object(parser,r_val)
             subset%coeff(ipgf,ishell)=r_val
          END DO
       END DO
@@ -1239,13 +1203,11 @@ CONTAINS
 !> \brief Initialize the variables for the powell optimizer
 !> \param p_param ...
 !> \param powell_section ...
-!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE init_powell_var(p_param,powell_section,error)
+   SUBROUTINE init_powell_var(p_param,powell_section)
       TYPE(opt_state_type)  :: p_param
-      TYPE(cp_error_type), INTENT(inout)       :: error
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_powell_var',&
         routineP = moduleN//':'//routineN
@@ -1256,9 +1218,9 @@ CONTAINS
       p_param%nvar=0
       p_param%iprint=0
       p_param%unit=default_output_unit
-      CALL section_vals_val_get(powell_section,"ACCURACY",r_val=p_param%rhoend,error=error)
-      CALL section_vals_val_get(powell_section,"STEP_SIZE",r_val=p_param%rhobeg,error=error)
-      CALL section_vals_val_get(powell_section,"MAX_FUN",i_val=p_param%maxfun,error=error)
+      CALL section_vals_val_get(powell_section,"ACCURACY",r_val=p_param%rhoend)
+      CALL section_vals_val_get(powell_section,"STEP_SIZE",r_val=p_param%rhobeg)
+      CALL section_vals_val_get(powell_section,"MAX_FUN",i_val=p_param%maxfun)
 
    END SUBROUTINE init_powell_var
  

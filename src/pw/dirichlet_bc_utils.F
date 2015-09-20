@@ -311,18 +311,16 @@ CONTAINS
 !> \brief Removes duplicate vertices from an array of vertices
 !> \param vertices_in array containing the coordinates of a set of vertices 
 !> \param vertices_out array containing unique vertices in vertices_in
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE remove_duplicate_vertices(vertices_in, vertices_out, error)
+  SUBROUTINE remove_duplicate_vertices(vertices_in, vertices_out)
 
     REAL(dp), ALLOCATABLE, DIMENSION(:, :), &
       INTENT(IN)                             :: vertices_in
     REAL(dp), ALLOCATABLE, DIMENSION(:, :), &
       INTENT(OUT)                            :: vertices_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_duplicate_vertices', &
       routineP = moduleN//':'//routineN
@@ -366,13 +364,12 @@ CONTAINS
 !> \param z_locl z grid vetor of the simulation box local to this process
 !> \param aabb_extents global extents
 !> \param aabb_extents_local local extents
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE compute_rectangle_aabb_extents(rectangle, x_glbl, y_glbl, z_glbl, &
-                           x_locl, y_locl, z_locl, aabb_extents, aabb_extents_local, error)
+                           x_locl, y_locl, z_locl, aabb_extents, aabb_extents_local)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
@@ -380,7 +377,6 @@ CONTAINS
                                                 x_locl, y_locl, z_locl
     INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: aabb_extents, &
                                                 aabb_extents_local
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'compute_rectangle_aabb_extents', &
@@ -479,12 +475,11 @@ CONTAINS
 !> \param phi the rotation angle
 !> \param rot_axis the rotation axis
 !> \param project whether or not to project
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE rotate_rectangle_onto_plane(rectangle, plane, rectangle_rot, phi, rot_axis, project, error)
+  SUBROUTINE rotate_rectangle_onto_plane(rectangle, plane, rectangle_rot, phi, rot_axis, project)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_plane), INTENT(IN), POINTER      :: plane
@@ -494,7 +489,6 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: rot_axis
     LOGICAL, INTENT(IN), OPTIONAL            :: project
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rotate_rectangle_onto_plane', &
       routineP = moduleN//':'//routineN
@@ -521,10 +515,10 @@ CONTAINS
     IF (ABS(ABS(n1dotn2) - 1) .LE. small_value) THEN
 ! project it onto the plane if the user wants
        IF (intern_project .EQV. .TRUE.) THEN
-          CALL project_rectangle_onto_plane(rectangle, plane, rectangle_rot, error)
+          CALL project_rectangle_onto_plane(rectangle, plane, rectangle_rot)
        ELSE
           CALL cs_rectangle_create(rectangle_rot, rectangle%A, rectangle%B, &
-                                     rectangle%C, rectangle%D, error)
+                                     rectangle%C, rectangle%D)
 !          rectangle_rot = rectangle
        END IF
        intern_rot_axis = n2
@@ -536,11 +530,11 @@ CONTAINS
        intern_phi = angle(n1, n2)
 
        ALLOCATE(rectangle_tmp)
-       CALL rotate_rectangle(rectangle, intern_phi, intern_rot_axis, FWROT, rectangle_tmp, error)
+       CALL rotate_rectangle(rectangle, intern_phi, intern_rot_axis, FWROT, rectangle_tmp)
 
        IF (intern_project .EQV. .TRUE.) THEN
-          CALL project_rectangle_onto_plane(rectangle_tmp, plane, rectangle_rot, error)
-          CALL cs_rectangle_release(rectangle_tmp, error=error)
+          CALL project_rectangle_onto_plane(rectangle_tmp, plane, rectangle_rot)
+          CALL cs_rectangle_release(rectangle_tmp)
        ELSE
           rectangle_rot = rectangle_tmp
           DEALLOCATE(rectangle_tmp)
@@ -561,12 +555,11 @@ CONTAINS
 !> \param rot_axis the rotation axis 
 !> \param direction forward or backward rotation
 !> \param rectangle_rot the rotated rectangle  
-!> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE rotate_rectangle(rectangle, phi, rot_axis, direction, rectangle_rot, error)
+  SUBROUTINE rotate_rectangle(rectangle, phi, rot_axis, direction, rectangle_rot)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     REAL(dp), INTENT(IN)                     :: phi
@@ -574,7 +567,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: direction
     TYPE(cs_rectangle), INTENT(INOUT), &
       POINTER                                :: rectangle_rot
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rotate_rectangle', &
       routineP = moduleN//':'//routineN
@@ -595,7 +587,7 @@ CONTAINS
     Bprime = rotate_vector(rectangle%B, intern_phi, rot_axis)
     Cprime = rotate_vector(rectangle%C, intern_phi, rot_axis)
     Dprime = rotate_vector(rectangle%D, intern_phi, rot_axis)
-    CALL cs_rectangle_create(rectangle_rot, Aprime, Bprime, Cprime, Dprime, error)
+    CALL cs_rectangle_create(rectangle_rot, Aprime, Bprime, Cprime, Dprime)
 
     CALL timestop(handle)
 
@@ -612,12 +604,11 @@ CONTAINS
 !> \param rot_axis1 the first rotation axis  
 !> \param phi2 the second rotation angle 
 !> \param rot_axis2 the second rotation axis 
-!> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE convert_to_aa_rectangle(rectangle, rectangle_aa, phi1, rot_axis1, phi2, rot_axis2, error)
+  SUBROUTINE convert_to_aa_rectangle(rectangle, rectangle_aa, phi1, rot_axis1, phi2, rot_axis2)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_rectangle), INTENT(INOUT), &
@@ -626,7 +617,6 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: rot_axis1
     REAL(dp), INTENT(OUT)                    :: phi2
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: rot_axis2
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_to_aa_rectangle', &
       routineP = moduleN//':'//routineN
@@ -646,9 +636,9 @@ CONTAINS
     l = MAXLOC(ABS(rectangle%plane%unit_normal),1)
     p_normal = 0.0_dp
     p_normal(l) = 1.0_dp
-    CALL cs_plane_create(plane, O, p_normal, error)
+    CALL cs_plane_create(plane, O, p_normal)
 ! rotate the rectangle onto the plane
-    CALL rotate_rectangle_onto_plane(rectangle, plane, rectangle_rot, phi1, rot_axis1, .FALSE., error)
+    CALL rotate_rectangle_onto_plane(rectangle, plane, rectangle_rot, phi1, rot_axis1, .FALSE.)
 
 ! test if the rotated rectangle is axis-aligned
     AB = rectangle_rot%B - rectangle_rot%A
@@ -665,7 +655,7 @@ CONTAINS
        rot_axis2 = rot_axis1
        phi2 = 0.0_dp
        CALL cs_rectangle_create(rectangle_aa, rectangle_rot%A, rectangle_rot%B, &
-                                  rectangle_rot%C, rectangle_rot%D, error)
+                                  rectangle_rot%C, rectangle_rot%D)
     ELSE
        IF (ABS(ABS(AB_e1_ang*degree) - 90.0_dp) .LE. small_value) THEN
           rot_axis2 = e1
@@ -692,11 +682,11 @@ CONTAINS
              phi2 = AB_e1_ang
           END IF
        END IF
-       CALL rotate_rectangle(rectangle_rot, phi2, rot_axis2, FWROT , rectangle_aa, error)
+       CALL rotate_rectangle(rectangle_rot, phi2, rot_axis2, FWROT , rectangle_aa)
     END IF
 
-    CALL cs_rectangle_release(rectangle_rot, error=error)
-    CALL cs_plane_release(plane, error=error)
+    CALL cs_rectangle_release(rectangle_rot)
+    CALL cs_plane_release(plane)
     CALL timestop(handle)
 
   END SUBROUTINE convert_to_aa_rectangle 
@@ -706,18 +696,16 @@ CONTAINS
 !> \param rectangle the rectangle to be projected
 !> \param plane the given plane
 !> \param rectangle_proj the projected rectangle
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE project_rectangle_onto_plane(rectangle, plane, rectangle_proj, error)
+  SUBROUTINE project_rectangle_onto_plane(rectangle, plane, rectangle_proj)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_plane), INTENT(IN), POINTER      :: plane
     TYPE(cs_rectangle), INTENT(INOUT), &
       POINTER                                :: rectangle_proj
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'project_rectangle_onto_plane', &
       routineP = moduleN//':'//routineN
@@ -741,7 +729,7 @@ CONTAINS
     Cprime = rectangle%C - ndotPC * plane%unit_normal
     Dprime = rectangle%D - ndotPD * plane%unit_normal
 
-    CALL cs_rectangle_create(rectangle_proj, Aprime, Bprime, Cprime, Dprime, error)
+    CALL cs_rectangle_create(rectangle_proj, Aprime, Bprime, Cprime, Dprime)
 
     CALL timestop(handle)
 
@@ -757,12 +745,11 @@ CONTAINS
 !> \param n_prtn vetor of size 3 specifying the number of times that the x, y and
 !>               z interval (defining the region) should be partitioned into
 !> \param tiles the obtained tiles    
-!> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE partition_aa_rectangle_into_tiles(rectangle, x_glbl, y_glbl, z_glbl, n_prtn, tiles, error)
+  SUBROUTINE partition_aa_rectangle_into_tiles(rectangle, x_glbl, y_glbl, z_glbl, n_prtn, tiles)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
@@ -770,7 +757,6 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_prtn
     TYPE(tile_p_type), DIMENSION(:), &
       INTENT(OUT), POINTER                   :: tiles
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'partition_aa_rectangle_into_tiles', &
@@ -877,7 +863,7 @@ CONTAINS
              ALLOCATE(tiles(k)%tile)
              tiles(k)%tile%tile_id = k
              ALLOCATE(tiles(k)%tile%rectangle)
-             CALL cs_rectangle_create(tiles(k)%tile%rectangle, A, B, C, D, error)
+             CALL cs_rectangle_create(tiles(k)%tile%rectangle, A, B, C, D)
 
              tiles(k)%tile%npts = xprtn_npts(i) * yprtn_npts(j)
              k = k + 1
@@ -897,7 +883,7 @@ CONTAINS
              ALLOCATE(tiles(k)%tile)
              tiles(k)%tile%tile_id = k
              ALLOCATE(tiles(k)%tile%rectangle)
-             CALL cs_rectangle_create(tiles(k)%tile%rectangle, A, B, C, D, error)
+             CALL cs_rectangle_create(tiles(k)%tile%rectangle, A, B, C, D)
 
              tiles(k)%tile%npts = xprtn_npts(i) * zprtn_npts(j)
              k = k + 1
@@ -917,7 +903,7 @@ CONTAINS
              ALLOCATE(tiles(k)%tile)
              tiles(k)%tile%tile_id = k
              ALLOCATE(tiles(k)%tile%rectangle)
-             CALL cs_rectangle_create(tiles(k)%tile%rectangle, A, B, C, D, error)
+             CALL cs_rectangle_create(tiles(k)%tile%rectangle, A, B, C, D)
 
              tiles(k)%tile%npts = yprtn_npts(i) * zprtn_npts(j)
              k = k + 1
@@ -941,12 +927,11 @@ CONTAINS
 !> \param n_prtn vetor of size 3 specifying the number of times that the x, y and
 !>               z interval (defining the region) should be partitioned into
 !> \param tiles the obtained tiles    
-!> \param error cp2k error
 !> \par History
 !>       12.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE partition_aa_cuboid_into_tiles(box, x_glbl, y_glbl, z_glbl, n_prtn, tiles, error)
+  SUBROUTINE partition_aa_cuboid_into_tiles(box, x_glbl, y_glbl, z_glbl, n_prtn, tiles)
 
     TYPE(cs_box), INTENT(IN), POINTER        :: box
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
@@ -954,7 +939,6 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_prtn
     TYPE(tile_p_type), DIMENSION(:), &
       INTENT(OUT), POINTER                   :: tiles
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'partition_aa_cuboid_into_tiles', &
@@ -1043,7 +1027,7 @@ CONTAINS
              ALLOCATE(tiles(k)%tile)
              tiles(k)%tile%tile_id = k
              ALLOCATE(tiles(k)%tile%box)
-             CALL cs_box_create(tiles(k)%tile%box, tile_vtx, error)
+             CALL cs_box_create(tiles(k)%tile%box, tile_vtx)
 
              tiles(k)%tile%npts = xprtn_npts(ii)*yprtn_npts(jj)*zprtn_npts(kk)
              k = k + 1
@@ -1061,17 +1045,15 @@ CONTAINS
 !> \param segment2  segment 2
 !> \param plane the plane that includes both segment 1 and segment 2
 !> \param intersection the intersection of the two segments
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE coplanar_segment_segment_intersection(segment1, segment2, plane, intersection, error)
+  SUBROUTINE coplanar_segment_segment_intersection(segment1, segment2, plane, intersection)
 
     TYPE(cs_segment), POINTER, INTENT(IN)             :: segment1, segment2
     TYPE(cs_plane), POINTER, INTENT(IN)               :: plane
     TYPE(cs_intersection_obj), POINTER, INTENT(INOUT) :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)                :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'coplanar_segment_segment_intersection', &
       routineP = moduleN//':'//routineN
@@ -1108,10 +1090,10 @@ CONTAINS
        tnum = SQRT(SUM(vector_product(AC, CD)**2))
        tden = SQRT(SUM(vector_product(AB, CD)**2))
 ! I might need to check if tden is non-zero or is less than small_val ????
-       CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+       CALL cs_intersection_obj_create(intersection, PT_INTXN)
        intersection%point = A + AB * tnum / tden
     ELSE
-       CALL cs_intersection_obj_create(intersection, NO_INTXN, error= error)
+       CALL cs_intersection_obj_create(intersection, NO_INTXN)
     END IF
 
     CALL timestop(handle)
@@ -1148,18 +1130,16 @@ CONTAINS
 !> \param segment input segment
 !> \param plane input plane
 !> \param intersection the intersection of the plane and the segment
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE segment_plane_intersection(segment, plane, intersection, error)
+  SUBROUTINE segment_plane_intersection(segment, plane, intersection)
 
     TYPE(cs_segment), INTENT(IN), POINTER    :: segment
     TYPE(cs_plane), INTENT(IN), POINTER      :: plane
     TYPE(cs_intersection_obj), &
       INTENT(INOUT), POINTER                 :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'segment_plane_intersection', &
       routineP = moduleN//':'//routineN
@@ -1176,11 +1156,11 @@ CONTAINS
     IF (ABS(ndotAB) .LE. small_value) THEN
 ! AB is entirely on the plane ... return A and B
        IF ((plane%d - ndotA) .EQ. 0.0_dp) THEN
-          CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, SEG_INTXN)
           intersection%segment = segment
 ! 0 intersection
        ELSE
-          CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, NO_INTXN)
        END IF
 ! if AB and the plane are NOT parallel
     ELSE
@@ -1189,11 +1169,11 @@ CONTAINS
        IF (((0 .LE. t) .AND. (t .LE. 1)) .OR. &
            (ABS(t) .LE. small_value) .OR.     &
            (ABS(t-1) .LE. small_value)) THEN
-          CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, PT_INTXN)
           intersection%point = segment%A + (t * segment%AB)
 ! 0 intersection
        ELSE
-          CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, NO_INTXN)
        END IF
     END IF
 
@@ -1206,18 +1186,16 @@ CONTAINS
 !> \param segment input segment
 !> \param rectangle input rectangle
 !> \param intersection the intersection of the segment and the rectangle
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE segment_rectangle_intersection(segment, rectangle, intersection, error)
+  SUBROUTINE segment_rectangle_intersection(segment, rectangle, intersection)
 
     TYPE(cs_segment), INTENT(IN), POINTER    :: segment
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_intersection_obj), &
       INTENT(INOUT), POINTER                 :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'segment_rectangle_intersection', &
@@ -1238,18 +1216,18 @@ CONTAINS
     plane => rectangle%plane
 
 ! check if the segment crosses the rectangle's plane
-    CALL segment_plane_intersection(segment, plane, seg_pln_intxn, error)
+    CALL segment_plane_intersection(segment, plane, seg_pln_intxn)
     SELECT CASE (seg_pln_intxn%intxn_type)
 ! the segment does not cross the rectangle's plane
     CASE (NO_INTXN)
-       CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+       CALL cs_intersection_obj_create(intersection, NO_INTXN)
 ! the segment crosses the rectangle's plane at one point
     CASE (PT_INTXN)
        IF (is_inside_rectangle(seg_pln_intxn%point, rectangle)) THEN
-          CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, PT_INTXN)
           intersection%point = seg_pln_intxn%point
        ELSE
-          CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, NO_INTXN)
        END IF
 ! the segment and the rectangle are coplanar
     CASE (SEG_INTXN)
@@ -1258,7 +1236,7 @@ CONTAINS
 
        ! the both ends of the segment, A and B, are inside the rectangle
        IF (is_inside_rectangle(A, rectangle) .AND. is_inside_rectangle(B, rectangle)) THEN
-          CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, SEG_INTXN)
           intersection%segment => seg_pln_intxn%segment
 
        ! A is inside rectangle and B is not inside
@@ -1268,20 +1246,20 @@ CONTAINS
           DO i = 1, 4
              rect_edge => rectangle%edges(i)
              CALL coplanar_segment_segment_intersection(rect_edge%segment, segment, &
-                                                        plane, seg_seg_intxn, error)
+                                                        plane, seg_seg_intxn)
              IF (seg_seg_intxn%intxn_type .NE. NO_INTXN) THEN
                 crossing_pt = seg_seg_intxn%point
                 EXIT
              END IF
           END DO
           IF (are_equal(crossing_pt, A)) THEN
-             CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+             CALL cs_intersection_obj_create(intersection, PT_INTXN)
              intersection%point = A
           ELSE
-             CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-             CALL cs_segment_create(intersection%segment, A, crossing_pt, error=error)
+             CALL cs_intersection_obj_create(intersection, SEG_INTXN)
+             CALL cs_segment_create(intersection%segment, A, crossing_pt)
           END IF
-          CALL cs_intersection_obj_release(seg_seg_intxn, error)
+          CALL cs_intersection_obj_release(seg_seg_intxn)
 
        ! A is not inside rectangle and B is inside
        ELSE IF (.NOT. is_inside_rectangle(A, rectangle) .AND. is_inside_rectangle(B, rectangle)) THEN
@@ -1290,20 +1268,20 @@ CONTAINS
           DO i = 1, 4
              rect_edge => rectangle%edges(i)
              CALL coplanar_segment_segment_intersection(rect_edge%segment, segment, &
-                                                        plane, seg_seg_intxn, error)
+                                                        plane, seg_seg_intxn)
              IF (seg_seg_intxn%intxn_type .NE. NO_INTXN) THEN
                 crossing_pt = seg_seg_intxn%point
                 EXIT
              END IF
           END DO
           IF (are_equal(crossing_pt, B)) THEN
-             CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+             CALL cs_intersection_obj_create(intersection, PT_INTXN)
              intersection%point = B
           ELSE
-             CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-             CALL cs_segment_create(intersection%segment, crossing_pt, B, error=error)
+             CALL cs_intersection_obj_create(intersection, SEG_INTXN)
+             CALL cs_segment_create(intersection%segment, crossing_pt, B)
           END IF
-          CALL cs_intersection_obj_release(seg_seg_intxn, error)
+          CALL cs_intersection_obj_release(seg_seg_intxn)
 
        ! A and B are not inside rectangle
        ELSE
@@ -1314,7 +1292,7 @@ CONTAINS
           DO i = 1, 4
              rect_edge => rectangle%edges(i)
              CALL coplanar_segment_segment_intersection(rect_edge%segment, segment, &
-                                                        plane, seg_seg_intxn, error)
+                                                        plane, seg_seg_intxn)
              n_intxn_tot = n_intxn_tot + seg_seg_intxn%n_intxn
              all_intxn(:,j) = seg_seg_intxn%point
              j = j + seg_seg_intxn%n_intxn
@@ -1325,30 +1303,29 @@ CONTAINS
 
           IF (n_intxn_tot .NE. 0) THEN
           ! if there is any intersection remove duplicate points
-             CALL remove_duplicate_vertices(valid_intxn, unique_intxn, error)
+             CALL remove_duplicate_vertices(valid_intxn, unique_intxn)
              n_intersections = SIZE(unique_intxn)/3
 
              SELECT CASE (n_intersections)
              CASE (1)
-                CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+                CALL cs_intersection_obj_create(intersection, PT_INTXN)
                 intersection%point = unique_intxn(:,1)
              CASE (2)
-                CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
+                CALL cs_intersection_obj_create(intersection, SEG_INTXN)
                 CALL cs_segment_create(intersection%segment, &
-                                       unique_intxn(:,1), unique_intxn(:,2), &
-                                       error)
+                                       unique_intxn(:,1), unique_intxn(:,2))
              CASE DEFAULT
              END SELECT
           ELSE
-             CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+             CALL cs_intersection_obj_create(intersection, NO_INTXN)
           END IF
 
           DEALLOCATE(valid_intxn)
-          CALL cs_intersection_obj_release(seg_seg_intxn, error)
+          CALL cs_intersection_obj_release(seg_seg_intxn)
        END IF
     END SELECT ! status of the segment wrt the rectangle's plane
 
-    CALL cs_intersection_obj_release(seg_pln_intxn, error)
+    CALL cs_intersection_obj_release(seg_pln_intxn)
     CALL timestop(handle)
 
   END SUBROUTINE segment_rectangle_intersection
@@ -1360,18 +1337,16 @@ CONTAINS
 !> \param plane input plane
 !> \param box input box
 !> \param intersection the intersection of the plane and the box
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE plane_box_intersection(plane, box, intersection, error)
+  SUBROUTINE plane_box_intersection(plane, box, intersection)
 
     TYPE(cs_plane), INTENT(IN), POINTER      :: plane
     TYPE(cs_box), INTENT(IN), POINTER        :: box
     TYPE(cs_intersection_obj), &
       INTENT(INOUT), POINTER                 :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plane_box_intersection', &
       routineP = moduleN//':'//routineN
@@ -1395,7 +1370,7 @@ CONTAINS
     j = 1
     DO i = 1, 12
        CALL segment_plane_intersection(box%edges(i)%segment, plane, &
-                                       seg_pln_intxn, error)
+                                       seg_pln_intxn)
        n_intxn_tot = n_intxn_tot + seg_pln_intxn%n_intxn
        SELECT CASE (seg_pln_intxn%intxn_type)
        CASE (PT_INTXN)
@@ -1403,11 +1378,11 @@ CONTAINS
        CASE (SEG_INTXN)
           all_intxn(:,j) = seg_pln_intxn%segment%A
           all_intxn(:,j+1) = seg_pln_intxn%segment%B
-          CALL cs_segment_release(seg_pln_intxn%segment, error)
+          CALL cs_segment_release(seg_pln_intxn%segment)
        END SELECT
        j = j + seg_pln_intxn%n_intxn
     END DO
-    CALL cs_intersection_obj_release(seg_pln_intxn, error)
+    CALL cs_intersection_obj_release(seg_pln_intxn)
 
 ! get actual intersection points i.e. remove infinity points
     ALLOCATE(valid_intxn(3,n_intxn_tot))
@@ -1415,18 +1390,18 @@ CONTAINS
 
     IF (n_intxn_tot .NE. 0) THEN
 ! if there is any intersection remove duplicate points
-       CALL remove_duplicate_vertices(valid_intxn, unique_intxn, error)
+       CALL remove_duplicate_vertices(valid_intxn, unique_intxn)
        n_intersections = SIZE(unique_intxn)/3
 
        SELECT CASE (n_intersections)
        CASE (1)
-          CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, PT_INTXN)
           intersection%point = unique_intxn(:,1)
        CASE (2)
           A = unique_intxn(:,1)
           B = unique_intxn(:,2)
-          CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-          CALL cs_segment_create(intersection%segment, A, B, error)
+          CALL cs_intersection_obj_create(intersection, SEG_INTXN)
+          CALL cs_segment_create(intersection%segment, A, B)
        CASE (3)
           A = unique_intxn(:,1)
           B = unique_intxn(:,2)
@@ -1436,17 +1411,17 @@ CONTAINS
           ABxAC = vector_product(AB, AC)
           ! if the three points are collinear
           IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
-             CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-             CALL cs_segment_create(intersection%segment, A, B, error)
+             CALL cs_intersection_obj_create(intersection, SEG_INTXN)
+             CALL cs_segment_create(intersection%segment, A, B)
 
           ELSE
-             CALL cs_intersection_obj_create(intersection, TRI_INTXN, error=error)
-             CALL cs_triangle_create(intersection%triangle, A, B, C, error)
+             CALL cs_intersection_obj_create(intersection, TRI_INTXN)
+             CALL cs_triangle_create(intersection%triangle, A, B, C)
           END IF
      ! CASE (4)
           ! consider rectangle as a regular polygon
        CASE DEFAULT
-          CALL cs_intersection_obj_create(intersection, PY_INTXN, n_intersections, error=error)
+          CALL cs_intersection_obj_create(intersection, PY_INTXN, n_intersections)
 
           ALLOCATE(intersection_points(3,n_intersections))
           intersection_points(:,:) = unique_intxn(:,1:n_intersections)
@@ -1454,16 +1429,16 @@ CONTAINS
           ! sort intersection points
           O = intersection_points(:,1)     ! reference vertex
           unit_normal = plane%unit_normal
-          IF (n_intersections .GT. 3) CALL sort_vertices(intersection_points, O, unit_normal, error)
+          IF (n_intersections .GT. 3) CALL sort_vertices(intersection_points, O, unit_normal)
           polygon_vertices => intersection_points
-          CALL cs_polygon_create(intersection%polygon, polygon_vertices, error=error)
+          CALL cs_polygon_create(intersection%polygon, polygon_vertices)
 
           DEALLOCATE(intersection_points)
        END SELECT
 
     ELSE
 ! if there is no intersection
-       CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+       CALL cs_intersection_obj_create(intersection, NO_INTXN)
     END IF
 
     DEALLOCATE(valid_intxn)
@@ -1479,17 +1454,15 @@ CONTAINS
 !> \param polygon input polygon
 !> \param rectangle input rectangle
 !> \param intersection the intersection of the polygon and the rectangle
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE coplanar_polygon_rectangle_intersection(polygon, rectangle, intersection, error)
+  SUBROUTINE coplanar_polygon_rectangle_intersection(polygon, rectangle, intersection)
     TYPE(cs_polygon), INTENT(IN), POINTER    :: polygon
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_intersection_obj), &
       INTENT(INOUT), POINTER                 :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'coplanar_polygon_rectangle_intersection', &
@@ -1547,7 +1520,7 @@ CONTAINS
           py_edge => polygon%edges(i)
           rect_edge => rectangle%edges(j)
           CALL coplanar_segment_segment_intersection(py_edge%segment, rect_edge%segment, &
-                                                     plane, seg_seg_intxn, error)
+                                                     plane, seg_seg_intxn)
           crossing_pts(:,k) = seg_seg_intxn%point
           counter = counter + seg_seg_intxn%n_intxn
           k = k + 1
@@ -1572,18 +1545,18 @@ CONTAINS
 
     IF (counter .NE. 0) THEN
 ! if there is any intersection remove duplicate points
-       CALL remove_duplicate_vertices(valid_vertices, unique_vertices, error)
+       CALL remove_duplicate_vertices(valid_vertices, unique_vertices)
        ovlp_n_vtx = SIZE(unique_vertices)/3
 
        SELECT CASE (ovlp_n_vtx)
        CASE (1)
-          CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, PT_INTXN)
           intersection%point = unique_vertices(:,1)
        CASE (2)
           A = unique_vertices(:,1)
           B = unique_vertices(:,2)
-          CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-          CALL cs_segment_create(intersection%segment, A, B, error)
+          CALL cs_intersection_obj_create(intersection, SEG_INTXN)
+          CALL cs_segment_create(intersection%segment, A, B)
        CASE (3)
           A = unique_vertices(:,1)
           B = unique_vertices(:,2)
@@ -1593,17 +1566,17 @@ CONTAINS
           ABxAC = vector_product(AB, AC)
           ! if the three points are collinear
           IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
-             CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-             CALL cs_segment_create(intersection%segment, A, B, error)
+             CALL cs_intersection_obj_create(intersection, SEG_INTXN)
+             CALL cs_segment_create(intersection%segment, A, B)
 
           ELSE
-             CALL cs_intersection_obj_create(intersection, TRI_INTXN, error=error)
-             CALL cs_triangle_create(intersection%triangle, A, B, C, error)
+             CALL cs_intersection_obj_create(intersection, TRI_INTXN)
+             CALL cs_triangle_create(intersection%triangle, A, B, C)
           END IF
      ! CASE (4)
           ! consider rectangle as a regular polygon
        CASE DEFAULT
-          CALL cs_intersection_obj_create(intersection, PY_INTXN, ovlp_n_vtx, error=error)
+          CALL cs_intersection_obj_create(intersection, PY_INTXN, ovlp_n_vtx)
 
           ALLOCATE(overlap_vertices(3,ovlp_n_vtx))
           overlap_vertices(:,:) = unique_vertices(:,1:ovlp_n_vtx)
@@ -1611,20 +1584,20 @@ CONTAINS
           ! sort intersection points
           O = overlap_vertices(:,1)
           unit_normal = plane%unit_normal
-          IF (ovlp_n_vtx .GT. 3) CALL sort_vertices(overlap_vertices, O, unit_normal, error)
+          IF (ovlp_n_vtx .GT. 3) CALL sort_vertices(overlap_vertices, O, unit_normal)
           ovlp_vertices => overlap_vertices
-          CALL cs_polygon_create(intersection%polygon, ovlp_vertices, error=error)
+          CALL cs_polygon_create(intersection%polygon, ovlp_vertices)
 
           DEALLOCATE(overlap_vertices)
        END SELECT
 
     ELSE
 ! if there is no intersection
-       CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+       CALL cs_intersection_obj_create(intersection, NO_INTXN)
     END IF
 
     DEALLOCATE(internal_pts, crossing_pts, all_pts, valid_vertices)
-    CALL cs_intersection_obj_release(seg_seg_intxn, error)
+    CALL cs_intersection_obj_release(seg_seg_intxn)
 
     CALL timestop(handle)
 
@@ -1635,17 +1608,15 @@ CONTAINS
 !> \param rectangle1 rectangle 1
 !> \param rectangle2 rectangle 2
 !> \param intersection the intersection between rectangle 1 and rectangle 2
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE rectangle_rectangle_intersection(rectangle1, rectangle2, intersection, error)
+  SUBROUTINE rectangle_rectangle_intersection(rectangle1, rectangle2, intersection)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle1, rectangle2
     TYPE(cs_intersection_obj), &
       INTENT(INOUT), POINTER                 :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'rectangle_rectangle_intersection', &
@@ -1679,13 +1650,13 @@ CONTAINS
 ! rectangles are co-planar
        IF (n1dotA1A2 .EQ. 0.0_dp) THEN
           ALLOCATE(polygon_tmp)
-          CALL cast_rectangle_to_polygon(rectangle1, polygon_tmp, error)
+          CALL cast_rectangle_to_polygon(rectangle1, polygon_tmp)
           CALL coplanar_polygon_rectangle_intersection(polygon_tmp, rectangle2, &
-                                                       intersection, error)
-          CALL cs_polygon_release(polygon_tmp, error)
+                                                       intersection)
+          CALL cs_polygon_release(polygon_tmp)
 ! rectangles are parallel but not co-planar
        ELSE
-          CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, NO_INTXN)
        END IF
 ! rectangles are not parallel
     ELSE
@@ -1712,7 +1683,7 @@ CONTAINS
           j = 1
           DO i = 1, 4
              CALL segment_rectangle_intersection(rectangle1%edges(i)%segment, rectangle2, &
-                                                 seg_rect_intxn, error)
+                                                 seg_rect_intxn)
              n_intxn_tot = n_intxn_tot + seg_rect_intxn%n_intxn
              SELECT CASE (seg_rect_intxn%intxn_type)
              CASE (PT_INTXN)
@@ -1720,11 +1691,11 @@ CONTAINS
              CASE (SEG_INTXN)
                 all_intxn(:,j) = seg_rect_intxn%segment%A
                 all_intxn(:,j+1) = seg_rect_intxn%segment%B
-                CALL cs_segment_release(seg_rect_intxn%segment, error)
+                CALL cs_segment_release(seg_rect_intxn%segment)
              END SELECT
              j = j + seg_rect_intxn%n_intxn
           END DO
-          CALL cs_intersection_obj_release(seg_rect_intxn, error)
+          CALL cs_intersection_obj_release(seg_rect_intxn)
 
           ! get actual intersection points i.e. remove infinity points
           ALLOCATE(valid_intxn(3,n_intxn_tot))
@@ -1732,27 +1703,26 @@ CONTAINS
 
           IF (n_intxn_tot .NE. 0) THEN
           ! if there is any intersection remove duplicate points
-             CALL remove_duplicate_vertices(valid_intxn, unique_intxn, error)
+             CALL remove_duplicate_vertices(valid_intxn, unique_intxn)
              n_intersections = SIZE(unique_intxn)/3
 
              SELECT CASE (n_intersections)
              CASE (1)
-                CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+                CALL cs_intersection_obj_create(intersection, PT_INTXN)
                 intersection%point = unique_intxn(:,1)
              CASE (2)
-                CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
+                CALL cs_intersection_obj_create(intersection, SEG_INTXN)
                 CALL cs_segment_create(intersection%segment, &
-                                       unique_intxn(:,1), unique_intxn(:,2), &
-                                       error)
+                                       unique_intxn(:,1), unique_intxn(:,2))
              END SELECT
 
           ELSE
           ! if there is no intersection
-             CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+             CALL cs_intersection_obj_create(intersection, NO_INTXN)
           END IF
 ! rectangles are not parallel and do not intersect
        ELSE
-          CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, NO_INTXN)
        END IF
     END IF
 
@@ -1765,18 +1735,16 @@ CONTAINS
 !> \param rectangle input rectangle
 !> \param box input box
 !> \param intersection the intersection of the rectangle and the box
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE rectangle_box_intersection(rectangle, box, intersection, error)
+  SUBROUTINE rectangle_box_intersection(rectangle, box, intersection)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     TYPE(cs_box), INTENT(IN), POINTER        :: box
     TYPE(cs_intersection_obj), &
       INTENT(INOUT), POINTER                 :: intersection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rectangle_box_intersection', &
       routineP = moduleN//':'//routineN
@@ -1790,34 +1758,34 @@ CONTAINS
     ALLOCATE(pln_box_intxn)
 
 ! first find the intersection of the rectangle's plane with the box
-    CALL plane_box_intersection(rectangle%plane, box, pln_box_intxn, error)
+    CALL plane_box_intersection(rectangle%plane, box, pln_box_intxn)
 
 ! then find the overlap of the intersection with the rectangle
     SELECT CASE (pln_box_intxn%intxn_type)
     CASE (NO_INTXN)
-       CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+       CALL cs_intersection_obj_create(intersection, NO_INTXN)
     CASE (PT_INTXN)
        IF (is_inside_rectangle(pln_box_intxn%point, rectangle)) THEN
-          CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, PT_INTXN)
           intersection%point = pln_box_intxn%point
        ELSE
-          CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
+          CALL cs_intersection_obj_create(intersection, NO_INTXN)
        END IF
     CASE (SEG_INTXN)
        CALL segment_rectangle_intersection(pln_box_intxn%segment, rectangle, &
-                                           intersection, error)
+                                           intersection)
     CASE (TRI_INTXN)
        ALLOCATE(polygon_tmp)
-       CALL cast_triangle_to_polygon(pln_box_intxn%triangle, polygon_tmp, error)
+       CALL cast_triangle_to_polygon(pln_box_intxn%triangle, polygon_tmp)
        CALL coplanar_polygon_rectangle_intersection(polygon_tmp, rectangle, &
-                                                    intersection, error)
-       CALL cs_polygon_release(polygon_tmp, error)
+                                                    intersection)
+       CALL cs_polygon_release(polygon_tmp)
     CASE DEFAULT
        CALL coplanar_polygon_rectangle_intersection(pln_box_intxn%polygon, rectangle, &
-                                                    intersection, error)
+                                                    intersection)
     END SELECT
 
-    CALL cs_intersection_obj_release(pln_box_intxn, error)
+    CALL cs_intersection_obj_release(pln_box_intxn)
 
     CALL timestop(handle)
 
@@ -1827,17 +1795,15 @@ CONTAINS
 !> \brief  toggles a grid_segment on if a given rectangle intersects with it
 !> \param grid_seg grid segment whose end points to be weighted
 !> \param rectangle the given rectangle
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE toggle_grid_segment(grid_seg, rectangle, error)
+  SUBROUTINE toggle_grid_segment(grid_seg, rectangle)
 
     TYPE(cs_grid_segment), INTENT(INOUT), &
       POINTER                                :: grid_seg
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'toggle_grid_segment', &
       routineP = moduleN//':'//routineN
@@ -1848,7 +1814,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(seg_rect_intxn)
-    CALL segment_rectangle_intersection(grid_seg%segment, rectangle, seg_rect_intxn, error)
+    CALL segment_rectangle_intersection(grid_seg%segment, rectangle, seg_rect_intxn)
 
     IF (seg_rect_intxn%intxn_type .EQ. NO_INTXN) THEN
        grid_seg%is_on  = .FALSE.
@@ -1858,7 +1824,7 @@ CONTAINS
        grid_seg%weight = 1
     END IF
 
-    CALL cs_intersection_obj_release(seg_rect_intxn, error)
+    CALL cs_intersection_obj_release(seg_rect_intxn)
     CALL timestop(handle)
 
   END SUBROUTINE toggle_grid_segment
@@ -1867,17 +1833,15 @@ CONTAINS
 !> \brief  toggles a grid_tile on if a given rectangle intersects with it
 !> \param grid_tile grid tile whose vertices to be weighted
 !> \param rectangle input rectangle
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE toggle_grid_tile(grid_tile, rectangle, error)
+  SUBROUTINE toggle_grid_tile(grid_tile, rectangle)
 
     TYPE(cs_grid_tile), INTENT(INOUT), &
       POINTER                                :: grid_tile
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'toggle_grid_tile', &
       routineP = moduleN//':'//routineN
@@ -1888,7 +1852,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(rect_rect_intxn)
-    CALL rectangle_rectangle_intersection(rectangle, grid_tile%rectangle, rect_rect_intxn, error)
+    CALL rectangle_rectangle_intersection(rectangle, grid_tile%rectangle, rect_rect_intxn)
 
     IF (rect_rect_intxn%intxn_type .EQ. NO_INTXN) THEN
        grid_tile%is_on  = .FALSE.
@@ -1898,7 +1862,7 @@ CONTAINS
        grid_tile%weight = 1
     END IF
 
-    CALL cs_intersection_obj_release(rect_rect_intxn, error)
+    CALL cs_intersection_obj_release(rect_rect_intxn)
 
     CALL timestop(handle)
 
@@ -1908,16 +1872,14 @@ CONTAINS
 !> \brief  toggles a voxel on if a given rectangle intersects with it
 !> \param voxel voxel whose vertices to be weighted
 !> \param rectangle the given rectangle
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE toggle_voxel(voxel, rectangle, error)
+  SUBROUTINE toggle_voxel(voxel, rectangle)
 
     TYPE(cs_voxel), INTENT(INOUT), POINTER   :: voxel
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'toggle_voxel', &
       routineP = moduleN//':'//routineN
@@ -1927,7 +1889,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     ALLOCATE(rect_box_intxn)
-    CALL rectangle_box_intersection(rectangle, voxel%box, rect_box_intxn, error)
+    CALL rectangle_box_intersection(rectangle, voxel%box, rect_box_intxn)
 
     IF (rect_box_intxn%intxn_type .EQ. NO_INTXN) THEN
        voxel%is_on  = .FALSE.
@@ -1937,7 +1899,7 @@ CONTAINS
        voxel%weight = 1
     END IF
 
-    CALL cs_intersection_obj_release(rect_box_intxn, error)
+    CALL cs_intersection_obj_release(rect_box_intxn)
     CALL timestop(handle)
 
   END SUBROUTINE toggle_voxel
@@ -1999,17 +1961,15 @@ CONTAINS
 !> \brief  maps the weights of vertices of a grid segment on a pw data type
 !> \param grid_seg input grid segment
 !> \param pw the output plane wave data type
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE convert_grid_segment_to_grid(grid_seg, pw, error)
+  SUBROUTINE convert_grid_segment_to_grid(grid_seg, pw)
 
     TYPE(cs_grid_segment), INTENT(IN), &
       POINTER                                :: grid_seg
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_grid_segment_to_grid', &
       routineP = moduleN//':'//routineN
@@ -2049,16 +2009,14 @@ CONTAINS
 !> \brief  maps the weights of vertices of a grid tile on a pw data type
 !> \param grid_tile input grid tile
 !> \param pw the output plane wave data type
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE convert_grid_tile_to_grid(grid_tile, pw, error)
+  SUBROUTINE convert_grid_tile_to_grid(grid_tile, pw)
 
     TYPE(cs_grid_tile), INTENT(IN), POINTER  :: grid_tile
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_grid_tile_to_grid', &
       routineP = moduleN//':'//routineN
@@ -2104,16 +2062,14 @@ CONTAINS
 !> \brief  maps the weights of vertices of a voxel on a pw data type
 !> \param voxel input voxel
 !> \param pw the output plane wave data type
-!> \param error cp2k error
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE convert_voxel_to_grid(voxel, pw, error)
+  SUBROUTINE convert_voxel_to_grid(voxel, pw)
 
     TYPE(cs_voxel), INTENT(IN), POINTER      :: voxel
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_voxel_to_grid', &
       routineP = moduleN//':'//routineN
@@ -2156,20 +2112,18 @@ CONTAINS
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
 !> \param pw pw grid data to be created
-!> \param error cp2k error
 !> \par History
 !>       09.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE voxelize_rectangle(rectangle, x_glbl, y_glbl, z_glbl, &
-                                           x_locl, y_locl, z_locl, pw, error)
+                                           x_locl, y_locl, z_locl, pw)
 
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl, &
                                                 x_locl, y_locl, z_locl
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'voxelize_rectangle', &
       routineP = moduleN//':'//routineN
@@ -2196,7 +2150,7 @@ CONTAINS
 
     ld_type = local_domain_type(bounds_local)
     CALL compute_rectangle_aabb_extents(rectangle, x_glbl, y_glbl, z_glbl, &
-                  x_locl, y_locl, z_locl, aabb_extents, aabb_extents_local, error)
+                  x_locl, y_locl, z_locl, aabb_extents, aabb_extents_local)
 
     SELECT CASE (ld_type)
 ! if the current process's local domain is a box:
@@ -2207,10 +2161,10 @@ CONTAINS
                 ALLOCATE(voxel)
                 origin = (/x_locl(i),y_locl(j),z_locl(k)/)
                 voxel_index = (/i,j,k/)
-                CALL cs_voxel_create(voxel, origin, voxel_index, dr, error)
-                CALL toggle_voxel(voxel, rectangle, error)
-                CALL convert_voxel_to_grid(voxel, pw, error)
-                CALL cs_voxel_release(voxel, error)
+                CALL cs_voxel_create(voxel, origin, voxel_index, dr)
+                CALL toggle_voxel(voxel, rectangle)
+                CALL convert_voxel_to_grid(voxel, pw)
+                CALL cs_voxel_release(voxel)
              END DO
           END DO
        END DO
@@ -2223,10 +2177,10 @@ CONTAINS
              ALLOCATE(grid_tile)
              origin = (/x_locl(lb1),y_locl(j),z_locl(k)/)
              grid_tile_index = (/lb1,j,k/)
-             CALL cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, ld_type, error)
-             CALL toggle_grid_tile(grid_tile, rectangle, error)
-             CALL convert_grid_tile_to_grid(grid_tile, pw, error)
-             CALL cs_grid_tile_release(grid_tile, error)
+             CALL cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, ld_type)
+             CALL toggle_grid_tile(grid_tile, rectangle)
+             CALL convert_grid_tile_to_grid(grid_tile, pw)
+             CALL cs_grid_tile_release(grid_tile)
           END DO
        END DO
     CASE (xz_aligned_rectangle)
@@ -2237,10 +2191,10 @@ CONTAINS
              ALLOCATE(grid_tile)
              origin = (/x_locl(i),y_locl(lb2),z_locl(k)/)
              grid_tile_index = (/i,lb2,k/)
-             CALL cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, ld_type, error)
-             CALL toggle_grid_tile(grid_tile, rectangle, error)
-             CALL convert_grid_tile_to_grid(grid_tile, pw, error)
-             CALL cs_grid_tile_release(grid_tile, error)
+             CALL cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, ld_type)
+             CALL toggle_grid_tile(grid_tile, rectangle)
+             CALL convert_grid_tile_to_grid(grid_tile, pw)
+             CALL cs_grid_tile_release(grid_tile)
           END DO
        END DO
     CASE (xy_aligned_rectangle)
@@ -2251,10 +2205,10 @@ CONTAINS
              ALLOCATE(grid_tile)
              origin = (/x_locl(i),y_locl(j),z_locl(lb3)/)
              grid_tile_index = (/i,j,lb3/)
-             CALL cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, ld_type, error)
-             CALL toggle_grid_tile(grid_tile, rectangle, error)
-             CALL convert_grid_tile_to_grid(grid_tile, pw, error)
-             CALL cs_grid_tile_release(grid_tile, error)
+             CALL cs_grid_tile_create(grid_tile, origin, grid_tile_index, dr, ld_type)
+             CALL toggle_grid_tile(grid_tile, rectangle)
+             CALL convert_grid_tile_to_grid(grid_tile, pw)
+             CALL cs_grid_tile_release(grid_tile)
           END DO
        END DO
 ! if the current process's local domain is a segment:
@@ -2264,10 +2218,10 @@ CONTAINS
           ALLOCATE(grid_seg)
           origin = (/x_locl(lb1),y_locl(lb2),z_locl(k)/)
           grid_segment_index = (/lb1,lb2,k/)
-          CALL cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, ld_type, error)
-          CALL toggle_grid_segment(grid_seg, rectangle, error)
-          CALL convert_grid_segment_to_grid(grid_seg, pw, error)
-          CALL cs_grid_segment_release(grid_seg, error)
+          CALL cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, ld_type)
+          CALL toggle_grid_segment(grid_seg, rectangle)
+          CALL convert_grid_segment_to_grid(grid_seg, pw)
+          CALL cs_grid_segment_release(grid_seg)
        END DO
     CASE (yaxis_aligned_segment)
 !       DO j = lb2, ub2-1
@@ -2275,10 +2229,10 @@ CONTAINS
           ALLOCATE(grid_seg)
           origin = (/x_locl(lb1),y_locl(j),z_locl(lb3)/)
           grid_segment_index = (/lb1,j,lb3/)
-          CALL cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, ld_type, error)
-          CALL toggle_grid_segment(grid_seg, rectangle, error)
-          CALL convert_grid_segment_to_grid(grid_seg, pw, error)
-          CALL cs_grid_segment_release(grid_seg, error)
+          CALL cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, ld_type)
+          CALL toggle_grid_segment(grid_seg, rectangle)
+          CALL convert_grid_segment_to_grid(grid_seg, pw)
+          CALL cs_grid_segment_release(grid_seg)
        END DO
     CASE (xaxis_aligned_segment)
 !       DO i = lb1, ub1-1
@@ -2286,10 +2240,10 @@ CONTAINS
           ALLOCATE(grid_seg)
           origin = (/x_locl(i),y_locl(lb2),z_locl(lb3)/)
           grid_segment_index = (/i,lb2,lb3/)
-          CALL cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, ld_type, error)
-          CALL toggle_grid_segment(grid_seg, rectangle, error)
-          CALL convert_grid_segment_to_grid(grid_seg, pw, error)
-          CALL cs_grid_segment_release(grid_seg, error)
+          CALL cs_grid_segment_create(grid_seg, origin, grid_segment_index, dr, ld_type)
+          CALL toggle_grid_segment(grid_seg, rectangle)
+          CALL convert_grid_segment_to_grid(grid_seg, pw)
+          CALL cs_grid_segment_release(grid_seg)
        END DO
     CASE (single_grid_point)
 ! if the current process's local domain is a point:
@@ -2320,18 +2274,16 @@ CONTAINS
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
 !> \param pw pw grid data to be created
-!> \param error cp2k error
 !> \par History
 !>       09.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE voxelize_aa_cuboid(cuboid, x_locl, y_locl, z_locl, pw, error)
+  SUBROUTINE voxelize_aa_cuboid(cuboid, x_locl, y_locl, z_locl, pw)
 
     TYPE(cs_box), INTENT(IN), POINTER        :: cuboid
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_locl, y_locl, z_locl
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'voxelize_aa_cuboid', &
       routineP = moduleN//':'//routineN

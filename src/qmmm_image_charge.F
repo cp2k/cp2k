@@ -93,18 +93,15 @@ CONTAINS
 !> \param energy structure where energies are stored
 !> \param qmmm_env qmmm environment
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_image_pot(v_hartree_rspace,rho_hartree_gspace,energy,&
-                                qmmm_env,qs_env,error)
+                                qmmm_env,qs_env)
 
     TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace, &
                                                 rho_hartree_gspace
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_pot', &
       routineP = moduleN//':'//routineN
@@ -121,29 +118,27 @@ CONTAINS
        IF(qs_env%calc_image_preconditioner) THEN
         IF(qmmm_env%image_charge_pot%image_restart) THEN
          CALL restart_image_matrix(image_matrix=qs_env%image_matrix,&
-                                   qs_env=qs_env,qmmm_env=qmmm_env,&
-                                   error=error)
+                                   qs_env=qs_env,qmmm_env=qmmm_env)
         ELSE
          CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
-                                     qs_env=qs_env,qmmm_env=qmmm_env,&
-                                     error=error)
+                                     qs_env=qs_env,qmmm_env=qmmm_env)
         ENDIF
        ENDIF
        CALL calc_image_coeff_iterative(v_hartree_rspace=v_hartree_rspace,&
                                     coeff=qs_env%image_coeff,qmmm_env=qmmm_env,&
-                                    qs_env=qs_env,error=error)
+                                    qs_env=qs_env)
 
     ELSE
        CALL calc_image_coeff_gaussalgorithm(v_hartree_rspace=v_hartree_rspace,&
                                     coeff=qs_env%image_coeff,qmmm_env=qmmm_env,&
-                                    qs_env=qs_env,error=error)
+                                    qs_env=qs_env)
     ENDIF
 
     ! calculate the image/metal potential with the optimized coefficients
     CALL calculate_potential_metal(v_metal_rspace=&
          qs_env%ks_qmmm_env%v_metal_rspace,coeff=qs_env%image_coeff,&
          rho_hartree_gspace=rho_hartree_gspace,&
-         energy=energy,qs_env=qs_env,error=error)
+         energy=energy,qs_env=qs_env)
 
     CALL timestop(handle)
 
@@ -158,18 +153,15 @@ CONTAINS
 !>        rho_metal=sum_a c_a*g_a
 !> \param qmmm_env qmmm environment
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calc_image_coeff_gaussalgorithm(v_hartree_rspace,coeff,qmmm_env,&
-                                            qs_env,error)
+                                            qs_env)
 
 
     TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calc_image_coeff_gaussalgorithm', &
@@ -191,15 +183,15 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
 
     ALLOCATE(pot_const(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(.NOT.ASSOCIATED(coeff)) THEN
        ALLOCATE(coeff(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
     coeff=0.0_dp
 
     CALL integrate_potential_ga_rspace(v_hartree_rspace,qmmm_env,qs_env,&
-                                       pot_const,error=error)
+                                       pot_const)
     !add integral V0*ga(r)
     pot_const(:)=-pot_const(:)+V0*SQRT((pi/eta)**3)
 
@@ -207,12 +199,12 @@ CONTAINS
     !LU factorization of T  by DGETRF done in calculate_image_matrix
     CALL DGETRS('N',natom,1,qs_env%image_matrix,natom,qs_env%ipiv,&
                 pot_const,natom,info)
-    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(info==0,cp_failure_level,routineP,failure)
 
     coeff = pot_const
 
     DEALLOCATE(pot_const,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     CALL timestop(handle)
 
@@ -225,18 +217,15 @@ CONTAINS
 !>        rho_metal=sum_a c_a*g_a
 !> \param qmmm_env qmmm environment
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calc_image_coeff_iterative(v_hartree_rspace,coeff,qmmm_env,&
-                                      qs_env,error)
+                                      qs_env)
 
 
     TYPE(pw_p_type), INTENT(IN)              :: v_hartree_rspace
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_image_coeff_iterative', &
       routineP = moduleN//':'//routineN
@@ -256,7 +245,7 @@ CONTAINS
    
     NULLIFY(pot_const,vmetal_const,logger,input)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
    
     !minus sign V0: account for the fact that v_hartree has the opposite sign
     V0=-qmmm_env%image_charge_pot%V0
@@ -264,24 +253,24 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
    
     ALLOCATE(pot_const(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(vmetal_const(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(r(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(d(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(z(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(Ad(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     IF(.NOT.ASSOCIATED(coeff)) THEN
        ALLOCATE(coeff(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
    
     CALL integrate_potential_ga_rspace(v_hartree_rspace,qmmm_env,qs_env,&
-                                       pot_const,error=error)
+                                       pot_const)
    
     !add integral V0*ga(r)
     pot_const(:)=-pot_const(:)+V0*SQRT((pi/eta)**3)
@@ -297,9 +286,9 @@ CONTAINS
    
    !calculate first guess of image/metal potential
     CALL calculate_potential_metal(v_metal_rspace=v_metal_rspace_guess,&
-         coeff=coeff,qs_env=qs_env,error=error)
+         coeff=coeff,qs_env=qs_env)
     CALL integrate_potential_ga_rspace(potential=v_metal_rspace_guess,&
-         qmmm_env=qmmm_env,qs_env=qs_env,int_res=vmetal_const,error=error)
+         qmmm_env=qmmm_env,qs_env=qs_env,int_res=vmetal_const)
    
     ! modify coefficients iteratively
     r=pot_const-vmetal_const
@@ -311,10 +300,10 @@ CONTAINS
       !calculate A*d
       Ad=0.0_dp
       CALL calculate_potential_metal(v_metal_rspace=&
-           auxpot_Ad_rspace,coeff=d,qs_env=qs_env,error=error)
+           auxpot_Ad_rspace,coeff=d,qs_env=qs_env)
       CALL integrate_potential_ga_rspace(potential=&
            auxpot_Ad_rspace,qmmm_env=qmmm_env,&
-           qs_env=qs_env,int_res=Ad,error=error)
+           qs_env=qs_env,int_res=Ad)
    
       alpha=rsold/DOT_PRODUCT(d,Ad)
       coeff=coeff+alpha*d
@@ -324,25 +313,24 @@ CONTAINS
       rsnew=DOT_PRODUCT(r,z)
       iter_steps=iter_steps+1
       IF(SQRT(rsnew)<1.0E-08) THEN
-         CALL pw_release(auxpot_Ad_rspace%pw,error=error)
+         CALL pw_release(auxpot_Ad_rspace%pw)
          EXIT
       END IF
       d=z+rsnew/rsold*d
       rsold=rsnew
-      CALL pw_release(auxpot_Ad_rspace%pw,error=error)
+      CALL pw_release(auxpot_Ad_rspace%pw)
     ENDDO
    
     ! print iteration info
     CALL get_qs_env(qs_env=qs_env,&
-                      input=input,&
-                      error=error)
+                      input=input)
     output_unit=cp_print_key_unit_nr(logger,input,&
                    "QMMM%PRINT%PROGRAM_RUN_INFO",&
-                    extension=".qmmmLog",error=error)
+                    extension=".qmmmLog")
     IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A,T74,I7)")&
       "Number of iteration steps for determination of image coefficients:",iter_steps
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-                    "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+                    "QMMM%PRINT%PROGRAM_RUN_INFO")
    
    
     IF(iter_steps.lt.25) THEN
@@ -351,17 +339,17 @@ CONTAINS
      qs_env%calc_image_preconditioner=.TRUE.
     ENDIF
    
-    CALL pw_release(v_metal_rspace_guess%pw,error=error)
+    CALL pw_release(v_metal_rspace_guess%pw)
     DEALLOCATE(pot_const,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(vmetal_const,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(r,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(d,z,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(Ad,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
    
     CALL timestop(handle)
 
@@ -376,11 +364,9 @@ CONTAINS
 !> \param atom_num atom index, needed when calculating image_matrix 
 !> \param atom_num_ref index of reference atom, needed when calculating 
 !>        image_matrix 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE integrate_potential_ga_rspace(potential,qmmm_env,qs_env,int_res,&
-                                           atom_num,atom_num_ref,error)
+                                           atom_num,atom_num_ref)
 
 
     TYPE(pw_p_type), INTENT(IN)              :: potential
@@ -388,7 +374,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
     INTEGER, INTENT(IN), OPTIONAL            :: atom_num, atom_num_ref
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'integrate_potential_ga_rspace', &
@@ -414,19 +399,18 @@ CONTAINS
     NULLIFY(cores,hab,cell,auxbas_rs_desc,pw_env,para_env,&
            dft_control,rs_v)
     ALLOCATE (hab(1,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
-                        auxbas_rs_grid=rs_v,error=error)
-    CALL rs_grid_retain(rs_v,error=error)
-    CALL rs_pw_transfer(rs_v,potential%pw,pw2rs,error=error)
+                        auxbas_rs_grid=rs_v)
+    CALL rs_grid_retain(rs_v)
+    CALL rs_pw_transfer(rs_v,potential%pw,pw2rs)
 
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    para_env=para_env,pw_env=pw_env,&
-                    error=error)
+                    para_env=para_env,pw_env=pw_env)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -477,7 +461,7 @@ CONTAINS
           0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
           rs_v,cell,pw_env%cube_info(1),hab,o1=0,o2=0,&
           eps_gvg_rspace=eps_rho_rspace, calculate_forces=.FALSE.,&
-          use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+          use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
      int_res(iatom) = hab(1,1)
 
@@ -486,9 +470,9 @@ CONTAINS
     CALL mp_sum(int_res,para_env%group)
 
     DEALLOCATE (hab,cores,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL rs_grid_release(rs_v, error=error)
+    CALL rs_grid_release(rs_v)
 
     CALL timestop(handle)
 
@@ -503,18 +487,15 @@ CONTAINS
 !>        for the metal (MM) atoms
 !> \param qmmm_env qmmm environment
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE integrate_potential_devga_rspace(potential,coeff,forces,qmmm_env,&
-                                           qs_env,error)
+                                           qs_env)
 
     TYPE(pw_p_type), INTENT(IN)              :: potential
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'integrate_potential_devga_rspace', &
@@ -543,28 +524,28 @@ CONTAINS
     use_virial=.FALSE.
    
     ALLOCATE (hab(1,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE (pab(1,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
    
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
-                        auxbas_rs_grid=rs_v,error=error)
-    CALL rs_grid_retain(rs_v,error=error)
-    CALL rs_pw_transfer(rs_v,potential%pw,pw2rs,error=error)
+                        auxbas_rs_grid=rs_v)
+    CALL rs_grid_retain(rs_v)
+    CALL rs_pw_transfer(rs_v,potential%pw,pw2rs)
    
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     dft_control=dft_control,&
                     para_env=para_env,pw_env=pw_env,&
-                    virial=virial,error=error)
+                    virial=virial)
    
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
    
     IF (use_virial) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Virial not implemented for image charge method", &
-            error=error, error_level=cp_failure_level)
+            error_level=cp_failure_level)
     END IF
    
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -573,7 +554,7 @@ CONTAINS
    
     IF(.NOT.ASSOCIATED(forces)) THEN
      ALLOCATE(forces(3,natom), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
    
     forces(:,:)=0.0_dp
@@ -611,7 +592,7 @@ CONTAINS
           rs_v,cell,pw_env%cube_info(1),hab,pab,o1=0,o2=0,&
           eps_gvg_rspace=eps_rho_rspace, calculate_forces=.TRUE.,&
           force_a=force_a,force_b=force_b,use_subpatch=.TRUE.,&
-          subpatch_pattern=0_int_8,error=error)
+          subpatch_pattern=0_int_8)
    
      force_a(:)=coeff(iatom)*force_a(:)
      forces(:,iatom) = force_a(:)
@@ -621,12 +602,12 @@ CONTAINS
     CALL mp_sum(forces,para_env%group)
 
     DEALLOCATE (hab,pab,cores,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
-    CALL rs_grid_release(rs_v, error=error)
+    CALL rs_grid_release(rs_v)
 
     ! print info on gradients if wanted
-    CALL print_gradients_image_atoms(forces, qs_env, error)
+    CALL print_gradients_image_atoms(forces, qs_env)
 
     CALL timestop(handle)
 
@@ -638,14 +619,11 @@ CONTAINS
 !>        in case coefficients are estimated not iteratively
 !> \param qs_env qs environment
 !> \param qmmm_env qmmm environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE conditional_calc_image_matrix(qs_env,qmmm_env,error)
+  SUBROUTINE conditional_calc_image_matrix(qs_env,qmmm_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'conditional_calc_image_matrix', &
@@ -655,14 +633,12 @@ CONTAINS
       SELECT CASE(qmmm_env%image_charge_pot%state_image_matrix)
       CASE(calc_always)
           CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
-          ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env,&
-          error=error)
+          ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env)
       CASE(calc_once)
           !if all image atoms are fully constrained, calculate image matrix
           !only for the first MD or GEO_OPT step
           CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
-          ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env,&
-          error=error)
+          ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env)
           qmmm_env%image_charge_pot%state_image_matrix = calc_once_done
           CALL cp_assert(.NOT.qmmm_env%center_qm_subsys0,cp_warning_level,&
                cp_assertion_failed,routineP,"The image atoms are fully "//&
@@ -686,16 +662,13 @@ CONTAINS
 !> \param ipiv pivoting prior to DGETRS (for Gaussian elimination)
 !> \param qs_env qs environment
 !> \param qmmm_env qmmm environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE calculate_image_matrix(image_matrix,ipiv,qs_env,qmmm_env,error)
+  SUBROUTINE calculate_image_matrix(image_matrix,ipiv,qs_env,qmmm_env)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: ipiv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix', &
       routineP = moduleN//':'//routineN
@@ -717,34 +690,34 @@ CONTAINS
     NULLIFY(pw_env, auxbas_pw_pool, poisson_env, para_env, int_res,&
             input, logger)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
    
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
    
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
         ALLOCATE(image_matrix(natom,natom),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
     IF (PRESENT(ipiv)) THEN
        IF (.NOT.ASSOCIATED(ipiv)) THEN
            ALLOCATE(ipiv(natom),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ENDIF
     ENDIF
     ALLOCATE(int_res(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
    
     image_matrix=0.0_dp
     IF(PRESENT(ipiv)) ipiv=0
    
    
     CALL get_qs_env(qs_env, pw_env=pw_env,para_env=para_env,&
-                    input=input,error=error)
+                    input=input)
 
     !print info
     output_unit=cp_print_key_unit_nr(logger,input,&
                 "QMMM%PRINT%PROGRAM_RUN_INFO",&
-                extension=".qmmmLog",error=error)
+                extension=".qmmmLog")
     IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
        IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
                 "Calculating image matrix"
@@ -753,44 +726,40 @@ CONTAINS
                 "Calculating image matrix"
     ENDIF
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-                "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+                "QMMM%PRINT%PROGRAM_RUN_INFO")
 
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                    poisson_env=poisson_env, error=error)
+                    poisson_env=poisson_env)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                            rho_gb%pw,&
                            use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE,&
-                           error=error)
+                           in_space=RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                            vb_gspace%pw,&
                            use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE,&
-                           error=error)
+                           in_space=RECIPROCALSPACE)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                            vb_rspace%pw,&
                            use_data=REALDATA3D,&
-                           in_space=REALSPACE,&
-                           error=error)
+                           in_space=REALSPACE)
     ! calculate vb only once for one reference atom 
     iatom_ref = 1 !
     !collocate gaussian of reference MM atom on grid
-    CALL pw_zero(rho_gb%pw, error=error)
-    CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref,error)
+    CALL pw_zero(rho_gb%pw)
+    CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref)
     !calculate potential vb like hartree potential
-    CALL pw_zero(vb_gspace%pw, error=error)
-    CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw,&
-                          error=error)
-    CALL pw_zero(vb_rspace%pw, error=error)
-    CALL pw_transfer(vb_gspace%pw,vb_rspace%pw,error=error)
-    CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol,error=error)
+    CALL pw_zero(vb_gspace%pw)
+    CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw)
+    CALL pw_zero(vb_rspace%pw)
+    CALL pw_transfer(vb_gspace%pw,vb_rspace%pw)
+    CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol)
     DO iatom=1,natom
       !calculate integral vb_rspace*ga
       int_res=0.0_dp
       CALL integrate_potential_ga_rspace(vb_rspace,qs_env%qmmm_env_qm,&
                                          qs_env,int_res,atom_num=iatom,&
-                                         atom_num_ref=iatom_ref,error=error)
+                                         atom_num_ref=iatom_ref)
       image_matrix(iatom,iatom:natom)=int_res(iatom:natom)
       image_matrix(iatom+1:natom,iatom)=int_res(iatom+1:natom)
     END DO
@@ -798,29 +767,29 @@ CONTAINS
     IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
        !inversion --> preconditioner matrix for CG
        CALL DPOTRF('L',natom,qs_env%image_matrix,natom,stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
        CALL DPOTRI('L',natom,qs_env%image_matrix,natom,stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
        DO j=1,natom
         DO k=j+1,natom
          qs_env%image_matrix(j,k)=qs_env%image_matrix(k,j)
         ENDDO
        ENDDO
-       CALL write_image_matrix(qs_env%image_matrix,qs_env,error)
+       CALL write_image_matrix(qs_env%image_matrix,qs_env)
     ELSE
        !pivoting prior to DGETRS (Gaussian elimination)
        IF(PRESENT(ipiv)) THEN
           CALL DGETRF(natom,natom,image_matrix,natom,ipiv,stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
        ENDIF
     ENDIF
 
-    CALL pw_release(vb_gspace%pw,error=error)
-    CALL pw_release(vb_rspace%pw,error=error)
-    CALL pw_release(rho_gb%pw,error=error)
+    CALL pw_release(vb_gspace%pw)
+    CALL pw_release(vb_rspace%pw)
+    CALL pw_release(rho_gb%pw)
 
     DEALLOCATE(int_res,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
    
     CALL timestop(handle)
 
@@ -835,18 +804,15 @@ CONTAINS
 !> \param rho_hartree_gspace Kohn Sham density in reciprocal space
 !> \param energy structure where energies are stored
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_potential_metal(v_metal_rspace,coeff,rho_hartree_gspace,energy,&
-                                     qs_env,error)
+                                     qs_env)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: v_metal_rspace
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
     TYPE(pw_p_type), INTENT(IN), OPTIONAL    :: rho_hartree_gspace
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_potential_metal', &
       routineP = moduleN//':'//routineN
@@ -868,51 +834,47 @@ CONTAINS
     en_vmetal_rhohartree=0.0_dp
     en_external=0.0_dp
    
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
-                      poisson_env=poisson_env,error=error)
+                      poisson_env=poisson_env)
    
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                                rho_metal%pw,&
                                use_data=COMPLEXDATA1D,&
-                               in_space=RECIPROCALSPACE,&
-                               error=error)
+                               in_space=RECIPROCALSPACE)
    
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                             v_metal_gspace%pw, &
                             use_data=COMPLEXDATA1D,&
-                            in_space=RECIPROCALSPACE,&
-                            error=error)
+                            in_space=RECIPROCALSPACE)
    
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                            v_metal_rspace%pw,&
                            use_data=REALDATA3D,&
-                           in_space=REALSPACE,&
-                           error=error)
+                           in_space=REALSPACE)
    
-    CALL pw_zero(rho_metal%pw,error=error)
+    CALL pw_zero(rho_metal%pw)
     CALL calculate_rho_metal(rho_metal,coeff,total_rho_metal=total_rho_metal,&
-                            qs_env=qs_env,error=error)
+                            qs_env=qs_env)
    
-    CALL pw_zero(v_metal_gspace%pw, error=error)
+    CALL pw_zero(v_metal_gspace%pw)
     CALL pw_poisson_solve(poisson_env,rho_metal%pw,&
-                         vhartree=v_metal_gspace%pw,error=error)
+                         vhartree=v_metal_gspace%pw)
    
     IF(PRESENT(rho_hartree_gspace)) THEN
       en_vmetal_rhohartree=0.5_dp*pw_integral_ab(v_metal_gspace%pw,&
-                                  rho_hartree_gspace%pw,error=error)
+                                  rho_hartree_gspace%pw)
       en_external=qs_env%qmmm_env_qm%image_charge_pot%V0*total_rho_metal
       energy%image_charge=en_vmetal_rhohartree-0.5_dp*en_external
       CALL print_image_energy_terms(en_vmetal_rhohartree,en_external,&
-                                    total_rho_metal,qs_env,error)
+                                    total_rho_metal,qs_env)
     ENDIF
    
-    CALL pw_zero(v_metal_rspace%pw, error=error)
-    CALL pw_transfer(v_metal_gspace%pw,v_metal_rspace%pw,error=error)
-    CALL pw_scale(v_metal_rspace%pw,v_metal_rspace%pw%pw_grid%dvol,&
-                  error=error)
-    CALL pw_release(v_metal_gspace%pw,error=error)
-    CALL pw_release(rho_metal%pw,error=error)
+    CALL pw_zero(v_metal_rspace%pw)
+    CALL pw_transfer(v_metal_gspace%pw,v_metal_rspace%pw)
+    CALL pw_scale(v_metal_rspace%pw,v_metal_rspace%pw%pw_grid%dvol)
+    CALL pw_release(v_metal_gspace%pw)
+    CALL pw_release(rho_metal%pw)
    
     CALL timestop(handle)
 
@@ -923,15 +885,12 @@ CONTAINS
 !> \param v_hartree Hartree potential (in real space)
 !> \param v_metal potential generated by rho_metal (in real space)
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE add_image_pot_to_hartree_pot(v_hartree,v_metal,qs_env,error)
+  SUBROUTINE add_image_pot_to_hartree_pot(v_hartree,v_metal,qs_env)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
     TYPE(pw_p_type), INTENT(IN)              :: v_metal
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_image_pot_to_hartree_pot', &
       routineP = moduleN//':'//routineN
@@ -945,22 +904,21 @@ CONTAINS
    
     NULLIFY(input,logger)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
    
     !add image charge potential
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + v_metal%pw%cr3d
    
     ! print info
     CALL get_qs_env(qs_env=qs_env,&
-                      input=input,&
-                      error=error)
+                      input=input)
     output_unit=cp_print_key_unit_nr(logger,input,&
                     "QMMM%PRINT%PROGRAM_RUN_INFO",&
-                    extension=".qmmmLog",error=error)
+                    extension=".qmmmLog")
     IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
                     "Adding image charge potential to the Hartree potential."
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-                     "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+                     "QMMM%PRINT%PROGRAM_RUN_INFO")
    
     CALL timestop(handle)
 
@@ -971,14 +929,11 @@ CONTAINS
 !>        calculating image coefficients iteratively 
 !> \param image_matrix matrix T
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE write_image_matrix(image_matrix,qs_env,error)
+  SUBROUTINE write_image_matrix(image_matrix,qs_env)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_image_matrix', &
       routineP = moduleN//':'//routineN
@@ -993,20 +948,18 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(qmmm_section, print_key, logger, para_env)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     failure = .FALSE.
     rst_unit = -1
 
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,&
-                    input=qmmm_section,&
-                    error=error)
+                    input=qmmm_section)
 
     print_key => section_vals_get_subs_vals(qmmm_section,&
-                                           "QMMM%PRINT%IMAGE_CHARGE_RESTART",&
-                                           error=error)
+                                           "QMMM%PRINT%IMAGE_CHARGE_RESTART")
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qmmm_section,"QMMM%PRINT%IMAGE_CHARGE_RESTART",error=error),&
+              qmmm_section,"QMMM%PRINT%IMAGE_CHARGE_RESTART"),&
               cp_p_file)) THEN
 
        rst_unit = cp_print_key_unit_nr(logger,qmmm_section,&
@@ -1014,19 +967,18 @@ CONTAINS
                            extension=".Image",&
                            file_status="REPLACE",&
                            file_action="WRITE",&
-                           file_form="UNFORMATTED",&
-                           error=error)
+                           file_form="UNFORMATTED")
 
        IF(rst_unit>0) filename = cp_print_key_generate_filename(logger,&
                                  print_key, extension=".IMAGE", &
-                                 my_local=.FALSE.,error=error)
+                                 my_local=.FALSE.)
 
        IF(rst_unit>0) THEN
          WRITE(rst_unit) image_matrix
        ENDIF
        
        CALL cp_print_key_finished_output(rst_unit,logger,qmmm_section,&
-                       "QMMM%PRINT%IMAGE_CHARGE_RESTART", error=error)
+                       "QMMM%PRINT%IMAGE_CHARGE_RESTART")
     ENDIF
 
     CALL timestop(handle)
@@ -1039,15 +991,12 @@ CONTAINS
 !> \param image_matrix matrix T
 !> \param qs_env qs environment
 !> \param qmmm_env qmmm environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE restart_image_matrix(image_matrix,qs_env,qmmm_env,error)
+  SUBROUTINE restart_image_matrix(image_matrix,qs_env,qmmm_env)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_image_matrix', &
       routineP = moduleN//':'//routineN
@@ -1063,7 +1012,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(qmmm_section, logger, para_env)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     failure = .FALSE.
     exist= .FALSE.
     rst_unit=-1
@@ -1072,17 +1021,16 @@ CONTAINS
  
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
        ALLOCATE(image_matrix(natom,natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ENDIF
    
     image_matrix=0.0_dp 
     
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,&
-                    input=qmmm_section,&
-                    error=error)
+                    input=qmmm_section)
 
     CALL section_vals_val_get(qmmm_section,"QMMM%IMAGE_CHARGE%IMAGE_RESTART_FILE_NAME",&
-                               c_val=image_filename, error=error)
+                               c_val=image_filename)
 
     INQUIRE(FILE=image_filename, exist=exist)
  
@@ -1103,7 +1051,7 @@ CONTAINS
 
       output_unit=cp_print_key_unit_nr(logger,qmmm_section,&
                              "QMMM%PRINT%PROGRAM_RUN_INFO",&
-                            extension=".qmmmLog",error=error)
+                            extension=".qmmmLog")
       IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
                              "Restarted image matrix"
     ELSE
@@ -1122,15 +1070,12 @@ CONTAINS
 !> \param forces structure storing the force contribution of the image charges 
 !>        for the metal (MM) atoms (actually these are only the gradients)
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE print_gradients_image_atoms(forces,qs_env,error)
+  SUBROUTINE print_gradients_image_atoms(forces,qs_env)
 
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_gradients_image_atoms', &
       routineP = moduleN//':'//routineN
@@ -1142,7 +1087,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
 
     NULLIFY(input, logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     sum_gradients=0.0_dp
     natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
@@ -1151,10 +1096,10 @@ CONTAINS
       sum_gradients(:)=sum_gradients(:)+forces(:,iatom)
     ENDDO
 
-    CALL get_qs_env(qs_env=qs_env,input=input,error=error)
+    CALL get_qs_env(qs_env=qs_env,input=input)
 
     output_unit = cp_print_key_unit_nr(logger,input,&
-                 "QMMM%PRINT%DERIVATIVES",extension=".Log",error=error)
+                 "QMMM%PRINT%DERIVATIVES",extension=".Log")
     IF(output_unit>0) THEN
        WRITE (unit=output_unit,fmt="(/1X,A)")&
         "Image gradients [a.u.] on MM image charge atoms after QMMM calculation: "
@@ -1173,7 +1118,7 @@ CONTAINS
     ENDIF
 
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-           "QMMM%PRINT%DERIVATIVES",error=error)
+           "QMMM%PRINT%DERIVATIVES")
 
   END SUBROUTINE print_gradients_image_atoms
 
@@ -1181,14 +1126,11 @@ CONTAINS
 !> \brief Print image coefficients
 !> \param image_coeff expansion coefficients of the image charge density
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE print_image_coefficients(image_coeff,qs_env,error)
+  SUBROUTINE print_image_coefficients(image_coeff,qs_env)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: image_coeff
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_coefficients', &
       routineP = moduleN//':'//routineN
@@ -1200,7 +1142,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
 
     NULLIFY(input, logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     
     sum_coeff=0.0_dp
     natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
@@ -1210,10 +1152,10 @@ CONTAINS
       sum_coeff=sum_coeff+image_coeff(iatom)
     ENDDO
     
-    CALL get_qs_env(qs_env=qs_env,input=input,error=error)
+    CALL get_qs_env(qs_env=qs_env,input=input)
     
     output_unit = cp_print_key_unit_nr(logger,input,&
-                "QMMM%PRINT%IMAGE_CHARGE_INFO",extension=".Log",error=error)
+                "QMMM%PRINT%IMAGE_CHARGE_INFO",extension=".Log")
     IF(output_unit>0) THEN
       WRITE (unit=output_unit,fmt="(/)")
       WRITE (unit=output_unit,fmt="(T2,A)")&
@@ -1236,7 +1178,7 @@ CONTAINS
     ENDIF
     
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-           "QMMM%PRINT%IMAGE_CHARGE_INFO",error=error)
+           "QMMM%PRINT%IMAGE_CHARGE_INFO")
 
   END SUBROUTINE print_image_coefficients
 
@@ -1248,16 +1190,13 @@ CONTAINS
 !>        to an external potential, i.e. V0*total_rho_metal
 !> \param total_rho_metal total induced image charge density
 !> \param qs_env qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE print_image_energy_terms(en_vmetal_rhohartree,en_external,&
-                                    total_rho_metal,qs_env,error)
+                                    total_rho_metal,qs_env)
 
     REAL(KIND=dp), INTENT(IN)                :: en_vmetal_rhohartree, &
                                                 en_external, total_rho_metal
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_energy_terms', &
       routineP = moduleN//':'//routineN
@@ -1267,12 +1206,12 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
 
     NULLIFY(input, logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     
-    CALL get_qs_env(qs_env=qs_env,input=input,error=error)
+    CALL get_qs_env(qs_env=qs_env,input=input)
     
     output_unit = cp_print_key_unit_nr(logger,input,&
-                "QMMM%PRINT%IMAGE_CHARGE_INFO",extension=".Log",error=error)
+                "QMMM%PRINT%IMAGE_CHARGE_INFO",extension=".Log")
     
     IF(output_unit>0) THEN
       WRITE (unit=output_unit,fmt="(T3,A,T56,F25.14)")&
@@ -1287,7 +1226,7 @@ CONTAINS
     ENDIF
     
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-           "QMMM%PRINT%IMAGE_CHARGE_INFO",error=error)
+           "QMMM%PRINT%IMAGE_CHARGE_INFO")
 
   END SUBROUTINE print_image_energy_terms
 

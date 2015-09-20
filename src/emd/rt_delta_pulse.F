@@ -74,15 +74,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param mos_old ...
 !> \param mos_new ...
-!> \param error ...
 !> \author Joost & Martin (2011)
 ! *****************************************************************************
 
-  SUBROUTINE apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
+  SUBROUTINE apply_delta_pulse_periodic(qs_env,mos_old,mos_new)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_old, mos_new
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_periodic', &
       routineP = moduleN//':'//routineN
@@ -121,49 +119,48 @@ CONTAINS
                     rtp=rtp,&
                     matrix_s=matrix_s,&
                     matrix_ks=matrix_ks,&
-                    dft_control=dft_control,&
-                    error=error)
-    CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
-    CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol", error=error)
-    CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm", error=error)
-    CALL cp_fm_create(tmpS, matrix_struct=rtp%ao_ao_fmstruct,error=error)
-    CALL copy_dbcsr_to_fm(S_inv,S_inv_fm,error=error)
-    CALL cp_fm_upper_to_full(S_inv_fm,tmpS,error=error)
-    CALL cp_fm_get_info(S_inv_fm,nrow_global=nrow_global,error=error) 
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_chol,error=error)
-    CALL cp_fm_cholesky_decompose(S_chol,error=error)
+                    dft_control=dft_control)
+    CALL get_rtp(rtp=rtp,S_inv=S_inv)
+    CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
+    CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
+    CALL cp_fm_create(tmpS, matrix_struct=rtp%ao_ao_fmstruct)
+    CALL copy_dbcsr_to_fm(S_inv,S_inv_fm)
+    CALL cp_fm_upper_to_full(S_inv_fm,tmpS)
+    CALL cp_fm_get_info(S_inv_fm,nrow_global=nrow_global) 
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_chol)
+    CALL cp_fm_cholesky_decompose(S_chol)
     NULLIFY(mat_ks,eigenvectors,mat_tmp)
-    CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks", error=error)
-    CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors", error=error)
+    CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
+    CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
 
     DO ispin=1,SIZE(matrix_ks)
        ALLOCATE(eigenvalues(nrow_global))
-       CALL cp_fm_create(mat_tmp, matrix_struct=S_inv_fm%matrix_struct, name="mat_tmp", error=error)
+       CALL cp_fm_create(mat_tmp, matrix_struct=S_inv_fm%matrix_struct, name="mat_tmp")
 
-       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,mat_ks,error=error)
-       CALL cp_fm_cholesky_reduce(mat_ks,S_chol,error=error)
-       CALL cp_fm_syevd(mat_ks,mat_tmp,eigenvalues,error=error)
-       CALL cp_fm_cholesky_restore(mat_tmp,nrow_global,S_chol,eigenvectors,"SOLVE",error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,mat_ks)
+       CALL cp_fm_cholesky_reduce(mat_ks,S_chol)
+       CALL cp_fm_syevd(mat_ks,mat_tmp,eigenvalues)
+       CALL cp_fm_cholesky_restore(mat_tmp,nrow_global,S_chol,eigenvectors,"SOLVE")
 
        ! virtuals
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
        nvirt=nao-nmo
        CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
-                                nrow_global=nrow_global, ncol_global=nvirt, error=error)
-       CALL cp_fm_create(virtuals, matrix_struct=fm_struct_tmp, name="virtuals", error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+                                nrow_global=nrow_global, ncol_global=nvirt)
+       CALL cp_fm_create(virtuals, matrix_struct=fm_struct_tmp, name="virtuals")
+       CALL cp_fm_struct_release(fm_struct_tmp)
        CALL cp_fm_to_fm(eigenvectors,virtuals,nvirt,nmo+1,1)
 
        ! occupied
        CALL cp_fm_to_fm(eigenvectors,mos_old(2*ispin-1)%matrix,nmo,1,1)
 
        CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
-                                nrow_global=nvirt, ncol_global=nmo, error=error)
-       CALL cp_fm_create(momentum, matrix_struct=fm_struct_tmp, name="momentum", error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+                                nrow_global=nvirt, ncol_global=nmo)
+       CALL cp_fm_create(momentum, matrix_struct=fm_struct_tmp, name="momentum")
+       CALL cp_fm_struct_release(fm_struct_tmp)
 
        ! the momentum operator (in a given direction)
-       CALL cp_fm_set_all( mos_new(2*ispin-1)%matrix,0.0_dp,error=error)
+       CALL cp_fm_set_all( mos_new(2*ispin-1)%matrix,0.0_dp)
 
        ! the prefactor (strength of the electric field)
        kvec(:) = cell%h_inv(1,:)*dft_control%rtp_control%delta_pulse_direction(1)+&
@@ -175,100 +172,100 @@ CONTAINS
           factor= kvec(idir)
           IF (factor.NE.0.0_dp) THEN
              CALL cp_dbcsr_sm_fm_multiply(matrix_s(idir+1)%matrix,mos_old(2*ispin-1)%matrix,&
-                                          mos_old(2*ispin)%matrix,ncol=nmo,error=error)
-             CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin-1)%matrix,factor,mos_old(2*ispin)%matrix,error)
+                                          mos_old(2*ispin)%matrix,ncol=nmo)
+             CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin-1)%matrix,factor,mos_old(2*ispin)%matrix)
           ENDIF
        ENDDO
 
-       CALL cp_gemm('T','N',nvirt,nmo,nao,1.0_dp, virtuals, mos_new(2*ispin-1)%matrix,0.0_dp,momentum,error=error)
+       CALL cp_gemm('T','N',nvirt,nmo,nao,1.0_dp, virtuals, mos_new(2*ispin-1)%matrix,0.0_dp,momentum)
 
 
        ! the tricky bit ... rescale by the eigenvalue difference
        CALL cp_fm_get_info(momentum, nrow_local=nrow_local, ncol_local=ncol_local,&
-                           row_indices=row_indices,col_indices=col_indices,local_data=local_data,error=error)
+                           row_indices=row_indices,col_indices=col_indices,local_data=local_data)
        DO icol=1,ncol_local
           DO irow=1,nrow_local
              factor= 1 / (eigenvalues(col_indices(icol))-eigenvalues(nmo+row_indices(irow)))
              local_data(irow,icol)=factor*local_data(irow,icol)
           ENDDO
        ENDDO
-       CALL cp_fm_release(mat_tmp,error=error)
+       CALL cp_fm_release(mat_tmp)
        DEALLOCATE(eigenvalues)
 
 
        ! now obtain the initial condition in mos_old
        CALL cp_fm_to_fm(eigenvectors,mos_old(2*ispin-1)%matrix,nmo,1,1)
-       CALL cp_gemm("N","N",nao,nmo,nvirt,1.0_dp,virtuals,momentum,0.0_dp,mos_old(2*ispin)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nvirt,1.0_dp,virtuals,momentum,0.0_dp,mos_old(2*ispin)%matrix)
 
-       CALL cp_fm_release(virtuals, error=error)
-       CALL cp_fm_release(momentum, error=error)
+       CALL cp_fm_release(virtuals)
+       CALL cp_fm_release(momentum)
 
        ! orthonormalize afterwards
        CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
-                                nrow_global=nmo, ncol_global=nmo, error=error)
-       CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1", error=error)
-       CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2", error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp, error=error)
+                                nrow_global=nmo, ncol_global=nmo)
+       CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
+       CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
+       CALL cp_fm_struct_release(fm_struct_tmp)
 
-       CALL cp_fm_create(mat_tmp, matrix_struct=mos_old(2*ispin-1)%matrix%matrix_struct, name="tmp_mat", error=error)
+       CALL cp_fm_create(mat_tmp, matrix_struct=mos_old(2*ispin-1)%matrix%matrix_struct, name="tmp_mat")
        ! get the complex overlap matrix
        ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mos_old(2*ispin-1)%matrix,&
-                                          mat_tmp,ncol=nmo,error=error)
+                                          mat_tmp,ncol=nmo)
 
-       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,0.0_dp,oo_1,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,0.0_dp,oo_2,error=error)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,0.0_dp,oo_1)
+       CALL cp_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,0.0_dp,oo_2)
 
        CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mos_old(2*ispin)%matrix,&
-                                          mat_tmp,ncol=nmo,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,1.0_dp,oo_1,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,1.0_dp,oo_2,error=error)
-       CALL cp_fm_release(mat_tmp, error=error)
+                                          mat_tmp,ncol=nmo)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin)%matrix,mat_tmp,1.0_dp,oo_1)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*ispin-1)%matrix,mat_tmp,1.0_dp,oo_2)
+       CALL cp_fm_release(mat_tmp)
 
-       CALL cp_cfm_create ( oo_c, oo_1 % matrix_struct,error=error)
-       CALL cp_cfm_create ( oo_v, oo_1 % matrix_struct,error=error)
-       CALL cp_cfm_create ( oo_vt, oo_1 % matrix_struct,error=error)
+       CALL cp_cfm_create ( oo_c, oo_1 % matrix_struct)
+       CALL cp_cfm_create ( oo_v, oo_1 % matrix_struct)
+       CALL cp_cfm_create ( oo_vt, oo_1 % matrix_struct)
        oo_c % local_data = CMPLX(oo_1%local_data,oo_2%local_data,KIND=dp)
 
        ! compute inv(sqrt(overlap))
        ALLOCATE(eigenvalues(nmo))
        ALLOCATE(eigenvalues_sqrt(nmo))
-       CALL cp_cfm_heevd(oo_c,oo_v,eigenvalues,error)
+       CALL cp_cfm_heevd(oo_c,oo_v,eigenvalues)
        eigenvalues_sqrt=CMPLX(1.0_dp/SQRT(eigenvalues),0.0_dp,dp)
-       CALL cp_cfm_to_cfm(oo_v,oo_vt,error=error)
+       CALL cp_cfm_to_cfm(oo_v,oo_vt)
        CALL cp_cfm_column_scale(oo_v,eigenvalues_sqrt)
        DEALLOCATE(eigenvalues)
        DEALLOCATE(eigenvalues_sqrt)
        CALL cp_cfm_gemm('N','C',nmo,nmo,nmo,(1.0_dp,0.0_dp),&
-            oo_v,oo_vt,(0.0_dp,0.0_dp),oo_c,error=error)
+            oo_v,oo_vt,(0.0_dp,0.0_dp),oo_c)
        oo_1%local_data=REAL(oo_c%local_data,KIND=dp)
        oo_2%local_data=AIMAG(oo_c%local_data)
-       CALL cp_cfm_release(oo_c,error=error)
-       CALL cp_cfm_release(oo_v,error=error)
-       CALL cp_cfm_release(oo_vt,error=error)
+       CALL cp_cfm_release(oo_c)
+       CALL cp_cfm_release(oo_v)
+       CALL cp_cfm_release(oo_vt)
 
        ! use this to compute the orthonormal vectors
-       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_1,0.0_dp,mos_new(2*ispin-1)%matrix,error=error)
-       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_2,0.0_dp,mos_new(2*ispin)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_1,0.0_dp,mos_new(2*ispin-1)%matrix)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin-1)%matrix,oo_2,0.0_dp,mos_new(2*ispin)%matrix)
 
-       CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*ispin)%matrix,oo_2,0.0_dp,mos_old(2*ispin-1)%matrix,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,mos_old(2*ispin-1)%matrix,1.0_dp,mos_new(2*ispin-1)%matrix,error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*ispin)%matrix,oo_2,0.0_dp,mos_old(2*ispin-1)%matrix)
+       CALL cp_fm_scale_and_add(1.0_dp,mos_old(2*ispin-1)%matrix,1.0_dp,mos_new(2*ispin-1)%matrix)
 
-       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin)%matrix,oo_1,1.0_dp,mos_new(2*ispin)%matrix,error=error)
-       CALL cp_fm_to_fm(mos_new(2*ispin)%matrix,mos_old(2*ispin)%matrix,error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*ispin)%matrix,oo_1,1.0_dp,mos_new(2*ispin)%matrix)
+       CALL cp_fm_to_fm(mos_new(2*ispin)%matrix,mos_old(2*ispin)%matrix)
 
-       CALL cp_fm_release(oo_1,error=error)
-       CALL cp_fm_release(oo_2,error=error)
+       CALL cp_fm_release(oo_1)
+       CALL cp_fm_release(oo_2)
     END DO
 
-    CALL cp_fm_release(S_chol, error=error)
-    CALL cp_fm_release(mat_ks, error=error)
-    CALL cp_fm_release(eigenvectors, error=error)
+    CALL cp_fm_release(S_chol)
+    CALL cp_fm_release(mat_ks)
+    CALL cp_fm_release(eigenvectors)
 
 !***************************************************************
 !remove later
-    CALL cp_fm_release(S_inv_fm,error=error)
-    CALL cp_fm_release(tmpS,error=error)
+    CALL cp_fm_release(S_inv_fm)
+    CALL cp_fm_release(tmpS)
 !**************************************************************
     CALL timestop(handle)
 
@@ -279,15 +276,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param mos_old ...
 !> \param mos_new ...
-!> \param error ...
 !> \author Joost & Martin (2011)
 ! *****************************************************************************
 
-  SUBROUTINE apply_delta_pulse(qs_env,mos_old,mos_new,error)
+  SUBROUTINE apply_delta_pulse(qs_env,mos_old,mos_new)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_old, mos_new
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse', &
       routineP = moduleN//':'//routineN
@@ -319,27 +314,26 @@ CONTAINS
                     mos=mos,&
                     rtp=rtp,&
                     matrix_s=matrix_s,&
-                    dft_control=dft_control,&
-                    error=error)
-    CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
+                    dft_control=dft_control)
+    CALL get_rtp(rtp=rtp,S_inv=S_inv)
 
-    CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat", error=error)
+    CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
 
-    CALL cp_fm_create(tmp,matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat", error=error)
+    CALL cp_fm_create(tmp,matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
 
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_inv_fm,error=error)
-    CALL cp_fm_cholesky_decompose(S_inv_fm,error=error)
-    CALL cp_fm_cholesky_invert(S_inv_fm,error=error)
-    CALL cp_fm_upper_to_full(S_inv_fm,tmp,error=error)
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,S_inv_fm)
+    CALL cp_fm_cholesky_decompose(S_inv_fm)
+    CALL cp_fm_cholesky_invert(S_inv_fm)
+    CALL cp_fm_upper_to_full(S_inv_fm,tmp)
 
-    CALL cp_fm_create(mat_S, matrix_struct=S_inv_fm%matrix_struct, name="mat_S", error=error)
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,mat_S,error=error)
-    CALL cp_fm_upper_to_full(mat_S,tmp,error=error)
+    CALL cp_fm_create(mat_S, matrix_struct=S_inv_fm%matrix_struct, name="mat_S")
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,mat_S)
+    CALL cp_fm_upper_to_full(mat_S,tmp)
 
-    CALL cp_fm_release(tmp,error=error)
+    CALL cp_fm_release(tmp)
 
     ! we need the berry matrix
-    CALL get_qs_env(qs_env, cell=cell, error=error)
+    CALL get_qs_env(qs_env, cell=cell)
 
     ! direction ... unscaled, this will yield a exp(ikr) that is periodic with the cell
     kvec(:) = cell%h_inv(1,:)*dft_control%rtp_control%delta_pulse_direction(1)+&
@@ -350,86 +344,86 @@ CONTAINS
     kvec(:) = dft_control%rtp_control%delta_pulse_scale * kvec
 
     ALLOCATE(cosmat, sinmat)
-    CALL cp_dbcsr_init(cosmat, error=error)
-    CALL cp_dbcsr_init(sinmat, error=error)
-    CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
-    CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
-    CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+    CALL cp_dbcsr_init(cosmat)
+    CALL cp_dbcsr_init(sinmat)
+    CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM')
+    CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM')
+    CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec)
 
     ! apply inv(S)*operator to C
     DO i=1,SIZE(mos)
        CALL get_mo_set(mos(i)%mo_set, nao=nao,nmo=nmo)
-       CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i-1)%matrix, ncol=nmo, error=error)
-       CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_set%mo_coeff, mos_new(2*i)%matrix, ncol=nmo, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i-1)%matrix, ncol=nmo)
+       CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_set%mo_coeff, mos_new(2*i)%matrix, ncol=nmo)
 
-       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i-1)%matrix,0.0_dp,mos_old(2*i-1)%matrix,error=error)
-       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i)%matrix,0.0_dp,mos_old(2*i)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i-1)%matrix,0.0_dp,mos_old(2*i-1)%matrix)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,S_inv_fm,mos_new(2*i)%matrix,0.0_dp,mos_old(2*i)%matrix)
 
        ! in a finite basis, unfortunately, inv(S)*operator is not unitary, so orthonormalize afterwards
        CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context,&
-                                nrow_global=nmo, ncol_global=nmo, error=error)
-       CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1", error=error)
-       CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2", error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp, error=error)
+                                nrow_global=nmo, ncol_global=nmo)
+       CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
+       CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
+       CALL cp_fm_struct_release(fm_struct_tmp)
 
-       CALL cp_fm_create(tmp, matrix_struct=mos_old(2*i-1)%matrix%matrix_struct, name="tmp_mat", error=error)
+       CALL cp_fm_create(tmp, matrix_struct=mos_old(2*i-1)%matrix%matrix_struct, name="tmp_mat")
        ! get the complex overlap matrix
        ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
-       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i-1)%matrix,0.0_dp,tmp,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,0.0_dp,oo_1,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*i)%matrix,tmp,0.0_dp,oo_2,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i-1)%matrix,0.0_dp,tmp)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,0.0_dp,oo_1)
+       CALL cp_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_old(2*i)%matrix,tmp,0.0_dp,oo_2)
 
-       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i)%matrix,0.0_dp,tmp,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i)%matrix,tmp,1.0_dp,oo_1,error=error)
-       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,1.0_dp,oo_2,error=error)
-       CALL cp_fm_release(tmp, error=error)
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,mat_S,mos_old(2*i)%matrix,0.0_dp,tmp)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i)%matrix,tmp,1.0_dp,oo_1)
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_old(2*i-1)%matrix,tmp,1.0_dp,oo_2)
+       CALL cp_fm_release(tmp)
 
-       CALL cp_cfm_create ( oo_c, oo_1 % matrix_struct,error=error)
-       CALL cp_cfm_create ( oo_v, oo_1 % matrix_struct,error=error)
-       CALL cp_cfm_create ( oo_vt, oo_1 % matrix_struct,error=error)
+       CALL cp_cfm_create ( oo_c, oo_1 % matrix_struct)
+       CALL cp_cfm_create ( oo_v, oo_1 % matrix_struct)
+       CALL cp_cfm_create ( oo_vt, oo_1 % matrix_struct)
        oo_c % local_data = CMPLX(oo_1%local_data,oo_2%local_data,KIND=dp)
 
        ! compute inv(sqrt(overlap))
        ALLOCATE(eigenvalues(nmo))
        ALLOCATE(eigenvalues_sqrt(nmo))
-       CALL cp_cfm_heevd(oo_c,oo_v,eigenvalues,error)
+       CALL cp_cfm_heevd(oo_c,oo_v,eigenvalues)
        eigenvalues_sqrt=CMPLX(1.0_dp/SQRT(eigenvalues),0.0_dp,dp)
-       CALL cp_cfm_to_cfm(oo_v,oo_vt,error=error)
+       CALL cp_cfm_to_cfm(oo_v,oo_vt)
        CALL cp_cfm_column_scale(oo_v,eigenvalues_sqrt)
        DEALLOCATE(eigenvalues)
        DEALLOCATE(eigenvalues_sqrt)
        CALL cp_cfm_gemm('N','C',nmo,nmo,nmo,(1.0_dp,0.0_dp),&
-            oo_v,oo_vt,(0.0_dp,0.0_dp),oo_c,error=error)
+            oo_v,oo_vt,(0.0_dp,0.0_dp),oo_c)
        oo_1%local_data=REAL(oo_c%local_data,KIND=dp)
        oo_2%local_data=AIMAG(oo_c%local_data)
-       CALL cp_cfm_release(oo_c,error=error)
-       CALL cp_cfm_release(oo_v,error=error)
-       CALL cp_cfm_release(oo_vt,error=error)
+       CALL cp_cfm_release(oo_c)
+       CALL cp_cfm_release(oo_v)
+       CALL cp_cfm_release(oo_vt)
 
        ! use this to compute the orthonormal vectors
-       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_1,0.0_dp,mos_new(2*i-1)%matrix,error=error)
-       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_2,0.0_dp,mos_new(2*i)%matrix,error=error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_1,0.0_dp,mos_new(2*i-1)%matrix)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i-1)%matrix,oo_2,0.0_dp,mos_new(2*i)%matrix)
 
-       CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*i)%matrix,oo_2,0.0_dp,mos_old(2*i-1)%matrix,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,mos_old(2*i-1)%matrix,1.0_dp,mos_new(2*i-1)%matrix,error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,-1.0_dp,mos_old(2*i)%matrix,oo_2,0.0_dp,mos_old(2*i-1)%matrix)
+       CALL cp_fm_scale_and_add(1.0_dp,mos_old(2*i-1)%matrix,1.0_dp,mos_new(2*i-1)%matrix)
 
-       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i)%matrix,oo_1,1.0_dp,mos_new(2*i)%matrix,error=error)
-       CALL cp_fm_to_fm(mos_new(2*i)%matrix,mos_old(2*i)%matrix,error)
+       CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mos_old(2*i)%matrix,oo_1,1.0_dp,mos_new(2*i)%matrix)
+       CALL cp_fm_to_fm(mos_new(2*i)%matrix,mos_old(2*i)%matrix)
 
-       CALL cp_fm_release(oo_1,error=error)
-       CALL cp_fm_release(oo_2,error=error)
+       CALL cp_fm_release(oo_1)
+       CALL cp_fm_release(oo_2)
     END DO
 
-    CALL cp_fm_release(mat_S, error=error)
+    CALL cp_fm_release(mat_S)
 
-    CALL cp_dbcsr_deallocate_matrix(cosmat, error)
-    CALL cp_dbcsr_deallocate_matrix(sinmat, error)
+    CALL cp_dbcsr_deallocate_matrix(cosmat)
+    CALL cp_dbcsr_deallocate_matrix(sinmat)
 
 !***************************************************************
 !remove later
-    CALL copy_fm_to_dbcsr(S_inv_fm,S_inv,error=error)
-    CALL cp_dbcsr_filter(S_inv,rtp%filter_eps,error=error)
-    CALL cp_fm_release(S_inv_fm,error=error)
+    CALL copy_fm_to_dbcsr(S_inv_fm,S_inv)
+    CALL cp_dbcsr_filter(S_inv,rtp%filter_eps)
+    CALL cp_fm_release(S_inv_fm)
 !**************************************************************
 
     CALL timestop(handle)

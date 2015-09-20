@@ -64,14 +64,12 @@ CONTAINS
 !> \param force_env ...
 !> \param only_intra_colvar ...
 !> \param unique ...
-!> \param error ...
 !> \retval ntot ...
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
-  FUNCTION number_of_colvar(force_env, only_intra_colvar, unique, error) RESULT(ntot)
+  FUNCTION number_of_colvar(force_env, only_intra_colvar, unique) RESULT(ntot)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: only_intra_colvar, unique
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: ntot
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'number_of_colvar', &
@@ -97,9 +95,9 @@ CONTAINS
     IF (PRESENT(only_intra_colvar)) skip_inter_colvar = only_intra_colvar
     IF (PRESENT(unique)) my_unique = unique
     ntot = 0
-    CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys)
     CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,  gci=gci,&
-         molecule_kinds_new=molecule_kinds, error=error)
+         molecule_kinds_new=molecule_kinds)
 
     molecule_set      => molecules % els
     ! Intramolecular Colvar
@@ -134,13 +132,11 @@ CONTAINS
 !> \brief Set the value of target for constraints/restraints
 !> \param targets ...
 !> \param force_env ...
-!> \param error ...
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE set_colvars_target(targets, force_env, error)
+  SUBROUTINE set_colvars_target(targets, force_env)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: targets
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_colvars_target', &
       routineP = moduleN//':'//routineN
@@ -159,9 +155,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(cell, subsys, molecule_kinds, molecule_kind, gci, colv_list)
     CALL timeset(routineN,handle)
-    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
-    CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds,&
-         error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
+    CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds)
 
     nkind  =  molecule_kinds % n_els
     ! Set Target for Intramolecular Colvars
@@ -199,10 +194,9 @@ CONTAINS
 !> \param Bmatrix ...
 !> \param MassI ...
 !> \param Amatrix ...
-!> \param error ...
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE eval_colvar ( force_env, coords, cvalues, Bmatrix, MassI, Amatrix, error )
+  SUBROUTINE eval_colvar ( force_env, coords, cvalues, Bmatrix, MassI, Amatrix)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), &
@@ -214,7 +208,6 @@ CONTAINS
       POINTER                                :: MassI
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: Amatrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colvar', &
       routineP = moduleN//':'//routineN
@@ -246,14 +239,14 @@ CONTAINS
          molecule_set, particles, particle_set, gci)
     IF (PRESENT(Bmatrix)) THEN
        check = ASSOCIATED(Bmatrix)
-       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       CPPrecondition(check, cp_failure_level, routineP,failure)
        Bmatrix = 0.0_dp
     END IF
     CALL timeset(routineN,handle)
     ALLOCATE(map(SIZE(cvalues)), stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     map=HUGE(0) ! init all, since used in a sort, but not all set in parallel.
-    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
     n_tot=0
     cvalues = 0.0_dp
     CALL cp_subsys_get(subsys=subsys,&
@@ -261,14 +254,13 @@ CONTAINS
          molecules_new=molecules,&
          local_molecules_new=local_molecules,&
          gci=gci,&
-         molecule_kinds_new=molecule_kinds,&
-         error=error)
+         molecule_kinds_new=molecule_kinds)
 
     nkind             =  molecule_kinds % n_els
     particle_set      => particles%els
     molecule_set      => molecules % els
     ! Intramolecular Colvars
-    IF (number_of_colvar(force_env, only_intra_colvar=.TRUE., error=error)/=0) THEN
+    IF (number_of_colvar(force_env, only_intra_colvar=.TRUE.)/=0) THEN
        MOL:  DO ikind = 1, nkind
           nmol_per_kind = local_molecules % n_el ( ikind )
           DO imol = 1, nmol_per_kind
@@ -282,7 +274,7 @@ CONTAINS
              ! Collective variables
              IF ( ncolv%ntot /= 0 ) THEN
                 CALL eval_colv_int( molecule, particle_set, coords, cell, cvalues,&
-                                    Bmatrix, offset, n_tot, map, error )
+                                    Bmatrix, offset, n_tot, map)
              ENDIF
           END DO
        END DO MOL
@@ -295,16 +287,16 @@ CONTAINS
     IF (ASSOCIATED(gci)) THEN
        IF ( gci%ncolv%ntot /= 0 ) THEN
           CALL eval_colv_ext( gci, particle_set, coords, cell, cvalues,&
-                              Bmatrix, offset, n_tot, map, error )
+                              Bmatrix, offset, n_tot, map)
        ENDIF
     END IF
-    CPPrecondition(n_tot==SIZE(cvalues), cp_failure_level, routineP, error, failure)
+    CPPrecondition(n_tot==SIZE(cvalues), cp_failure_level, routineP,failure)
     ! Sort values of Collective Variables according the order of the input
     ! sections
     ALLOCATE(wrk(SIZE(cvalues)), stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     ALLOCATE(rwrk(SIZE(cvalues)), stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     CALL sort(map, SIZE(map), wrk)
     rwrk = cvalues
     DO i = 1, SIZE(wrk)
@@ -313,49 +305,48 @@ CONTAINS
     ! check and sort on Bmatrix
     IF (PRESENT(Bmatrix)) THEN
        check = n_tot==SIZE(Bmatrix,2)
-       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       CPPrecondition(check, cp_failure_level, routineP,failure)
        ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
        bwrk(:,:) = Bmatrix
        DO i = 1, SIZE(wrk)
           Bmatrix(:,i) = bwrk(:,wrk(i))
        END DO
        DEALLOCATE(bwrk, stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     DEALLOCATE(rwrk, stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(wrk, stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     DEALLOCATE(map, stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     ! Construction of the Amatrix
     IF (PRESENT(Bmatrix).AND.PRESENT(Amatrix)) THEN
-       CPPrecondition(ASSOCIATED(Amatrix), cp_failure_level, routineP, error, failure)
+       CPPrecondition(ASSOCIATED(Amatrix), cp_failure_level, routineP,failure)
        check = SIZE(Bmatrix,1)==SIZE(Amatrix,2)
-       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       CPPrecondition(check, cp_failure_level, routineP,failure)
        check = SIZE(Bmatrix,2)==SIZE(Amatrix,1)
-       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       CPPrecondition(check, cp_failure_level, routineP,failure)
        ALLOCATE(Gmatrix(n_tot,n_tot), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
        ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
        Gmatrix(:,:) = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
-       CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error, error=error)
+       CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error)
        CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
             "Error in inverting the Gmatrix larger than 1.0E-8!"//&
-CPSourceFileRef,&
-            error)
+CPSourceFileRef)
        Amatrix = MATMUL(Gmatrix_i,TRANSPOSE(Bmatrix))
        DEALLOCATE(Gmatrix_i, stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
        DEALLOCATE(Gmatrix, stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
     END IF
     IF (PRESENT(MassI)) THEN
        natom = SIZE(particle_set)
-       CPPrecondition(ASSOCIATED(MassI), cp_failure_level, routineP, error, failure)
-       CPPrecondition(SIZE(MassI)==natom*3, cp_failure_level, routineP, error, failure)
+       CPPrecondition(ASSOCIATED(MassI), cp_failure_level, routineP,failure)
+       CPPrecondition(SIZE(MassI)==natom*3, cp_failure_level, routineP,failure)
        DO i = 1, natom
           MassI((i-1)*3+1) = 1.0_dp/particle_set(i)%atomic_kind%mass
           MassI((i-1)*3+2) = 1.0_dp/particle_set(i)%atomic_kind%mass
@@ -405,11 +396,10 @@ CPSourceFileRef,&
 !> \param offset ...
 !> \param n_tot ...
 !> \param map ...
-!> \param error ...
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
   SUBROUTINE eval_colv_int( molecule, particle_set, coords, cell, cvalues,&
-       Bmatrix, offset, n_tot, map, error )
+       Bmatrix, offset, n_tot, map)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -423,7 +413,6 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: offset
     INTEGER, INTENT(INOUT)                   :: n_tot
     INTEGER, DIMENSION(:), POINTER           :: map
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_int', &
       routineP = moduleN//':'//routineN
@@ -443,7 +432,7 @@ CPSourceFileRef,&
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, lcolv=lcolv )
     CALL eval_colv_low( colv_list, fixd_list, lcolv, particle_set,&
-         coords, cell, cvalues, Bmatrix, offset, n_tot, map, error)
+         coords, cell, cvalues, Bmatrix, offset, n_tot, map)
 
   END SUBROUTINE eval_colv_int
 
@@ -458,11 +447,10 @@ CPSourceFileRef,&
 !> \param offset ...
 !> \param n_tot ...
 !> \param map ...
-!> \param error ...
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
   SUBROUTINE eval_colv_ext( gci, particle_set, coords, cell, cvalues,&
-       Bmatrix, offset, n_tot, map, error )
+       Bmatrix, offset, n_tot, map)
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), DIMENSION(:), &
@@ -475,7 +463,6 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: offset
     INTEGER, INTENT(INOUT)                   :: n_tot
     INTEGER, DIMENSION(:), POINTER           :: map
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_ext', &
       routineP = moduleN//':'//routineN
@@ -490,7 +477,7 @@ CPSourceFileRef,&
     fixd_list => gci%fixd_list
     lcolv => gci%lcolv
     CALL eval_colv_low( colv_list, fixd_list, lcolv, particle_set,&
-          coords, cell, cvalues, Bmatrix, offset, n_tot, map, error)
+          coords, cell, cvalues, Bmatrix, offset, n_tot, map)
 
   END SUBROUTINE eval_colv_ext
 
@@ -509,11 +496,10 @@ CPSourceFileRef,&
 !> \param offset ...
 !> \param n_tot ...
 !> \param map ...
-!> \param error ...
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
   SUBROUTINE eval_colv_low( colv_list, fixd_list, lcolv, particle_set, coords,&
-       cell, cvalues, Bmatrix, offset, n_tot, map, error)
+       cell, cvalues, Bmatrix, offset, n_tot, map)
 
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -531,7 +517,6 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: offset
     INTEGER, INTENT(INOUT)                   :: n_tot
     INTEGER, DIMENSION(:), POINTER           :: map
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_low', &
       routineP = moduleN//':'//routineN
@@ -547,11 +532,10 @@ CPSourceFileRef,&
        ! Update colvar
        IF (PRESENT(coords)) THEN
           CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, particles=particle_set,&
-               pos=RESHAPE(coords,(/3,SIZE(particle_set)/)), fixd_list=fixd_list, &
-               error=error)
+               pos=RESHAPE(coords,(/3,SIZE(particle_set)/)), fixd_list=fixd_list)
        ELSE
           CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, particles=particle_set,&
-               fixd_list=fixd_list, error=error)
+               fixd_list=fixd_list)
        END IF
        cvalues(ival) = lcolv(iconst)%colvar%ss
        map(ival)     = colv_list(iconst)%inp_seq_num
@@ -578,17 +562,15 @@ CPSourceFileRef,&
 !> \param nsize_int ...
 !> \param cvalues ...
 !> \param Mmatrix ...
-!> \param error ...
 !> \author Teodoro Laino 05.2007
 ! *****************************************************************************
   SUBROUTINE get_clv_force(force_env, forces, coords, nsize_xyz, nsize_int, cvalues,&
-       Mmatrix, error)
+       Mmatrix)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: forces, coords
     INTEGER, INTENT(IN)                      :: nsize_xyz, nsize_int
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: cvalues, Mmatrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_clv_force', &
       routineP = moduleN//':'//routineN
@@ -601,27 +583,27 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     ALLOCATE(Bmatrix(nsize_xyz,nsize_int),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(MassI(nsize_xyz),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ! Transform gradients if requested
     IF (PRESENT(forces)) THEN
        ALLOCATE(wrk(nsize_int),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ALLOCATE(Amatrix(nsize_int,nsize_xyz),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        ! Compute the transformation matrices and the invese mass diagonal Matrix
-       CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix, error)
+       CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix)
        wrk = MATMUL(Amatrix,forces)
        forces              = 0.0_dp
        forces(1:nsize_int) = wrk
        DEALLOCATE(Amatrix, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DEALLOCATE(wrk, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ELSE
        ! Compute the transformation matrices and the invese mass diagonal Matrix
-       CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, error=error)
+       CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI)
     END IF
     ! Compute the Metric Tensor
     DO i = 1, nsize_int
@@ -635,9 +617,9 @@ CPSourceFileRef,&
        END DO
     END DO
     DEALLOCATE(MassI, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(Bmatrix, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   END SUBROUTINE get_clv_force
 
 ! *****************************************************************************
@@ -645,17 +627,15 @@ CPSourceFileRef,&
 !>      defined using KINDS
 !> \param colvar ...
 !> \param particles ...
-!> \param error ...
 !> \par History
 !>      1.2009 Fabio Sterpone : Added a part for population
 !>     10.2014 Moved out of colvar_types.F [Ole Schuett]
 !> \author Teodoro Laino - 07.2007
 ! *****************************************************************************
-  SUBROUTINE post_process_colvar(colvar, particles, error)
+  SUBROUTINE post_process_colvar(colvar, particles)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_colvar', &
       routineP = moduleN//':'//routineN
@@ -685,7 +665,7 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%coord_param%n_atoms_from
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Atoms to
           IF (colvar%coord_param%use_kinds_to) THEN
@@ -703,7 +683,7 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%coord_param%n_atoms_to
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Atoms to b
           IF (colvar%coord_param%use_kinds_to_b) THEN
@@ -721,11 +701,11 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%coord_param%n_atoms_to_b
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
 
           ! Setup the colvar
-          CALL colvar_setup(colvar, error)
+          CALL colvar_setup(colvar)
        END IF
     END IF
 
@@ -747,7 +727,7 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%mindist_param%n_coord_from
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Atoms to
           IF (colvar%mindist_param%use_kinds_to) THEN
@@ -765,10 +745,10 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%mindist_param%n_coord_to
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Setup the colvar
-          CALL colvar_setup(colvar, error)
+          CALL colvar_setup(colvar)
        END IF
     END IF
 
@@ -791,7 +771,7 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%population_param%n_atoms_from
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Atoms to
           IF (colvar%population_param%use_kinds_to) THEN
@@ -809,10 +789,10 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%population_param%n_atoms_to
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Setup the colvar
-          CALL colvar_setup(colvar, error)
+          CALL colvar_setup(colvar)
        END IF
 
     END IF
@@ -836,10 +816,10 @@ CPSourceFileRef,&
                 END DO
              END DO
              stat=colvar%gyration_param%n_atoms
-             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
           END IF
           ! Setup the colvar
-          CALL colvar_setup(colvar, error)
+          CALL colvar_setup(colvar)
        END IF
     END IF
 
@@ -856,7 +836,7 @@ CPSourceFileRef,&
         nr_frame = SIZE(colvar%rmsd_param%r_ref,2)
         DO i = 2,nr_frame
           CALL rmsd3(particles, colvar%rmsd_param%r_ref(:,i), colvar%rmsd_param%r_ref(:,1), -1,&
-                     rotate=.TRUE., error=error)
+                     rotate=.TRUE.)
         END DO
       END IF
 
@@ -868,7 +848,7 @@ CPSourceFileRef,&
            nr_frame = colvar%reaction_path_param%nr_frames
            DO i = 2,nr_frame
              CALL rmsd3(particles, colvar%reaction_path_param%r_ref(:,i), colvar%reaction_path_param%r_ref(:,1), -1,&
-                     rotate=.TRUE., error=error)
+                     rotate=.TRUE.)
             END DO
          END IF
       END IF

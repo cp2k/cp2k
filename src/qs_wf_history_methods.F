@@ -107,16 +107,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates and initialize a wavefunction snapshot
 !> \param snapshot the snapshot to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !>      02.2005 added wf_mol [MI]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfs_create(snapshot, error)
+SUBROUTINE wfs_create(snapshot)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', &
       routineP = moduleN//':'//routineN
@@ -127,7 +124,7 @@ SUBROUTINE wfs_create(snapshot, error)
   failure=.FALSE.
 
   ALLOCATE(snapshot, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   last_wfs_id=last_wfs_id+1
   snapshot%id_nr=last_wfs_id
   NULLIFY(snapshot%wf, snapshot%rho_r, &
@@ -143,19 +140,16 @@ END SUBROUTINE wfs_create
 !> \param wf_history the history
 !> \param qs_env the qs_env that should be snapshotted
 !> \param dt the time of the snapshot (wrt. to the previous snapshot)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !>      02.2005 added kg_fm_mol_set for KG_GPW [MI]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
+SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: dt
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', &
       routineP = moduleN//':'//routineN
@@ -184,136 +178,130 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
        rho, rho_r,rho_g,rho_ao, matrix_s)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
-       dft_control=dft_control, rho=rho, error=error)
-  CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools, &
-       error=error)
-  CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+       dft_control=dft_control, rho=rho)
+  CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools)
+  CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,failure)
+  CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
   IF (.not.ASSOCIATED(snapshot)) THEN
-     CALL wfs_create(snapshot,error=error)
+     CALL wfs_create(snapshot)
   END IF
-  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(snapshot%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,failure)
+  CPPrecondition(snapshot%ref_count>0,cp_failure_level,routineP,failure)
 
   nspins=dft_control%nspins
   snapshot%dt=1.0_dp
   IF (PRESENT(dt)) snapshot%dt=dt
   IF (wf_history%store_wf) THEN
-     CALL get_qs_env(qs_env,mos=mos,error=error)
+     CALL get_qs_env(qs_env,mos=mos)
      IF (.NOT.ASSOCIATED(snapshot%wf)) THEN
         CALL fm_pools_create_fm_vect(ao_mo_pools,snapshot%wf,&
              name="ws_snap"//TRIM(ADJUSTL(cp_to_string(snapshot%id_nr)))//&
-             "ws",error=error)
-        CPPostcondition(nspins==SIZE(snapshot%wf),cp_failure_level,routineP,error,failure)
+             "ws")
+        CPPostcondition(nspins==SIZE(snapshot%wf),cp_failure_level,routineP,failure)
      END IF
      DO ispin=1,nspins
         CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-        CALL cp_fm_to_fm(mo_coeff,snapshot%wf(ispin)%matrix,error=error)
+        CALL cp_fm_to_fm(mo_coeff,snapshot%wf(ispin)%matrix)
      END DO
   ELSE IF (ASSOCIATED(snapshot%wf)) THEN
-     CALL fm_pools_give_back_fm_vect(ao_mo_pools,snapshot%wf,&
-          error=error)
+     CALL fm_pools_give_back_fm_vect(ao_mo_pools,snapshot%wf)
   END IF
 
   IF (wf_history%store_rho_r) THEN
-     CALL qs_rho_get(rho, rho_r=rho_r,error=error)
-     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
+     CALL qs_rho_get(rho, rho_r=rho_r)
+     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,failure)
      IF (.NOT.ASSOCIATED(snapshot%rho_r)) THEN
         ALLOCATE(snapshot%rho_r(nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         DO ispin=1,nspins
            NULLIFY(snapshot%rho_r(ispin)%pw)
            CALL pw_pool_create_pw(auxbas_pw_pool,snapshot%rho_r(ispin)%pw,&
-                in_space=REALSPACE, use_data=REALDATA3D,error=error)
+                in_space=REALSPACE, use_data=REALDATA3D)
         END DO
      END IF
      DO ispin=1,nspins
-        CALL pw_copy(rho_r(ispin)%pw,snapshot%rho_r(ispin)%pw,error=error)
+        CALL pw_copy(rho_r(ispin)%pw,snapshot%rho_r(ispin)%pw)
      END DO
   ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
      DO ispin=1,SIZE(snapshot%rho_r)
-        CALL pw_pool_give_back_pw(auxbas_pw_pool,snapshot%rho_r(ispin)%pw,&
-             error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,snapshot%rho_r(ispin)%pw)
      END DO
      DEALLOCATE(snapshot%rho_r,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
   END IF
 
   IF (wf_history%store_rho_g) THEN
-     CALL qs_rho_get(rho, rho_g=rho_g,error=error)
-     CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
+     CALL qs_rho_get(rho, rho_g=rho_g)
+     CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,failure)
      IF (.NOT.ASSOCIATED(snapshot%rho_g)) THEN
         ALLOCATE(snapshot%rho_g(nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         DO ispin=1,nspins
            NULLIFY(snapshot%rho_g(ispin)%pw)
            CALL pw_pool_create_pw(auxbas_pw_pool,snapshot%rho_g(ispin)%pw,&
-                in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,&
-                error=error)
+                in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D)
         END DO
      END IF
      DO ispin=1,nspins
-        CALL pw_copy(rho_g(ispin)%pw,snapshot%rho_g(ispin)%pw,error=error)
+        CALL pw_copy(rho_g(ispin)%pw,snapshot%rho_g(ispin)%pw)
      END DO
   ELSE IF (ASSOCIATED(snapshot%rho_g)) THEN
      DO ispin=1,SIZE(snapshot%rho_g)
-        CALL pw_pool_give_back_pw(auxbas_pw_pool,snapshot%rho_g(ispin)%pw,&
-             error=error)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,snapshot%rho_g(ispin)%pw)
      END DO
      DEALLOCATE(snapshot%rho_g,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
   END IF
 
   IF (ASSOCIATED(snapshot%rho_ao)) THEN ! the sparsity might be different
      ! (future struct:check)
-     CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
+     CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao)
   END IF
   IF (wf_history%store_rho_ao) THEN
-     CALL qs_rho_get(rho,rho_ao=rho_ao,error=error)
-     CPPrecondition(ASSOCIATED(rho_ao),cp_failure_level,routineP,error,failure)
+     CALL qs_rho_get(rho,rho_ao=rho_ao)
+     CPPrecondition(ASSOCIATED(rho_ao),cp_failure_level,routineP,failure)
 
-     CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao,nspins,error=error)
+     CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao,nspins)
      DO ispin=1,nspins
         ALLOCATE(snapshot%rho_ao(ispin)%matrix)
-        CALL cp_dbcsr_init(snapshot%rho_ao(ispin)%matrix,error=error)
-        CALL cp_dbcsr_copy(snapshot%rho_ao(ispin)%matrix,rho_ao(ispin)%matrix,&
-             error=error)
+        CALL cp_dbcsr_init(snapshot%rho_ao(ispin)%matrix)
+        CALL cp_dbcsr_copy(snapshot%rho_ao(ispin)%matrix,rho_ao(ispin)%matrix)
      END DO
   END IF
 
   IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN ! the sparsity might be different
      ! (future struct:check)
-     CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp,error=error)
+     CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
   END IF
   IF (wf_history%store_rho_ao_kp) THEN
-     CALL qs_rho_get(rho,rho_ao_kp=rho_ao_kp,error=error)
-     CPPrecondition(ASSOCIATED(rho_ao_kp),cp_failure_level,routineP,error,failure)
+     CALL qs_rho_get(rho,rho_ao_kp=rho_ao_kp)
+     CPPrecondition(ASSOCIATED(rho_ao_kp),cp_failure_level,routineP,failure)
 
      nimg = dft_control%nimages
-     CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao_kp,nspins,nimg,error=error)
+     CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao_kp,nspins,nimg)
      DO ispin=1,nspins
         DO img=1,nimg
            ALLOCATE(snapshot%rho_ao_kp(ispin,img)%matrix)
-           CALL cp_dbcsr_init(snapshot%rho_ao_kp(ispin,img)%matrix,error=error)
+           CALL cp_dbcsr_init(snapshot%rho_ao_kp(ispin,img)%matrix)
            CALL cp_dbcsr_copy(snapshot%rho_ao_kp(ispin,img)%matrix,&
-                rho_ao_kp(ispin,img)%matrix,error=error)
+                rho_ao_kp(ispin,img)%matrix)
         END DO
      END DO
   END IF
 
   IF (ASSOCIATED(snapshot%overlap)) THEN ! the sparsity might be different
      ! (future struct:check)
-     CALL cp_dbcsr_deallocate_matrix(snapshot%overlap,error=error)
+     CALL cp_dbcsr_deallocate_matrix(snapshot%overlap)
   END IF
   IF (wf_history%store_overlap) THEN
-     CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
-     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(matrix_s(1)%matrix),cp_failure_level,routineP,error,failure)
+     CALL get_qs_env(qs_env, matrix_s=matrix_s)
+     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+     CPPrecondition(ASSOCIATED(matrix_s(1)%matrix),cp_failure_level,routineP,failure)
      ALLOCATE(snapshot%overlap)
-     CALL cp_dbcsr_init(snapshot%overlap, error=error)
-     CALL cp_dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix, error=error)
+     CALL cp_dbcsr_init(snapshot%overlap)
+     CALL cp_dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix)
   END IF
 
   IF (wf_history%store_frozen_density) THEN
@@ -333,19 +321,16 @@ END SUBROUTINE wfs_update
 !>        (see qs_wf_history_types:wfi_*_method_nr)
 !> \param extrapolation_order ...
 !> \param has_unit_metric ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, &
-                      has_unit_metric, error)
+                      has_unit_metric)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: interpolation_method_nr, &
                                                 extrapolation_order
     LOGICAL, INTENT(IN)                      :: has_unit_metric
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
       routineP = moduleN//':'//routineN
@@ -358,7 +343,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
   failure=.FALSE.
 
   ALLOCATE(wf_history, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
   last_wfi_id=last_wfi_id+1
   wf_history%id_nr=last_wfi_id
   wf_history%ref_count=1
@@ -414,11 +399,11 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
           routineP,"Unknown interpolation method: "//&
           TRIM(ADJUSTL(cp_to_string(interpolation_method_nr)))//" in "//&
 CPSourceFileRef,&
-          error, failure)
+          failure)
      wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
   END SELECT
   ALLOCATE(wf_history%past_states(wf_history%memory_depth),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
   DO i=1,SIZE(wf_history%past_states)
      NULLIFY(wf_history%past_states(i)%snapshot)
@@ -430,15 +415,12 @@ END SUBROUTINE wfi_create
 ! *****************************************************************************
 !> \brief ...
 !> \param wf_history ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2015 created [jhu]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfi_create_for_kp(wf_history, error)
+SUBROUTINE wfi_create_for_kp(wf_history)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create_for_kp', &
       routineP = moduleN//':'//routineN
@@ -446,7 +428,7 @@ SUBROUTINE wfi_create_for_kp(wf_history, error)
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,failure)
     IF(wf_history%store_rho_ao) THEN
        wf_history%store_rho_ao_kp = .TRUE.
        wf_history%store_rho_ao = .FALSE.
@@ -455,17 +437,17 @@ SUBROUTINE wfi_create_for_kp(wf_history, error)
     IF(wf_history%store_wf) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"WFN based interpolation method not possible for kpoints.",&
-            error, failure)
+            failure)
     END IF
     IF(wf_history%store_frozen_density) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"Frozen density initialization method not possible for kpoints.",&
-            error, failure)
+            failure)
     END IF
     IF(wf_history%store_overlap) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"Inconsistent interpolation method for kpoints.",&
-            error, failure)
+            failure)
     END IF
 
 END SUBROUTINE wfi_create_for_kp
@@ -473,16 +455,13 @@ END SUBROUTINE wfi_create_for_kp
 ! *****************************************************************************
 !> \brief returns a string describing the interpolation method
 !> \param method_nr ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
+FUNCTION wfi_get_method_label(method_nr) RESULT(res)
     INTEGER, INTENT(in)                      :: method_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=30)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label', &
@@ -520,7 +499,7 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
           TRIM(ADJUSTL(cp_to_string(method_nr)))//&
           " in "//&
 CPSourceFileRef,&
-          error, failure)
+          failure)
   END SELECT
 END FUNCTION wfi_get_method_label
 
@@ -533,21 +512,18 @@ END FUNCTION wfi_get_method_label
 !> \param dt the time at which to extrapolate (wrt. to the last snapshot)
 !> \param extrapolation_method_nr returns the extrapolation method used
 !> \param orthogonal_wf ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
-       orthogonal_wf, error)
+       orthogonal_wf)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(IN)                :: dt
     INTEGER, INTENT(OUT), OPTIONAL           :: extrapolation_method_nr
     LOGICAL, INTENT(OUT), OPTIONAL           :: orthogonal_wf
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
       routineP = moduleN//':'//routineN
@@ -579,17 +555,17 @@ END FUNCTION wfi_get_method_label
     use_overlap = wf_history%store_overlap
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     print_level = logger%iter_info%print_level
     output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%SCF%PRINT%PROGRAM_RUN_INFO",&
-                  extension=".scfLog",error=error)
+                  extension=".scfLog")
 
-    CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-    CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL get_qs_env(qs_env, mos=mos, rho=rho, do_kpoints=do_kpoints, error=error)
-    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools, error=error)
+    CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,failure)
+    CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CALL get_qs_env(qs_env, mos=mos, rho=rho, do_kpoints=do_kpoints)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
     ! chooses the method for this extrapolation
     IF (wf_history%snapshot_count<1) THEN
        actual_extrapolation_method_nr=wfi_use_guess_method_nr
@@ -618,104 +594,99 @@ END FUNCTION wfi_get_method_label
 
     SELECT CASE (actual_extrapolation_method_nr)
     CASE(wfi_frozen_method_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
-       t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
-       CPPrecondition(ASSOCIATED(t0_state%rho_frozen),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
+       t0_state => wfi_get_snapshot(wf_history, index=1)
+       CPPrecondition(ASSOCIATED(t0_state%rho_frozen),cp_failure_level,routineP,failure)
 
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
 
-       CALL qs_rho_get(t0_state%rho_frozen, rho_ao=rho_frozen_ao, error=error)
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(t0_state%rho_frozen, rho_ao=rho_frozen_ao)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
        DO ispin=1,SIZE(rho_frozen_ao)
           CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                           rho_frozen_ao(ispin)%matrix,&
-                          keep_sparsity=.TRUE.,&
-                          error=error)
+                          keep_sparsity=.TRUE.)
        END DO
        !FM updating rho_ao directly with t0_state%rho_ao would have the
        !FM wrong matrix structure
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
        my_orthogonal_wf=.FALSE.
     CASE(wfi_use_prev_rho_r_method_nr)
-       t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
+       t0_state => wfi_get_snapshot(wf_history, index=1)
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
        IF(do_kpoints) THEN
-          CPPrecondition(ASSOCIATED(t0_state%rho_ao_kp),cp_failure_level,routineP,error,failure)
-          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
+          CPPrecondition(ASSOCIATED(t0_state%rho_ao_kp),cp_failure_level,routineP,failure)
+          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
           DO ispin=1,SIZE(t0_state%rho_ao_kp,1)
              DO img=1,SIZE(t0_state%rho_ao_kp,2)
                 CALL cp_dbcsr_copy(rho_ao_kp(ispin,img)%matrix,&
                                    t0_state%rho_ao_kp(ispin,img)%matrix,&
-                                   keep_sparsity=.TRUE.,&
-                                   error=error)
+                                   keep_sparsity=.TRUE.)
              END DO
           END DO
        ELSE
-          CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
-          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+          CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,failure)
+          CALL qs_rho_get(rho, rho_ao=rho_ao)
           DO ispin=1,SIZE(t0_state%rho_ao)
              CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                                 t0_state%rho_ao(ispin)%matrix,&
-                                keep_sparsity=.TRUE.,&
-                                error=error)
+                                keep_sparsity=.TRUE.)
           END DO
        END IF
        ! Why is rho_g valid at this point ?
-       CALL qs_rho_set(rho, rho_g_valid=.TRUE., error=error)
+       CALL qs_rho_set(rho, rho_g_valid=.TRUE.)
 
        ! does nothing
     CASE(wfi_use_prev_wf_method_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
        my_orthogonal_wf=.TRUE.
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
        DO ispin=1,SIZE(mos)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                nmo=nmo)
           CALL reorthogonalize_vectors(qs_env,&
                v_matrix=mo_coeff,&
-               n_col=nmo, error=error)
+               n_col=nmo)
           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-               density_matrix=rho_ao(ispin)%matrix,error=error)
+               density_matrix=rho_ao(ispin)%matrix)
        END DO
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
 
     CASE(wfi_use_prev_p_method_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
-       t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
+       t0_state => wfi_get_snapshot(wf_history, index=1)
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
        IF(do_kpoints) THEN
-          CPPrecondition(ASSOCIATED(t0_state%rho_ao_kp),cp_failure_level,routineP,error,failure)
-          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
+          CPPrecondition(ASSOCIATED(t0_state%rho_ao_kp),cp_failure_level,routineP,failure)
+          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
           DO ispin=1,SIZE(t0_state%rho_ao_kp,1)
              DO img=1,SIZE(t0_state%rho_ao_kp,2)
                 CALL cp_dbcsr_copy(rho_ao_kp(ispin,img)%matrix,&
                                    t0_state%rho_ao_kp(ispin,img)%matrix,&
-                                   keep_sparsity=.TRUE.,&
-                                   error=error)
+                                   keep_sparsity=.TRUE.)
              END DO
           END DO
        ELSE
-          CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
-          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+          CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,failure)
+          CALL qs_rho_get(rho, rho_ao=rho_ao)
           DO ispin=1,SIZE(t0_state%rho_ao)
              CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                                 t0_state%rho_ao(ispin)%matrix,&
-                                keep_sparsity=.TRUE.,&
-                                error=error)
+                                keep_sparsity=.TRUE.)
           END DO
        END IF
        !FM updating rho_ao directly with t0_state%rho_ao would have the
        !FM wrong matrix structure
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
     CASE(wfi_use_guess_method_nr)
        !FM more clean to do it here, but it
@@ -724,98 +695,97 @@ END FUNCTION wfi_get_method_label
        !FM (btw. it also needs the eigensolver, and unless you relocate it
        !FM gives circular dependencies)
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
     CASE(wfi_linear_wf_method_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
-       t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
-       t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-       CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
+       t0_state => wfi_get_snapshot(wf_history, index=2)
+       t1_state => wfi_get_snapshot(wf_history, index=1)
+       CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,failure)
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
 
        my_orthogonal_wf=.TRUE.
        t0=0.0_dp
        t1=t1_state%dt
        t2=t1+dt
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
        DO ispin=1,SIZE(mos)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                nmo=nmo)
           CALL cp_fm_scale_and_add(alpha=0.0_dp,&
                matrix_a=mo_coeff,&
                matrix_b=t1_state%wf(ispin)%matrix,&
-               beta=(t2-t0)/(t1-t0),&
-               error=error) ! this copy should be unnecessary
+               beta=(t2-t0)/(t1-t0))
+               ! this copy should be unnecessary
           CALL cp_fm_scale_and_add(alpha=1.0_dp,&
                matrix_a=mo_coeff,&
-               beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
-               error=error)
+               beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix)
           CALL reorthogonalize_vectors(qs_env,&
                v_matrix=mo_coeff,&
-               n_col=nmo, error=error)
+               n_col=nmo)
           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-               density_matrix=rho_ao(ispin)%matrix,error=error)
+               density_matrix=rho_ao(ispin)%matrix)
        END DO
-       CALL qs_rho_update_rho(rho, qs_env=qs_env,  error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
 
        CALL qs_ks_did_change(qs_env%ks_env,&
-            rho_changed=.TRUE., error=error)
+            rho_changed=.TRUE.)
     CASE(wfi_linear_p_method_nr)
-       t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
-       t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-       CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
+       t0_state => wfi_get_snapshot(wf_history, index=2)
+       t1_state => wfi_get_snapshot(wf_history, index=1)
+       CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,failure)
        IF(do_kpoints) THEN
-          CPPrecondition(ASSOCIATED(t0_state%rho_ao_kp),cp_warning_level,routineP,error,failure)
-          CPPrecondition(ASSOCIATED(t1_state%rho_ao_kp),cp_warning_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(t0_state%rho_ao_kp),cp_warning_level,routineP,failure)
+          CPPrecondition(ASSOCIATED(t1_state%rho_ao_kp),cp_warning_level,routineP,failure)
        ELSE
-          CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_warning_level,routineP,error,failure)
-          CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_warning_level,routineP,failure)
+          CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,failure)
        END IF
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
+       CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
 
        t0=0.0_dp
        t1=t1_state%dt
        t2=t1+dt
        IF(do_kpoints) THEN
-          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
+          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
           DO ispin=1,SIZE(rho_ao_kp,1)
              DO img=1,SIZE(rho_ao_kp,2)
                 CALL cp_dbcsr_add(rho_ao_kp(ispin,img)%matrix,t1_state%rho_ao_kp(ispin,img)%matrix,&
-                     alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0),error=error) ! this copy should be unnecessary
+                     alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
                 CALL cp_dbcsr_add(rho_ao_kp(ispin,img)%matrix,t0_state%rho_ao_kp(ispin,img)%matrix,&
-                     alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0),error=error)
+                     alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0))
              END DO
           END DO
        ELSE
-          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+          CALL qs_rho_get(rho, rho_ao=rho_ao)
           DO ispin=1,SIZE(rho_ao)
              CALL cp_dbcsr_add(rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
-               alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0),error=error) ! this copy should be unnecessary
+               alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
              CALL cp_dbcsr_add(rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
-               alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0),error=error)
+               alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0))
           END DO
        END IF
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
        ! wf not calculated, extract with PSC renormalized?
        ! use wf_linear?
     CASE(wfi_linear_ps_method_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
-       t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
-       t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-       CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
+       t0_state => wfi_get_snapshot(wf_history, index=2)
+       t1_state => wfi_get_snapshot(wf_history, index=1)
+       CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,failure)
+       CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,failure)
        IF (wf_history%store_overlap) THEN
-         CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,error,failure)
-         CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)
+         CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,failure)
+         CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,failure)
        END IF
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
        IF (nvec >= wf_history%memory_depth) THEN
@@ -834,41 +804,41 @@ END FUNCTION wfi_get_method_label
        my_orthogonal_wf=.TRUE.
        ! use PS_2=2 PS_1-PS_0
        ! C_2 comes from using PS_2 as a projector acting on C_1
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
        DO ispin=1,SIZE(mos)
           NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc)
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
           CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
-               matrix_struct=matrix_struct,error=error)
+               matrix_struct=matrix_struct)
           CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
-                                   nrow_global=k,ncol_global=k,error=error)
-          CALL cp_fm_create(csc,matrix_struct_new,error=error)
-          CALL cp_fm_struct_release(matrix_struct_new,error=error)
+                                   nrow_global=k,ncol_global=k)
+          CALL cp_fm_create(csc,matrix_struct_new)
+          CALL cp_fm_struct_release(matrix_struct_new)
 
           IF ( use_overlap ) THEN
-            CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
-            CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
+            CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k)
+            CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc)
           ELSE
             CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
-                            t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                            t1_state%wf(ispin)%matrix,0.0_dp,csc)
           END IF
-          CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
-          CALL cp_fm_release(csc,error=error)
-          CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
+          CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff)
+          CALL cp_fm_release(csc)
+          CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix)
           CALL reorthogonalize_vectors(qs_env,&
                v_matrix=mo_coeff,&
-               n_col=k, error=error)
+               n_col=k)
           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-               density_matrix=rho_ao(ispin)%matrix,error=error)
+               density_matrix=rho_ao(ispin)%matrix)
        END DO
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
 
     CASE(wfi_ps_method_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
        ! figure out the actual number of vectors to use in the extrapolation:
        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-       CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,failure)
        IF (nvec >= wf_history%memory_depth) THEN
          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
@@ -887,49 +857,49 @@ END FUNCTION wfi_get_method_label
           NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
           CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
-               matrix_struct=matrix_struct,error=error)
-          CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
+               matrix_struct=matrix_struct)
+          CALL cp_fm_create(fm_tmp,matrix_struct)
           CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
-                                   nrow_global=k,ncol_global=k,error=error)
-          CALL cp_fm_create(csc,matrix_struct_new,error=error)
-          CALL cp_fm_struct_release(matrix_struct_new,error=error)
+                                   nrow_global=k,ncol_global=k)
+          CALL cp_fm_create(csc,matrix_struct_new)
+          CALL cp_fm_struct_release(matrix_struct_new)
           ! first the most recent
-          t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-          CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
+          t1_state => wfi_get_snapshot(wf_history, index=1)
+          CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff)
           alpha = nvec
-          CALL cp_fm_scale(alpha,mo_coeff,error=error)
-          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+          CALL cp_fm_scale(alpha,mo_coeff)
+          CALL qs_rho_get(rho, rho_ao=rho_ao)
           DO i=2,nvec
-             t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
+             t0_state => wfi_get_snapshot(wf_history, index=i)
              IF ( use_overlap ) THEN
-               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
-               CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k)
+               CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc)
              ELSE
                CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
-                               t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                               t1_state%wf(ispin)%matrix,0.0_dp,csc)
              END IF
-             CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
+             CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
              alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
-             CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp)
           ENDDO
 
-          CALL cp_fm_release(csc,error=error)
-          CALL cp_fm_release(fm_tmp,error=error)
+          CALL cp_fm_release(csc)
+          CALL cp_fm_release(fm_tmp)
           CALL reorthogonalize_vectors(qs_env,&
                v_matrix=mo_coeff,&
-               n_col=k, error=error)
+               n_col=k)
           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-               density_matrix=rho_ao(ispin)%matrix,error=error)
+               density_matrix=rho_ao(ispin)%matrix)
        END DO
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
 
     CASE (wfi_aspc_nr)
-       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT. do_kpoints,cp_failure_level,routineP,failure)
        CALL cite_reference(Kolafa2004)
        ! figure out the actual number of vectors to use in the extrapolation:
        nvec = MIN(wf_history%memory_depth,wf_history%snapshot_count)
-       CPPrecondition(nvec.GT.0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(nvec.GT.0,cp_failure_level,routineP,failure)
        IF (nvec >= wf_history%memory_depth) THEN
          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. &
              (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
@@ -945,26 +915,25 @@ END FUNCTION wfi_get_method_label
        END IF
 
        my_orthogonal_wf = .TRUE.
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao)
        DO ispin=1,SIZE(mos)
          NULLIFY (mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff,&
                              nrow_global=n,&
                              ncol_global=k,&
-                             matrix_struct=matrix_struct,error=error)
-         CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
+                             matrix_struct=matrix_struct)
+         CALL cp_fm_create(fm_tmp,matrix_struct)
          CALL cp_fm_struct_create(matrix_struct_new,&
                                   template_fmstruct=matrix_struct,&
                                   nrow_global=k,&
-                                  ncol_global=k,error=error)
-         CALL cp_fm_create(csc,matrix_struct_new,error=error)
-         CALL cp_fm_struct_release(matrix_struct_new,error=error)
+                                  ncol_global=k)
+         CALL cp_fm_create(csc,matrix_struct_new)
+         CALL cp_fm_struct_release(matrix_struct_new)
          ! first the most recent
          t1_state => wfi_get_snapshot(wf_history,&
-                                      index=1,&
-                                      error=error)
-         CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
+                                      index=1)
+         CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff)
          alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
          IF ((output_unit > 0).AND.(print_level > low_print_level)) THEN
            WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
@@ -972,38 +941,36 @@ END FUNCTION wfi_get_method_label
              "ASPC order: ",MAX(nvec - 2,0),&
              "B(",1,") = ",alpha
          END IF
-         CALL cp_fm_scale(alpha,mo_coeff,error=error)
+         CALL cp_fm_scale(alpha,mo_coeff)
 
          DO i=2,nvec
-           t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
+           t0_state => wfi_get_snapshot(wf_history,index=i)
            IF ( use_overlap ) THEN
-             CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k,error=error)
-             CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+             CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k)
+             CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc)
            ELSE
              CALL cp_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
-                             t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                             t1_state%wf(ispin)%matrix,0.0_dp,csc)
            END IF
-           CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
+           CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
            alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                    binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
            IF ((output_unit > 0).AND.(print_level > low_print_level)) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A2,I0,A4,F10.6)")&
                "B(",i,") = ",alpha
            END IF
-           CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
+           CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp)
          END DO
-         CALL cp_fm_release(csc,error=error)
-         CALL cp_fm_release(fm_tmp,error=error)
+         CALL cp_fm_release(csc)
+         CALL cp_fm_release(fm_tmp)
          CALL reorthogonalize_vectors(qs_env,&
                                              v_matrix=mo_coeff,&
-                                             n_col=k,&
-                                             error=error)
+                                             n_col=k)
          CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                                       density_matrix=rho_ao(ispin)%matrix,&
-                                       error=error)
+                                       density_matrix=rho_ao(ispin)%matrix)
        END DO
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
 
     CASE default
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -1011,11 +978,11 @@ END FUNCTION wfi_get_method_label
             TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
             " in "//&
 CPSourceFileRef,&
-            error, failure)
+            failure)
     END SELECT
     IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-         "DFT%SCF%PRINT%PROGRAM_RUN_INFO",error=error)
+         "DFT%SCF%PRINT%PROGRAM_RUN_INFO")
     CALL timestop(handle)
   END SUBROUTINE wfi_extrapolate
 
@@ -1024,16 +991,13 @@ CPSourceFileRef,&
 !>      to using a WF extrapolation.
 !> \param qs_env The QS environment
 !> \param nvec ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2006 created [TdK]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE wfi_set_history_variables(qs_env, nvec, error)
+  SUBROUTINE wfi_set_history_variables(qs_env, nvec)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: nvec
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables', &
       routineP = moduleN//':'//routineN
@@ -1044,8 +1008,8 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
-    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP,failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP,failure)
 
     IF (nvec >= qs_env%wf_history%memory_depth) THEN
       IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
@@ -1070,17 +1034,14 @@ CPSourceFileRef,&
 !> \param wf_history the history buffer to update
 !> \param qs_env the qs_env we get the info from
 !> \param dt ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
+SUBROUTINE wfi_update(wf_history, qs_env, dt)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update', &
       routineP = moduleN//':'//routineN
@@ -1089,10 +1050,10 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,failure)
+  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,failure)
+  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+  CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
 
   wf_history%snapshot_count=wf_history%snapshot_count+1
   IF (wf_history%memory_depth>0) THEN
@@ -1100,7 +1061,7 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
           wf_history%memory_depth)+1
      CALL wfs_update(snapshot=wf_history%past_states &
           (wf_history%last_state_index)%snapshot,wf_history=wf_history,&
-          qs_env=qs_env,dt=dt,error=error)
+          qs_env=qs_env,dt=dt)
   END IF
 END SUBROUTINE wfi_update
 
@@ -1109,17 +1070,14 @@ END SUBROUTINE wfi_update
 !> \param qs_env the qs_env in which to orthogonalize
 !> \param v_matrix the vectors to orthogonalize
 !> \param n_col number of column of v to orthogonalize
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE reorthogonalize_vectors(qs_env, v_matrix, n_col,error)
+  SUBROUTINE reorthogonalize_vectors(qs_env, v_matrix, n_col)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: v_matrix
     INTEGER, INTENT(in), OPTIONAL            :: n_col
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors', &
       routineP = moduleN//':'//routineN
@@ -1140,20 +1098,18 @@ END SUBROUTINE wfi_update
     NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools, dft_control)
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,failure)
 
 
-    CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
+    CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col)
     IF (PRESENT(n_col)) my_n_col=n_col
     CALL get_qs_env(qs_env,mpools=mpools,&
          scf_env=scf_env,&
          scf_control=scf_control,&
          matrix_s=matrix_s,&
-         dft_control=dft_control,&
-         error=error)
-    CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
-         error=error)
+         dft_control=dft_control)
+    CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool)
     IF (ASSOCIATED(scf_env)) THEN
        ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
             (scf_env%cholesky_method>0 ).AND.&
@@ -1162,7 +1118,7 @@ END SUBROUTINE wfi_update
        ortho_contains_cholesky=.FALSE.
     END IF
 
-    CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+    CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric)
     smearing_is_used = .FALSE.
     IF (dft_control%smear) THEN
         smearing_is_used = .TRUE.
@@ -1170,15 +1126,15 @@ END SUBROUTINE wfi_update
 
 
     IF (has_unit_metric) THEN
-       CALL make_basis_simple(v_matrix,my_n_col,error=error)
+       CALL make_basis_simple(v_matrix,my_n_col)
     ELSE IF (smearing_is_used) THEN
        CALL make_basis_lowdin(vmatrix=v_matrix,ncol=my_n_col,&
-              matrix_s=matrix_s(1)%matrix,error=error)
+              matrix_s=matrix_s(1)%matrix)
     ELSE IF (ortho_contains_cholesky) THEN
        CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
-            ortho=scf_env%ortho,error=error)
+            ortho=scf_env%ortho)
     ELSE
-       CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
+       CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix)
     END IF
     CALL timestop(handle)
   END SUBROUTINE reorthogonalize_vectors

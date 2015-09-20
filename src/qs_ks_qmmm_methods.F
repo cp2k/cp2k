@@ -52,30 +52,27 @@ CONTAINS
 !> \brief Initialize the ks_qmmm_env
 !> \param qs_env ...
 !> \param qmmm_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE ks_qmmm_env_rebuild(qs_env,qmmm_env,error)
+  SUBROUTINE ks_qmmm_env_rebuild(qs_env,qmmm_env)
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
 
     NULLIFY(ks_qmmm_env)
     CALL get_qs_env(qs_env=qs_env,&
-         ks_qmmm_env=ks_qmmm_env,error=error)
+         ks_qmmm_env=ks_qmmm_env)
 
     !   *** allocate the ks_qmmm env if not allocated yet!**
     IF (.NOT.ASSOCIATED(ks_qmmm_env)) THEN
        CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,&
-            qmmm_env=qmmm_env,error=error)
-       CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env,error=error)
-       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env, error=error)
+            qmmm_env=qmmm_env)
+       CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env)
+       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env)
     END IF
   END SUBROUTINE ks_qmmm_env_rebuild
 
@@ -84,17 +81,14 @@ CONTAINS
 !> \param ks_qmmm_env the ks_qmmm env to be initialized
 !> \param qs_env the qs environment
 !> \param qmmm_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env, error)
+  SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
@@ -110,17 +104,17 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP)
     ALLOCATE(ks_qmmm_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY( ks_qmmm_env%pw_env,&
              ks_qmmm_env%cube_info)
     NULLIFY( auxbas_pw_pool)
     CALL get_qs_env(qs_env=qs_env,&
-         pw_env=ks_qmmm_env%pw_env,error=error)
-    CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL pw_env_retain(ks_qmmm_env%pw_env,error=error)
+         pw_env=ks_qmmm_env%pw_env)
+    CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool)
+    CALL pw_env_retain(ks_qmmm_env%pw_env)
 
     ks_qmmm_env%pc_ener=0.0_dp
     ks_qmmm_env%n_evals=0
@@ -129,13 +123,13 @@ CONTAINS
     ks_qmmm_env%id_nr=last_ks_qmmm_nr
 
     CALL pw_pool_create_pw(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace%pw,&
-         use_data=REALDATA3D, in_space=REALSPACE,error=error)
+         use_data=REALDATA3D, in_space=REALSPACE)
 
     IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
        CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
-       CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
+       CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools)
        ALLOCATE(cube_info(SIZE(pools)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        DO igrid=1,SIZE(pools)
           CALL init_cube_info(cube_info(igrid),&
             pools(igrid)%pool%pw_grid%dr(:),&
@@ -160,17 +154,15 @@ CONTAINS
 !> \param rho ...
 !> \param v_qmmm ...
 !> \param qmmm_energy ...
-!> \param error ...
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy, error)
+  SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho
     TYPE(pw_p_type), INTENT(IN)              :: v_qmmm
     REAL(KIND=dp), INTENT(INOUT)             :: qmmm_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
       routineP = moduleN//':'//routineN
@@ -184,35 +176,33 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
     NULLIFY(dft_control,input,logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
-                    input=input,&
-                    error=error)
+                    input=input)
 
     output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
-               extension=".qmmmLog",error=error)
+               extension=".qmmmLog")
     IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
                "Adding QM/MM electrostatic potential to the Kohn-Sham potential."
 
 
     qmmm_energy = 0.0_dp
     DO ispin=1, dft_control%nspins
-       qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw, error=error)
+       qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw)
     END DO
     IF(dft_control%qs_control%gapw) THEN
       CALL get_qs_env(qs_env=qs_env,&
-                    rho0_s_rs=rho0_s_rs,&
-                    error=error)
-       CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,error,failure)
-       qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw, error=error)
+                    rho0_s_rs=rho0_s_rs)
+       CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,failure)
+       qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw)
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,input,&
-               "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+               "QMMM%PRINT%PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
   END SUBROUTINE qmmm_calculate_energy
@@ -222,16 +212,14 @@ CONTAINS
 !> \param v_hartree ...
 !> \param v_qmmm ...
 !> \param scale ...
-!> \param error ...
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm,scale,error)
+  SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm,scale)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
     TYPE(pw_p_type), INTENT(IN)              :: v_qmmm
     REAL(KIND=dp), INTENT(IN)                :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
       routineP = moduleN//':'//routineN

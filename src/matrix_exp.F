@@ -67,15 +67,13 @@ CONTAINS
 !> \param im_matrix ...
 !> \param nsquare ...
 !> \param ntaylor ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE taylor_only_imaginary(exp_H,im_matrix,nsquare,ntaylor,error)
+  SUBROUTINE taylor_only_imaginary(exp_H,im_matrix,nsquare,ntaylor)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_matrix
     INTEGER, INTENT(in)                      :: nsquare, ntaylor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary', &
       routineP = moduleN//':'//routineN
@@ -88,33 +86,29 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(im_matrix,local_data=local_data_im,error=error)
+    CALL cp_fm_get_info(im_matrix,local_data=local_data_im)
     ndim=im_matrix%matrix_struct%nrow_global
 
     square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
-!    CALL cp_fm_scale(square_fac,im_matrix,error)
+!    CALL cp_fm_scale(square_fac,im_matrix)
     CALL cp_fm_create(T1,&
                        matrix_struct=im_matrix%matrix_struct,&
-                       name="T1",&
-                       error=error)
+                       name="T1")
 
     CALL cp_fm_create(T2,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T2",&
-                      error=error)
+                      name="T2")
     CALL cp_fm_create(Tres_im,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T3",&
-                      error=error)
+                      name="T3")
     CALL cp_fm_create(Tres_re,&
                       matrix_struct=T1%matrix_struct,&
-                      name="Tres",&
-                      error=error)
+                      name="Tres")
     tmp=1.0_dp
 
-    CALL cp_fm_set_all(Tres_re,zero,one,error)
-    CALL cp_fm_set_all(Tres_im,zero,zero,error)
-    CALL cp_fm_set_all(T1,zero,one,error)
+    CALL cp_fm_set_all(Tres_re,zero,one)
+    CALL cp_fm_set_all(Tres_im,zero,zero)
+    CALL cp_fm_set_all(T1,zero,one)
 
     Tfac=one
     nloop=CEILING(REAL(ntaylor,dp)/2.0_dp)
@@ -123,37 +117,37 @@ CONTAINS
        tmp=tmp*(REAL(i,dp)*2.0_dp-1.0_dp)
        CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_matrix,T1,zero,&
 !       CALL cp_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T1,zero,&
-            T2,error)
+            T2)
        Tfac=1._dp/tmp
        IF(MOD(i,2)==0) Tfac=-Tfac
-       CALL cp_fm_scale_and_add(one,Tres_im,Tfac,T2,error)
+       CALL cp_fm_scale_and_add(one,Tres_im,Tfac,T2)
        tmp=tmp*REAL(i,dp)*2.0_dp
        CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_matrix,T2,zero,&
 !       CALL cp_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T2,zero,&
-            T1,error)
+            T1)
        Tfac=1._dp/tmp
        IF(MOD(i,2)==1) Tfac=-Tfac
-       CALL cp_fm_scale_and_add(one,Tres_re,Tfac,T1,error)
+       CALL cp_fm_scale_and_add(one,Tres_re,Tfac,T1)
 
     END DO
 
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
           CALL cp_complex_fm_gemm("N","N",ndim,ndim,ndim,one,Tres_re,Tres_im,&
-               Tres_re,Tres_im,zero,exp_H(1)%matrix,exp_H(2)%matrix,error)
+               Tres_re,Tres_im,zero,exp_H(1)%matrix,exp_H(2)%matrix)
 
-          CALL cp_fm_to_fm(exp_H(1)%matrix,Tres_re,error)
-          CALL cp_fm_to_fm(exp_H(2)%matrix,Tres_im,error)
+          CALL cp_fm_to_fm(exp_H(1)%matrix,Tres_re)
+          CALL cp_fm_to_fm(exp_H(2)%matrix,Tres_im)
        END DO
     ELSE
-       CALL cp_fm_to_fm(Tres_re,exp_H(1)%matrix,error)
-       CALL cp_fm_to_fm(Tres_im,exp_H(2)%matrix,error)
+       CALL cp_fm_to_fm(Tres_re,exp_H(1)%matrix)
+       CALL cp_fm_to_fm(Tres_im,exp_H(2)%matrix)
     END IF
 
-    CALL cp_fm_release(T1,error)
-    CALL cp_fm_release(T2,error)
-    CALL cp_fm_release(Tres_re,error)
-    CALL cp_fm_release(Tres_im,error)
+    CALL cp_fm_release(T1)
+    CALL cp_fm_release(T2)
+    CALL cp_fm_release(Tres_re)
+    CALL cp_fm_release(Tres_im)
 
     CALL timestop(handle)
 
@@ -171,15 +165,13 @@ CONTAINS
 !> \param im_part ...
 !> \param nsquare ...
 !> \param ntaylor ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE taylor_full_complex(exp_H,re_part,im_part,nsquare,ntaylor,error)
+  SUBROUTINE taylor_full_complex(exp_H,re_part,im_part,nsquare,ntaylor)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
     INTEGER, INTENT(in)                      :: nsquare, ntaylor
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex', &
       routineP = moduleN//':'//routineN
@@ -193,14 +185,13 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: T1, T2, T3, Tres
 
     CALL timeset(routineN,handle)
-    CALL cp_fm_get_info(re_part,local_data=local_data_re,error=error)
-    CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
+    CALL cp_fm_get_info(re_part,local_data=local_data_re)
+    CALL cp_fm_get_info(im_part,local_data=local_data_im)
     ndim=re_part%matrix_struct%nrow_global
 
     CALL cp_cfm_create(T1,&
                        matrix_struct=re_part%matrix_struct,&
-                       name="T1",&
-                       error=error)
+                       name="T1")
 
     square_fac=2.0_dp**REAL(nsquare,dp)
 
@@ -208,35 +199,32 @@ CONTAINS
 
     CALL cp_cfm_create(T2,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T2",&
-                      error=error)
+                      name="T2")
     CALL cp_cfm_create(T3,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T3",&
-                      error=error)
+                      name="T3")
     CALL cp_cfm_create(Tres,&
                       matrix_struct=T1%matrix_struct,&
-                      name="Tres",&
-                      error=error)
+                      name="Tres")
     tmp=1.0_dp
-    CALL cp_cfm_set_all(Tres,zero,one,error)
-    CALL cp_cfm_set_all(T2,zero,one,error)
+    CALL cp_cfm_set_all(Tres,zero,one)
+    CALL cp_cfm_set_all(T2,zero,one)
     Tfac=one
     
     DO i=1,ntaylor
        tmp=tmp*REAL(i,dp)
        CALL cp_cfm_gemm("N","N",ndim,ndim,ndim,one,T1,T2,zero,&
-            T3,error)
+            T3)
        Tfac=CMPLX(1._dp/tmp,0.0_dp,kind=dp)
-       CALL cp_cfm_add(one,Tres,Tfac,T3,error)
-       CALL cp_cfm_to_cfm(T3,T2,error)
+       CALL cp_cfm_add(one,Tres,Tfac,T3)
+       CALL cp_cfm_to_cfm(T3,T2)
     END DO
 
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
           CALL cp_cfm_gemm("N","N",ndim,ndim,ndim,one,Tres,Tres,zero,&
-               T2,error)
-          CALL cp_cfm_to_cfm(T2,Tres,error)
+               T2)
+          CALL cp_cfm_to_cfm(T2,Tres)
        END DO
     END IF
 
@@ -244,10 +232,10 @@ CONTAINS
     exp_H(1)%matrix%local_data=REAL(Tres%local_data,KIND=dp)
     exp_H(2)%matrix%local_data=AIMAG(Tres%local_data)
 
-    CALL cp_cfm_release(T1,error)
-    CALL cp_cfm_release(T2,error)
-    CALL cp_cfm_release(T3,error)
-    CALL cp_cfm_release(Tres,error)
+    CALL cp_cfm_release(T1)
+    CALL cp_cfm_release(T2)
+    CALL cp_cfm_release(T3)
+    CALL cp_cfm_release(Tres)
     CALL timestop(handle)
 
   END SUBROUTINE taylor_full_complex
@@ -261,17 +249,15 @@ CONTAINS
 !> \param eps_exp ...
 !> \param method ...
 !> \param do_emd ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
-  SUBROUTINE get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
+  SUBROUTINE get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd)
 
     REAL(dp), INTENT(in)                     :: norm
     INTEGER, INTENT(out)                     :: nsquare, norder
     REAL(dp), INTENT(in)                     :: eps_exp
     INTEGER, INTENT(in)                      :: method
     LOGICAL, INTENT(in)                      :: do_emd
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nsquare_norder', &
       routineP = moduleN//':'//routineN
@@ -364,15 +350,13 @@ CONTAINS
 !> \param im_part ...
 !> \param nsquare ...
 !> \param npade ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade,error)
+  SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
     INTEGER, INTENT(in)                      :: nsquare, npade
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
       routineP = moduleN//':'//routineN
@@ -392,68 +376,63 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     CALL cp_fm_get_info(re_part,local_data=local_data_re,ncol_local=ldim,&
-         nrow_global=ndim,error=error)
-    CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
+         nrow_global=ndim)
+    CALL cp_fm_get_info(im_part,local_data=local_data_im)
 
     ALLOCATE(mult_p(2))
 
     CALL cp_cfm_create(Dpq,&
                        matrix_struct=re_part%matrix_struct,&
-                       name="Dpq",&
-                       error=error)
+                       name="Dpq")
 
     square_fac=2.0_dp**REAL(nsquare,dp)
 
     CALL cp_cfm_create(T1,&
                       matrix_struct=Dpq%matrix_struct,&
-                      name="T1",&
-                      error=error)
+                      name="T1")
 
     CALL cp_cfm_create(T2,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T2",&
-                      error=error)
+                      name="T2")
     CALL cp_cfm_create(Npq,&
                       matrix_struct=T1%matrix_struct,&
-                      name="Npq",&
-                      error=error)
+                      name="Npq")
     CALL cp_cfm_create(Tres,&
                       matrix_struct=T1%matrix_struct,&
-                      name="Tres",&
-                      error=error)
+                      name="Tres")
 
     DO i=1,ldim
        T2%local_data(:,i)=CMPLX(local_data_re(:,i)/square_fac,local_data_im(:,i)/square_fac,KIND=dp)
     END DO
-    CALL cp_cfm_to_cfm(T2,T1,error)
+    CALL cp_cfm_to_cfm(T2,T1)
     mult_p(1)%matrix=>T2
     mult_p(2)%matrix=>Tres
     tmp=1.0_dp
-    CALL cp_cfm_set_all(Npq,zero,one,error)
-    CALL cp_cfm_set_all(Dpq,zero,one,error)
+    CALL cp_cfm_set_all(Npq,zero,one)
+    CALL cp_cfm_set_all(Dpq,zero,one)
 
-    CALL cp_cfm_add(one,Npq,one*0.5_dp,T2,error)
-    CALL cp_cfm_add(one,Dpq,-one*0.5_dp,T2,error)
+    CALL cp_cfm_add(one,Npq,one*0.5_dp,T2)
+    CALL cp_cfm_add(one,Dpq,-one*0.5_dp,T2)
 
     IF(npade.GT.2)THEN
        DO i=2,npade
           IF(i.LE.p)scaleN=CMPLX(fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,kind=dp)
           scaleD=CMPLX((-1.0_dp)**i  * fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,kind=dp)
           CALL cp_cfm_gemm("N","N",ndim,ndim,ndim,one,T1,mult_p(MOD(i,2)+1)%matrix,zero,&
-               mult_p(MOD(i+1,2)+1)%matrix,error)
-          IF(i.LE.p)CALL cp_cfm_add(one,Npq,scaleN, mult_p(MOD(i+1,2)+1)%matrix,error)
-          IF(i.LE.q)CALL cp_cfm_add(one,Dpq,scaleD, mult_p(MOD(i+1,2)+1)%matrix,error)
+               mult_p(MOD(i+1,2)+1)%matrix)
+          IF(i.LE.p)CALL cp_cfm_add(one,Npq,scaleN, mult_p(MOD(i+1,2)+1)%matrix)
+          IF(i.LE.q)CALL cp_cfm_add(one,Dpq,scaleD, mult_p(MOD(i+1,2)+1)%matrix)
        END DO
     END IF
 
-    CALL cp_cfm_solve(Dpq,Npq,error=error)
+    CALL cp_cfm_solve(Dpq,Npq)
 
     mult_p(2)%matrix=>Npq
     mult_p(1)%matrix=>Tres
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
           CALL cp_cfm_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(i,2)+1)%matrix,mult_p(MOD(i,2)+1)%matrix,zero,&
-               mult_p(MOD(i+1,2)+1)%matrix,error)
+               mult_p(MOD(i+1,2)+1)%matrix)
           fin_p=> mult_p(MOD(i+1,2)+1)%matrix
        END DO
     ELSE
@@ -464,11 +443,11 @@ CONTAINS
        exp_H(2)%matrix%local_data(:,i)=AIMAG(fin_p%local_data(:,i))
     END DO
 
-    CALL cp_cfm_release(Npq,error)
-    CALL cp_cfm_release(Dpq,error)
-    CALL cp_cfm_release(T1,error)
-    CALL cp_cfm_release(T2,error)
-    CALL cp_cfm_release(Tres,error)
+    CALL cp_cfm_release(Npq)
+    CALL cp_cfm_release(Dpq)
+    CALL cp_cfm_release(T1)
+    CALL cp_cfm_release(T2)
+    CALL cp_cfm_release(Tres)
     DEALLOCATE(mult_p)
     CALL timestop(handle)
 
@@ -481,15 +460,13 @@ CONTAINS
 !> \param im_part ...
 !> \param nsquare ...
 !> \param npade ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE exp_pade_only_imaginary(exp_H,im_part,nsquare,npade,error)
+  SUBROUTINE exp_pade_only_imaginary(exp_H,im_part,nsquare,npade)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_part
     INTEGER, INTENT(in)                      :: nsquare, npade
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary', &
       routineP = moduleN//':'//routineN
@@ -511,43 +488,38 @@ CONTAINS
     p=npade 
     q=npade !p==q seems to be neccesary for the rest of the code
 
-    CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
+    CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim)
     square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
     ALLOCATE(cmult_p(2))
 
     CALL cp_cfm_create(Dpq,&
                        matrix_struct=im_part%matrix_struct,&
-                       name="Dpq",&
-                       error=error)
+                       name="Dpq")
 
     CALL cp_cfm_create(Npq,&
                       matrix_struct=Dpq%matrix_struct,&
-                      name="Npq",&
-                      error=error)
+                      name="Npq")
 
     CALL cp_cfm_create(T1,&
                       matrix_struct=Dpq%matrix_struct,&
-                      name="T1",&
-                      error=error)
+                      name="T1")
 
     CALL cp_fm_create(T2,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T2",&
-                      error=error)
+                      name="T2")
 
     CALL cp_fm_create(Tres,&
                       matrix_struct=T1%matrix_struct,&
-                      name="Tres",&
-                      error=error)
+                      name="Tres")
 
 !    DO i=1,ldim
 !       local_data_im(:,i)=local_data_im(:,i)/square_fac
 !    END DO
 
-    CALL cp_fm_to_fm(im_part,T2,error)
+    CALL cp_fm_to_fm(im_part,T2)
 
-    CALL cp_cfm_set_all(Npq,zero,one,error)
-    CALL cp_cfm_set_all(Dpq,zero,one,error)
+    CALL cp_cfm_set_all(Npq,zero,one)
+    CALL cp_cfm_set_all(Dpq,zero,one)
 
     DO i=1,ldim
        Npq%local_data(:,i)= Npq%local_data(:,i)+CMPLX(rzero,0.5_dp*square_fac*local_data_im(:,i),dp)
@@ -563,7 +535,7 @@ CONTAINS
           my_fac=(-rone)**j
           IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
           scaleD=CMPLX(my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
-          CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres,error)
+          CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres)
 
           DO k=1,ldim
              Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN * Tres%local_data(:,k)
@@ -574,7 +546,7 @@ CONTAINS
           i=2*j+1
           IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),rzero,dp)
           scaleD=CMPLX(-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),rzero,dp)
-          CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,Tres,rzero,T2,error)
+          CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,Tres,rzero,T2)
 
           DO k=1,ldim
              Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(rzero, T2%local_data(:,k),dp)
@@ -584,14 +556,14 @@ CONTAINS
        END DO
     END IF
 
-    CALL cp_cfm_solve(Dpq,Npq,error=error)
+    CALL cp_cfm_solve(Dpq,Npq)
 
     cmult_p(2)%matrix=>Npq
     cmult_p(1)%matrix=>T1
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
           CALL cp_cfm_gemm("N","N",ndim,ndim,ndim,one,cmult_p(MOD(i,2)+1)%matrix,cmult_p(MOD(i,2)+1)%matrix,zero,&
-               cmult_p(MOD(i+1,2)+1)%matrix,error)
+               cmult_p(MOD(i+1,2)+1)%matrix)
           fin_p=> cmult_p(MOD(i+1,2)+1)%matrix
        END DO
     ELSE
@@ -603,11 +575,11 @@ CONTAINS
        exp_H(2)%matrix%local_data(:,k)=AIMAG(fin_p%local_data(:,k))
     END DO
 
-    CALL cp_cfm_release(Npq,error)
-    CALL cp_cfm_release(Dpq,error)
-    CALL cp_cfm_release(T1,error)
-    CALL cp_fm_release(T2,error)
-    CALL cp_fm_release(Tres,error)
+    CALL cp_cfm_release(Npq)
+    CALL cp_cfm_release(Dpq)
+    CALL cp_cfm_release(T1)
+    CALL cp_fm_release(T2)
+    CALL cp_fm_release(Tres)
     DEALLOCATE(cmult_p)
     CALL timestop(handle)
   END SUBROUTINE exp_pade_only_imaginary
@@ -619,15 +591,13 @@ CONTAINS
 !> \param matrix ...
 !> \param nsquare ...
 !> \param npade ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE exp_pade_real(exp_H,matrix,nsquare,npade,error)
+  SUBROUTINE exp_pade_real(exp_H,matrix,nsquare,npade)
     TYPE(cp_fm_type)                         :: exp_H
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in)                      :: nsquare, npade
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_real', &
       routineP = moduleN//':'//routineN
@@ -646,42 +616,37 @@ CONTAINS
     p=npade
     q=npade !p==q seems to be neccesary for the rest of the code
 
-    CALL cp_fm_get_info(matrix,local_data=local_data,ncol_local=ldim,nrow_global=ndim,error=error)
+    CALL cp_fm_get_info(matrix,local_data=local_data,ncol_local=ldim,nrow_global=ndim)
     square_fac=2.0_dp**REAL(nsquare,dp)
     ALLOCATE(mult_p(2))
 
     CALL cp_fm_create(Dpq,&
                        matrix_struct=matrix%matrix_struct,&
-                       name="Dpq",&
-                       error=error)
+                       name="Dpq")
 
     CALL cp_fm_create(Npq,&
                       matrix_struct=Dpq%matrix_struct,&
-                      name="Npq",&
-                      error=error)
+                      name="Npq")
 
     CALL cp_fm_create(T1,&
                       matrix_struct=Dpq%matrix_struct,&
-                      name="T1",&
-                      error=error)
+                      name="T1")
 
     CALL cp_fm_create(T2,&
                       matrix_struct=T1%matrix_struct,&
-                      name="T2",&
-                      error=error)
+                      name="T2")
 
     CALL cp_fm_create(Tres,&
                       matrix_struct=T1%matrix_struct,&
-                      name="Tres",&
-                      error=error)
+                      name="Tres")
 
     DO i=1,ldim
        T2%local_data(:,i)=local_data(:,i)/square_fac
     END DO
 
-    CALL cp_fm_to_fm(T2,T1,error)
-    CALL cp_fm_set_all(Npq,zero,one,error)
-    CALL cp_fm_set_all(Dpq,zero,one,error)
+    CALL cp_fm_to_fm(T2,T1)
+    CALL cp_fm_set_all(Npq,zero,one)
+    CALL cp_fm_set_all(Dpq,zero,one)
 
     DO i=1,ldim
        Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*local_data(:,i)
@@ -697,7 +662,7 @@ CONTAINS
           scaleN=fac(p +q -j )*fac(p )/(fac(p +q )*fac(j )*fac(p -j ))
           scaleD=my_fac* fac(p +q -j )*fac(q)/(fac(p +q )*fac(j )*fac(q -j))
           CALL cp_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(j,2)+1)%matrix,T1,&
-          zero,mult_p(MOD(j+1,2)+1)%matrix,error)
+          zero,mult_p(MOD(j+1,2)+1)%matrix)
 
           DO k=1,ldim
              Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN* mult_p(MOD(j+1,2)+1)%matrix%local_data(:,k)
@@ -706,14 +671,14 @@ CONTAINS
        END DO
     END IF
 
-    CALL cp_fm_solve(Dpq,Npq,error)
+    CALL cp_fm_solve(Dpq,Npq)
 
     mult_p(2)%matrix=>Npq
     mult_p(1)%matrix=>T1
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
           CALL cp_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(i,2)+1)%matrix,mult_p(MOD(i,2)+1)%matrix,zero,&
-               mult_p(MOD(i+1,2)+1)%matrix,error)
+               mult_p(MOD(i+1,2)+1)%matrix)
           fin_p=> mult_p(MOD(i+1,2)+1)%matrix
        END DO
     ELSE
@@ -724,11 +689,11 @@ CONTAINS
        exp_H%local_data(:,k)=fin_p%local_data(:,k)
     END DO
 
-    CALL cp_fm_release(Npq,error)
-    CALL cp_fm_release(Dpq,error)
-    CALL cp_fm_release(T1,error)
-    CALL cp_fm_release(T2,error)
-    CALL cp_fm_release(Tres,error)
+    CALL cp_fm_release(Npq)
+    CALL cp_fm_release(Dpq)
+    CALL cp_fm_release(T1)
+    CALL cp_fm_release(T2)
+    CALL cp_fm_release(Tres)
     DEALLOCATE(mult_p)
     CALL timestop(handle)
 
@@ -744,11 +709,10 @@ CONTAINS
 !> \param Him ...
 !> \param mos_next ...
 !> \param narn_old ...
-!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,mos_next,narn_old,error)
+  SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,mos_next,narn_old)
 
     TYPE(cp_fm_p_type), DIMENSION(2)         :: mos_old, mos_new
     REAL(KIND=dp), INTENT(in)                :: eps_exp
@@ -757,7 +721,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(2), &
       OPTIONAL                               :: mos_next
     INTEGER, INTENT(inout)                   :: narn_old
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi', &
       routineP = moduleN//':'//routineN
@@ -787,35 +750,35 @@ CONTAINS
     para_env=>mos_new(1)%matrix%matrix_struct%para_env
 
     CALL cp_fm_get_info(mos_old(1)%matrix,ncol_local=ncol_local,col_indices=col_indices,&
-                        nrow_global=nao,ncol_global=nmo,matrix_struct=mo_struct,error=error)
+                        nrow_global=nao,ncol_global=nmo,matrix_struct=mo_struct)
     narnoldi=MIN(18,nao)
 
     ALLOCATE(results(ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(norm1(ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(V_mats(narnoldi+1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(last_norm(ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(H_approx(narnoldi,narnoldi,ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(H_approx_save(narnoldi,narnoldi,ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     col_procs=>mo_struct%context%blacs2mpi(:,mo_struct%context%mepos(2))
     CALL mp_reordering(para_env%group,col_group,col_procs)
     
 
     double_col=.TRUE.
     double_row=.FALSE.
-    CALL cp_fm_struct_double(newstruct,mo_struct,mo_struct%context,double_col,double_row,error)
+    CALL cp_fm_struct_double(newstruct,mo_struct,mo_struct%context,double_col,double_row)
     H_approx_save=rzero
 
     DO i=1,narnoldi+1
        CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct,&
-                          name="V_mat"//cp_to_string(i),error=error)
+                          name="V_mat"//cp_to_string(i))
     END DO
-    CALL cp_fm_get_info(V_mats(1)%matrix,ncol_global=newdim,error=error)
+    CALL cp_fm_get_info(V_mats(1)%matrix,ncol_global=newdim)
 
     norm1=0.0_dp
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,mos_old,ncol_local)
@@ -839,7 +802,7 @@ CONTAINS
     ! arnoldi subspace procedure to get H_approx
     DO i=2,narnoldi+1
        !Be careful, imaginary matrix multiplied with complex. Unfortunately requires a swap of arrays afterwards
-       CALL cp_gemm("N","N",nao,newdim,nao,1.0_dp,Him,V_mats(i-1)%matrix,0.0_dp,V_mats(i)%matrix,error)
+       CALL cp_gemm("N","N",nao,newdim,nao,1.0_dp,Him,V_mats(i-1)%matrix,0.0_dp,V_mats(i)%matrix)
 
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(mos_new,V_mats,ncol_local,i)
        DO icol_local=1,ncol_local
@@ -849,7 +812,7 @@ CONTAINS
        END DO
 
        IF(PRESENT(Hre))THEN
-           CALL cp_gemm("N","N",nao,newdim,nao,1.0_dp,Hre,V_mats(i-1)%matrix,1.0_dp,V_mats(i)%matrix,error)
+           CALL cp_gemm("N","N",nao,newdim,nao,1.0_dp,Hre,V_mats(i-1)%matrix,1.0_dp,V_mats(i)%matrix)
        END IF
 
        DO l=1,i-1
@@ -906,17 +869,17 @@ CONTAINS
           npade=9
           mydim=MIN(i,narnoldi)
           ALLOCATE(ipivot(mydim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(mat1(mydim,mydim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(mat2(mydim,mydim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(mat3(mydim,mydim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(N(mydim,mydim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ALLOCATE(D(mydim,mydim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DO icol_local=1,ncol_local
              DO idim=1,mydim
                 DO j=1,mydim
@@ -1023,17 +986,17 @@ CONTAINS
           END IF
    
           DEALLOCATE(ipivot,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(mat1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(mat2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(mat3,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(N,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           DEALLOCATE(D,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
        END IF
        IF(convergence)EXIT
 
@@ -1045,23 +1008,23 @@ CONTAINS
     !deallocate all work matrices
 
     DO i=1,SIZE(V_mats)
-       CALL cp_fm_release(V_mats(i)%matrix,error)
+       CALL cp_fm_release(V_mats(i)%matrix)
     END DO
-    CALL cp_fm_struct_release(newstruct,error)
+    CALL cp_fm_struct_release(newstruct)
     CALL mp_comm_free(col_group)
 
     DEALLOCATE(V_mats,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(H_approx,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(H_approx_save,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(results,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(norm1,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(last_norm,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     CALL timestop(handle)
   END SUBROUTINE arnoldi
 

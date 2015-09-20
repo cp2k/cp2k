@@ -61,17 +61,14 @@ CONTAINS
 !> \param description the description of the derivative you want to have
 !> \param allocate_deriv if the derivative should be allocated when not present
 !>                        Defaults to false.
-!> \param error variable to control error logging, stopping,...
-!>                        see module cp_error_handling
 !> \retval res ...
 ! *****************************************************************************
-  FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv, error) &
+  FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv) &
        RESULT(res)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     CHARACTER(len=*), INTENT(in)             :: description
     LOGICAL, INTENT(in), OPTIONAL            :: allocate_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(xc_derivative_type), POINTER        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative', &
@@ -88,27 +85,26 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pos,deriv_att,cr3d_ptr)
 
-    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,failure)
+    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,failure)
 
     my_allocate_deriv=.FALSE.
     IF (PRESENT(allocate_deriv)) my_allocate_deriv=allocate_deriv
     NULLIFY(res)
-    CALL standardize_derivative_desc(description,std_deriv_desc,error=error)
+    CALL standardize_derivative_desc(description,std_deriv_desc)
     pos => derivative_set%derivs
-    DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+    DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att))
        IF (deriv_att%desc == std_deriv_desc) THEN
           res => deriv_att
           EXIT
        END IF
     END DO
     IF (.NOT.ASSOCIATED(res).AND.my_allocate_deriv) THEN
-       CALL pw_pool_create_cr3d(derivative_set%pw_pool,cr3d_ptr,error=error)
+       CALL pw_pool_create_cr3d(derivative_set%pw_pool,cr3d_ptr)
        cr3d_ptr=0.0_dp
        CALL xc_derivative_create(res, std_deriv_desc, &
-                                 cr3d_ptr=cr3d_ptr, error=error)
-       CALL cp_sll_xc_deriv_insert_ordered(derivative_set%derivs,res,&
-            error=error)
+                                 cr3d_ptr=cr3d_ptr)
+       CALL cp_sll_xc_deriv_insert_ordered(derivative_set%derivs,res)
     END IF
   END FUNCTION xc_dset_get_derivative
 
@@ -118,15 +114,12 @@ CONTAINS
 !> \param pw_pool pool where to get the cr3d arrays needed to store the
 !>        derivatives
 !> \param local_bounds ...
-!> \param error variable to control error logging, stopping,...
-!>                  see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE xc_dset_create(derivative_set, pw_pool, local_bounds, error)
+  SUBROUTINE xc_dset_create(derivative_set, pw_pool, local_bounds)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
     INTEGER, DIMENSION(2, 3), OPTIONAL       :: local_bounds
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
       routineP = moduleN//':'//routineN
@@ -137,10 +130,10 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(pw_grid)
-    CPPrecondition(.not.ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.not.ASSOCIATED(derivative_set),cp_failure_level,routineP,failure)
 
     ALLOCATE(derivative_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 
     NULLIFY(derivative_set%derivs)
     derivative_set%ref_count  = 1
@@ -148,20 +141,20 @@ CONTAINS
     derivative_set%id_nr      = derivative_set_last_id_nr
     IF (PRESENT(pw_pool)) THEN
        derivative_set%pw_pool => pw_pool
-       CALL pw_pool_retain(pw_pool, error=error)
+       CALL pw_pool_retain(pw_pool)
        IF (PRESENT(local_bounds)) THEN
           CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "incompatible local_bounds and pw_pool",error,failure)
+               "incompatible local_bounds and pw_pool",failure)
        END IF
     ELSE
        !FM ugly hack, should be replaced by a pool only for 3d arrays
-       CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
-       CALL pw_grid_create(pw_grid,MPI_COMM_SELF,error=error)
+       CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,failure)
+       CALL pw_grid_create(pw_grid,MPI_COMM_SELF)
        pw_grid%bounds_local=local_bounds
        NULLIFY(derivative_set%pw_pool)
-       CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)
-       CALL pw_grid_release(pw_grid,error=error)
+       CALL pw_pool_create(derivative_set%pw_pool, pw_grid)
+       CALL pw_grid_release(pw_grid)
     END IF
 
   END SUBROUTINE xc_dset_create
@@ -169,13 +162,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief releases a derivative set
 !> \param derivative_set the set to release
-!> \param error variable to control error logging, stopping,...
-!>                  see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE xc_dset_release(derivative_set, error)
+  SUBROUTINE xc_dset_release(derivative_set)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
       routineP = moduleN//':'//routineN
@@ -188,21 +178,20 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(deriv_att,pos)
-    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,failure)
+    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,failure)
 
     derivative_set%ref_count = derivative_set%ref_count - 1
     IF (derivative_set%ref_count == 0) THEN
        pos => derivative_set%derivs
-       DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
-          CALL xc_derivative_release(deriv_att, pw_pool=derivative_set%pw_pool,&
-               error=error)
+       DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att))
+          CALL xc_derivative_release(deriv_att, pw_pool=derivative_set%pw_pool)
        END DO
-       CALL cp_sll_xc_deriv_dealloc(derivative_set%derivs,error=error)
-       CALL pw_pool_release(derivative_set%pw_pool,error=error)
+       CALL cp_sll_xc_deriv_dealloc(derivative_set%derivs)
+       CALL pw_pool_release(derivative_set%pw_pool)
 
        DEALLOCATE(derivative_set, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     END IF
     NULLIFY(derivative_set)
 
@@ -211,15 +200,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given derivative set
 !> \param deriv_set the derivative set to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE xc_dset_retain(deriv_set,error)
+SUBROUTINE xc_dset_retain(deriv_set)
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', &
       routineP = moduleN//':'//routineN
@@ -228,20 +214,18 @@ SUBROUTINE xc_dset_retain(deriv_set,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-  CPPreconditionNoFail(deriv_set%ref_count>0,cp_failure_level,routineP,error)
+  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+  CPPreconditionNoFail(deriv_set%ref_count>0,cp_failure_level,routineP)
   deriv_set%ref_count=deriv_set%ref_count+1
 END SUBROUTINE xc_dset_retain
 
 ! *****************************************************************************
 !> \brief ...
 !> \param deriv_set ...
-!> \param error ...
 ! *****************************************************************************
-SUBROUTINE xc_dset_zero_all(deriv_set, error)
+SUBROUTINE xc_dset_zero_all(deriv_set)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
       routineP = moduleN//':'//routineN
@@ -253,9 +237,9 @@ SUBROUTINE xc_dset_zero_all(deriv_set, error)
   failure = .FALSE.
   NULLIFY(pos, deriv_att)
 
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
   pos => deriv_set%derivs
-  DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error))
+  DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att))
      deriv_att%deriv_data = 0.0_dp
   END DO
 

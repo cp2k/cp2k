@@ -62,16 +62,14 @@ CONTAINS
 !> \param overwrite ...
 !> \param subsys_section ...
 !> \param save_mem ...
-!> \param error ...
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE read_atoms_input ( topology, overwrite, subsys_section, save_mem, error )
+  SUBROUTINE read_atoms_input ( topology, overwrite, subsys_section, save_mem)
 
     TYPE(topology_parameters_type)           :: topology
     LOGICAL, INTENT(IN), OPTIONAL            :: overwrite
     TYPE(section_vals_type), POINTER         :: subsys_section
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_atoms_input', &
       routineP = moduleN//':'//routineN
@@ -99,13 +97,13 @@ CONTAINS
     my_save_mem = .FALSE.
     error_message = ""
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     IF (PRESENT(overwrite)) my_overwrite=overwrite
     IF (PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(coord_section)
-    coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-    CALL section_vals_get(coord_section, explicit=explicit, error=error)
+    coord_section => section_vals_get_subs_vals(subsys_section,"COORD")
+    CALL section_vals_get(coord_section, explicit=explicit)
     IF (.NOT.explicit) RETURN
 
     CALL timeset(routineN,handle)
@@ -115,28 +113,28 @@ CONTAINS
     !-----------------------------------------------------------------------------
     atom_info => topology%atom_info
     cell => topology%cell_muc
-    CALL section_vals_val_get(coord_section,"UNIT",c_val=unit_str,error=error)
-    CALL section_vals_val_get(coord_section,"SCALED",l_val=scaled_coordinates,error=error)
-    unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    CALL section_vals_val_get(coord_section,"UNIT",c_val=unit_str)
+    CALL section_vals_val_get(coord_section,"SCALED",l_val=scaled_coordinates)
+    unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str))
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from &COORD section in the input file
     !-----------------------------------------------------------------------------
     CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-         n_rep_val=natom,error=error)
+         n_rep_val=natom)
     topology%natoms = natom
     IF (my_overwrite) THEN
-       CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP, error, failure)
+       CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP,failure)
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "Overwriting coordinates. Active coordinates read from &COORD section."//&
             " Active coordinates READ from &COORD section "//&
 CPSourceFileRef,&
           only_ionode=.TRUE.)
-       CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+       CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list)
        DO iatom=1,natom
-          is_ok=cp_sll_val_next(list,val,error=error)
-          CALL val_get(val,c_val=line_att,error=error)
+          is_ok=cp_sll_val_next(list,val)
+          CALL val_get(val,c_val=line_att)
           ! Read name and atomic coordinates
           start_c=1
           DO wrd=1,4
@@ -156,7 +154,7 @@ CPSourceFileRef,&
              CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
                   cp_assertion_failed,routineP,&
                   "incorrectly formatted line in coord section'"//line_att//"'",&
-                  error,failure)
+                  failure)
              IF (wrd==1) THEN
                 atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
              ELSE
@@ -178,11 +176,11 @@ CPSourceFileRef,&
        CALL reallocate(atom_info%atm_mass,1,natom)
        CALL reallocate(atom_info%atm_charge,1,natom)
 
-       CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+       CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
-          is_ok=cp_sll_val_next(list,val,error=error)
-          CALL val_get(val,c_val=line_att,error=error)
+          is_ok=cp_sll_val_next(list,val)
+          CALL val_get(val,c_val=line_att)
           default_id = str2id(s2s(""))
           atom_info%id_molname(iatom) = default_id
           atom_info%id_resname(iatom) = default_id
@@ -211,7 +209,7 @@ CPSourceFileRef,&
                             "Incorrectly formatted input line for atom "//&
                             TRIM(ADJUSTL(cp_to_string(iatom)))//&
                             " found in COORD section. Input line: <"//&
-                            TRIM(line_att)//"> ",error,failure)
+                            TRIM(line_att)//"> ",failure)
              SELECT CASE (wrd)
              CASE (1)
                 atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
@@ -223,7 +221,7 @@ CPSourceFileRef,&
                                "Incorrectly formatted input line for atom "//&
                                TRIM(ADJUSTL(cp_to_string(iatom)))//&
                                " found in COORD section. "//TRIM(error_message)//&
-                               " Input line: <"//TRIM(line_att)//"> ",error,failure)
+                               " Input line: <"//TRIM(line_att)//"> ",failure)
              CASE (5)
                 READ (line_att(start_c:end_c-1),*) strtmp
                 atom_info%id_molname(iatom) = str2id(strtmp)
@@ -259,7 +257,7 @@ CPSourceFileRef,&
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_conv
        END IF
     END DO
-    IF(my_save_mem) CALL section_vals_remove_values(coord_section, error)
+    IF(my_save_mem) CALL section_vals_remove_values(coord_section)
 
     CALL timestop(handle)
   END SUBROUTINE read_atoms_input
@@ -272,11 +270,10 @@ CPSourceFileRef,&
 !> \param subsys_section ...
 !> \param core_particle_set ...
 !> \param save_mem ...
-!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell,&
-             subsys_section, core_particle_set, save_mem, error )
+             subsys_section, core_particle_set, save_mem)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set, &
@@ -286,7 +283,6 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: core_particle_set
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
       routineP = moduleN//':'//routineN
@@ -317,41 +313,41 @@ CPSourceFileRef,&
     failure=.FALSE.
     my_save_mem = .FALSE.
     NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     IF(PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(shell_coord_section, core_coord_section)
-    shell_coord_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-    CALL section_vals_get(shell_coord_section, explicit=explicit, error=error)
+    shell_coord_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD")
+    CALL section_vals_get(shell_coord_section, explicit=explicit)
     IF (.NOT.explicit) RETURN
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from &SHELL_COORD section in the input file
     !-----------------------------------------------------------------------------
-    CALL section_vals_val_get(shell_coord_section,"UNIT",c_val=unit_str,error=error)
-    CALL section_vals_val_get(shell_coord_section,"SCALED",l_val=shell_scaled_coordinates,error=error)
-    unit_conv_shell = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    CALL section_vals_val_get(shell_coord_section,"UNIT",c_val=unit_str)
+    CALL section_vals_val_get(shell_coord_section,"SCALED",l_val=shell_scaled_coordinates)
+    unit_conv_shell = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str))
     CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
-         n_rep_val=nshell,error=error)
+         n_rep_val=nshell)
 
     IF (ASSOCIATED(shell_particle_set)) THEN
-      CPPrecondition((SIZE(shell_particle_set,1) == nshell),cp_failure_level,routineP,error,failure)
+      CPPrecondition((SIZE(shell_particle_set,1) == nshell),cp_failure_level,routineP,failure)
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
            "Overwriting shell coordinates. "//&
            "Active coordinates READ from &SHELL_COORD section. "//&
 CPSourceFileRef,&
            only_ionode=.TRUE.)
-      CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+      CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list)
       DO ishell=1,nshell
          ! we use only the first default_string_length characters of each line
-         is_ok=cp_sll_val_next(list,val,error=error)
-         CALL val_get(val,c_val=line_att,error=error)
+         is_ok=cp_sll_val_next(list,val)
+         CALL val_get(val,c_val=line_att)
          start_c=1
          DO wrd=1,5
             DO j=start_c,LEN(line_att)
@@ -370,7 +366,7 @@ CPSourceFileRef,&
             CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
                  cp_assertion_failed,routineP,&
                  "incorrectly formatted line in coord section'"//line_att//"'",&
-                 error,failure)
+                 failure)
             IF (wrd==1) THEN
                at_name(ishell)=line_att(start_c:end_c-1)
                CALL uppercase(at_name(ishell))
@@ -384,29 +380,29 @@ CPSourceFileRef,&
       END DO
 
       IF (PRESENT(core_particle_set)) THEN
-        CPPrecondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
-        core_coord_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-        CALL section_vals_get(core_coord_section, explicit=explicit, error=error)
+        CPPrecondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
+        core_coord_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD")
+        CALL section_vals_get(core_coord_section, explicit=explicit)
         IF (explicit) THEN
-          CALL section_vals_val_get(core_coord_section,"UNIT",c_val=unit_str,error=error)
-          CALL section_vals_val_get(core_coord_section,"SCALED",l_val=core_scaled_coordinates,error=error)
-          unit_conv_core = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          CALL section_vals_val_get(core_coord_section,"UNIT",c_val=unit_str)
+          CALL section_vals_val_get(core_coord_section,"SCALED",l_val=core_scaled_coordinates)
+          unit_conv_core = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str))
           CALL section_vals_val_get(core_coord_section,"_DEFAULT_KEYWORD_",&
-               n_rep_val=nshell,error=error)
+               n_rep_val=nshell)
 
-          CPPostcondition((SIZE(core_particle_set,1) == nshell),cp_failure_level,routineP,error,failure)
+          CPPostcondition((SIZE(core_particle_set,1) == nshell),cp_failure_level,routineP,failure)
           ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell), STAT=istat)
-          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Overwriting cores coordinates. "//&
                " Active coordinates READ from &CORE_COORD section. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
-          CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+          CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list)
           DO ishell=1,nshell
              ! we use only the first default_string_length characters of each line
-             is_ok=cp_sll_val_next(list,val,error=error)
-             CALL val_get(val,c_val=line_att,error=error)
+             is_ok=cp_sll_val_next(list,val)
+             CALL val_get(val,c_val=line_att)
              start_c=1
              DO wrd=1,5
                 DO j=start_c,LEN(line_att)
@@ -425,7 +421,7 @@ CPSourceFileRef,&
                 CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
                      cp_assertion_failed,routineP,&
                      "incorrectly formatted line in coord section'"//line_att//"'",&
-                     error,failure)
+                     failure)
                 IF (wrd==1) THEN
                    at_name_c(ishell)=line_att(start_c:end_c-1)
                    CALL uppercase(at_name_c(ishell))
@@ -437,7 +433,7 @@ CPSourceFileRef,&
                 start_c=end_c
              END DO
           END DO
-          IF(my_save_mem) CALL section_vals_remove_values(core_coord_section, error)
+          IF(my_save_mem) CALL section_vals_remove_values(core_coord_section)
         END IF  ! explicit
       END IF  ! core_particle_set
 
@@ -475,8 +471,8 @@ CPSourceFileRef,&
              END IF
              core_particle_set(sh_index)%atom_index=at_index_c(ishell)
              rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)
-             CPPostcondition(TRIM(at_name(ishell))==TRIM(at_name_c(ishell)),cp_failure_level,routineP,error,failure)
-             CPPostcondition(at_index(ishell)==at_index_c(ishell),cp_failure_level,routineP,error,failure)
+             CPPostcondition(TRIM(at_name(ishell))==TRIM(at_name_c(ishell)),cp_failure_level,routineP,failure)
+             CPPostcondition(at_index(ishell)==at_index_c(ishell),cp_failure_level,routineP,failure)
            ELSE
              rab = pbc(shell_particle_set(sh_index)%r,particle_set(at_index(ishell))%r,cell)
            END IF
@@ -492,17 +488,17 @@ CPSourceFileRef,&
            CALL cp_assert(.FALSE.,cp_failure_level,&
                  cp_assertion_failed,routineP,&
                  "shell coordinate assigned to the wrong atom. check the shell indexes in the input",&
-                 error,failure)
+                 failure)
          END IF
       END DO
       DEALLOCATE(r,at_index,at_name,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
       DEALLOCATE(rc,at_index_c,at_name_c,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
 
     END IF
 
-    IF (my_save_mem) CALL section_vals_remove_values(shell_coord_section,error)
+    IF (my_save_mem) CALL section_vals_remove_values(shell_coord_section)
 
     CALL timestop(handle)
 

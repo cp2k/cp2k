@@ -59,16 +59,14 @@ MODULE helium_sampling
 !> \brief  Performs MC simulation for helium (only)
 !> \param helium ...
 !> \param globenv ...
-!> \param error ...
 !> \date   2009-07-14
 !> \author Lukasz Walewski
 !> \note   This routine gets called only when HELIUM_ONLY is set to .TRUE.,
 !>         so do not put any property calculations here!
 ! *****************************************************************************
-  SUBROUTINE helium_do_run(helium, globenv, error)
+  SUBROUTINE helium_do_run(helium, globenv)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_do_run', &
       routineP = moduleN//':'//routineN
@@ -78,42 +76,42 @@ MODULE helium_sampling
     TYPE(pint_env_type), POINTER             :: pint_env
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
     IF (failure) THEN
-      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
     END IF
 
     NULLIFY(pint_env)
 
     NULLIFY(helium%logger)
-    helium%logger => cp_error_get_logger(error)
+    helium%logger => cp_get_default_logger()
 
     ! create iteration level
     ! The iteration level 'MD' can be misleading since this is a pure MC
     ! simulation, however the helium code is meant to be run mainly from PINT.
     ! We keep it like that for compatibility with PINT+HELIUM simulations.
-    CALL cp_add_iter_level(helium%logger%iter_info,"MD",error=error)
-    CALL cp_iterate(helium%logger%iter_info,iter_nr=helium%first_step,error=error)
+    CALL cp_add_iter_level(helium%logger%iter_info,"MD")
+    CALL cp_iterate(helium%logger%iter_info,iter_nr=helium%first_step)
     tot_steps = helium%first_step
     DO step = 1, helium%num_steps
 
       tot_steps = tot_steps + 1
-      CALL cp_iterate(helium%logger%iter_info,last=(step==helium%num_steps),iter_nr=tot_steps,error=error)
+      CALL cp_iterate(helium%logger%iter_info,last=(step==helium%num_steps),iter_nr=tot_steps)
       helium%current_step = tot_steps
 
-      CALL helium_step(helium,pint_env,error)
+      CALL helium_step(helium,pint_env)
 
       ! call write_restart here to avoid interference with PINT write_restart
-      CALL write_restart(root_section=helium%input,helium_env=helium,error=error)
+      CALL write_restart(root_section=helium%input,helium_env=helium)
 
       ! exit from the main loop if soft exit has been requested
-      CALL external_control(should_stop,"MD",globenv=globenv,error=error)
+      CALL external_control(should_stop,"MD",globenv=globenv)
       IF (should_stop) EXIT
 
     END DO
 
     ! remove iteration level
-    CALL cp_rm_iter_level(helium%logger%iter_info,"MD",error=error)
+    CALL cp_rm_iter_level(helium%logger%iter_info,"MD")
 
     RETURN
   END SUBROUTINE helium_do_run
@@ -122,7 +120,6 @@ MODULE helium_sampling
 !> \brief  Sample the helium phase space
 !> \param helium ...
 !> \param pint_env ...
-!> \param error ...
 !> \date   2009-10-27
 !> \author Lukasz Walewski
 !> \note   Samples helium variable space according to multilevel Metropolis
@@ -134,11 +131,10 @@ MODULE helium_sampling
 !>         everywhere I should. This leads to some redundancy in the case of
 !>         helium-only calculations.
 ! *****************************************************************************
-  SUBROUTINE helium_sample( helium, pint_env, error )
+  SUBROUTINE helium_sample( helium, pint_env)
 
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample', &
       routineP = moduleN//':'//routineN
@@ -150,10 +146,10 @@ MODULE helium_sampling
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
 
     solute_present = helium%solute_present
     helium%force_avrg(:,:) = 0.0_dp
@@ -177,24 +173,24 @@ MODULE helium_sampling
       ! 'rotation state' in helium%relrot wich is within (0, helium%beads-1)
       ! (this is needed to sample different fragments of the permutation
       ! paths in try_permutations)
-      rnd = next_random_number(helium%rng_stream_uniform,error=error)
+      rnd = next_random_number(helium%rng_stream_uniform)
       nslices = INT(rnd * helium%beads)
-      CALL helium_rotate(helium,nslices,error)
+      CALL helium_rotate(helium,nslices)
 
-      CALL helium_try_permutations(helium,pint_env,error)
+      CALL helium_try_permutations(helium,pint_env)
 
       ! calculate instantaneous forces on the solute and He properties
       IF (solute_present) CALL helium_solute_e_f(pint_env, helium, rtmp)
       CALL helium_calc_energy(helium,pint_env)
       CALL helium_calc_wnumber( helium )
-      CALL helium_calc_plength( helium, error )
-      CALL helium_calc_rdf( helium, error )
-      IF (helium%rho_present) CALL helium_calc_rho( helium, error )
+      CALL helium_calc_plength( helium)
+      CALL helium_calc_rdf( helium)
+      IF (helium%rho_present) CALL helium_calc_rho( helium)
 
       ! instantaneous force output according to HELIUM%PRINT%FORCES_INST
       ! Warning: file I/O here may cost A LOT of cpu time!
       ! switched off here to save cpu
-      !CALL helium_write_force_inst( helium, error )
+      !CALL helium_write_force_inst( helium)
 
       ! collect instantaneous values for averaging
       helium%force_avrg(:,:) = &
@@ -214,7 +210,7 @@ MODULE helium_sampling
     ! restore the original alignment of beads in imaginary time
     ! (this is useful to make a single bead's position easy to follow
     ! in the trajectory, otherwise it's index would change every step)
-    CALL helium_rotate(helium,-helium%relrot, error)
+    CALL helium_rotate(helium,-helium%relrot)
 
     ! actually average the forces and properties over the outer MC loop
     helium%force_avrg(:,:) = helium%force_avrg(:,:) * inv_iter_rot
@@ -247,15 +243,13 @@ MODULE helium_sampling
 !> \brief  Perform MC step for helium
 !> \param helium ...
 !> \param pint_env ...
-!> \param error ...
 !> \date   2009-06-12
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  SUBROUTINE helium_step( helium, pint_env, error )
+  SUBROUTINE helium_step( helium, pint_env)
 
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_step', &
       routineP = moduleN//':'//routineN
@@ -270,22 +264,22 @@ MODULE helium_sampling
     time_start = m_walltime()
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
 
     ! perform the actual phase space sampling
-    CALL helium_sample( helium, pint_env, error )
+    CALL helium_sample( helium, pint_env)
 
     ! write out the averaged properties
-    CALL helium_write_energy( helium, error )
-    CALL helium_write_sdensity( helium, error )
-    CALL helium_write_wnumber( helium, error )
-    CALL helium_write_plength( helium, error )
-    CALL helium_write_rdf( helium, error )
-    IF (helium%rho_present) CALL helium_write_rho( helium, error )
-    CALL helium_write_perm( helium, error )
-    CALL helium_write_accepts( helium, error )
-    CALL helium_write_coordinates( helium, error=error )
-    CALL helium_write_force( helium, error )
+    CALL helium_write_energy( helium)
+    CALL helium_write_sdensity( helium)
+    CALL helium_write_wnumber( helium)
+    CALL helium_write_plength( helium)
+    CALL helium_write_rdf( helium)
+    IF (helium%rho_present) CALL helium_write_rho( helium)
+    CALL helium_write_perm( helium)
+    CALL helium_write_accepts( helium)
+    CALL helium_write_coordinates( helium)
+    CALL helium_write_force( helium)
 
     time_stop = m_walltime()
     time_used = time_stop - time_start
@@ -309,13 +303,13 @@ MODULE helium_sampling
     WRITE(stmp, '(F20.1)') time_used
     msgstr = TRIM(ADJUSTL(msgstr)) // " " // TRIM(ADJUSTL(stmp))
     msgstr = TRIM(ADJUSTL(msgstr)) // " " // TRIM(ADJUSTL(time_unit)) // "."
-    CALL helium_write_line(TRIM(msgstr), error)
+    CALL helium_write_line(TRIM(msgstr))
 
     ! print out the total energy - for regtest evaluation
     stmp = ""
     WRITE(stmp, *) helium%energy_avrg(e_id_total)
     msgstr = "Total energy = " // TRIM(ADJUSTL(stmp))
-    CALL helium_write_line(TRIM(msgstr), error)
+    CALL helium_write_line(TRIM(msgstr))
 
     CALL timestop(handle)
 
@@ -326,15 +320,13 @@ MODULE helium_sampling
 !> \brief  ...
 !> \param helium ...
 !> \param  pint_env  - path integral environment
-!> \param  error     - error handling (see module cp_error_handling)
 !> \par    History
 !>        2010-06-17 ratio for m-value added (m-sampling related) [lwalewski]
 !> \author hforbert
 ! *****************************************************************************
-  SUBROUTINE helium_try_permutations(helium, pint_env, error)
+  SUBROUTINE helium_try_permutations(helium, pint_env)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_try_permutations', &
       routineP = moduleN//':'//routineN
@@ -342,7 +334,7 @@ MODULE helium_sampling
     INTEGER                                  :: ncycles, ni, nselected, res
     REAL(KIND=dp)                            :: r, rnd, x
 
-   IF (helium%maxcycle>1) CALL helium_update_transition_matrix(helium,error)
+   IF (helium%maxcycle>1) CALL helium_update_transition_matrix(helium)
      helium%work(:,:,:)=helium%pos(:,:,:)
 
    ! the inner MC loop (without rotation in imaginary time)
@@ -352,12 +344,12 @@ MODULE helium_sampling
       r = 1.0_dp / ( 1.0_dp + (helium%maxcycle-1)/helium%m_ratio )
 
       ! draw permutation length for this trial from the distribution of choice
-      x = next_random_number(helium%rng_stream_uniform,error=error)
+      x = next_random_number(helium%rng_stream_uniform)
       IF ( x .LT. r ) THEN
         ncycles = helium%m_value
       ELSE
         DO
-          x = next_random_number(helium%rng_stream_uniform,error=error)
+          x = next_random_number(helium%rng_stream_uniform)
           ncycles = INT(helium%maxcycle*x)+1
           IF ( ncycles .NE. helium%m_value ) EXIT
         END DO
@@ -369,18 +361,18 @@ MODULE helium_sampling
 
       ! check, if permutation of this length can be constructed
       IF (ncycles == 1) THEN
-         rnd = next_random_number(helium%rng_stream_uniform,error=error)
+         rnd = next_random_number(helium%rng_stream_uniform)
          helium%ptable(1)=1+INT(rnd*helium%atoms)
          helium%ptable(2)=-1
          helium%pweight=0.0_dp
          nselected = 1
       ELSE
-         nselected = helium_select_permutation(helium,ncycles,error)
+         nselected = helium_select_permutation(helium,ncycles)
       END IF
 
       IF (nselected /= 0) THEN
          ! the permutation was successfully selected - actually sample this permutation
-         res = helium_slice_metro_cyclic(helium, pint_env, ncycles, error)
+         res = helium_slice_metro_cyclic(helium, pint_env, ncycles)
       END IF
 
     END DO
@@ -393,15 +385,13 @@ MODULE helium_sampling
 !> \param helium ...
 !> \param pint_env ...
 !> \param n ...
-!> \param error ...
 !> \retval res 1 - if the MC move was accepted, 0 - otherwise
 !> \author hforbert
 ! *****************************************************************************
-  FUNCTION helium_slice_metro_cyclic(helium,pint_env,n,error) RESULT(res)
+  FUNCTION helium_slice_metro_cyclic(helium,pint_env,n) RESULT(res)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
     INTEGER, INTENT(IN)                      :: n
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: res
 
     INTEGER                                  :: c, hbeads, i, j, k, l, level, &
@@ -496,7 +486,7 @@ IF (m==0) RETURN
             CALL helium_boxmean_3d( helium, work(:,p(k),pk1), work(:,p(k),pk2), tmp1 )
             DO c = 1, 3
                x = next_random_number(rng_stream=helium%rng_stream_gaussian,&
-                   variance=1.0_dp,error=error)
+                   variance=1.0_dp)
                x = sigma * x
                tmp1(c) = tmp1(c) + x
                tmp2(c) = x
@@ -523,7 +513,7 @@ IF (m==0) RETURN
          CALL helium_boxmean_3d( helium, work(:,p(k),pk1), work(:,perm(p(1+MOD(k,n))),1), tmp1 )
          DO c = 1, 3
             x = next_random_number(rng_stream=helium%rng_stream_gaussian,&
-                variance=1.0_dp,error=error)
+                variance=1.0_dp)
             x = sigma * x
             tmp1(c) = tmp1(c) + x
             tmp2(c) = x
@@ -605,7 +595,7 @@ IF (m==0) RETURN
          ds = ds - x * ( tmp1(1)*tmp1(1) + tmp1(2)*tmp1(2) + tmp1(3)*tmp1(3) )
       END DO
       ! ok now accept or reject:
-      tmp = next_random_number(helium%rng_stream_uniform,error=error)
+      tmp = next_random_number(helium%rng_stream_uniform)
 !      IF ((dtk+ds-pds < 0.0_dp).AND.(EXP(dtk+ds-pds)<tmp)) THEN
       IF (dtk+ds-pds < 0.0_dp) THEN
          IF (EXP(dtk+ds-pds)<tmp) THEN
@@ -646,7 +636,7 @@ END DO
          CALL helium_boxmean_3d( helium, work(:,p(k),pk1), work(:,p(k),pk2), tmp1 )
          DO c = 1, 3
             x = next_random_number(rng_stream=helium%rng_stream_gaussian,&
-                variance=1.0_dp,error=error)
+                variance=1.0_dp)
             x = sigma * x
             tmp1(c) = tmp1(c) + x
             tmp2(c) = x
@@ -671,7 +661,7 @@ END DO
      CALL helium_boxmean_3d( helium, work(:,p(k),pk1), work(:,perm(p(1+MOD(k,n))),1), tmp1 )
      DO c = 1, 3
         x = next_random_number(rng_stream=helium%rng_stream_gaussian,&
-            variance=1.0_dp,error=error)
+            variance=1.0_dp)
         x = sigma * x
         tmp1(c) = tmp1(c) + x
         tmp2(c) = x
@@ -779,7 +769,7 @@ END DO
       END IF
    END DO
    ! ok now accept or reject:
-   tmp = next_random_number(helium%rng_stream_uniform,error=error)
+   tmp = next_random_number(helium%rng_stream_uniform)
 !   IF ((dtk+ds-pds<0.0_dp).AND.(EXP(dtk+ds-pds)<tmp)) THEN
    IF (dtk+ds-pds<0.0_dp) THEN
       IF (EXP(dtk+ds-pds)<tmp) THEN
@@ -821,14 +811,12 @@ END DO
 !> \brief ...
 !> \param helium ...
 !> \param len ...
-!> \param error ...
 !> \retval res 1 - if the permutation was successfully selected, 0 - otherwise
 !> \author hforbert
 ! *****************************************************************************
-  FUNCTION helium_select_permutation(helium,len,error) RESULT(res)
+  FUNCTION helium_select_permutation(helium,len) RESULT(res)
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: len
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: res
 
     INTEGER                                  :: i, j, k, n
@@ -850,10 +838,10 @@ END DO
     nmatrix => helium%nmatrix
 
     p(len+1)=-1
-    rnd = next_random_number(helium%rng_stream_uniform,error=error)
+    rnd = next_random_number(helium%rng_stream_uniform)
     p(1) = INT(n*rnd)+1
     DO k = 1, len - 1
-      t = next_random_number(helium%rng_stream_uniform,error=error)
+      t = next_random_number(helium%rng_stream_uniform)
       ! find the corresponding path to connect to
       ! using the precalculated optimal decision tree:
       i = n-1
@@ -881,7 +869,7 @@ END DO
     s1 = s1 + ipmatrix(p(len),perm(p(1)))
     s2 = s2 + ipmatrix(p(len),perm(p(len)))
     ! final accept/reject:
-    rnd = next_random_number(helium%rng_stream_uniform,error=error)
+    rnd = next_random_number(helium%rng_stream_uniform)
     t = s1*rnd
     IF (t > s2) RETURN
     ! ok, we have accepted the permutation

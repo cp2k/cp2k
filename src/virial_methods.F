@@ -38,16 +38,14 @@ CONTAINS
 !> \param virial ...
 !> \param subsys ...
 !> \param para_env ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - 03.2008 - Zurich University
 ! *****************************************************************************
-  SUBROUTINE virial_update(virial, subsys, para_env, error)
+  SUBROUTINE virial_update(virial, subsys, para_env)
     TYPE(virial_type), INTENT(INOUT)         :: virial
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_update', &
       routineP = moduleN//':'//routineN
@@ -57,10 +55,10 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     CALL cp_subsys_get(subsys, local_particles=local_particles, atomic_kinds=atomic_kinds,&
-         particles=particles, error=error)
+         particles=particles)
 
     CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
-         virial, para_env%group, error)
+         virial, para_env%group)
 
   END SUBROUTINE virial_update
 
@@ -72,13 +70,12 @@ CONTAINS
 !> \param local_particles ...
 !> \param virial ...
 !> \param igroup ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, local_particles,&
-       virial, igroup, error)
+       virial, igroup)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -87,7 +84,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(virial_type), INTENT(INOUT)         :: virial
     INTEGER, INTENT(IN)                      :: igroup
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_evaluate', &
       routineP = moduleN//':'//routineN
@@ -139,17 +135,15 @@ CONTAINS
 !> \param f0 ...
 !> \param force ...
 !> \param rab ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab, error)
+  SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab)
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_virial
     REAL(KIND=dp)                            :: f0
     REAL(KIND=dp), DIMENSION(3)              :: force, rab
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
       routineP = moduleN//':'//routineN

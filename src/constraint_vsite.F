@@ -42,15 +42,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief control force distribution for virtual sites
 !> \param force_env ...
-!> \param error ...
 !> \date 12.2008
 !> \par History
 !>      - none
 !> \author Marcel Baer
 ! *****************************************************************************
-  SUBROUTINE vsite_force_control( force_env, error)
+  SUBROUTINE vsite_force_control( force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ikind, imol, nconstraint, &
                                                 nkind, nmol_per_kind, &
@@ -75,12 +73,11 @@ CONTAINS
     NULLIFY(gci, subsys, local_molecules, local_particles,&
          molecule_kinds)
 
-    CALL force_env_get(force_env=force_env, subsys=subsys,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys)
 
     CALL cp_subsys_get(subsys=subsys,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,molecules_new=molecules,&
-         error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,molecules_new=molecules)
 
     molecule_kind_set => molecule_kinds%els
     molecule_set => molecules%els
@@ -116,14 +113,12 @@ CONTAINS
 !> \brief Intramolecular virtual site
 !> \param molecule ...
 !> \param pos ...
-!> \param error ...
 !> \par History
 !>      12.2008 Marcel Baer
 ! *****************************************************************************
-  SUBROUTINE shake_vsite_int( molecule, pos, error)
+  SUBROUTINE shake_vsite_int( molecule, pos)
     TYPE(molecule_type), POINTER             :: molecule
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : )
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, nvsite
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -133,7 +128,7 @@ CONTAINS
     CALL get_molecule_kind ( molecule_kind, nvsite = nvsite, vsite_list = vsite_list )
     CALL get_molecule ( molecule, first_atom = first_atom)
     ! Real Shake
-    CALL shake_vsite_low( vsite_list, nvsite, first_atom, pos, error)
+    CALL shake_vsite_low( vsite_list, nvsite, first_atom, pos)
 
   END SUBROUTINE shake_vsite_int
 
@@ -141,15 +136,13 @@ CONTAINS
 !> \brief Intramolecular virtual site
 !> \param gci ...
 !> \param pos ...
-!> \param error ...
 !> \par History
 !>      12.2008 Marcel Baer
 ! *****************************************************************************
-  SUBROUTINE shake_vsite_ext( gci, pos, error)
+  SUBROUTINE shake_vsite_ext( gci, pos)
 
     TYPE(global_constraint_type), POINTER    :: gci
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : )
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, nvsite
     TYPE(vsite_constraint_type), POINTER     :: vsite_list( : )
@@ -158,7 +151,7 @@ CONTAINS
     nvsite = gci%nvsite
     vsite_list => gci%vsite_list
     ! Real Shake
-    CALL shake_vsite_low( vsite_list, nvsite, first_atom, pos, error)
+    CALL shake_vsite_low( vsite_list, nvsite, first_atom, pos)
 
   END SUBROUTINE shake_vsite_ext
 
@@ -168,15 +161,13 @@ CONTAINS
 !> \param nvsite ...
 !> \param first_atom ...
 !> \param pos ...
-!> \param error ...
 !> \par History
 !>      12.2008 Marcel Bear
 ! *****************************************************************************
-  SUBROUTINE shake_vsite_low(vsite_list, nvsite, first_atom, pos, error)
+  SUBROUTINE shake_vsite_low(vsite_list, nvsite, first_atom, pos)
     TYPE(vsite_constraint_type)              :: vsite_list( : )
     INTEGER, INTENT(IN)                      :: nvsite, first_atom
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : )
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c, index_d

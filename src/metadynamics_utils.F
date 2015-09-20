@@ -74,19 +74,17 @@ CONTAINS
 !> \param root_section ...
 !> \param para_env ...
 !> \param fe_section ...
-!> \param error ...
 !> \par History
 !>      04.2004 created
 !> \author Teodoro Laino [tlaino] - University of Zurich. 11.2007
 ! *****************************************************************************
-  SUBROUTINE metadyn_read(meta_env,force_env,root_section,para_env,fe_section,error)
+  SUBROUTINE metadyn_read(meta_env,force_env,root_section,para_env,fe_section)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: fe_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read', &
       routineP = moduleN//':'//routineN
@@ -107,54 +105,54 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CALL section_vals_get(fe_section,explicit=explicit,error=error)
+    CALL section_vals_get(fe_section,explicit=explicit)
     IF (explicit) THEN
        number_allocated_colvars = 0
-       CALL force_env_get(force_env, subsys=subsys, error=error)
+       CALL force_env_get(force_env, subsys=subsys)
        IF (ASSOCIATED(subsys%colvar_p)) THEN
           number_allocated_colvars = SIZE(subsys%colvar_p)
        END IF
-       CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method,error=error)
+       CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method)
        IF (id_method/=do_fe_meta) THEN
           CALL timestop(handle)
           RETURN
        ENDIF
-       metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN",error=error)
-       CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)
+       metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN")
+       CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP)
 
-       md_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
-       CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
+       md_section => section_vals_get_subs_vals(root_section,"MOTION%MD")
+       CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt)
 
-       metavar_section => section_vals_get_subs_vals(metadyn_section,"METAVAR",error=error)
-       CALL section_vals_get(metavar_section,n_repetition=n_colvar,error=error)
+       metavar_section => section_vals_get_subs_vals(metadyn_section,"METAVAR")
+       CALL section_vals_get(metavar_section,n_repetition=n_colvar)
        CALL metadyn_create(meta_env,n_colvar=n_colvar,&
-            dt=dt,para_env=para_env,metadyn_section=metadyn_section,error=error)
+            dt=dt,para_env=para_env,metadyn_section=metadyn_section)
 
        !Check if using plumed. If so, only get the file name and read nothing else
-       CALL section_vals_val_get(metadyn_section,"USE_PLUMED",l_val=meta_env%use_plumed,error=error)
+       CALL section_vals_val_get(metadyn_section,"USE_PLUMED",l_val=meta_env%use_plumed)
        IF (meta_env%use_plumed .EQV. .TRUE.) THEN
-           CALL section_vals_val_get(metadyn_section,"PLUMED_INPUT_FILE",c_val=meta_env%plumed_input_file,error=error)
+           CALL section_vals_val_get(metadyn_section,"PLUMED_INPUT_FILE",c_val=meta_env%plumed_input_file)
            meta_env%plumed_input_file=TRIM(meta_env%plumed_input_file)//CHAR(0)
            meta_env%langevin=.FALSE.
            CALL timestop(handle)
            RETURN
        END IF
 
-       CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=meta_env%do_hills,error=error)
-       CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
-       CALL section_vals_val_get(metadyn_section,"TAMCSteps",i_val=meta_env%TAMCSteps,error=error)
+       CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=meta_env%do_hills)
+       CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange)
+       CALL section_vals_val_get(metadyn_section,"TAMCSteps",i_val=meta_env%TAMCSteps)
        IF (meta_env%TAMCSteps<0) THEN
           CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
              "TAMCSteps must be positive!",only_ionode=.TRUE.)
        ENDIF
-       CALL section_vals_val_get(metadyn_section,"Timestep",r_val=meta_env%zdt,error=error)
+       CALL section_vals_val_get(metadyn_section,"Timestep",r_val=meta_env%zdt)
        IF (meta_env%zdt<=0.0_dp) THEN
           CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
              "Timestep must be positive!",only_ionode=.TRUE.)
        ENDIF
-       CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
-       CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
-       CALL section_vals_val_get(metadyn_section,"MIN_NT_HILLS",i_val=meta_env%hills_env%min_nt_hills,error=error)
+       CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww)
+       CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills)
+       CALL section_vals_val_get(metadyn_section,"MIN_NT_HILLS",i_val=meta_env%hills_env%min_nt_hills)
        IF (meta_env%hills_env%nt_hills<=0) THEN
           meta_env%hills_env%min_nt_hills=meta_env%hills_env%nt_hills
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -166,33 +164,31 @@ CONTAINS
              "MIN_NT_HILLS must have a value smaller or equal to NT_HILLS! Cross check with the input reference!",&
              only_ionode=.TRUE.)
        !RG Adaptive hills
-       CALL section_vals_val_get(metadyn_section,"MIN_DISP",r_val=meta_env%hills_env%min_disp,error=error)
-       CALL section_vals_val_get(metadyn_section,"OLD_HILL_NUMBER",i_val=meta_env%hills_env%old_hill_number,&
-                           error=error)
-       CALL section_vals_val_get(metadyn_section,"OLD_HILL_STEP",i_val=meta_env%hills_env%old_hill_step,&
-                           error=error)
+       CALL section_vals_val_get(metadyn_section,"MIN_DISP",r_val=meta_env%hills_env%min_disp)
+       CALL section_vals_val_get(metadyn_section,"OLD_HILL_NUMBER",i_val=meta_env%hills_env%old_hill_number)
+       CALL section_vals_val_get(metadyn_section,"OLD_HILL_STEP",i_val=meta_env%hills_env%old_hill_step)
 
        !Hills tail damping
-       CALL section_vals_val_get(metadyn_section,"HILL_TAIL_CUTOFF",r_val=meta_env%hills_env%tail_cutoff,error=error)
-       CALL section_vals_val_get(metadyn_section,"P_EXPONENT",i_val=meta_env%hills_env%p_exp, error=error)
-       CALL section_vals_val_get(metadyn_section,"Q_EXPONENT",i_val=meta_env%hills_env%q_exp, error=error)
+       CALL section_vals_val_get(metadyn_section,"HILL_TAIL_CUTOFF",r_val=meta_env%hills_env%tail_cutoff)
+       CALL section_vals_val_get(metadyn_section,"P_EXPONENT",i_val=meta_env%hills_env%p_exp)
+       CALL section_vals_val_get(metadyn_section,"Q_EXPONENT",i_val=meta_env%hills_env%q_exp)
 
-       CALL section_vals_val_get(metadyn_section,"SLOW_GROWTH",l_val=meta_env%hills_env%slow_growth,error=error)
+       CALL section_vals_val_get(metadyn_section,"SLOW_GROWTH",l_val=meta_env%hills_env%slow_growth)
 
        !RG Adaptive hills
-       CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps,error=error)
-       CPPreconditionNoFail(meta_env%n_steps>=0,cp_failure_level,routineP,error)
+       CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps)
+       CPPreconditionNoFail(meta_env%n_steps>=0,cp_failure_level,routineP)
        CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
-            i_val=meta_env%hills_env%n_hills,error=error)
-       CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
-       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=meta_env%langevin,error=error)
+            i_val=meta_env%hills_env%n_hills)
+       CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted)
+       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=meta_env%langevin)
        CALL section_vals_val_get(metadyn_section,"TEMP_TOL",explicit=meta_env%tempcontrol,&
-            r_val=meta_env%toll_temp,error=error)
-       CALL section_vals_val_get(metadyn_section,"WELL_TEMPERED",l_val=meta_env%well_tempered,error=error)
+            r_val=meta_env%toll_temp)
+       CALL section_vals_val_get(metadyn_section,"WELL_TEMPERED",l_val=meta_env%well_tempered)
        CALL section_vals_val_get(metadyn_section,"DELTA_T",explicit=meta_env%hills_env%wtcontrol,&
-            r_val=meta_env%delta_t,error=error)
+            r_val=meta_env%delta_t)
        CALL section_vals_val_get(metadyn_section,"WTGAMMA",explicit=check,&
-            r_val=meta_env%wtgamma,error=error)
+            r_val=meta_env%wtgamma)
        IF (meta_env%well_tempered) THEN
          meta_env%hills_env%wtcontrol=meta_env%hills_env%wtcontrol.OR.check
          check=meta_env%hills_env%wtcontrol
@@ -208,11 +204,11 @@ CONTAINS
        ENDIF
 
        CALL section_vals_val_get(metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
-            r_val=meta_env%avg_temp,error=error)
+            r_val=meta_env%avg_temp)
        ! Parsing Metavar Section
        DO i= 1, n_colvar
           CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange, &
-               meta_env%langevin, i, metavar_section,error=error)
+               meta_env%langevin, i, metavar_section)
           check=(meta_env%metavar(i)%icolvar<=number_allocated_colvars)
           CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
                "An error occured in the specification of COLVAR for METAVAR. "//&
@@ -226,25 +222,24 @@ CPSourceFileRef,&
        ! Parsing the Multiple Walkers Info
        IF (meta_env%do_multiple_walkers) THEN
           NULLIFY(walkers_status)
-          walkers_section => section_vals_get_subs_vals(metadyn_section,"MULTIPLE_WALKERS",error=error)
+          walkers_section => section_vals_get_subs_vals(metadyn_section,"MULTIPLE_WALKERS")
 
           ! General setup for walkers
           CALL section_vals_val_get(walkers_section,"WALKER_ID",&
-               i_val=meta_env%multiple_walkers%walker_id,error=error)
+               i_val=meta_env%multiple_walkers%walker_id)
           CALL section_vals_val_get(walkers_section,"NUMBER_OF_WALKERS",&
-               i_val=meta_env%multiple_walkers%walkers_tot_nr,error=error)
+               i_val=meta_env%multiple_walkers%walkers_tot_nr)
           CALL section_vals_val_get(walkers_section,"WALKER_COMM_FREQUENCY",&
-               i_val=meta_env%multiple_walkers%walkers_freq_comm,error=error)
+               i_val=meta_env%multiple_walkers%walkers_freq_comm)
 
           ! Handle status and file names
           ALLOCATE(meta_env%multiple_walkers%walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
           ALLOCATE(meta_env%multiple_walkers%walkers_file_name(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-          CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",explicit=explicit,error=error)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",explicit=explicit)
           IF (explicit) THEN
-             CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",i_vals=walkers_status,&
-                  error=error)
+             CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",i_vals=walkers_status)
              check = (SIZE(walkers_status)==meta_env%multiple_walkers%walkers_tot_nr)
              CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
                   "Number of Walkers specified in the input does not match with the "//&
@@ -261,7 +256,7 @@ CPSourceFileRef,&
                meta_env%multiple_walkers%walkers_status(meta_env%multiple_walkers%walker_id)
 
           CALL section_vals_val_get(walkers_section,"WALKERS_FILE_NAME%_DEFAULT_KEYWORD_",&
-               n_rep_val=n_rep, error=error)
+               n_rep_val=n_rep)
           check = (n_rep==meta_env%multiple_walkers%walkers_tot_nr)
           CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
                "Number of Walkers specified in the input does not match with the "//&
@@ -272,13 +267,13 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
           DO i = 1, n_rep
              CALL section_vals_val_get(walkers_section,"WALKERS_FILE_NAME%_DEFAULT_KEYWORD_",&
-                  i_rep_val=i, c_val=walkers_file_name, error=error)
+                  i_rep_val=i, c_val=walkers_file_name)
              meta_env%multiple_walkers%walkers_file_name(i) = walkers_file_name
           END DO
        END IF
 
        ! Print Metadynamics Info
-       CALL print_metadyn_info(meta_env, n_colvar, metadyn_section, error)
+       CALL print_metadyn_info(meta_env, n_colvar, metadyn_section)
     END IF
 
     CALL timestop(handle)
@@ -290,14 +285,12 @@ CPSourceFileRef,&
 !> \param meta_env ...
 !> \param n_colvar ...
 !> \param metadyn_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich. 10.2008
 ! *****************************************************************************
-  SUBROUTINE print_metadyn_info(meta_env, n_colvar, metadyn_section, error)
+  SUBROUTINE print_metadyn_info(meta_env, n_colvar, metadyn_section)
     TYPE(meta_env_type), POINTER             :: meta_env
     INTEGER, INTENT(IN)                      :: n_colvar
     TYPE(section_vals_type), POINTER         :: metadyn_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_metadyn_info', &
       routineP = moduleN//':'//routineN
@@ -312,12 +305,12 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,metadyn_section,&
-         "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",error=error)
+         "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog")
     NULLIFY(section,enum,keyword)
-    CALL create_metavar_section(section,error=error)
-    wall_section => section_get_subsection(section,"WALL",error)
+    CALL create_metavar_section(section)
+    wall_section => section_get_subsection(section,"WALL")
     IF (iw>0) THEN
        WRITE (iw,'( /A )')          ' METADYN| Meta Dynamics Protocol '
        WRITE (iw,'( A,T71,I10)')    ' METADYN| Number of interval time steps to spawn hills',&
@@ -392,27 +385,27 @@ CPSourceFileRef,&
           IF (meta_env%metavar(i)%do_wall) THEN
              WRITE (iw,'( A,T71,I10)')    ' METAVARS| Number of Walls present',SIZE(meta_env%metavar(i)%walls)
              DO j = 1, SIZE(meta_env%metavar(i)%walls)
-                keyword => section_get_keyword(wall_section,"TYPE",error=error)
-                CALL keyword_get(keyword,enum=enum,error=error)
+                keyword => section_get_keyword(wall_section,"TYPE")
+                CALL keyword_get(keyword,enum=enum)
                 WRITE (iw,'(/,A,5X,I10,T50,A,T70,A11)')    ' METAVARS| Wall Number:',j,'Type of Wall:',&
-                     ADJUSTR(TRIM(enum_i2c(enum,meta_env%metavar(i)%walls(j)%id_type,error=error)))
+                     ADJUSTR(TRIM(enum_i2c(enum,meta_env%metavar(i)%walls(j)%id_type)))
                 ! Type of wall IO
                 SELECT CASE(meta_env%metavar(i)%walls(j)%id_type)
                 CASE(do_wall_none)
                    ! Do Nothing
                    CYCLE
                 CASE(do_wall_reflective)
-                   work_section => section_get_subsection(wall_section,"REFLECTIVE",error)
-                   keyword => section_get_keyword(work_section,"DIRECTION",error=error)
-                   CALL keyword_get(keyword,enum=enum,error=error)
+                   work_section => section_get_subsection(wall_section,"REFLECTIVE")
+                   keyword => section_get_keyword(work_section,"DIRECTION")
+                   CALL keyword_get(keyword,enum=enum)
                    WRITE (iw,'(A,T70,A11)')    ' METAVARS| Wall direction',&
-                        ADJUSTR(TRIM(enum_i2c(enum,meta_env%metavar(i)%walls(j)%id_direction,error=error)))
+                        ADJUSTR(TRIM(enum_i2c(enum,meta_env%metavar(i)%walls(j)%id_direction)))
                 CASE(do_wall_quadratic)
-                   work_section => section_get_subsection(wall_section,"QUADRATIC",error)
-                   keyword => section_get_keyword(work_section,"DIRECTION",error=error)
-                   CALL keyword_get(keyword,enum=enum,error=error)
+                   work_section => section_get_subsection(wall_section,"QUADRATIC")
+                   keyword => section_get_keyword(work_section,"DIRECTION")
+                   CALL keyword_get(keyword,enum=enum)
                    WRITE (iw,'(A,T70,A11)')    ' METAVARS| Wall direction',&
-                        ADJUSTR(TRIM(enum_i2c(enum,meta_env%metavar(i)%walls(j)%id_direction,error=error)))
+                        ADJUSTR(TRIM(enum_i2c(enum,meta_env%metavar(i)%walls(j)%id_direction)))
                    WRITE (iw,'(A,T70,F11.6)')    ' METAVARS| Constant K of the quadratic potential',&
                         meta_env%metavar(i)%walls(j)%k_quadratic
                 CASE(do_wall_gaussian)
@@ -428,8 +421,8 @@ CPSourceFileRef,&
           WRITE (iw,'( A )')'          '//'----------------------------------------------------------------------'
        ENDDO
     END IF
-    CALL section_release(section,error=error)
-    CALL cp_print_key_finished_output(iw,logger,metadyn_section,"PRINT%PROGRAM_RUN_INFO", error=error)
+    CALL section_release(section)
+    CALL cp_print_key_finished_output(iw,logger,metadyn_section,"PRINT%PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 
@@ -442,19 +435,17 @@ CPSourceFileRef,&
 !> \param langevin ...
 !> \param icol ...
 !> \param metavar_section ...
-!> \param error ...
 !> \par History
 !>      04.2004 created
 !> \author alessandro laio and fawzi mohamed
 !>      Teodoro Laino [tlaino] - University of Zurich. 11.2007
 ! *****************************************************************************
-  SUBROUTINE metavar_read(metavar,extended_lagrange,langevin,icol,metavar_section,error)
+  SUBROUTINE metavar_read(metavar,extended_lagrange,langevin,icol,metavar_section)
     TYPE(metavar_type), INTENT(INOUT)        :: metavar
     LOGICAL, INTENT(IN)                      :: extended_lagrange, langevin
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: metavar_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
       routineP = moduleN//':'//routineN
@@ -466,33 +457,33 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar,error=error)
-    CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s,error=error)
+    CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar)
+    CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s)
     ! Walls
-    wall_section => section_vals_get_subs_vals(metavar_section,"WALL",i_rep_section=icol,error=error)
-    CALL section_vals_get(wall_section,n_repetition=n_walls,error=error)
+    wall_section => section_vals_get_subs_vals(metavar_section,"WALL",i_rep_section=icol)
+    CALL section_vals_get(wall_section,n_repetition=n_walls)
     IF (n_walls/=0) THEN
        metavar%do_wall = .TRUE.
        ALLOCATE(metavar%walls(n_walls),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DO i = 1, n_walls
-          CALL section_vals_val_get(wall_section,"TYPE",i_rep_section=i,i_val=metavar%walls(i)%id_type,error=error)
-          CALL section_vals_val_get(wall_section,"POSITION",i_rep_section=i,r_val=metavar%walls(i)%pos,error=error)
+          CALL section_vals_val_get(wall_section,"TYPE",i_rep_section=i,i_val=metavar%walls(i)%id_type)
+          CALL section_vals_val_get(wall_section,"POSITION",i_rep_section=i,r_val=metavar%walls(i)%pos)
           SELECT CASE(metavar%walls(i)%id_type)
           CASE(do_wall_none)
              ! Just cycle..
              CYCLE
           CASE(do_wall_reflective)
-             work_section => section_vals_get_subs_vals(wall_section,"REFLECTIVE",i_rep_section=i,error=error)
-             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction,error=error)
+             work_section => section_vals_get_subs_vals(wall_section,"REFLECTIVE",i_rep_section=i)
+             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction)
           CASE(do_wall_quadratic)
-             work_section => section_vals_get_subs_vals(wall_section,"QUADRATIC",i_rep_section=i,error=error)
-             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction,error=error)
-             CALL section_vals_val_get(work_section,"K",r_val=metavar%walls(i)%k_quadratic,error=error)
+             work_section => section_vals_get_subs_vals(wall_section,"QUADRATIC",i_rep_section=i)
+             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction)
+             CALL section_vals_val_get(work_section,"K",r_val=metavar%walls(i)%k_quadratic)
           CASE(do_wall_quartic)
-             work_section => section_vals_get_subs_vals(wall_section,"QUARTIC",i_rep_section=i,error=error)
-             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction,error=error)
-             CALL section_vals_val_get(work_section,"K",r_val=metavar%walls(i)%k_quartic,error=error)
+             work_section => section_vals_get_subs_vals(wall_section,"QUARTIC",i_rep_section=i)
+             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction)
+             CALL section_vals_val_get(work_section,"K",r_val=metavar%walls(i)%k_quartic)
              SELECT CASE(metavar%walls(i)%id_direction)
              CASE(do_wall_m)
                metavar%walls(i)%pos0= metavar%walls(i)%pos+(0.05_dp/metavar%walls(i)%k_quartic**(1/4))
@@ -500,18 +491,18 @@ CPSourceFileRef,&
                metavar%walls(i)%pos0= metavar%walls(i)%pos-(0.05_dp/metavar%walls(i)%k_quartic**(1/4))
              END SELECT
           CASE(do_wall_gaussian)
-             work_section => section_vals_get_subs_vals(wall_section,"GAUSSIAN",i_rep_section=i,error=error)
-             CALL section_vals_val_get(work_section,"WW",r_val=metavar%walls(i)%ww_gauss,error=error)
-             CALL section_vals_val_get(work_section,"SIGMA",r_val=metavar%walls(i)%sigma_gauss,error=error)
+             work_section => section_vals_get_subs_vals(wall_section,"GAUSSIAN",i_rep_section=i)
+             CALL section_vals_val_get(work_section,"WW",r_val=metavar%walls(i)%ww_gauss)
+             CALL section_vals_val_get(work_section,"SIGMA",r_val=metavar%walls(i)%sigma_gauss)
           END SELECT
        END DO
     END IF
     ! Setup few more parameters for extended lagrangian
     IF(extended_lagrange)THEN
-       CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,r_val=metavar%mass,error=error)
-       CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol,r_val=metavar%lambda,error=error)
+       CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,r_val=metavar%mass)
+       CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol,r_val=metavar%lambda)
        IF (langevin) THEN
-          CALL section_vals_val_get(metavar_section,"GAMMA",i_rep_section=icol,r_val=metavar%gamma,error=error)
+          CALL section_vals_val_get(metavar_section,"GAMMA",i_rep_section=icol,r_val=metavar%gamma)
        END IF
     ENDIF
 
@@ -526,18 +517,16 @@ CPSourceFileRef,&
 !> \param colvars ...
 !> \param n_colvar ...
 !> \param metadyn_section ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
   SUBROUTINE synchronize_multiple_walkers(multiple_walkers, hills_env, colvars,&
-       n_colvar, metadyn_section, error)
+       n_colvar, metadyn_section)
     TYPE(multiple_walkers_type), POINTER     :: multiple_walkers
     TYPE(hills_env_type), POINTER            :: hills_env
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
     INTEGER, INTENT(IN)                      :: n_colvar
     TYPE(section_vals_type), POINTER         :: metadyn_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'synchronize_multiple_walkers', &
       routineP = moduleN//':'//routineN
@@ -556,7 +545,7 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    logger  => cp_error_get_logger(error)
+    logger  => cp_get_default_logger()
     para_env => logger%para_env
 
     ! Locally dump information on file..
@@ -582,11 +571,11 @@ CPSourceFileRef,&
     IF (MODULO(multiple_walkers%n_hills_local,multiple_walkers%walkers_freq_comm)==0) THEN
        ! Store colvars information
        ALLOCATE(ss0_save(n_colvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ALLOCATE(delta_s_save(n_colvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ALLOCATE(delta_s_ss0_buf(2,0:n_colvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        delta_s_ss0_buf=0
        DO i = 1, n_colvar
           ss0_save(i)     = colvars(i)%ss0
@@ -635,9 +624,9 @@ CPSourceFileRef,&
 
              ! Add this hill to the history dependent terms
              IF (hills_env%wtcontrol) THEN
-                CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error, invdt=invdt)
+                CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar,invdt=invdt)
              ELSE
-                CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error)
+                CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar)
              END IF
 
              i_hills  = i_hills + 1
@@ -652,13 +641,13 @@ CPSourceFileRef,&
           delta_hills = i_hills - 1 - multiple_walkers%walkers_status(i)
           multiple_walkers%walkers_status(i) = i_hills - 1
           iw = cp_print_key_unit_nr(logger,metadyn_section,"PRINT%PROGRAM_RUN_INFO",&
-               extension=".metadynLog",error=error)
+               extension=".metadynLog")
           IF (iw>0) THEN
              WRITE(iw,'(T2,A,I0,A,I0,A,I0,A)')'WALKERS| Walker #',i,'. Reading [',delta_hills,&
                   '] Hills. Total number of Hills acquired [',multiple_walkers%walkers_status(i),']'
           END IF
           CALL cp_print_key_finished_output(iw,logger,metadyn_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
+               "PRINT%PROGRAM_RUN_INFO")
        END DO
 
        ! Restore colvars information
@@ -667,9 +656,9 @@ CPSourceFileRef,&
           colvars(i)%delta_s = delta_s_save(i)
        END DO
        DEALLOCATE(ss0_save,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(delta_s_save,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
     END IF
 
     CALL timestop(handle)
@@ -683,18 +672,16 @@ CPSourceFileRef,&
 !> \param ww ...
 !> \param n_hills ...
 !> \param n_colvar ...
-!> \param error ...
 !> \param invdt ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
-  SUBROUTINE add_hill_single(hills_env, colvars, ww, n_hills, n_colvar, error, invdt)
+  SUBROUTINE add_hill_single(hills_env, colvars, ww, n_hills, n_colvar,invdt)
     TYPE(hills_env_type), POINTER            :: hills_env
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
     REAL(KIND=dp), INTENT(IN)                :: ww
     INTEGER, INTENT(INOUT)                   :: n_hills
     INTEGER, INTENT(IN)                      :: n_colvar
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: invdt
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_hill_single', &
@@ -711,42 +698,42 @@ CPSourceFileRef,&
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        tmp(:,:n_hills)=hills_env%ss_history
        tmp(:,n_hills+1:)=0.0_dp
        DEALLOCATE(hills_env%ss_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        hills_env%ss_history => tmp
        NULLIFY(tmp)
     ENDIF
     IF(SIZE(hills_env%delta_s_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        tmp(:,:n_hills)=hills_env%delta_s_history
        tmp(:,n_hills+1:)=0.0_dp
        DEALLOCATE(hills_env%delta_s_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        hills_env%delta_s_history => tmp
        NULLIFY(tmp)
     ENDIF
     IF(SIZE(hills_env%ww_history)< n_hills+1)THEN
        ALLOCATE(tnp(n_hills+100), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        tnp(1:n_hills) = hills_env%ww_history
        tnp(n_hills+1:)= 0.0_dp
        DEALLOCATE(hills_env%ww_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        hills_env%ww_history => tnp
        NULLIFY(tnp)
     ENDIF
     IF(wtcontrol)THEN
        IF(SIZE(hills_env%invdt_history)< n_hills+1)THEN
           ALLOCATE(tnp(n_hills+100), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
           tnp(1:n_hills) = hills_env%invdt_history
           tnp(n_hills+1:)= 0.0_dp
           DEALLOCATE(hills_env%invdt_history,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
           hills_env%invdt_history => tnp
           NULLIFY(tnp)
        ENDIF
@@ -774,12 +761,11 @@ CPSourceFileRef,&
 !> \param n_colvar ...
 !> \param colvars ...
 !> \param metadyn_section ...
-!> \param error ...
 !> \param invdt_history ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
   SUBROUTINE restart_hills(ss_history, delta_s_history, ww_history, ww,&
-       n_hills, n_colvar, colvars, metadyn_section, error, invdt_history)
+       n_hills, n_colvar, colvars, metadyn_section,invdt_history)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ss_history, delta_s_history
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ww_history
     REAL(KIND=dp)                            :: ww
@@ -787,7 +773,6 @@ CPSourceFileRef,&
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
     TYPE(section_vals_type), POINTER         :: metadyn_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: invdt_history
 
@@ -804,51 +789,51 @@ CPSourceFileRef,&
 
     failure = .FALSE.; wtcontrol=PRESENT(invdt_history)
     NULLIFY(rvals)
-    hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_POS",error=error)
-    CALL section_vals_get(hills_history, explicit=explicit, error=error)
+    hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_POS")
+    CALL section_vals_get(hills_history, explicit=explicit)
     IF (explicit) THEN
-       CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum, error=error)
+       CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum)
        ! ss_history, delta_s_history, ww_history, invdt_history : deallocate and reallocate with the proper size
        DEALLOCATE(ss_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(delta_s_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        DEALLOCATE(ww_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        IF (wtcontrol) THEN
           DEALLOCATE(invdt_history,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ENDIF
        !
-       CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
+       CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
        ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ALLOCATE(delta_s_history(n_colvar,n_hills), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ALLOCATE(ww_history(n_hills), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        IF (wtcontrol) THEN
           ALLOCATE(invdt_history(n_hills), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
        ENDIF
        !
        DO i = 1, n_hills
           CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
-               i_rep_val=i, r_vals=rvals, error=error)
-          CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,error,failure)
+               i_rep_val=i, r_vals=rvals)
+          CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
           ss_history(1:n_colvar,i)=rvals
        END DO
        !
-       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_SCALE",error=error)
-       CALL section_vals_get(hills_history, explicit=explicit, error=error)
+       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_SCALE")
+       CALL section_vals_get(hills_history, explicit=explicit)
        IF (explicit) THEN
           ! delta_s_history
-          CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum, error=error)
-          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
+          CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum)
+          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
           DO i = 1, n_hills
              CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
-                  i_rep_val=i, r_vals=rvals, error=error)
-             CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,error,failure)
+                  i_rep_val=i, r_vals=rvals)
+             CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
              delta_s_history(1:n_colvar,i)=rvals
           END DO
        ELSE
@@ -864,17 +849,17 @@ CPSourceFileRef,&
           END DO
        END IF
        !
-       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_HEIGHT",error=error)
-       CALL section_vals_get(hills_history, explicit=explicit, error=error)
+       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_HEIGHT")
+       CALL section_vals_get(hills_history, explicit=explicit)
        IF (explicit) THEN
           ! ww_history
           CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",&
-               n_rep_val=ndum, error=error)
-          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
+               n_rep_val=ndum)
+          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
           DO i = 1, n_hills
              CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
-                  i_rep_val=i, r_val=rval, error=error)
-             CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,error,failure)
+                  i_rep_val=i, r_val=rval)
+             CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
              ww_history(i)=rval
           END DO
        ELSE
@@ -886,18 +871,18 @@ CPSourceFileRef,&
           ww_history = ww
        END IF
        !
-       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_INVDT",error=error)
-       CALL section_vals_get(hills_history, explicit=explicit, error=error)
+       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_INVDT")
+       CALL section_vals_get(hills_history, explicit=explicit)
        IF (wtcontrol) THEN
           IF (explicit) THEN
              ! invdt_history
              CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",&
-                  n_rep_val=ndum, error=error)
-             CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
+                  n_rep_val=ndum)
+             CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
              DO i = 1, n_hills
                 CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
-                     i_rep_val=i, r_val=rval, error=error)
-                CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,error,failure)
+                     i_rep_val=i, r_val=rval)
+                CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
                 invdt_history(i)=rval
              END DO
           ELSE
@@ -927,13 +912,11 @@ CPSourceFileRef,&
 !> \brief Retrieves the iteration level for the metadynamics loop
 !> \param meta_env ...
 !> \param iter_nr ...
-!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
-  SUBROUTINE get_meta_iter_level(meta_env, iter_nr, error)
+  SUBROUTINE get_meta_iter_level(meta_env, iter_nr)
     TYPE(meta_env_type), POINTER             :: meta_env
     INTEGER, INTENT(OUT)                     :: iter_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_meta_iter_level', &
       routineP = moduleN//':'//routineN
@@ -949,14 +932,12 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief ...
 !> \param meta_env ...
-!> \param error ...
 !> \par History
 !>      11.2007 [created] [tlaino]
 !> \author Teodoro Laino - University of Zurich - 11.2007
 ! *****************************************************************************
-  SUBROUTINE meta_walls(meta_env,error)
+  SUBROUTINE meta_walls(meta_env)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_walls', &
       routineP = moduleN//':'//routineN

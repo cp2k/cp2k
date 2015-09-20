@@ -52,17 +52,15 @@ CONTAINS
 !>
 !> \param mo_array ...
 !> \param smear ...
-!> \param error ...
 !> \date    10.03.2011 (MI)
 !> \author  MI
 !> \version 1.0
 ! *****************************************************************************
-   SUBROUTINE set_mo_occupation_3(mo_array,smear,error)
+   SUBROUTINE set_mo_occupation_3(mo_array,smear)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(smear_type), POINTER                :: smear
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3', &
       routineP = moduleN//':'//routineN
@@ -79,8 +77,8 @@ CONTAINS
                                                 occ_b
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
-    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,failure)
+    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,failure)
     CALL timeset(routineN,handle)
 
     NULLIFY(eigval_a,eigval_b,occ_a,occ_b)
@@ -90,9 +88,9 @@ CONTAINS
          occupation_numbers=occ_b)
     all_nmo = nmo_a+nmo_b
     ALLOCATE(all_eigval(all_nmo), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(all_occ(all_nmo), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     ALLOCATE(all_index(all_nmo), STAT=stat)
 
     all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
@@ -125,19 +123,19 @@ CONTAINS
     ! this is not a real problem, but the temperature might be a bit large
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the first MO",&
-                       error,failure)
+                       failure)
 
     is_large=ABS(MINVAL(all_occ))> smear%eps_fermi_dirac
     CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                    "Fermi-Dirac smearing includes the last MO => "//&
-                    "Add more MOs for proper smearing.",error,failure)
+                    "Add more MOs for proper smearing.",failure)
 
     ! check that the total electron count is accurate
     is_large=(ABS(all_nelec - accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
     CALL cp_assert(.NOT.is_large,&
                    cp_warning_level,cp_assertion_failed,routineP,&
                    "Total number of electrons is not accurate",&
-                    error,failure)
+                    failure)
 
     DO i = 1,all_nmo
        IF(all_index(i)<=nmo_a) THEN
@@ -180,9 +178,9 @@ CONTAINS
     END DO
 
     CALL set_mo_set(mo_set=mo_array(1)%mo_set,kTS=kTS/2.0_dp,mu=mu,n_el_f=nelec_a,&
-         lfomo=lfomo_a,homo=homo_a,uniform_occupation=.FALSE.,error=error)
+         lfomo=lfomo_a,homo=homo_a,uniform_occupation=.FALSE.)
     CALL set_mo_set(mo_set=mo_array(2)%mo_set,kTS=kTS/2.0_dp,mu=mu,n_el_f=nelec_b,&
-         lfomo=lfomo_b,homo=homo_b,uniform_occupation=.FALSE.,error=error)
+         lfomo=lfomo_b,homo=homo_b,uniform_occupation=.FALSE.)
 
     CALL timestop(handle)
 
@@ -194,19 +192,17 @@ CONTAINS
 !> \param mo_array ...
 !> \param smear ...
 !> \param eval_deriv ...
-!> \param error ...
 !> \date    25.01.2010 (MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_mo_occupation_2(mo_array,smear,eval_deriv,error)
+  SUBROUTINE set_mo_occupation_2(mo_array,smear,eval_deriv)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(smear_type), POINTER                :: smear
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eval_deriv
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2', &
       routineP = moduleN//':'//routineN
@@ -222,27 +218,27 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,failure)
     mo_set_a => mo_array(1)%mo_set
-    CPPrecondition(ASSOCIATED(mo_set_a),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_set_a),cp_failure_level,routineP,failure)
     ! Fall back for the case that we have only one MO set
     IF (SIZE(mo_array) == 1) THEN
        IF (PRESENT(eval_deriv)) THEN
-          CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv)
        ELSE
-          CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
+          CALL set_mo_occupation_1(mo_set_a,smear=smear)
        END IF
        CALL timestop(handle)
        RETURN
     END IF
-    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
+    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,failure)
     mo_set_b => mo_array(2)%mo_set
 
     IF (smear%do_smear) THEN
        IF (smear%fixed_mag_mom < 0.0_dp) THEN
           IF (smear%fixed_mag_mom /= -1.0_dp) THEN
-             CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
-             CALL set_mo_occupation_3(mo_array,smear=smear,error=error)
+             CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,failure)
+             CALL set_mo_occupation_3(mo_array,smear=smear)
              CALL timestop(handle)
              RETURN
           END IF
@@ -252,20 +248,20 @@ CONTAINS
              mo_set_a%n_el_f = nelec_f/2.0_dp + smear%fixed_mag_mom/2.0_dp
              mo_set_b%n_el_f = nelec_f/2.0_dp - smear%fixed_mag_mom/2.0_dp
           END IF
-          CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
-          CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
-          CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+          CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,failure)
+          CALL set_mo_occupation_1(mo_set_a,smear=smear)
+          CALL set_mo_occupation_1(mo_set_b,smear=smear)
        END IF
     END IF
 
     IF (.NOT.((mo_set_a%flexible_electron_count > 0.0_dp).AND.&
               (mo_set_b%flexible_electron_count > 0.0_dp))) THEN
        IF (PRESENT(eval_deriv)) THEN
-          CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
-          CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv,error=error)
+          CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv)
+          CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv)
        ELSE
-          CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
-          CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+          CALL set_mo_occupation_1(mo_set_a,smear=smear)
+          CALL set_mo_occupation_1(mo_set_b,smear=smear)
        END IF
        CALL timestop(handle)
        RETURN
@@ -278,14 +274,12 @@ CONTAINS
     CALL cp_assert((mo_set_a%nelectron < mo_set_a%nmo),&
                    cp_warning_level,cp_assertion_failed,routineP,&
                    "All alpha MOs are occupied. Add more alpha MOs to "//&
-                   "allow for a higher multiplicity",only_ionode=.TRUE.,&
-                   error=error)
+                   "allow for a higher multiplicity",only_ionode=.TRUE.)
     CALL cp_assert(((mo_set_b%nelectron < mo_set_b%nmo).OR.&
                     (mo_set_b%nelectron == mo_set_a%nelectron)),&
                    cp_warning_level,cp_assertion_failed,routineP,&
                    "All beta MOs are occupied. Add more beta MOs to "//&
-                   "allow for a lower multiplicity",only_ionode=.TRUE.,&
-                   error=error)
+                   "allow for a lower multiplicity",only_ionode=.TRUE.)
 
     eigval_a => mo_set_a%eigenvalues
     eigval_b => mo_set_b%eigenvalues
@@ -307,8 +301,7 @@ CONTAINS
           CALL cp_assert((i == nelec),&
                          cp_warning_level,cp_assertion_failed,routineP,&
                          "All alpha MOs are occupied. Add more alpha MOs to "//&
-                         "allow for a higher multiplicity",only_ionode=.TRUE.,&
-                         error=error)
+                         "allow for a higher multiplicity",only_ionode=.TRUE.)
           IF (i < nelec) THEN
              lumo_a = lumo_a - 1
              lumo_b = lumo_b + 1
@@ -318,8 +311,7 @@ CONTAINS
           CALL cp_assert((lumo_b >= lumo_a),&
                          cp_warning_level,cp_assertion_failed,routineP,&
                          "All beta MOs are occupied. Add more beta MOs to "//&
-                         "allow for a lower multiplicity",only_ionode=.TRUE.,&
-                         error=error)
+                         "allow for a lower multiplicity",only_ionode=.TRUE.)
           IF (i < nelec) THEN
              lumo_a = lumo_a + 1
              lumo_b = lumo_b - 1
@@ -337,7 +329,7 @@ CONTAINS
                       ") than alpha ("//&
                       TRIM(ADJUSTL(cp_to_string(mo_set_a%homo)))//&
                       ") MOs are occupied. Resorting to low spin state",&
-                      only_ionode=.TRUE.,error=error)
+                      only_ionode=.TRUE.)
        mo_set_a%homo = nelec/2 + MODULO(nelec,2)
        mo_set_b%homo = nelec/2
     END IF
@@ -351,14 +343,14 @@ CONTAINS
                    "Multiplicity changed from "//&
                    TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "//&
                    TRIM(ADJUSTL(cp_to_string(multiplicity_new))),&
-                   only_ionode=.TRUE.,error=error,failure=failure)
+                   only_ionode=.TRUE.,failure=failure)
 
     IF (PRESENT(eval_deriv)) THEN
-       CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv,error=error)
-       CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv,error=error)
+       CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv)
+       CALL set_mo_occupation_1(mo_set_b,smear=smear,eval_deriv=eval_deriv)
     ELSE
-       CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
-       CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
+       CALL set_mo_occupation_1(mo_set_a,smear=smear)
+       CALL set_mo_occupation_1(mo_set_b,smear=smear)
     END IF
 
     CALL timestop(handle)
@@ -372,12 +364,11 @@ CONTAINS
 !> \param   eval_deriv on entry the derivative of the KS energy wrt to the occupation number
 !>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue
 !> \param xas_env ...
-!> \param error ...
 !> \date    17.04.2002 (v1.0), 26.08.2008 (v1.1)
 !> \author  Matthias Krack
 !> \version 1.1
 ! *****************************************************************************
-  SUBROUTINE set_mo_occupation_1(mo_set,smear,eval_deriv,xas_env, error)
+  SUBROUTINE set_mo_occupation_1(mo_set,smear,eval_deriv,xas_env)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(smear_type), OPTIONAL, POINTER      :: smear
@@ -385,7 +376,6 @@ CONTAINS
       POINTER                                :: eval_deriv
     TYPE(xas_environment_type), OPTIONAL, &
       POINTER                                :: xas_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1', &
       routineP = moduleN//':'//routineN
@@ -403,9 +393,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,failure)
+    CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,failure)
     mo_set%occupation_numbers(:) = 0.0_dp
 
     ! Quick return, if no electrons are available
@@ -417,7 +407,7 @@ CONTAINS
     xas_estate =  -1
     occ_estate = 0.0_dp
     IF(PRESENT(xas_env)) THEN
-      CALL get_xas_env(xas_env=xas_env, xas_nelectron=xas_nelectron, occ_estate=occ_estate,xas_estate=xas_estate,error=error)
+      CALL get_xas_env(xas_env=xas_env, xas_nelectron=xas_nelectron, occ_estate=occ_estate,xas_estate=xas_estate)
       nomo = INT(xas_nelectron + 1 - occ_estate)
       IF(MOD(xas_nelectron + 1 - occ_estate,1.0_dp)>EPSILON(0.0_dp)) nomo = nomo+1
 
@@ -427,7 +417,7 @@ CONTAINS
       IF(el_count>xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count-xas_nelectron)
       el_count = SUM( mo_set%occupation_numbers(1:nomo))
       is_large=ABS(el_count-xas_nelectron)>xas_nelectron*EPSILON(el_count)
-      CPPrecondition(.NOT.is_large,cp_failure_level,routineP,error,failure)
+      CPPrecondition(.NOT.is_large,cp_failure_level,routineP,failure)
     ELSE
      IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN
         nomo = NINT(mo_set%nelectron/mo_set%maxocc)
@@ -442,8 +432,8 @@ CONTAINS
     END IF
     nmo  = SIZE(mo_set%eigenvalues)
 
-    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,error,failure)
-    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
+    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,failure)
+    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,failure)
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
@@ -452,7 +442,7 @@ CONTAINS
     ! Check consistency of the array lengths
     IF (PRESENT(eval_deriv)) THEN
       equal_size = (SIZE(mo_set%occupation_numbers,1) == SIZE(eval_deriv,1))
-      CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
+      CPPrecondition(equal_size,cp_failure_level,routineP,failure)
     END IF
 
     ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
@@ -497,7 +487,7 @@ CONTAINS
           ! could be a relatively large matrix, but one could get rid of it by never storing it
           ! we only need dE/df * df/de, one could equally parallelize over entries, this could become expensive
           ALLOCATE(dfde(nmo,nmo),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
           ! lengthscale could become a parameter, but this is pretty good
           lengthscale=10*smear%electronic_temperature
 
@@ -510,7 +500,7 @@ CONTAINS
           eval_deriv=MATMUL(TRANSPOSE(dfde),eval_deriv)
 
           DEALLOCATE(dfde,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
         END IF
 
         ! Find the lowest fractional occupied MO (LFOMO)
@@ -524,7 +514,7 @@ CONTAINS
         ! this is not a real problem, but the temperature might be a bit large
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the first MO",&
-                       error,failure)
+                       failure)
 
         ! Find the highest (fractional) occupied MO which will be now the HOMO
         DO imo=nmo,mo_set%lfomo,-1
@@ -536,29 +526,29 @@ CONTAINS
         is_large=ABS(MINVAL(mo_set%occupation_numbers))> smear%eps_fermi_dirac
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the last MO => "//&
-                       "Add more MOs for proper smearing.",error,failure)
+                       "Add more MOs for proper smearing.",failure)
 
         ! check that the total electron count is accurate
         is_large=(ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
         CALL cp_assert(.NOT.is_large,&
                        cp_warning_level,cp_assertion_failed,routineP,&
                        "Total number of electrons is not accurate",&
-                       error,failure)
+                       failure)
 
       CASE (smear_energy_window)
         ! not implemented
-        CPPrecondition(.NOT.PRESENT(eval_deriv),cp_failure_level,routineP,error,failure)
+        CPPrecondition(.NOT.PRESENT(eval_deriv),cp_failure_level,routineP,failure)
 
         ! Define the energy window for the eigenvalues
         e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
         CALL cp_assert((e1 > mo_set%eigenvalues(1)),cp_warning_level,cp_assertion_failed,routineP,&
                        "Energy window for smearing includes the first MO",&
-                       error,failure)
+                       failure)
 
         e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
         CALL cp_assert((e2 < mo_set%eigenvalues(nmo)),cp_warning_level,cp_assertion_failed,routineP,&
                        "Energy window for smearing includes the last MO => "//&
-                       "Add more MOs for proper smearing.",error,failure)
+                       "Add more MOs for proper smearing.",failure)
 
         ! Find the lowest fractional occupied MO (LFOMO)
         DO imo=i_first,nomo
@@ -595,7 +585,7 @@ CONTAINS
 
       CASE (smear_list)
         equal_size = SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
-        CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
+        CPPrecondition(equal_size,cp_failure_level,routineP,failure)
         mo_set%occupation_numbers = smear%list
         ! there is no dependence of the energy on the eigenvalues
         IF (PRESENT(eval_deriv)) THEN
