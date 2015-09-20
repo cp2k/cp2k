@@ -1012,12 +1012,10 @@ END SUBROUTINE cp_sll_char_insert_ordered2
 !     !> \brief ...
 !     !> \param str ...
 !     !> \param unit_nr ...
-!     !> \param error ...
 !     ! *****************************************************************************
-!     subroutine write_string(str,unit_nr,error)
+!     subroutine write_string(str,unit_nr)
 !       character(len=*),intent(in) :: str
 !       integer, intent(in) :: unit_nr
-!       type(cp_error_type), intent(inout) :: error
 !     
 !       write(unit_nr,"(a,a,a)") '"',trim(str),'"'
 !     end subroutine write_string

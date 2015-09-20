@@ -1596,8 +1596,12 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief returns a string that describes the functional routine used in the xc
 !>      calculation
+!> \brief returns a string that describes the functional routine used in the xc
+!>      calculation
 !> \param xc_functional_routine_id the id that represent the functional
 !>        routine
+!> \brief returns a string that describes the functional routine used in the xc
+!>      calculation
 !> \brief returns a string that describes the functional routine used in the xc
 !>      calculation
 !> \param res ...

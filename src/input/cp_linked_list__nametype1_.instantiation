@@ -9,8 +9,8 @@
  'USE':
 """ """,
  'defines':
-"""#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
-#define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )
+"""#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
 """,
  '=':'=',
  'type1arrayEl':'integer',
@@ -31,8 +31,8 @@
  'USE':
 """USE kinds, only: dp""",
  'defines':
-"""#define CP_SLL_R_LESS_Q(el1,el2,error) ( el1 < el2 )
-#define CP_SLL_R_EQUAL_Q(el1,el2,error) ( el1 == el2 )
+"""#define CP_SLL_R_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_SLL_R_EQUAL_Q(el1,el2) ( el1 == el2 )
 """,
  '=':'=',
  'type1arrayEl':'real(kind=dp)',
@@ -53,8 +53,8 @@
  'USE':
 """ """,
  'defines':
-"""#define CP_SLL_L_LESS_Q(el1,el2,error) ( .not.el1.and.el2 )
-#define CP_SLL_L_EQUAL_Q(el1,el2,error) ( el1.EQV.el2 )
+"""#define CP_SLL_L_LESS_Q(el1,el2) ( .not.el1.and.el2 )
+#define CP_SLL_L_EQUAL_Q(el1,el2) ( el1.EQV.el2 )
 """,
  '=':'=',
  'type1arrayEl':'logical',
@@ -75,8 +75,8 @@
  'USE':
 """USE kinds, only: default_string_length""",
  'defines':
-"""#define CP_SLL_C_LESS_Q(el1,el2,error) ( el1 < el2 )
-#define CP_SLL_C_EQUAL_Q(el1,el2,error) ( el1 == el2 )
+"""#define CP_SLL_C_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_SLL_C_EQUAL_Q(el1,el2) ( el1 == el2 )
 """,
  '=':'=',
  'type1arrayEl':'character(len=default_string_length)',
@@ -90,12 +90,10 @@
 !> \brief ...
 !> \param str ...
 !> \param unit_nr ...
-!> \param error ...
 ! *****************************************************************************
-subroutine write_string(str,unit_nr,error)
+subroutine write_string(str,unit_nr)
   character(len=*),intent(in) :: str
   integer, intent(in) :: unit_nr
-  type(cp_error_type), intent(inout) :: error
 
   write(unit_nr,"(a,a,a)") '"',trim(str),'"'
 end subroutine write_string
@@ -111,8 +109,8 @@ end subroutine write_string
  'USE':
 """USE input_val_types, only: val_type, val_p_type""",
  'defines':
-"""#define CP_SLL_VAL_LESS_Q(el1,el2,error) el1%id_nr<el2%id_nr
-#define CP_SLL_VAL_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
+"""#define CP_SLL_VAL_LESS_Q(el1,el2) el1%id_nr<el2%id_nr
+#define CP_SLL_VAL_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 """,# stupid orderig, and sameness, define something more useful?
  '=':'=>',
  'type1arrayEl':'type(val_p_type)',

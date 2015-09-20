@@ -12,8 +12,8 @@
 USE cp_array_utils_r, only: cp_3d_r_p_type""",
  'defines':
 """! less not much meningful... and defines oly a partial ordering.
-#define CP_SLL_R_LESS_Q(el1,el2,error) ( all(el1 < el2) )
-#define CP_SLL_R_EQUAL_Q(el1,el2,error) ( all(el1 == el2) )
+#define CP_SLL_R_LESS_Q(el1,el2) ( all(el1 < el2) )
+#define CP_SLL_R_EQUAL_Q(el1,el2) ( all(el1 == el2) )
 """,
  '=':'=>',
  'type1arrayEl':'type(cp_3d_r_p_type)',
@@ -38,8 +38,8 @@ USE pw_types, ONLY: pw_type, pw_p_type
 USE pw_methods, ONLY: pw_write""",
  'defines':
 """! less not much meaningful...
-#define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )
-#define CP_SLL_PW_EQUAL_Q(el1,el2,error) ( el1 %id_nr == el2 %id_nr )
+#define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
+#define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 """,
  '=':'=>',
  'type1arrayEl':'type(pw_p_type)',
@@ -63,8 +63,8 @@ USE pw_methods, ONLY: pw_write""",
 USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type""",
  'defines':
 """! less not much meningful...
-#define CP_SLL_RS_LESS_Q(el1,el2,error) ( el1%id_nr < el2%id_nr )
-#define CP_SLL_RS_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
+#define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
+#define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 """,
  '=':'=>',
  'type1arrayEl':'type(realspace_grid_p_type)',

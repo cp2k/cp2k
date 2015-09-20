@@ -200,7 +200,7 @@ END SUBROUTINE mol_new_list_release
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
 !  USE = "use molecule_types_new, only: molecule_type, deallocate_molecule_set"
-!  deallocate_els_code = "call deallocate_molecule_set(list%els,error=error)"
+!  deallocate_els_code = "call deallocate_molecule_set(list%els)"
 !  el_type = "type(molecule_type)"
 !  el_typename = "mol_new"
 

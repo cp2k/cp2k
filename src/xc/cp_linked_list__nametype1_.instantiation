@@ -10,8 +10,8 @@
 """USE kinds, only: dp
 USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type""",
  'defines':
-"""#define CP_SLL_DERIV_LESS_Q(el1,el2,error) cp_sll_deriv_less_q(el1,el2,error)
-#define CP_SLL_DERIV_EQUAL_Q(el1,el2,error) ( el1%desc == el2%desc )
+"""#define CP_SLL_DERIV_LESS_Q(el1,el2) cp_sll_deriv_less_q(el1,el2)
+#define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
 """,
  '=':'=>',
  'type1arrayEl':'type(xc_derivative_p_type)',
@@ -25,21 +25,19 @@ USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type""",
 !> \brief private compare function
 !> \param el1 ...
 !> \param el2 ...
-!> \param error ...
 !> \retval res ...
 ! *****************************************************************************
-function cp_sll_deriv_less_q(el1,el2,error) result(res)
+function cp_sll_deriv_less_q(el1,el2) result(res)
   type(xc_derivative_type), pointer :: el1,el2
-  type(cp_error_type), intent(inout) :: error
   logical :: res
 
   character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&
       routineP=moduleN//':'//routineN
 
-  CPPreconditionNoFail(associated(el1),cp_failure_level,routineP,error)
-  CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP,error)
-  CPPreconditionNoFail(associated(el2),cp_failure_level,routineP,error)
-  CPPreconditionNoFail(associated(el2%split_desc),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el1),cp_failure_level,routineP)
+  CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP)
+  CPPreconditionNoFail(associated(el2),cp_failure_level,routineP)
+  CPPreconditionNoFail(associated(el2%split_desc),cp_failure_level,routineP)
   res=size(el1%split_desc)<size(el2%split_desc).or.&
       (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
 end function

@@ -200,7 +200,7 @@ END SUBROUTINE particle_list_release
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
 !  USE = "use particle_types, only: particle_type, deallocate_particle_set"
-!  deallocate_els_code = "call deallocate_particle_set(list%els,error=error)"
+!  deallocate_els_code = "call deallocate_particle_set(list%els)"
 !  el_type = "type(particle_type)"
 !  el_typename = "particle"
 

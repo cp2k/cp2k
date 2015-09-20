@@ -3,24 +3,24 @@
 'el_type':'type(particle_type)',
 'USE':"""use particle_types, only: particle_type, deallocate_particle_set""",
 'deallocate_els_code':
-"""call deallocate_particle_set(list%els,error=error)"""
+"""call deallocate_particle_set(list%els)"""
 },
 {'el_typename':'atomic_kind',
 'el_type':'type(atomic_kind_type)',
 'USE':"""use atomic_kind_types, only: atomic_kind_type,deallocate_atomic_kind_set""",
 'deallocate_els_code':
-"""call deallocate_atomic_kind_set(list%els,error=error)"""
+"""call deallocate_atomic_kind_set(list%els)"""
 },
 {'el_typename':'mol_new',
 'el_type':'type(molecule_type)',
 'USE':"""use molecule_types_new, only: molecule_type, deallocate_molecule_set""",
 'deallocate_els_code':
-"""call deallocate_molecule_set(list%els,error=error)"""
+"""call deallocate_molecule_set(list%els)"""
 },
 {'el_typename':'mol_kind_new',
 'el_type':'type(molecule_kind_type)',
 'USE':"""use molecule_kind_types, only: molecule_kind_type, deallocate_molecule_kind_set""",
 'deallocate_els_code':
-"""call deallocate_molecule_kind_set(list%els,error=error)"""
+"""call deallocate_molecule_kind_set(list%els)"""
 }
 ]

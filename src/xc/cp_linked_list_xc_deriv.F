@@ -1023,12 +1023,10 @@ END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 !     !> \brief private compare function
 !     !> \param el1 ...
 !     !> \param el2 ...
-!     !> \param error ...
 !     !> \retval res ...
 !     ! *****************************************************************************
-!     function cp_sll_deriv_less_q(el1,el2,error) result(res)
+!     function cp_sll_deriv_less_q(el1,el2) result(res)
 !       type(xc_derivative_type), pointer :: el1,el2
-!       type(cp_error_type), intent(inout) :: error
 !       logical :: res
 !     
 !       character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&

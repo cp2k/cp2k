@@ -200,7 +200,7 @@ END SUBROUTINE atomic_kind_list_release
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
 !  USE = "use atomic_kind_types, only: atomic_kind_type,deallocate_atomic_kind_set"
-!  deallocate_els_code = "call deallocate_atomic_kind_set(list%els,error=error)"
+!  deallocate_els_code = "call deallocate_atomic_kind_set(list%els)"
 !  el_type = "type(atomic_kind_type)"
 !  el_typename = "atomic_kind"
 
