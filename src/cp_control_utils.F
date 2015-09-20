@@ -1596,30 +1596,18 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief returns a string that describes the functional routine used in the xc
 !>      calculation
-!> \brief returns a string that describes the functional routine used in the xc
-!>      calculation
-!> \param xc_functional_routine_id the id that represent the functional
-!>        routine
-!> \brief returns a string that describes the functional routine used in the xc
-!>      calculation
-!> \brief returns a string that describes the functional routine used in the xc
-!>      calculation
-!> \param res ...
+!> \param xc_func_id ...
 !> \retval res ...
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION xc_get_routine_label(xc_functional_routine_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_functional_routine_id
+  FUNCTION xc_get_routine_label(xc_func_id) RESULT(res)
+    INTEGER, INTENT(in)                      :: xc_func_id
     CHARACTER(len=20)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_routine_label', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    SELECT CASE(xc_functional_routine_id)
+    SELECT CASE(xc_func_id)
     CASE(xc_old_f_routine)
        res="OLD"
     CASE(xc_new_f_routine)
@@ -1629,7 +1617,7 @@ CPSourceFileRef,&
     CASE(xc_debug_new_routine)
        res="DEBUG_NEW"
     CASE default
-       WRITE (res,"('UKN',i6)") xc_functional_routine_id
+       WRITE (res,"('UKN',i6)") xc_func_id
     END SELECT
   END FUNCTION xc_get_routine_label
 
