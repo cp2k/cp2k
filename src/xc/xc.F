@@ -2765,10 +2765,8 @@ CPSourceFileRef,&
            CALL pw_zero(v_drho%pw)
         ELSE
            ALLOCATE(v_drho%pw)
-           ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                stat=stat)
+           ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
            v_drho%pw%cr3d = 0.0_dp
-           CPASSERT(stat==0)
         END IF
      END IF
 

@@ -2341,10 +2341,11 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
              dummy_ptr => pw_grid % g_hatmap(1,1)
              stat = cudaFreeHost(c_loc(dummy_ptr))
+             CPASSERT(stat==0)
 #else
              DEALLOCATE ( pw_grid % g_hatmap, STAT = stat )
-#endif
              CPASSERT(stat==0)
+#endif
           END IF
           IF ( ASSOCIATED ( pw_grid % grays ) ) THEN
              DEALLOCATE ( pw_grid % grays)
