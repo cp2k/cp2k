@@ -248,6 +248,8 @@ def parse_report(fn):
                 continue  # ignore crashed tests
             if("KILLED" in line):
                 continue  # ignore timeouted tests
+            if("FAILED START" in line):
+                continue  # ignore crashed farming run
             parts = line.split()
             if(not parts[0].endswith(".inp")):
                 print("Found strange line:\n"+line)
@@ -256,7 +258,8 @@ def parse_report(fn):
                 continue  # test without numeric check
 
             test_name = curr_dir+parts[0]
-            values[test_name] = parts[1] # do not parse float
+            float(parts[1]) # try parsing float...
+            values[test_name] = parts[1] # ... but pass on the original string
         else:
             pass # ignore line
 
