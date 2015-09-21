@@ -241,6 +241,16 @@ race:__dbcsr_operations_MOD_dbcsr_filter_anytype
 race:__dbcsr_transformations_MOD_dbcsr_make_untransposed_blocks
 EOF
 
+#valgrind suppressions
+cat << EOF > ${INSTALLDIR}/valgrind.supp
+{
+   BuggySUPERLU
+   Memcheck:Cond
+   ...
+   fun:SymbolicFactorize
+}
+EOF
+
 # now we need these tools and compiler to be in the path
 cat << EOF > ${INSTALLDIR}/setup
 if [ -z "\${LD_LIBRARY_PATH}" ]
@@ -258,6 +268,7 @@ fi
 export CP2KINSTALLDIR=${INSTALLDIR}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
+export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 export CC=gcc
 export CXX=g++
 export FC=gfortran
