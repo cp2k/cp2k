@@ -1872,10 +1872,10 @@ CONTAINS
                src_rs = src_rs, src_cs = src_cs,&
                src_r_lb = 1, src_c_lb = 1,&
                nrow = row_size, ncol = col_size)
-          IF (neg_real) THEN
+          IF (neg_real.AND.checker_tr (dst_row, dst_col)) THEN
              CALL dbcsr_block_real_neg (dst_data, row_size, col_size, error=error)
           ENDIF
-          IF (neg_imag) THEN
+          IF (neg_imag.AND.checker_tr (dst_row, dst_col)) THEN
              CALL dbcsr_block_conjg (dst_data, row_size, col_size, error=error)
           ENDIF
        ENDIF
