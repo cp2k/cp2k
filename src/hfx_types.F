@@ -497,7 +497,7 @@ MODULE hfx_types
     CHARACTER(LEN=default_path_length)       :: char_val
     INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
-      pbc_shells, stat, storage_id
+      pbc_shells, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: failure, logic_val, my_do_exx
     REAL(dp)                                 :: real_val
@@ -837,7 +837,6 @@ MODULE hfx_types
         DO i=1,64
           actual_x_data%integral_caches_disk(i)%element_counter = 1
           actual_x_data%integral_caches_disk(i)%data = 0
-          CPASSERT(stat==0)
           ALLOCATE(actual_x_data%integral_containers_disk(i)%first)
           actual_x_data%integral_containers_disk(i)%first%prev => NULL()
           actual_x_data%integral_containers_disk(i)%first%next => NULL()
