@@ -912,15 +912,16 @@ MODULE mp2_ri_gpw
       comm_L, dir, group_size, handle, handle2, handle3, i, i_bf, i_counter, &
       i_counter_diff_bf, i_counter_diff_bf_at_any_atom, i_counter_diff_sets, &
       i_global, iatom, igrid_level, igroup, iiB, ikind, info_chol, inode, &
-      ipgf, iproc, iset, istat, itmp(2), j, j_global, j_ref_atom, j_ref_bf, &
+      ipgf, iproc, iset, itmp(2), j, j_global, j_ref_atom, j_ref_bf, &
       j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, &
       location(3), m, my_group_L_q_end, my_group_L_q_size, &
       my_group_L_q_start, my_group_pot_end, my_group_pot_size, &
-      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local
-    INTEGER :: nkind, nrow_local, nseta, nsetb, nsgf, offset, offsetb, &
-      proc_receive, proc_receive_static, proc_send, proc_send_static, &
-      proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, stat, &
-      strat_group_size, sub_sub_color, tp(3), ub(3)
+      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local, &
+      nkind
+    INTEGER :: nrow_local, nseta, nsetb, nsgf, offset, offsetb, proc_receive, &
+      proc_receive_static, proc_send, proc_send_static, proc_shift, &
+      rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, strat_group_size, &
+      sub_sub_color, tp(3), ub(3)
     INTEGER, ALLOCATABLE, DIMENSION(:) :: diffbf_atom_arbitr_atom, &
       diffbf_noinbas, diffbfatanyatom_noinbas, ends_array_pot, kind_of, &
       proc_map, sizes_array_pot, starts_array_pot, sub_ends_array, &
@@ -1821,7 +1822,7 @@ MODULE mp2_ri_gpw
                END DO  
   
   
-               DEALLOCATE(f,v,vac,I_tmp,I_tmp2,STAT=istat)
+               DEALLOCATE(f,v,vac,I_tmp,I_tmp2)
             
              END IF !parallelization
   
