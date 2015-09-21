@@ -5259,7 +5259,6 @@ MODULE mp2_ri_gpw
         IF (iloops .EQ. 2) THEN ! For alpha-beta case for beta-beta density the dimensions are different
           DEALLOCATE(local_ab)
           ALLOCATE(local_ab(virtual_beta,size_B_k))
-          CPASSERT(stat==0)
           local_ab=0.0_dp
           CALL dgemm('T','N',size_B_i,size_B_k,dimen_RI,1.0_dp,&
                local_i_aL(:,:,1),dimen_RI,local_k_aL(:,:,1),dimen_RI,&

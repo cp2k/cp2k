@@ -140,13 +140,12 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 
   INTEGER                                      :: dumblock
 #if defined(__SCALAPACK)
-  INTEGER                                      :: iunit
+  INTEGER                                      :: iunit, stat
   INTEGER, EXTERNAL                            :: numroc
   TYPE(cp_logger_type), POINTER                :: logger
 #endif
 
   LOGICAL :: failure, my_square_blocks, my_force_block
-  INTEGER :: stat
   failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)

@@ -755,7 +755,7 @@ CONTAINS
 
     CHARACTER(LEN=1)                           :: job_type
     INTEGER                                    :: handle, ilow_local,&
-                                                  info, istat, iup_local,&
+                                                  info, iup_local,&
                                                   lwork, liwork, mypcol,&
                                                   myprow, n, neig
     INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
@@ -845,14 +845,12 @@ CONTAINS
     lwork = NINT(work(1)+300000)
     liwork = iwork(1)
     IF(lwork>SIZE(work,1)) THEN
-      DEALLOCATE(work,STAT=istat)
-      ALLOCATE(work(lwork),STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(work)
+      ALLOCATE(work(lwork))
     END IF
     IF(liwork>SIZE(iwork,1)) THEN
-      DEALLOCATE(iwork,STAT=istat)
-      ALLOCATE(iwork(liwork),STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(iwork)
+      ALLOCATE(iwork(liwork))
     END IF
 
     !Second call: solve the eigenvalue problem
