@@ -73,8 +73,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: myFormat
     CHARACTER(LEN=default_string_length)     :: rc_s
     INTEGER                                  :: I, ig, ig_start, J, K, myind, &
-                                                ndim, Np, output_unit, stat, &
-                                                unit_nr
+                                                ndim, Np, output_unit, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: A, G, rc, Rmax, Rmin, t, t1, &
@@ -208,8 +207,6 @@ CONTAINS
           END IF
        CASE DEFAULT
           DEALLOCATE(potentials(K)%Pot)
-          CPASSERT(stat==0)
-          NULLIFY(potentials(K)%Pot)
           IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
           CYCLE Potential_Type
        END SELECT
