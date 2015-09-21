@@ -947,10 +947,8 @@ CONTAINS
          ALLOCATE(fist_scale_charge_link(link_involv_mm))
     IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0)) &
          ALLOCATE(mm_link_atoms(link_involv_mm))
-    IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot),stat=stat)
-    CPASSERT(stat==0)
-    IF (PRESENT(qm_atom_type))    ALLOCATE(qm_atom_type(num_qm_atom_tot),stat=stat)
-    CPASSERT(stat==0)
+    IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot))
+    IF (PRESENT(qm_atom_type))    ALLOCATE(qm_atom_type(num_qm_atom_tot))
     IF (PRESENT(qm_atom_index))   qm_atom_index    =   0
     IF (PRESENT(qm_atom_type))    qm_atom_type     = " "
     num_qm_atom_tot = 1

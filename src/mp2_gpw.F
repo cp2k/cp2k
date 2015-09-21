@@ -163,7 +163,7 @@ MODULE mp2_gpw
       gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, &
       gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, &
       local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
-      n_multigrid, natom, nelectron, nelectron_beta, nkind, nmo, nspins, stat
+      n_multigrid, natom, nelectron, nelectron_beta, nkind, nmo, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, &
       ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
       sizes_B_virtual, sizes_B_virtual_beta, starts_array, starts_B_all, &
@@ -551,7 +551,6 @@ MODULE mp2_gpw
     CALL cp_dbcsr_release(mo_coeff_v)
     DEALLOCATE(mo_coeff_v)
     IF(my_do_gw) THEN
-      CPASSERT(stat==0)
       CALL cp_dbcsr_release(mo_coeff_all)
       DEALLOCATE(mo_coeff_all)
     END IF
@@ -562,7 +561,6 @@ MODULE mp2_gpw
       CALL cp_dbcsr_release(mo_coeff_v_beta)
       DEALLOCATE(mo_coeff_v_beta)
       IF(my_do_gw) THEN
-        CPASSERT(stat==0)
         CALL cp_dbcsr_release(mo_coeff_all_beta)
         DEALLOCATE(mo_coeff_all_beta)
       END IF

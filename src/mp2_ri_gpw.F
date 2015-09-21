@@ -1737,15 +1737,12 @@ MODULE mp2_ri_gpw
                sgfb = first_sgfb(1,jset)
   
   
-               ALLOCATE(I_tmp(ncoa_a,nsgfb(jset)),STAT=istat)
-               CPASSERT(stat==0)
-               ALLOCATE(I_tmp2(nsgfa(iset),nsgfb(jset)),STAT=istat)
-               CPASSERT(stat==0)
+               ALLOCATE(I_tmp(ncoa_a,nsgfb(jset)))
+               ALLOCATE(I_tmp2(nsgfa(iset),nsgfb(jset)))
   
                ALLOCATE(f(0:la_max(iset)+lb_max(jset)+2),&
                         v(ncoa_a,ncoa_b,la_max(iset)+lb_max(jset)+1),&
-                        vac(ncoa_a,ncoa_b),STAT=istat)
-               CPASSERT(stat==0)
+                        vac(ncoa_a,ncoa_b))
                f=0.0_dp
                v=0.0_dp
                vac=0.0_dp
@@ -2526,8 +2523,8 @@ MODULE mp2_ri_gpw
     INTEGER :: pos_integ_group, proc_receive, proc_send, proc_shift, &
       rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, &
       send_B_size, send_B_virtual_end, send_B_virtual_start, send_block_size, &
-      send_i, send_ij_index, send_j, start_point, stat, sub_P_color, &
-      sub_sub_color, total_ij_pairs, virtual, virtual_beta
+      send_i, send_ij_index, send_j, start_point, sub_P_color, sub_sub_color, &
+      total_ij_pairs, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
       new_sizes_array, num_ij_pairs, proc_map, proc_map_rep, &
       sizes_array_orig, sub_proc_map
@@ -3095,7 +3092,6 @@ MODULE mp2_ri_gpw
       ! Deallocate additional integrals: alpha_beta case with forces
       IF (ALLOCATED(local_ba)) THEN
          DEALLOCATE(local_ba)
-         CPASSERT(stat==0)
       ENDIF
 
       ! here we check if there are almost degenerate ij
@@ -3194,7 +3190,6 @@ MODULE mp2_ri_gpw
       ! sum Gamma and dereplicate 
       ALLOCATE(BIb_C(homo,my_B_size,my_group_L_size))
       IF (my_alpha_beta_case) ALLOCATE(BIb_C_beta(homo_beta,my_B_size_beta,my_group_L_size))
-      CPASSERT(stat==0)
       DO proc_shift=1, para_env_rep%num_pe-1
         ! invert order
         proc_send=proc_map_rep(para_env_rep%mepos-proc_shift)

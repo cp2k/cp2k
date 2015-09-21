@@ -761,7 +761,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iab, id_kind, ikind, &
                                                 ipair, jkind, max_alloc_size, &
-                                                npairs, nscale, stat, tmp
+                                                npairs, nscale, tmp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
     INTEGER, DIMENSION(:), POINTER           :: work
     INTEGER, DIMENSION(:, :), POINTER        :: list_copy
@@ -805,7 +805,7 @@ CONTAINS
                 neighbor_kind_pair%list(2,ipair) = list_copy(2,tmp)
              END DO
              DEALLOCATE(work)
-             DEALLOCATE(list_copy,stat=stat)
+             DEALLOCATE(list_copy)
           END IF
           ! 2) determine the intervals (groups) in the pair list that correspond
           !    to a certain id_kind. also store the corresponding ikind and
@@ -816,7 +816,6 @@ CONTAINS
           ! present, and also provide storage for the pairs with exclusion
           ! flags, which are unsorted.
           max_alloc_size = nkinds*(nkinds+1)/2 + nscale
-          CPASSERT(stat==0)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_start)
           END IF

@@ -61,7 +61,7 @@ CONTAINS
                                                 output_file_path
     INTEGER                                  :: group_size_wish, handle, i, &
                                                 lp, n_rep_val, ngroup_wish, &
-                                                output_unit, stat, unit_nr
+                                                output_unit, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
     LOGICAL                                  :: failure, group_size_wish_set, &
                                                 ngroup_wish_set
@@ -106,7 +106,6 @@ CONTAINS
             n_subgroups=ngroup_wish,&
             group_partition=group_partition)
     ENDIF
-    CPASSERT(stat==0)
     IF (output_unit>0) THEN
        WRITE(output_unit,FMT="(T2,A,T71,I10)") "MIXED_ENV| Number of created MPI groups:",mixed_env%ngroups
        WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "MIXED_ENV| Task to group correspondence:"
