@@ -71,7 +71,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
         DO k = 1, 3
            IF (.NOT.check_value(matrix_n%sp_d(j,k,i), ij_matrix%sp_d(j,k,i), dx, 0.1_dp)) THEN
               WRITE(*,*)"ERROR for SP rotation matrix derivative SP(j,k,i), j,k,i::",j,k,i
-              STOP
+              CPABORT("")
            END IF
         END DO
      END DO
@@ -82,7 +82,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
            DO l = 1, 6
               IF (.NOT.check_value(matrix_n%pp_d(j,l,k,i), ij_matrix%pp_d(j,l,k,i), dx, 0.1_dp)) THEN
                  WRITE(*,*)"ERROR for PP rotation matrix derivative PP(j,l,k,i), j,l,k,i::",j,l,k,i
-                 STOP
+                 CPABORT("")
               END IF
            END DO
         END DO
@@ -95,7 +95,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
            DO k = 1, 5
               IF (.NOT.check_value(matrix_n%sd_d(j,k,i), ij_matrix%sd_d(j,k,i), dx, 0.1_dp)) THEN
                  WRITE(*,*)"ERROR for SD rotation matrix derivative SD(j,k,i), j,k,i::",j,k,i
-                 STOP
+                 CPABORT("")
               END IF
            END DO
         END DO
@@ -106,7 +106,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
               DO l = 1, 15
                  IF (.NOT.check_value(matrix_n%pd_d(j,l,k,i), ij_matrix%pd_d(j,l,k,i), dx, 0.1_dp)) THEN
                     WRITE(*,*)"ERROR for DP rotation matrix derivative DP(j,l,k,i), j,l,k,i::",j,l,k,i
-                    STOP
+                    CPABORT("")
                  END IF
               END DO
            END DO
@@ -118,7 +118,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
               DO l = 1, 15
                  IF (.NOT.check_value(matrix_n%dd_d(j,l,k,i), ij_matrix%dd_d(j,l,k,i), dx, 0.1_dp)) THEN
                     WRITE(*,*)"ERROR for DD rotation matrix derivative DD(j,l,k,i), j,l,k,i::",j,l,k,i
-                    STOP
+                    CPABORT("")
                  END IF
               END DO
            END DO
@@ -227,7 +227,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
            v_n(i,k) = (v_p(i,k)-v_m(i,k))/(2.0_dp*dx)
            IF (.NOT.check_value(v_d(j,i,k), v_n(i,k), dx, 0.1_dp)) THEN
               WRITE(*,*)"ERROR for  rot_2el_2c_first derivative V_D(j,i,k), j,i,k::",j,i,k
-              STOP
+              CPABORT("")
            END IF
         END DO
      END DO
@@ -282,7 +282,7 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_tap
   WRITE(*,*)"DEBUG::"//routineP
   IF (.NOT.check_value(nssss, dssss, delta, 0.1_dp)) THEN
      WRITE(*,*)"ERROR for SSSS derivative SSSS"
-     STOP
+     CPABORT("")
   END IF
 END SUBROUTINE check_dssss_nucint_ana
 
@@ -338,7 +338,7 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_tap
      DO j = 1, 10
         IF (.NOT.check_value(ncore(j,i), dcore(j,i), delta, 0.1_dp)) THEN
            WRITE(*,*)"ERROR for CORE derivative CORE(j,i), j,i::",j,i
-           STOP
+           CPABORT("")
         END IF
      END DO
   END DO
@@ -444,7 +444,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
      DO j = 1, 45
         IF (.NOT.check_value(e1b2(j), e1b(j), delta, 0.1_dp)) THEN
            WRITE(*,*)"ERROR for E1B value E1B(j), j::",j
-           STOP
+           CPABORT("")
         END IF
      END DO
   END IF
@@ -452,7 +452,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
      DO J = 1, 45
         IF (.NOT.check_value(e2a2(j), e2a(j), delta, 0.1_dp)) THEN
            WRITE(*,*)"ERROR for E2A value E2A(j), j::",j
-           STOP
+           CPABORT("")
         END IF
      END DO
   END IF
@@ -468,7 +468,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
               IF (ABS(e1b2(j))>delta) THEN
                  IF (.NOT.check_value(de1b2(i,j), de1b(i,j), delta, 0.1_dp)) THEN
                     WRITE(*,*)"ERROR for derivative of E1B.  DE1B(i,j), i,j::",i,j
-                    STOP
+                    CPABORT("")
                  END IF
               END IF
            END DO
@@ -481,7 +481,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
               IF (ABS(e2a2(j))>delta) THEN
                  IF (.NOT.check_value(de2a2(i,j), de2a(i,j), delta, 0.1_dp)) THEN
                     WRITE(*,*)"ERROR for derivative of E2A.  DE2A(i,j), i,j::",i,j
-                    STOP
+                    CPABORT("")
                  END IF
               END IF
            END DO
@@ -540,7 +540,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
      CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,se_int_control,se_taper)
      IF (.NOT.check_value(enuc, enuc_num, delta, 0.001_dp)) THEN
         WRITE(*,*)"ERROR for CORE-CORE energy value (numerical different from analytical)!!"
-        STOP
+        CPABORT("")
      END IF
   END IF
   IF (PRESENT(denuc)) THEN
@@ -548,7 +548,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
      DO j = 1, 3
         IF (.NOT.check_value(denuc(j), denuc_num(j), delta, 0.001_dp)) THEN
            WRITE(*,*)"ERROR for CORE-CORE energy derivative value (numerical different from analytical). DENUC(j), j::", j
-           STOP
+           CPABORT("")
         END IF
      END DO
   END IF
@@ -610,7 +610,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad)
   DO j = 1, 491
      IF  (ABS(ri(j)-ri0(j))>EPSILON(0.0_dp)) THEN
         WRITE(*,*)"Error in value of the integral RI",j,ri(j),ri0(j)
-        STOP
+        CPABORT("")
      END IF
      IF (lgrad) THEN
         IF (.NOT.check_value(dri(j), nri(j), delta*100.0_dp, 0.1_dp)) THEN
@@ -619,7 +619,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad)
            DO i = 1, 491
               WRITE(*,'(I5,3F15.9)')i, dri(i), nri(i), nri(i)-dri(i)
            END DO
-           STOP
+           CPABORT("")
         END IF
      END IF
   END DO
@@ -676,7 +676,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper)
      DO j = 1, 2025
         IF (.NOT.check_value(w(j), w2(j), delta, 0.1_dp)) THEN
            WRITE(*,*)"ERROR for integral value W(j), j::",j
-           STOP
+           CPABORT("")
         END IF
      END DO
   END IF
@@ -692,7 +692,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper)
            IF ((ABS(w2(j))>delta).AND.(ABS(dw2(i,j))>delta*10)) THEN
               IF (.NOT.check_value(dw(i,j), dw2(i,j), delta, 0.1_dp)) THEN
                  WRITE(*,*)"ERROR for derivative of the integral value W(j). DW(i,j) i,j::",i,j
-                 STOP
+                 CPABORT("")
               END IF
            END IF
         END DO

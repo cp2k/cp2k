@@ -183,7 +183,7 @@ CONTAINS
                 ENDDO
              ENDIF
           ELSE
-             STOP
+             CPABORT("")
           ENDIF
        ENDDO
        ENDDO
@@ -256,7 +256,7 @@ CONTAINS
                       ENDDO
                    ENDIF
                 ELSE
-                   STOP
+                   CPABORT("")
                 ENDIF
              ENDDO
              ENDDO

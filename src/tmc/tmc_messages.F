@@ -990,7 +990,7 @@ CONTAINS
           WRITE(*,*)"ERROR: read_energy_result: master got energy result of subtree elem ", &
                     m_send%task_int(counter+1),  m_send%task_int(counter+3), &
                     " but expect result of subtree elem", elem%sub_tree_nr, elem%nr
-          STOP "read_energy_result: got energy result from unexpected tree element."
+          CPABORT("read_energy_result: got energy result from unexpected tree element.")
        END IF
     ELSE
       CPASSERT(m_send%info(2).EQ.0)
@@ -1443,7 +1443,7 @@ CONTAINS
     counter = 1
     IF(DEBUG.GT.0) THEN
        IF((m_send%task_int(counter+1) .NE. elem%sub_tree_nr) .AND. (m_send%task_int(counter+3).NE.elem%nr)) &
-          STOP "read_NMC_result_massage: got result of wrong element"
+          CPABORT("read_NMC_result_massage: got result of wrong element")
        counter = counter + 2+2
     END IF
     ! the molecule information
@@ -1799,7 +1799,7 @@ CONTAINS
             CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest_rank,&
                              para_env=para_env, tmc_params=tmc_params)
           ELSE
-            STOP "group master should not receive cancel receipt"
+            CPABORT("group master should not receive cancel receipt")
           END IF
         CASE(TMC_STATUS_STOP_RECEIPT)
           rank_stoped(dest_rank) = .TRUE.

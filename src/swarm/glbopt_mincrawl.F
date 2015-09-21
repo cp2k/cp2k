@@ -336,10 +336,13 @@ MODULE glbopt_mincrawl
     REAL(KIND=dp)                            :: temp_in_au
     INTEGER                                  :: step
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'temp2tempstep', &
+      routineP = moduleN//':'//routineN
+
    step = INT(LOG(temp_in_au*kelvin)/LOG(this%tempstep_base))
    !WRITE(*,*) "temp: ", temp_in_au*kelvin, this%tempstep_base
    !WRITE(*,*) "step: ", step
-   IF(step > this%tempstep_max) STOP "temp2tempstep: step > tempstep_max"
+   IF(step > this%tempstep_max) CPABORT("temp2tempstep: step > tempstep_max")
  END FUNCTION temp2tempstep
 
 
@@ -354,6 +357,9 @@ MODULE glbopt_mincrawl
  SUBROUTINE mincrawl_register_minima(this, report)
     TYPE(mincrawl_type)                      :: this
     TYPE(swarm_message_type)                 :: report
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mincrawl_register_minima', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: new_mid, tempstep, wid
     LOGICAL                                  :: minima_known
@@ -379,7 +385,7 @@ MODULE glbopt_mincrawl
 
     IF(ASSOCIATED(start_minima)) THEN
       start_minima%n_active = start_minima%n_active - 1
-      IF(start_minima%n_active < 0) STOP "negative n_active"
+      IF(start_minima%n_active < 0) CPABORT("negative n_active")
 
       ! update tempdist and escape_hist
       IF(minima_known) THEN

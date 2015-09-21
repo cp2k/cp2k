@@ -48,6 +48,9 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbg_energy_coulomb_lr', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecoul
@@ -74,7 +77,7 @@ CONTAINS
 
     ! Debug statements
     WRITE(*,*)"TOTAL ENE",0.5_dp*energy%hartree+energy%core_overlap
-    STOP "Debug energy for Coulomb Long-Range"
+    CPABORT("Debug energy for Coulomb Long-Range")
 
   END SUBROUTINE dbg_energy_coulomb_lr
 

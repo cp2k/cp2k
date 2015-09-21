@@ -25,6 +25,8 @@ MODULE cp_lbfgs
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs'
+
   PUBLIC :: setulb
 
 CONTAINS
@@ -3732,6 +3734,9 @@ CONTAINS
     INTEGER, INTENT(in)                      :: job
     INTEGER, INTENT(out)                     :: info
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dtrsl', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: CASE, j, jj
     REAL(KIND=dp)                            :: ddot, temp
 
@@ -3805,7 +3810,7 @@ CONTAINS
                END DO
             END IF
          CASE DEFAULT
-            STOP "dtrsl: unexpected case"
+            CPABORT("unexpected case")
          END SELECT
 
       RETURN

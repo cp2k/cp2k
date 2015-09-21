@@ -533,7 +533,7 @@ CONTAINS
         IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)")&
                                                                                     nr, atom%basis%grid%nr
         IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
-        STOP
+        CPABORT("")
       ENDIF
 
       DO ir=1,nr
@@ -543,7 +543,7 @@ CONTAINS
           IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
           IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
                      rr, atom%basis%grid%rad(ir), ABS(rr-atom%basis%grid%rad(ir))
-          STOP
+          CPABORT("")
         ENDIF
       ENDDO
       CALL close_file(unit_number=extunit)
@@ -624,7 +624,7 @@ CONTAINS
       IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)")&
                                                                                   nr, atom%basis%grid%nr
       IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
-      STOP
+      CPABORT("")
     ENDIF
     DO ir=1,nr
       READ(extunit,*) rr,vxc(ir)
@@ -633,7 +633,7 @@ CONTAINS
         IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
         IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)')  &
                       rr, atom%basis%grid%rad(ir), ABS(rr-atom%basis%grid%rad(ir))
-        STOP
+        CPABORT("")
       ENDIF
     ENDDO
 

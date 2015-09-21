@@ -211,7 +211,7 @@ CONTAINS
        CALL dbcsr_distribution_release (clustered_distribution)
        CALL cp_dbcsr_finalize (matrix_ls)
     CASE DEFAULT
-       STOP " BUG cluster option"
+       CPABORT(" BUG cluster option")
     END SELECT
 
 
@@ -271,7 +271,7 @@ CONTAINS
        CALL cp_dbcsr_release (matrix_qs_nosym)
 
     CASE DEFAULT
-       STOP
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)
@@ -324,7 +324,7 @@ CONTAINS
           CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE.)
        ENDIF
     CASE DEFAULT
-       STOP "BUG"
+       CPABORT("BUG")
     END SELECT
 
     IF (ls_mstruct%single_precision) THEN

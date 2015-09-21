@@ -2101,7 +2101,7 @@ CONTAINS
                 sr = erfc(qm_alpha*dr)/dr
                 qpot = qpot + qeff*sr
              ELSE 
-                STOP
+                CPABORT("")
              END IF
           END IF
        END DO LoopMM
@@ -2195,7 +2195,7 @@ CONTAINS
                 dsr = 0.5_dp*(erfc(qm_alpha*drp)/drp-erfc(qm_alpha*drm)/drm)/ddrmm
                 fsr = qeff*qcharge*dsr
              ELSE
-                STOP
+                CPABORT("")
              END IF
              force_ab = -fsr * rij/dr
           ELSE
@@ -2688,12 +2688,15 @@ CONTAINS
     REAL(dp), INTENT(in)                     :: skab1(:), skab2(:), dxv(3), dx
     INTEGER, INTENT(in)                      :: lmaxa, lmaxb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'turnsk', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: lmaxab, minlmaxab
     REAL(dp)                                 :: rinv, rr(6), rr2(6)
 
     lmaxab = MAX(lmaxa,lmaxb)
     ! Determine l quantum limits.
-    IF (lmaxab.gt.2)  STOP 'lmax=2'
+    IF (lmaxab.gt.2)  CPABORT('lmax=2')
     minlmaxab = MIN(lmaxa,lmaxb)
     !
     ! s-s interaction
@@ -3079,6 +3082,9 @@ CONTAINS
     REAL(dp), INTENT(in)                     :: ya(n), xa(n), x
     REAL(dp), INTENT(out)                    :: y, dy
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'polint', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, m, ns
     REAL(dp)                                 :: c(n), d(n), den, dif, dift, &
                                                 ho, hp, w
@@ -3107,7 +3113,7 @@ CONTAINS
         hp=xa(i+m)-x
         w=c(i+1)-d(i)
         den=ho-hp
-        IF(den.eq.0.) STOP 'POLINT'
+        CPASSERT(den /= 0.0_dp)
         den=w/den
         d(i)=hp*den
         c(i)=ho*den

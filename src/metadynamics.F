@@ -143,8 +143,7 @@ CONTAINS
     CALL plumed_f_installed(plumedavailable)
 
     IF(plumedavailable<=0)THEN
-        WRITE(*,*)"NO PLUMED IN YOUR LD_LIBRARY_PATH?"
-        STOP
+        CPABORT("NO PLUMED IN YOUR LD_LIBRARY_PATH?")
     ELSE
         CALL plumed_f_gcreate()
         IF (cp2k_is_parallel) CALL plumed_f_gcmd("setMPIFComm"//CHAR(0),force_env%para_env%group)

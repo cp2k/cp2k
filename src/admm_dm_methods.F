@@ -71,7 +71,7 @@ MODULE admm_dm_methods
         CALL map_dm_blocked(ks_env)
 
       CASE DEFAULT
-         STOP "admm_dm_calc_rho_aux: unknown method"
+         CPABORT("admm_dm_calc_rho_aux: unknown method")
     END SELECT
 
     IF(admm_dm%purify)&
@@ -117,7 +117,7 @@ MODULE admm_dm_methods
         CALL merge_dm_blocked(ks_env, matrix_ks_merge)
 
       CASE DEFAULT
-         STOP "admm_dm_merge_ks_matrix: unknown method"
+         CPABORT("admm_dm_merge_ks_matrix: unknown method")
     END SELECT
 
     IF(admm_dm%purify)&

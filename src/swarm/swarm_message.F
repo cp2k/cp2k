@@ -28,6 +28,8 @@ MODULE swarm_message
  IMPLICIT NONE
  PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_message'
+
  TYPE swarm_message_type
    PRIVATE
    TYPE(message_entry_type), POINTER :: root => Null()
@@ -141,6 +143,9 @@ MODULE swarm_message
   SUBROUTINE swarm_message_free(msg)
     TYPE(swarm_message_type), INTENT(INOUT)  :: msg
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_free', &
+      routineP = moduleN//':'//routineN
+
     TYPE(message_entry_type), POINTER        :: ENTRY, old_entry
 
      ENTRY => msg%root
@@ -161,7 +166,7 @@ MODULE swarm_message
 
      NULLIFY(msg%root)
 
-     IF(swarm_message_length(msg) > 0) STOP "swarm_message_free failed"
+     CPASSERT(swarm_message_length(msg)==0)
   END SUBROUTINE swarm_message_free
 
 
@@ -218,10 +223,13 @@ MODULE swarm_message
     INTEGER, INTENT(IN)                      :: group
     INTEGER, INTENT(INOUT)                   :: src, tag
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_mpi_recv', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, length
     TYPE(message_entry_type), POINTER        :: new_entry
 
-    IF(ASSOCIATED(msg%root)) STOP "swarm_message_mpi_recv: message not empty"
+    IF(ASSOCIATED(msg%root)) CPABORT("message not empty")
     CALL mp_recv(length, src, tag, group)
     DO i=1, length
        ALLOCATE(new_entry)
@@ -244,12 +252,15 @@ MODULE swarm_message
     TYPE(swarm_message_type), INTENT(INOUT)  :: msg
     INTEGER, INTENT(IN)                      :: src, group
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_mpi_bcast', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, length, mepos, num_pe
     TYPE(message_entry_type), POINTER        :: curr_entry
 
     CALL mp_environ(num_pe, mepos, group)
 
-    IF(mepos/=src .AND. ASSOCIATED(msg%root)) STOP "swarm_message_mpi_bcast: message not empty"
+    IF(mepos/=src .AND. ASSOCIATED(msg%root)) CPABORT("message not empty")
     length = swarm_message_length(msg)
     CALL mp_bcast(length, src, group)
 
@@ -335,22 +346,23 @@ MODULE swarm_message
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(INOUT)                   :: at_end
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_file_read_low', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=20)                        :: label
     INTEGER                                  :: i, length
     TYPE(message_entry_type), POINTER        :: new_entry
 
-!IF(ASSOCIATED(msg%root)) STOP "swarm_message_file_read: message not empty"
-
     CALL parser_get_next_line(parser, 1, at_end)
     at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    IF(TRIM(parser%input_line(1:20))/="BEGIN SWARM_MESSAGE") STOP "swarm_message_file_read failed (1)"
+    CPASSERT(TRIM(parser%input_line(1:20))=="BEGIN SWARM_MESSAGE")
 
     CALL parser_get_next_line(parser, 1, at_end)
     at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
     READ (parser%input_line(1:40),*) label, length
-    IF(TRIM(label)/="msg_length:") STOP "swarm_message_file_read failed (2)"
+    CPASSERT(TRIM(label)=="msg_length:")
 
     DO i=1, length
        ALLOCATE(new_entry)
@@ -362,7 +374,7 @@ MODULE swarm_message
     CALL parser_get_next_line(parser, 1, at_end)
     at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
-    IF(TRIM(parser%input_line(1:20))/="END SWARM_MESSAGE") STOP "swarm_message_file_read failed (3)"
+    CPASSERT(TRIM(parser%input_line(1:20))=="END SWARM_MESSAGE")
 
   END SUBROUTINE swarm_message_file_read_low
 
@@ -377,6 +389,9 @@ MODULE swarm_message
   FUNCTION swarm_message_equal_oneway(msg1, msg2) RESULT(res)
     TYPE(swarm_message_type), INTENT(IN)     :: msg1, msg2
     LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_equal_oneway', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: found
     TYPE(message_entry_type), POINTER        :: entry1, entry2
@@ -436,7 +451,7 @@ MODULE swarm_message
            IF(.NOT. ASSOCIATED(entry2%value_1d_r8)) RETURN
            IF(ANY(ABS(entry1%value_1d_r8-entry2%value_1d_r8)>1e-10)) RETURN
         ELSE
-           STOP "swarm_message_equal_oneway: no value ASSOCIATED"
+           CPABORT("no value ASSOCIATED")
         END IF
 
         entry1 => entry1%next
@@ -458,6 +473,9 @@ MODULE swarm_message
   SUBROUTINE swarm_message_entry_mpi_send(ENTRY, group, dest, tag)
     TYPE(message_entry_type), INTENT(IN)     :: ENTRY
     INTEGER, INTENT(IN)                      :: group, dest, tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_send', &
+      routineP = moduleN//':'//routineN
 
     INTEGER, &
       DIMENSION(default_string_length)       :: value_str_arr
@@ -507,8 +525,7 @@ MODULE swarm_message
        value_str_arr = str2iarr(entry%value_str)
        CALL mp_send(value_str_arr, dest, tag, group)
     ELSE
-       CALL mp_abort()
-       STOP "swarm_message_entry_mpi_send: no value ASSOCIATED"
+       CPABORT("no value ASSOCIATED")
     END IF
   END SUBROUTINE swarm_message_entry_mpi_send
 
@@ -525,6 +542,9 @@ MODULE swarm_message
     TYPE(message_entry_type), INTENT(INOUT)  :: ENTRY
     INTEGER, INTENT(IN)                      :: group
     INTEGER, INTENT(INOUT)                   :: src, tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_recv', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: datatype, s
     INTEGER, &
@@ -571,7 +591,7 @@ MODULE swarm_message
        CALL mp_recv(value_str_arr, src, tag, group)
        entry%value_str = iarr2str(value_str_arr)
     CASE DEFAULT
-       STOP "swarm_message_entry_mpi_recv: unknown datatype"
+       CPABORT("unknown datatype")
     END SELECT
   END SUBROUTINE swarm_message_entry_mpi_recv
 
@@ -587,6 +607,10 @@ MODULE swarm_message
   SUBROUTINE swarm_message_entry_mpi_bcast(ENTRY, src, group, mepos)
     TYPE(message_entry_type), INTENT(INOUT)  :: ENTRY
     INTEGER, INTENT(IN)                      :: src, group, mepos
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'swarm_message_entry_mpi_bcast', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: datasize, datatype
     INTEGER, &
@@ -622,7 +646,7 @@ MODULE swarm_message
        ELSE IF(ASSOCIATED(entry%value_str)) THEN
           datatype = 9
        ELSE
-          STOP "swarm_message_entry_mpi_bcast: no value ASSOCIATED"
+          CPABORT("no value ASSOCIATED")
        END IF
     END IF
     CALL mp_bcast(datatype, src, group)
@@ -661,7 +685,7 @@ MODULE swarm_message
           entry%value_str = iarr2str(value_str_arr)
        END IF
     CASE DEFAULT
-       STOP "swarm_message_entry_mpi_bcast: unknown datatype"
+       CPABORT("unknown datatype")
     END SELECT
 
   END SUBROUTINE swarm_message_entry_mpi_bcast
@@ -676,6 +700,10 @@ MODULE swarm_message
   SUBROUTINE swarm_message_entry_file_write(ENTRY, unit)
     TYPE(message_entry_type), INTENT(IN)     :: ENTRY
     INTEGER, INTENT(IN)                      :: unit
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'swarm_message_entry_file_write', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
 
@@ -729,8 +757,7 @@ MODULE swarm_message
        END DO
 
     ELSE
-       CALL mp_abort()
-       STOP "swarm_message_entry_file_write: no value ASSOCIATED"
+       CPABORT("no value ASSOCIATED")
     END IF
   END SUBROUTINE swarm_message_entry_file_write
 
@@ -747,6 +774,10 @@ MODULE swarm_message
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(INOUT)                   :: at_end
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'swarm_message_entry_file_read', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=15)                        :: datatype, label
     INTEGER                                  :: arr_size, i
     LOGICAL                                  :: is_scalar
@@ -755,13 +786,13 @@ MODULE swarm_message
     at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
     READ (parser%input_line(1:key_length+10),*) label, entry%key
-    IF(TRIM(label)/="key:") STOP "swarm_message_entry_file_read failed (1)"
+    CPASSERT(TRIM(label)=="key:")
 
     CALL parser_get_next_line(parser, 1, at_end)
     at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
     IF(at_end) RETURN
     READ (parser%input_line(1:30),*) label, datatype
-    IF(TRIM(label)/="datatype:") STOP "swarm_message_entry_file_read failed (2)"
+    CPASSERT(TRIM(label)=="datatype:")
 
     CALL parser_get_next_line(parser, 1, at_end)
     at_end = at_end .OR. LEN_TRIM(parser%input_line(1:10))==0
@@ -789,13 +820,13 @@ MODULE swarm_message
     END SELECT
 
     IF(is_scalar) THEN
-       IF(TRIM(label)/="value:") STOP "swarm_message_entry_file_read failed (3)"
+       CPASSERT(TRIM(label)=="value:")
        RETURN
     END IF
 
     ! musst be an array-datatype
     READ (parser%input_line(1:30),*) label, arr_size
-    IF(TRIM(label)/="size:") STOP "swarm_message_entry_file_read failed (4)"
+    CPASSERT(TRIM(label)=="size:")
 
     SELECT CASE (TRIM(datatype))
       CASE("1d_i4")
@@ -807,7 +838,7 @@ MODULE swarm_message
       CASE("1d_r8")
         ALLOCATE(entry%value_1d_r8(arr_size))
       CASE DEFAULT
-       STOP "swarm_message_entry_file_read: unknown datatype"
+       CPABORT("unknown datatype")
     END SELECT
 
     DO i=1, arr_size
@@ -826,7 +857,7 @@ MODULE swarm_message
         CASE("1d_r8")
           READ (parser%input_line(1:31),*) entry%value_1d_r8(i)
         CASE DEFAULT
-          STOP "swarm_message_entry_file_read: unknown datatype"
+          CPABORT("swarm_message_entry_file_read: unknown datatype")
       END SELECT
     END DO
 

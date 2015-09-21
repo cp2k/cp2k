@@ -1845,7 +1845,7 @@ CONTAINS
                      WRITE(*,*) 'error too many atoms'
                      WRITE(*,*) 'dist=',ABS(r(:))
                      WRITE(*,*) 'large_dist=',(scale+0.5_dp)*dbox
-                     STOP
+                     CPABORT("")
                   ENDIF
                ENDDO
             ENDIF
@@ -1877,7 +1877,7 @@ CONTAINS
                      WRITE(*,*) 'box_center',box_center
                      WRITE(*,*) 'ratom',ratom(:,iatom)
                      WRITE(*,*) 'gauge_atom_radius',gauge_atom_radius
-                     STOP
+                     CPABORT("")
                   ENDIF
                ENDIF
             ENDDO
@@ -1990,7 +1990,7 @@ CONTAINS
                WRITE(*,*) 'ibox',ibox,'jbox',jbox,'kbox',kbox
                WRITE(*,*) 'is,ie',is,ie,' js,je',js,je,' ks,ke',ks,ke
                WRITE(*,*) 'ibs,ibe',ibs,ibe,' jbs,jbe',jbs,jbe,' kbs,kbe',kbs,kbe
-               STOP 'we stop_k'
+               CPABORT("we stop_k")
             ENDIF
             IF(REAL(js-1+delta_lb(2),dp)*dr(2).LT.REAL(jb,dp)*dbox(2).OR.&
                REAL(je-1+delta_lb(2),dp)*dr(2).GT.REAL(jb+1,dp)*dbox(2)) THEN
@@ -1998,7 +1998,7 @@ CONTAINS
                WRITE(*,*) 'point_j',REAL(js-1+delta_lb(2),dp)*dr(2),REAL(je-1+delta_lb(2),dp)*dr(2)
                WRITE(*,*) 'is,ie',is,ie,' js,je',js,je,' ks,ke',ks,ke
                WRITE(*,*) 'ibs,ibe',ibs,ibe,' jbs,jbe',jbs,jbe,' kbs,kbe',kbs,kbe
-               STOP 'we stop_j'
+               CPABORT("we stop_j")
             ENDIF
             IF(REAL(is-1+delta_lb(1),dp)*dr(1).LT.REAL(ib,dp)*dbox(1).OR.&
                REAL(ie-1+delta_lb(1),dp)*dr(1).GT.REAL(ib+1,dp)*dbox(1)) THEN
@@ -2006,7 +2006,7 @@ CONTAINS
                WRITE(*,*) 'point_i',REAL(is-1+delta_lb(1),dp)*dr(1),REAL(ie-1+delta_lb(1),dp)*dr(1)
                WRITE(*,*) 'is,ie',is,ie,' js,je',js,je,' ks,ke',ks,ke
                WRITE(*,*) 'ibs,ibe',ibs,ibe,' jbs,jbe',jbs,jbe,' kbs,kbe',kbs,kbe
-               STOP 'we stop_i'
+               CPABORT("we stop_i")
             ENDIF
          ENDIF
          !

@@ -98,6 +98,9 @@ MODULE glbopt_master
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: n_walkers, iw
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_init', &
+      routineP = moduleN//':'//routineN
+
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -126,7 +129,7 @@ MODULE glbopt_master
          ALLOCATE(this%mincrawl)
          CALL mincrawl_init(this%mincrawl, this%glbopt_section, n_walkers, iw, this%particle_set)
        CASE DEFAULT
-        STOP "Unknown glbopt_method"
+        CPABORT("Unknown glbopt_method")
     END SELECT
  END SUBROUTINE glbopt_master_init
 
@@ -204,6 +207,9 @@ MODULE glbopt_master
     TYPE(swarm_message_type)                 :: report, cmd
     LOGICAL, INTENT(INOUT)                   :: should_stop
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_steer', &
+      routineP = moduleN//':'//routineN
+
     CALL progress_report(this, report)
 
     SELECT CASE (this%method)
@@ -212,7 +218,7 @@ MODULE glbopt_master
       CASE(glbopt_do_mincrawl)
           CALL mincrawl_steer(this%mincrawl, report, cmd)
       CASE DEFAULT
-       STOP "Unknown glbopt_method"
+       CPABORT("Unknown glbopt_method")
     END SELECT
 
     IF(this%E_lowest<this%E_target) THEN
@@ -321,6 +327,9 @@ MODULE glbopt_master
  SUBROUTINE glbopt_master_finalize(this)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_master_finalize', &
+      routineP = moduleN//':'//routineN
+
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -333,7 +342,7 @@ MODULE glbopt_master
          CALL mincrawl_finalize(this%mincrawl)
          DEALLOCATE(this%mincrawl)
        CASE DEFAULT
-        STOP "Unknown glbopt_method"
+        CPABORT("Unknown glbopt_method")
     END SELECT
 
     logger => cp_get_default_logger()

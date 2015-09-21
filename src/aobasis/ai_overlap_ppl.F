@@ -236,7 +236,7 @@ CONTAINS
       pmax = 3
     END IF
     IF(nexp_ppl > 4) THEN
-      STOP "nexp_ppl > 4"
+      CPABORT("nexp_ppl > 4")
     END IF
 
     f = zetc/q

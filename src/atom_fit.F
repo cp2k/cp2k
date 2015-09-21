@@ -1315,17 +1315,20 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: xval
     REAL(dp)                                 :: yval
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'rcpro', &
+      routineP = moduleN//':'//routineN
+
     REAL(dp)                                 :: x1, x2
 
     IF ( id==1 ) THEN
       yval = TANH(0.1_dp*xval)**2
     ELSE IF ( id==-1 ) THEN
       x1 = SQRT(xval)
-      IF ( x1 > 1._dp ) STOP "rcpro"
+      CPASSERT(x1<1._dp)
       x2 = 0.5_dp * LOG((1._dp+x1)/(1._dp-x1))
       yval = x2/0.1_dp
     ELSE
-      STOP "rcpro"
+      CPABORT("wrong id")
     END IF
   END FUNCTION rcpro
 

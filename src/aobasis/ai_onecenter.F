@@ -39,6 +39,9 @@ MODULE ai_onecenter
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_onecenter'
+
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot,&
             sg_proj_ol, sg_coulomb, sg_exchange, sg_kinnuc,&
             sg_erfc
@@ -65,13 +68,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_overlap', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: el, spi
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( smat, 1 ) .OR. m > SIZE ( smat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(smat,1).OR.m>SIZE(smat,2)))
 
     spi = SQRT(pi)/2.0_dp**(l+2)*dfac(2*l+1)
     el  = REAL(l,dp) + 1.5_dp
@@ -103,13 +109,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_kinetic', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: spi
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( kmat, 1 ) .OR. m > SIZE ( kmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(kmat,1).OR.m>SIZE(kmat,2)))
 
     spi = dfac(2*l+3)*SQRT(pi)/2.0_dp**(l+2)
     DO iq = 1, m
@@ -139,13 +148,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_nuclear', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(umat,1).OR.m>SIZE(umat,2)))
 
     tld = 0.5_dp*fac(l)
     DO iq = 1, m
@@ -175,13 +187,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_kinnuc', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: ppq, pq, tld
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(umat,1).OR.m>SIZE(umat,2)))
 
     IF ( l > 0 ) THEN
       tld = 0.5_dp*fac(l)
@@ -236,6 +251,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_erf', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, ip, iq, m, n
     REAL(KIND=dp)                            :: a2, fpol, pq, tld, z
 
@@ -244,7 +262,7 @@ CONTAINS
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( upmat, 1 ) .OR. m > SIZE ( upmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(upmat,1).OR.m>SIZE(upmat,2)))
 
     a2 = a*a
     tld = a / 2._dp**(l+1)
@@ -259,7 +277,7 @@ CONTAINS
     DO iq = 1, m
       SELECT CASE ( l )
       CASE DEFAULT
-        STOP
+        CPABORT("")
       CASE ( 0 )
         ! nothing left to do
       CASE ( 1 )
@@ -326,9 +344,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: k
     REAL(KIND=dp), INTENT(IN)                :: rc
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_proj_ol', &
+      routineP = moduleN//':'//routineN
+
     REAL(KIND=dp)                            :: orc, pf
 
-    IF ( SIZE ( spmat ) < SIZE ( p ) ) STOP
+    CPASSERT(SIZE(spmat)>=SIZE(p))
 
     pf = 2._dp**(l+k+1) * gamma1(l+k+1) / rc**(l+2*k+1.5_dp) / SQRT(gamma1(l+2*k+1))
     orc = 1._dp/(rc*rc)
@@ -363,13 +384,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_gpot', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( vpmat, 1 ) .OR. m > SIZE ( vpmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(vpmat,1).OR.m>SIZE(vpmat,2)))
 
     tld = gamma1(l+k+1) * rc**(2*l+3) * 2._dp**(l+k+0.5)
 
@@ -404,13 +428,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: k, l
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_conf', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( gmat, 1 ) .OR. m > SIZE ( gmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(gmat,1).OR.m>SIZE(gmat,2)))
 
     tld = 0.5_dp/rc**(2*k)*gamma1(l+k+1)
     DO iq = 1, m
@@ -519,6 +546,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
     INTEGER, INTENT(IN)                      :: lbd
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_exchange', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, ia, ib, ic, id, jac, &
                                                 jbd, na, nb
     REAL(KIND=dp) :: cc1, cc2, cc3, cc4, ee, p, q, r, s, sac, sbd, slac, &
@@ -602,13 +632,16 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sg_erfc', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(umat,1).OR.m>SIZE(umat,2)))
 
     CALL sg_erf ( umat, l, a, pa, pb )
 
@@ -682,13 +715,16 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sto_overlap', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: vp, vpq, vq
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( smat, 1 ) .OR. m > SIZE ( smat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(smat,1).OR.m>SIZE(smat,2)))
 
     DO iq = 1, m
       vq = vsto(2*nb(iq),pb(iq))
@@ -727,6 +763,9 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sto_kinetic', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: vp, vpq, vpq1, vpq2, vq, wp, &
                                                 wq
@@ -734,7 +773,7 @@ CONTAINS
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( kmat, 1 ) .OR. m > SIZE ( kmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(kmat,1).OR.m>SIZE(kmat,2)))
 
     DO iq = 1, m
       vq = vsto(2*nb(iq),pb(iq))
@@ -774,13 +813,16 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sto_nuclear', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: vp, vpq1, vq
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(umat,1).OR.m>SIZE(umat,2)))
 
     DO iq = 1, m
       vq = vsto(2*nb(iq),pb(iq))
@@ -820,12 +862,15 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sto_conf', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
 
     n = SIZE ( pa )
     m = SIZE ( pb )
 
-    IF ( n > SIZE ( gmat, 1 ) .OR. m > SIZE ( gmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(gmat,1).OR.m>SIZE(gmat,2)))
 
     DO iq = 1, m
       DO ip = 1, n
@@ -890,12 +935,15 @@ CONTAINS
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wr
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_overlap', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( smat, 1 ) .OR. m > SIZE ( smat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(smat,1).OR.m>SIZE(smat,2)))
 
     DO iq = 1, m
       DO ip = 1, n
@@ -930,12 +978,15 @@ CONTAINS
       INTENT(IN)                             :: ra, dra, rb, drb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_kinetic', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( kmat, 1 ) .OR. m > SIZE ( kmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(kmat,1).OR.m>SIZE(kmat,2)))
 
     DO iq = 1, m
       DO ip = 1, n
@@ -967,12 +1018,15 @@ CONTAINS
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_nuclear', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(umat,1).OR.m>SIZE(umat,2)))
 
     DO iq = 1, m
       DO ip = 1, n
@@ -1007,12 +1061,15 @@ CONTAINS
       INTENT(IN)                             :: ra, dra, rb, drb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_kinnuc', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, m, n
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(umat,1).OR.m>SIZE(umat,2)))
 
     DO iq = 1, m
       DO ip = 1, n
@@ -1046,12 +1103,15 @@ CONTAINS
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_erf', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ip, iq, k, m, n
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( upmat, 1 ) .OR. m > SIZE ( upmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(upmat,1).OR.m>SIZE(upmat,2)))
 
     DO iq = 1, m
       DO ip = 1, n
@@ -1094,15 +1154,17 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rc
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
-    INTEGER                                  :: ierr, ip, n
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_proj_ol', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip, n
     REAL(KIND=dp)                            :: pf
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pro
 
     n =  SIZE ( ra, 2 )
-    IF ( SIZE ( spmat ) < n ) STOP
+    CPASSERT(SIZE(spmat)>=n)
 
-    ALLOCATE(pro(n),STAT=ierr)
-    IF ( ierr /= 0 ) STOP
+    ALLOCATE(pro(n))
 
     pf = SQRT(2._dp)/SQRT(gamma1(l+2*k+1))/rc**(l+2*k+1.5_dp)
     pro(:) = pf * r(:)**(l+2*k) * EXP(-0.5_dp*(r(:)/rc)**2)
@@ -1111,8 +1173,7 @@ CONTAINS
       spmat(ip) = SUM(wr(:)*pro(:)*ra(:,ip))
     END DO
 
-    DEALLOCATE(pro,STAT=ierr)
-    IF ( ierr /= 0 ) STOP
+    DEALLOCATE(pro)
 
   END SUBROUTINE num_proj_ol
 
@@ -1145,16 +1206,18 @@ CONTAINS
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
-    INTEGER                                  :: ierr, ip, iq, m, n
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_gpot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: op
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( vpmat, 1 ) .OR. m > SIZE ( vpmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(vpmat,1).OR.m>SIZE(vpmat,2)))
 
-    ALLOCATE(op(n),STAT=ierr)
-    IF ( ierr /= 0 ) STOP
+    ALLOCATE(op(n))
 
     op(:) = (r(:)/rc)**(2*k) * EXP(-0.5_dp*(r(:)/rc)**2)
 
@@ -1164,8 +1227,7 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(op,STAT=ierr)
-    IF ( ierr /= 0 ) STOP
+    DEALLOCATE(op)
 
   END SUBROUTINE num_gpot
 
@@ -1195,16 +1257,18 @@ CONTAINS
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
-    INTEGER                                  :: ierr, ip, iq, m, n
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_conf', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: op
 
     n = SIZE ( ra, 2 )
     m = SIZE ( rb, 2 )
 
-    IF ( n > SIZE ( gmat, 1 ) .OR. m > SIZE ( gmat, 2 ) ) STOP
+    CPASSERT(.NOT.(n>SIZE(gmat,1).OR.m>SIZE(gmat,2)))
 
-    ALLOCATE(op(n),STAT=ierr)
-    IF ( ierr /= 0 ) STOP
+    ALLOCATE(op(n))
 
     op(:) = (r(:)/rc)**(2*k)
 
@@ -1214,8 +1278,7 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(op,STAT=ierr)
-    IF ( ierr /= 0 ) STOP
+    DEALLOCATE(op)
 
   END SUBROUTINE num_conf
 

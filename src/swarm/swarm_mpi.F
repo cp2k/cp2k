@@ -75,6 +75,9 @@ MODULE swarm_mpi
     INTEGER, INTENT(OUT)                     :: worker_id
     INTEGER, INTENT(IN)                      :: iw
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_mpi_init', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: n_groups_created, &
                                                 pe_per_worker, subgroup, &
                                                 subgroup_rank, subgroup_size, &
@@ -91,9 +94,9 @@ MODULE swarm_mpi
     swarm_mpi%world => world_para_env
 
     IF (MOD(swarm_mpi%world%num_pe-1, n_workers) /= 0) &
-       STOP "number of processors-1 is not divisible by n_workers."
+       CPABORT("number of processors-1 is not divisible by n_workers.")
     IF (swarm_mpi%world%num_pe < n_workers + 1) &
-       STOP "There are not enough processes for n_workers + 1. Aborting."
+       CPABORT("There are not enough processes for n_workers + 1. Aborting.")
 
     pe_per_worker = (swarm_mpi%world%num_pe-1)/n_workers
 
@@ -109,14 +112,14 @@ MODULE swarm_mpi
     IF (im_the_master) THEN
        CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 1)
        CALL mp_environ(subgroup_size, subgroup_rank, subgroup)
-       IF(subgroup_size/=1) STOP "swarm: mp_comm_split_direct failed (master)"
+       IF(subgroup_size/=1) CPABORT("mp_comm_split_direct failed (master)")
        CALL cp_para_env_create(swarm_mpi%master, group=subgroup)
        !WRITE (*,*) "this is a master ", swarm_mpi%master%mepos, swarm_mpi%master%num_pe
     ELSE
        CALL mp_comm_split_direct(swarm_mpi%world%group, subgroup, 2)
        CALL mp_environ(subgroup_size, subgroup_rank, subgroup)
        !WRITE (*,*) "Hello, this is a Worker - there are ",subgroup_size, " of us."
-       IF(subgroup_size/=swarm_mpi%world%num_pe-1) STOP "swarm: mp_comm_split_direct failed (worker)"
+       IF(subgroup_size/=swarm_mpi%world%num_pe-1) CPABORT("mp_comm_split_direct failed (worker)")
     ENDIF
 
     ALLOCATE(swarm_mpi%wid2group(n_workers))
@@ -127,7 +130,7 @@ MODULE swarm_mpi
        group_distribution_p => group_distribution
        CALL mp_comm_split(subgroup, worker_group, n_groups_created, group_distribution_p, n_subgroups=n_workers)
        worker_id = group_distribution(subgroup_rank) + 1 ! shall start by 1
-       IF(n_groups_created/=n_workers) STOP "swarm: mp_comm_split failed."
+       IF(n_groups_created/=n_workers) CPABORT("mp_comm_split failed.")
        CALL cp_para_env_create(swarm_mpi%worker, group=worker_group)
        CALL mp_comm_free(subgroup)
 
@@ -204,6 +207,9 @@ MODULE swarm_mpi
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER                                  :: worker_id
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'logger_init_worker', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=default_path_length)       :: output_path
     CHARACTER(len=default_string_length)     :: new_project_name, &
                                                 project_name, worker_name
@@ -215,10 +221,10 @@ MODULE swarm_mpi
        old_logger => cp_get_default_logger()
        project_name = old_logger%iter_info%project_name
        IF(worker_id > 99999) &
-          STOP "logger_init_worker: Did not expect so many workers."
+          CPABORT("Did not expect so many workers.")
        WRITE(worker_name,"(A,I5.5)") 'WORKER', worker_id
        IF(LEN_TRIM(project_name)+1+LEN_TRIM(worker_name)>default_string_length) &
-          STOP "logger_init_worker: project name too long"
+          CPABORT("project name too long")
        output_path = TRIM(project_name) // "-"// TRIM(worker_name) // ".out"
        new_project_name = TRIM(project_name) // "-"// TRIM(worker_name)
        CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=new_project_name)

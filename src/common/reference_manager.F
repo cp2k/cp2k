@@ -37,6 +37,8 @@ MODULE reference_manager
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reference_manager'
+
   ! maximum number of reference that can be added
   INTEGER, PARAMETER :: max_reference=1024
 
@@ -128,6 +130,9 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: key
     CHARACTER(LEN=*), DIMENSION(:)           :: ISI_record
     CHARACTER(LEN=*)                         :: DOI
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_reference', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER                                :: tmp
     CHARACTER(LEN=ISI_length)                :: author, citation_key, year
@@ -222,6 +227,9 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: list
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_all_references', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: I, irecord, nref
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indx, irank, ival
 
@@ -274,7 +282,7 @@ CONTAINS
           CASE(print_format_html)
             WRITE(unit,'(A)') "<TR><TD>"//'['//TRIM(thebib(irecord)%ref%citation_key)//']'//"</TD><TD>"
           CASE DEFAULT
-            STOP "print_reference: wrong format"
+            CPABORT("print_reference: wrong format")
           END SELECT
 
           CALL print_reference(irecord,FORMAT,unit)
@@ -286,7 +294,7 @@ CONTAINS
           CASE(print_format_html)
             WRITE(unit,'(A)') '</TD></TR>'
           CASE DEFAULT
-            STOP "print_reference: wrong format"
+            CPABORT("print_reference: wrong format")
           END SELECT
        ENDIF
     ENDDO
@@ -308,6 +316,9 @@ CONTAINS
   SUBROUTINE print_reference(key,FORMAT,unit)
     INTEGER, INTENT(IN)                      :: key, FORMAT, unit
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_reference', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: I
 
     IF (key<1 .OR. key>max_reference) STOP "citation key out of range"
@@ -322,7 +333,7 @@ CONTAINS
     CASE(print_format_html)
       CALL print_reference_html(key,unit)
     CASE DEFAULT
-      STOP "print_reference: wrong format"
+      CPABORT("print_reference: wrong format")
     END SELECT
   END SUBROUTINE print_reference
 
@@ -336,6 +347,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE print_reference_journal(key,unit)
     INTEGER, INTENT(IN)                      :: key, unit
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_reference_journal', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=4*ISI_length)              :: journal
     CHARACTER(LEN=ISI_length)                :: author, title

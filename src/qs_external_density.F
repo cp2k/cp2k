@@ -283,7 +283,7 @@ CONTAINS
              WRITE(*,*) "check dimensions ", i
              WRITE(*,*) ndum,"differs from", npoints(i)
              WRITE(*,*) rdum(i),"differs from", dr(i)
-             STOP
+             CPABORT("")
            ENDIF
         ENDDO
         DO i =1,nat

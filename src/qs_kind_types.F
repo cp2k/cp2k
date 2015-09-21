@@ -1055,7 +1055,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (.NOT. ASSOCIATED(qs_kind_set)) &
-       STOP "init_qs_kind_set: The pointer qs_kind_set is not associated"
+       CPABORT("init_qs_kind_set: The pointer qs_kind_set is not associated")
 
     DO ikind=1, SIZE(qs_kind_set)
        qs_kind => qs_kind_set(ikind)

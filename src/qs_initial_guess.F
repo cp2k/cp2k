@@ -230,7 +230,7 @@ CONTAINS
     do_std_diag = .FALSE.
 
     IF(do_kpoints .AND. density_guess==restart_guess) &
-       STOP "calculate_first_density_matrix: restart not implemented for k-points"
+       CPABORT("calculate_first_density_matrix: restart not implemented for k-points")
 
     safe_density_guess = atomic_guess
     IF ( dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
@@ -756,7 +756,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                WRITE(*,*) 'c2',ikind,mo_coeff%local_data(ikind,j)
                             ENDIF
                          ENDDO
-                         STOP
+                         CPABORT("")
                       ENDIF
                    ENDDO
                 ENDDO

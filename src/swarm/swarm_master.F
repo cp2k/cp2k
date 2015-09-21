@@ -92,6 +92,9 @@ MODULE swarm_master
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: n_workers
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_init', &
+      routineP = moduleN//':'//routineN
+
     TYPE(cp_logger_type), POINTER            :: logger
 
     master%swarm_section => section_vals_get_subs_vals(root_section, "SWARM")
@@ -119,7 +122,7 @@ MODULE swarm_master
          ALLOCATE(master%glbopt)
          CALL glbopt_master_init(master%glbopt, para_env, root_section, n_workers, master%iw)
       CASE DEFAULT
-         STOP "swarm_master_init: got unknown behavior"
+         CPABORT("got unknown behavior")
     END SELECT
 
     CALL replay_comlog(master)
@@ -133,6 +136,9 @@ MODULE swarm_master
 ! *****************************************************************************
  SUBROUTINE replay_comlog(master)
     TYPE(swarm_master_type)                  :: master
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'replay_comlog', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: command_log
@@ -171,7 +177,7 @@ MODULE swarm_master
       !TODO: maybe we should just exit the loop instead of stopping?
       CALL swarm_message_get(cmd_log, "command", command_log)
       IF(TRIM(command_log) /= "shutdown") THEN
-        IF(.NOT. commands_equal(cmd_now, cmd_log, master%iw)) STOP "wrong behaviour"
+        IF(.NOT. commands_equal(cmd_now, cmd_log, master%iw)) CPABORT("wrong behaviour")
       END IF
 
       CALL swarm_message_free(cmd_log)
@@ -233,6 +239,9 @@ MODULE swarm_master
     TYPE(swarm_message_type), INTENT(IN)     :: report
     TYPE(swarm_message_type), INTENT(OUT)    :: cmd
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_steer', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(len=default_string_length)     :: command, status
     INTEGER                                  :: handle, worker_id
     LOGICAL                                  :: should_stop
@@ -285,7 +294,7 @@ MODULE swarm_master
          CASE(swarm_do_glbopt)
             CALL glbopt_master_steer(master%glbopt, report, cmd, should_stop)
          CASE DEFAULT
-            STOP "swarm_master_steer: got unknown behavior"
+            CPABORT("got unknown behavior")
        END SELECT
 
        IF(should_stop) THEN
@@ -304,7 +313,7 @@ MODULE swarm_master
     CALL swarm_message_get(cmd, "command", command)
     IF(TRIM(status)=="wait_done") master%n_waiting = master%n_waiting -1
     IF(TRIM(command)=="wait")     master%n_waiting = master%n_waiting +1
-    IF(master%n_waiting < 0) STOP "master%n_waiting < 0"
+    IF(master%n_waiting < 0) CPABORT("master%n_waiting < 0")
     IF(TRIM(status)/="wait_done" .OR. TRIM(command)/="wait") THEN
        CALL swarm_message_file_write(report, master%comlog_unit)
        CALL swarm_message_file_write(cmd, master%comlog_unit)
@@ -326,6 +335,9 @@ MODULE swarm_master
  SUBROUTINE swarm_master_finalize(master)
     TYPE(swarm_master_type)                  :: master
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_master_finalize', &
+      routineP = moduleN//':'//routineN
+
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF(master%iw > 0) THEN
@@ -338,7 +350,7 @@ MODULE swarm_master
          CALL glbopt_master_finalize(master%glbopt)
          DEALLOCATE(master%glbopt)
       CASE DEFAULT
-         STOP "swarm_master_finalize: got unknown behavior"
+         CPABORT("got unknown behavior")
     END SELECT
 
     DEALLOCATE(master%queued_commands)

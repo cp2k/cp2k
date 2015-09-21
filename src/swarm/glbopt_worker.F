@@ -92,6 +92,9 @@ MODULE glbopt_worker
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     INTEGER, INTENT(in)                      :: worker_id, iw
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_worker_init', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dist_in_angstrom
@@ -115,7 +118,7 @@ MODULE glbopt_worker
 
       ! ======= More setup stuff =======
       CALL f_env_add_defaults(worker%f_env_id, worker%f_env,failure)
-      IF(failure) STOP "glbopt_drive_worker: f_env_add_defaults failed"
+      IF(failure) CPABORT("f_env_add_defaults failed")
       worker%force_env => worker%f_env%force_env
       CALL force_env_get(worker%force_env, globenv=worker%globenv, subsys=worker%subsys)
 
@@ -151,13 +154,16 @@ MODULE glbopt_worker
     TYPE(swarm_message_type), INTENT(IN)     :: cmd
     TYPE(swarm_message_type), INTENT(INOUT)  :: report
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_worker_execute', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(len=default_string_length)     :: command
 
        CALL swarm_message_get(cmd, "command", command)
        IF(TRIM(command) == "md_and_gopt") THEN
            CALL run_mdgopt(worker, cmd, report)
        ELSE
-          STOP "Worker: received unknown command"
+          CPABORT("Worker: received unknown command")
        END IF
 
    END SUBROUTINE glbopt_worker_execute
@@ -382,11 +388,14 @@ END FUNCTION norm
    SUBROUTINE glbopt_worker_finalize(worker)
     TYPE(glbopt_worker_type), INTENT(INOUT)  :: worker
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_worker_finalize', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ierr
 
      CALL f_env_rm_defaults(worker%f_env)
      CALL destroy_force_env(worker%f_env_id, ierr)
-     IF(ierr /= 0) STOP "glbopt_worker_finalize: destroy_force_env failed"
+     IF(ierr /= 0) CPABORT("destroy_force_env failed")
    END SUBROUTINE glbopt_worker_finalize
 
 

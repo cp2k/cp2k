@@ -936,7 +936,7 @@ MODULE helium_common
                   10.0_dp*EPSILON(1.0_dp)) THEN
                PRINT *,"Probability mismatch for particle i->j",i,c
                PRINT *,"Got",p(j+nb)-tmatrix(i,j),"should be",1.0/ipmatrix(i,c)
-               STOP
+               CPABORT("")
             END IF
          END IF
          ! left child
@@ -951,7 +951,7 @@ MODULE helium_common
                   10.0_dp*EPSILON(1.0_dp)) THEN
                PRINT *,"Probability mismatch for particle i->j",i,c
                PRINT *,"Got",tmatrix(i,j)-p(j),"should be",1.0/ipmatrix(i,c)
-               STOP
+               CPABORT("")
             END IF
          END IF
       END DO

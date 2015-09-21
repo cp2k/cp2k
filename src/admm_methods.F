@@ -243,7 +243,7 @@ MODULE admm_methods
       CASE(do_admm_purify_mo_diag, do_admm_purify_mo_no_diag)
          !do nothing
       CASE DEFAULT
-         STOP "admm_mo_merge_ks_matrix: unknown purification method"
+         CPABORT("admm_mo_merge_ks_matrix: unknown purification method")
     END SELECT
 
     CALL timestop(handle)
@@ -290,7 +290,7 @@ MODULE admm_methods
       CASE(do_admm_purify_none, do_admm_purify_cauchy,do_admm_purify_cauchy_subspace)
           !do nothing
       CASE DEFAULT
-          STOP "admm_mo_merge_derivs: unknown purification method"
+          CPABORT("admm_mo_merge_derivs: unknown purification method")
     END SELECT
 
     CALL timestop(handle)

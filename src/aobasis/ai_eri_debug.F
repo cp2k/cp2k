@@ -105,6 +105,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: mi
     REAL(dp)                                 :: IABCD
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'os', &
+      routineP = moduleN//':'//routineN
     INTEGER, DIMENSION(3), PARAMETER         :: i1 = (/1,0,0/), &
                                                 i2 = (/0,1,0/), i3 = (/0,0,1/)
 
@@ -170,7 +172,7 @@ CONTAINS
                     0.5_dp*(an(3)-1)/xsi*os(an-i3-i3,bn,cn,dn,m) - &
                     0.5_dp*(an(3)-1)/xsi*rho/xsi*os(an-i3-i3,bn,cn,dn,m+1)
           ELSE
-            STOP "I(0000)"
+            CPABORT("I(0000)")
           END IF
         END IF
       END IF

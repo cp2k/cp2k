@@ -1382,6 +1382,9 @@ CONTAINS
       INTENT(INOUT)                          :: s, v, h, pVp
     INTEGER, INTENT(IN)                      :: n, dkh_order
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'DKH_atom_transformation', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j, k
     REAL(KIND=dp)                            :: velit
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: aa, e, ev0t, rr, tt
@@ -1552,7 +1555,7 @@ CONTAINS
     END IF
 
     IF (dkh_order.ge.4) THEN
-       STOP "DKH 4"
+       CPABORT("DKH 4")
     END IF
     !-----------------------------------------------------------------------
     !     Calculate v in position space

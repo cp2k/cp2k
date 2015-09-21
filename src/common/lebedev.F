@@ -117,6 +117,9 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: l, n
     INTEGER                                  :: number_of_lebedev_grid
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_number_of_lebedev_grid', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ll, nn
     INTEGER, DIMENSION(1)                    :: lgnum
@@ -136,11 +139,11 @@ CONTAINS
 !      lgnum(:) = MINLOC(lebedev_grid(:)%n,MASK=(lebedev_grid(:)%n >= n))
       lgnum(:) = MINLOC(nn(:),MASK=(nn(:) >= n))
     ELSE
-      STOP "*** ERROR in FUNCTION get_number_of_lebedev_grid ***"
+      CPABORT("*** ERROR in FUNCTION get_number_of_lebedev_grid ***")
     END IF
 
     IF (lgnum(1) == 0) THEN
-      STOP "*** ERROR in FUNCTION get_number_of_lebedev_grid ***"
+      CPABORT("*** ERROR in FUNCTION get_number_of_lebedev_grid ***")
     ELSE
       number_of_lebedev_grid = lgnum(1)
     END IF

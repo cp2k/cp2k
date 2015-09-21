@@ -330,7 +330,7 @@ CONTAINS
           nnode=0
        END IF
     ELSE
-       STOP
+       CPABORT("")
     END IF
 
     mthread = SIZE(iterator_set)
@@ -486,7 +486,7 @@ CONTAINS
           iterator%inode = iterator%inode + 1
           iterator%neighbor_node => iterator%neighbor_node%next_neighbor_node
        ELSE
-          STOP "wrong"
+          CPABORT("wrong")
        END IF
     ELSE
        ! no list available

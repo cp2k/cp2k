@@ -66,6 +66,9 @@ MODULE swarm_worker
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     INTEGER, INTENT(in)                      :: worker_id
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_init', &
+      routineP = moduleN//':'//routineN
+
     TYPE(cp_logger_type), POINTER            :: logger
 
     worker%id = worker_id
@@ -83,7 +86,7 @@ MODULE swarm_worker
          CALL glbopt_worker_init(worker%glbopt, input_declaration, para_env,&
                       root_section, input_path, worker_id, worker%iw)
       CASE DEFAULT
-         STOP "swarm_worker_init: got unknown behavior"
+         CPABORT("got unknown behavior")
     END SELECT
 
   END SUBROUTINE swarm_worker_init
@@ -103,6 +106,9 @@ MODULE swarm_worker
     TYPE(swarm_message_type), INTENT(OUT)    :: report
     LOGICAL, INTENT(INOUT)                   :: should_stop
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_execute', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=default_string_length)     :: command
 
      CALL swarm_message_get(cmd, "command", command)
@@ -118,7 +124,7 @@ MODULE swarm_worker
            CASE(swarm_do_glbopt)
              CALL glbopt_worker_execute(worker%glbopt, cmd, report)
            CASE DEFAULT
-              STOP "swarm_worker_execute: got unknown behavior"
+              CPABORT("got unknown behavior")
         END SELECT
      ENDIF
 
@@ -136,12 +142,15 @@ MODULE swarm_worker
    SUBROUTINE swarm_worker_finalize(worker)
     TYPE(swarm_worker_type), INTENT(INOUT)   :: worker
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'swarm_worker_finalize', &
+      routineP = moduleN//':'//routineN
+
      SELECT CASE(worker%behavior)
       CASE(swarm_do_glbopt)
          CALL glbopt_worker_finalize(worker%glbopt)
          DEALLOCATE(worker%glbopt)
       CASE DEFAULT
-         STOP "swarm_worker_finalize: got unknown behavior"
+         CPABORT("got unknown behavior")
     END SELECT
 
    END SUBROUTINE swarm_worker_finalize

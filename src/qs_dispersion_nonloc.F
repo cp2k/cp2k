@@ -88,7 +88,7 @@ CONTAINS
 
     SELECT CASE (dispersion_env%nl_type)
        CASE DEFAULT
-          STOP 'Unknown vdW-DF functional'
+          CPABORT("Unknown vdW-DF functional")
        CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
           CALL cite_reference(Dion2004)
        CASE (vdw_nl_RVV10)
@@ -274,7 +274,7 @@ CONTAINS
        CPASSERT(stat==0)
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
-             STOP 'Unknown vdW-DF functional'
+             CPABORT("Unknown vdW-DF functional")
           CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
              CALL get_q0_on_grid_eo_vdw (rho,drho,q0,dispersion_env)
           CASE (vdw_nl_RVV10)
@@ -285,7 +285,7 @@ CONTAINS
        CPASSERT(stat==0)
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
-             STOP 'Unknown vdW-DF functional'
+             CPABORT("Unknown vdW-DF functional")
           CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
              CALL get_q0_on_grid_vdw (rho,drho,q0,dq0_drho,dq0_dgradrho,dispersion_env)
           CASE (vdw_nl_RVV10)
@@ -318,7 +318,7 @@ CONTAINS
     !! ------------------------------------------------------------------------------------
     SELECT CASE (dispersion_env%nl_type)
        CASE DEFAULT
-          STOP 'Unknown vdW-DF functional'
+          CPABORT("Unknown vdW-DF functional")
        CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
           DO i=1,dispersion_env%nqs
              thetas(:,i) = thetas(:,i) * rho(:)
@@ -688,7 +688,7 @@ CONTAINS
           !! The first term in equation 13 of SOLER
           SELECT CASE (dispersion_env%nl_type)
              CASE DEFAULT
-                STOP 'Unknown vdW-DF functional'
+                CPABORT("Unknown vdW-DF functional")
              CASE (vdw_nl_DRSLL,vdw_nl_LMKLL)
                 potential(i_grid) = potential(i_grid) + u_vdW(i_grid,P_i)* (P + dP_dq0 * dq0_drho(i_grid))
                 prefactor = u_vdW(i_grid,P_i) * dP_dq0 * dq0_dgradrho(i_grid)
@@ -755,7 +755,9 @@ CONTAINS
                                                 dq0_dgradrho(:)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
-    INTEGER, PARAMETER :: m_cut = 12                                
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_q0_on_grid_vdw', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m_cut = 12
     REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, LDA_a1 = 0.2137_dp, &
       LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , LDA_b3 = 1.6382_dp, &
       LDA_b4 = 0.49294_dp
@@ -770,7 +772,7 @@ CONTAINS
     q_min = dispersion_env%q_min
     SELECT CASE (dispersion_env%nl_type)
        CASE DEFAULT
-          STOP 'Unknown vdW-DF functional'
+          CPABORT("Unknown vdW-DF functional")
        CASE (vdw_nl_DRSLL)
           Z_ab = -0.8491_dp
        CASE (vdw_nl_LMKLL)
@@ -960,7 +962,9 @@ CONTAINS
     REAL(dp), INTENT(OUT)                    :: q0(:)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
-    INTEGER, PARAMETER :: m_cut = 12                                
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_q0_on_grid_eo_vdw', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m_cut = 12
     REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, LDA_a1 = 0.2137_dp, &
       LDA_b1 = 7.5957_dp, LDA_b2 = 3.5876_dp    , LDA_b3 = 1.6382_dp, &
       LDA_b4 = 0.49294_dp
@@ -975,7 +979,7 @@ CONTAINS
     q_min = dispersion_env%q_min
     SELECT CASE (dispersion_env%nl_type)
        CASE DEFAULT
-          STOP 'Unknown vdW-DF functional'
+          CPABORT("Unknown vdW-DF functional")
        CASE (vdw_nl_DRSLL)
           Z_ab = -0.8491_dp
        CASE (vdw_nl_LMKLL)

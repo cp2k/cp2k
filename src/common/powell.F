@@ -93,7 +93,7 @@ CONTAINS
        DEALLOCATE(optstate%xopt)
        optstate%state = -1
     CASE DEFAULT
-       STOP
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)

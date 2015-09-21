@@ -394,6 +394,9 @@ MODULE helium_sampling
     INTEGER, INTENT(IN)                      :: n
     INTEGER                                  :: res
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_slice_metro_cyclic', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: c, hbeads, i, j, k, l, level, &
                                                 m, nb, pk1, pk2, stride
     INTEGER, DIMENSION(:), POINTER           :: p, perm
@@ -439,7 +442,7 @@ IF (m==0) RETURN
    ! sanity checks:
    IF (i<1) THEN
       PRINT *,"slice_metro_cyclic: i<1 test failed: ",i
-      STOP
+      CPABORT("")
    END IF
    j = 1
    k = m
@@ -450,11 +453,11 @@ IF (m==0) RETURN
    END DO
    IF (j /= m) THEN
       PRINT *,"slice_metro_cyclic: m not a power of 2! ",m
-      STOP
+      CPABORT("")
    END IF
    IF (m < 2) THEN
       PRINT *,"slice_metro_cyclic: m less than 2! ",m
-      STOP
+      CPABORT("")
    END IF
 
 !   work(:,:,:) = pos(:,:,:)
