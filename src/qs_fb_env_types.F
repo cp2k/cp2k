@@ -255,7 +255,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(fb_env%obj))
     IF (ASSOCIATED(fb_env%obj%rcut)) THEN
        DEALLOCATE(fb_env%obj%rcut)
-       NULLIFY(fb_env%obj%rcut)
     END IF
     CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
     CALL fb_trial_fns_release(fb_env%obj%trial_fns)
@@ -264,7 +263,6 @@ CONTAINS
     fb_env%obj%collective_com = .TRUE.
     IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
        DEALLOCATE(fb_env%obj%local_atoms)
-       NULLIFY(fb_env%obj%local_atoms)
     END IF
     fb_env%obj%nlocal_atoms = 0
   END SUBROUTINE fb_env_init

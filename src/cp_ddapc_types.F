@@ -240,14 +240,7 @@ CONTAINS
           IF (ASSOCIATED(cp_ddapc_env%w)) THEN
              DEALLOCATE(cp_ddapc_env%w)
           END IF
-          NULLIFY(cp_ddapc_env%AmI,&
-                  cp_ddapc_env%Md,&
-                  cp_ddapc_env%Mr,&
-                  cp_ddapc_env%Ms,&
-                  cp_ddapc_env%gfunc,&
-                  cp_ddapc_env%w)
           DEALLOCATE(cp_ddapc_env)
-          NULLIFY(cp_ddapc_env)
        END IF
     END IF
   END SUBROUTINE cp_ddapc_release
@@ -362,7 +355,6 @@ CONTAINS
           DEALLOCATE(gx)
           DEALLOCATE(gy)
           DEALLOCATE(gz)
-          NULLIFY(LG, gx, gy, gz)
           IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              NULLIFY(mm_cell, dummy_cell)
              cell_section => section_vals_get_subs_vals(subsys_section,"CELL")
@@ -378,7 +370,6 @@ CONTAINS
              DEALLOCATE(gx)
              DEALLOCATE(gy)
              DEALLOCATE(gz)
-             NULLIFY(LG, gx, gy, gz)
              CALL cell_release(dummy_cell)
              CALL cell_release(mm_cell)
           END IF
@@ -494,7 +485,6 @@ CONTAINS
           CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_mm))
        END IF
        DEALLOCATE(cp_ddapc_ewald)
-       NULLIFY(cp_ddapc_ewald)
     END IF
 
   END SUBROUTINE cp_ddapc_ewald_release

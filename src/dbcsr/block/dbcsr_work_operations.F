@@ -1490,15 +1490,12 @@ CONTAINS
 
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
-       NULLIFY (wm%row_i)
     ENDIF
     IF (ASSOCIATED (wm%col_i)) THEN
        DEALLOCATE(wm%col_i)
-       NULLIFY (wm%row_i)
     ENDIF
     IF (ASSOCIATED (wm%blk_p)) THEN
        DEALLOCATE(wm%blk_p)
-       NULLIFY (wm%blk_p)
     ENDIF
     CALL dbcsr_data_release (wm%data_area)
     CALL dbcsr_mutable_destroy (wm%mutable)
@@ -1532,7 +1529,6 @@ CONTAINS
           CALL dbcsr_work_destroy (m%wms(i))
        ENDDO
        DEALLOCATE (m%wms)
-       NULLIFY (m%wms)
     ENDIF
 
     CALL dbcsr_error_stop(error_handler, error)

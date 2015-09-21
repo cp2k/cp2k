@@ -130,21 +130,17 @@ CONTAINS
     history%eps_diis = 0._dp
     IF ( ASSOCIATED(history%dmat) ) THEN
       DEALLOCATE ( history%dmat)
-      NULLIFY ( history%dmat )
     END IF
     IF ( ASSOCIATED(history%hmat) ) THEN
       DO i=1,SIZE(history%hmat)
         IF ( ASSOCIATED(history%hmat(i)%emat) ) THEN
           DEALLOCATE ( history%hmat(i)%emat)
-          NULLIFY ( history%hmat(i)%emat )
         END IF
         IF ( ASSOCIATED(history%hmat(i)%fmat) ) THEN
           DEALLOCATE ( history%hmat(i)%fmat)
-          NULLIFY ( history%hmat(i)%fmat )
         END IF
       END DO
       DEALLOCATE ( history%hmat)
-      NULLIFY ( history%hmat )
     END IF
 
   END SUBROUTINE atom_history_release

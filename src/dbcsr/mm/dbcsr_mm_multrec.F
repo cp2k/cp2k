@@ -528,10 +528,10 @@ MODULE dbcsr_mm_multrec
     !
 
     IF (.NOT. this%local_indexing) THEN
+       NULLIFY (this%k_sizes)
        DEALLOCATE (this%c_local_rows)
        DEALLOCATE (this%c_local_cols)
        DEALLOCATE (this%k_locals)
-       NULLIFY (this%k_sizes)
     ENDIF
 
     this%initialized = .FALSE.

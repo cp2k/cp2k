@@ -193,7 +193,6 @@ CONTAINS
       END IF
       ptr%gt_nodes_references => ptr%gt_nodes_references%next
       DEALLOCATE(tmp_gt_list_ptr)
-      NULLIFY(tmp_gt_list_ptr)
     END DO pt_node_ref_loop
 
     ! end the timing
@@ -266,7 +265,6 @@ CONTAINS
 
           ! deallocate list element
           DEALLOCATE(tmp_gt_list_ptr)
-          NULLIFY(tmp_gt_list_ptr)
           ! going back to last list element
           tmp_gt_list_ptr => tmp_gt_list_last_ptr
        END IF

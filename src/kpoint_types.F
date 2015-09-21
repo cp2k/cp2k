@@ -216,11 +216,9 @@ CONTAINS
 
        IF(ASSOCIATED(kpoint%xkp)) THEN
          DEALLOCATE(kpoint%xkp)
-         NULLIFY(kpoint%xkp)
        END IF
        IF(ASSOCIATED(kpoint%wkp)) THEN
          DEALLOCATE(kpoint%wkp)
-         NULLIFY(kpoint%wkp)
        END IF
        IF(ASSOCIATED(kpoint%kp_dist)) THEN
          DEALLOCATE(kpoint%kp_dist)
@@ -246,7 +244,6 @@ CONTAINS
        END IF
 
        DEALLOCATE(kpoint)
-       NULLIFY(kpoint)
 
     END IF
 
@@ -740,7 +737,6 @@ CONTAINS
        END IF
 
        DEALLOCATE(kp_env)
-       NULLIFY(kp_env)
 
     END IF
 

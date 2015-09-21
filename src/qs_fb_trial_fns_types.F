@@ -209,11 +209,9 @@ CONTAINS
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
        DEALLOCATE(trial_fns%obj%nfunctions)
-       NULLIFY(trial_fns%obj%nfunctions)
     END IF
     IF (ASSOCIATED(trial_fns%obj%functions)) THEN
        DEALLOCATE(trial_fns%obj%functions)
-       NULLIFY(trial_fns%obj%functions)
     END IF
   END SUBROUTINE fb_trial_fns_init
 

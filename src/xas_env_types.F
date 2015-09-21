@@ -445,7 +445,6 @@ CONTAINS
 
 
          DEALLOCATE(xas_env)
-         NULLIFY(xas_env)
        END IF
     END IF
 

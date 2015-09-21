@@ -2134,7 +2134,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
           DEALLOCATE ( rs_grid % py )
           DEALLOCATE ( rs_grid % pz )
           DEALLOCATE(rs_grid)
-          NULLIFY(rs_grid)
        END IF
     END IF
   END SUBROUTINE rs_grid_release
@@ -2182,7 +2181,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
           ENDIF
 
           DEALLOCATE(rs_desc)
-          NULLIFY(rs_desc)
        END IF
     END IF
   END SUBROUTINE rs_grid_release_descriptor

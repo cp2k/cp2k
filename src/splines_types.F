@@ -109,8 +109,6 @@ CONTAINS
              CALL spline_data_p_release ( spl_p)
           END DO
           DEALLOCATE (  spline_env % spl_pp)
-          NULLIFY ( spline_env % spltab )
-          NULLIFY ( spline_env % spl_pp )
           DEALLOCATE (  spline_env )
        END IF
     END IF
@@ -138,11 +136,9 @@ CONTAINS
        IF (spline_data%ref_count<1) THEN
           IF ( ASSOCIATED ( spline_data%y)) THEN
              DEALLOCATE (spline_data%y)
-             NULLIFY (spline_data%y)
           END IF
           IF ( ASSOCIATED ( spline_data%y2)) THEN
              DEALLOCATE (spline_data%y2)
-             NULLIFY (spline_data%y2)
           END IF
           DEALLOCATE (  spline_data)
        END IF

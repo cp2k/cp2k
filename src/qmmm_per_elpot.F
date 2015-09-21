@@ -212,7 +212,6 @@ CONTAINS
 
        CASE DEFAULT
           DEALLOCATE(per_potentials(K)%Pot)
-          NULLIFY(per_potentials(K)%Pot)
           IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Periodic Potential - not Initialized!"
           CYCLE Potential_Type
        END SELECT

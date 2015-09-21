@@ -299,7 +299,6 @@ CONTAINS
              END IF
 
              DEALLOCATE(sizes_m, sizes_n, sizes_k)
-             NULLIFY(sizes_m, sizes_n, sizes_k)
 
              !
              ! if C has a symmetry, we build it accordingly, i.e. C=A*A and C=A*(-A)

@@ -145,7 +145,6 @@ CONTAINS
 
     IF(ASSOCIATED(atarray)) THEN
       DEALLOCATE(atarray)
-      NULLIFY(atarray)
     END IF
 
   END SUBROUTINE atprop_array_release

@@ -5234,7 +5234,6 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_data_release(buffer%left_data)
        CALL dbcsr_data_release(buffer%right_data)
        DEALLOCATE(buffer%left_meta, buffer%right_meta)
-       NULLIFY(buffer%left_meta, buffer%right_meta)
        buffer%is_valid = .FALSE.
     ENDIF
     

@@ -289,7 +289,6 @@ CONTAINS
     CALL structure_factor_deallocate ( exp_igr )
 
     DEALLOCATE ( charge, summe)
-    NULLIFY ( charge )
 
     CALL timestop(handle)
 

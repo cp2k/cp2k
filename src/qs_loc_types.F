@@ -547,7 +547,6 @@ CONTAINS
             CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
          END DO
          DEALLOCATE(qs_loc_env%moloc_coeff)
-         NULLIFY(qs_loc_env%moloc_coeff)
        END IF
        qs_loc_env%moloc_coeff => moloc_coeff
     END IF

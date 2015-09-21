@@ -214,7 +214,6 @@ MODULE dbcsr_mem_methods
     !$ CALL OMP_DESTROY_LOCK (pool%lock)
     DEALLOCATE(pool%root)
     DEALLOCATE(pool)
-    NULLIFY(pool)
 
  END SUBROUTINE dbcsr_mempool_destruct
 

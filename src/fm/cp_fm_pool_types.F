@@ -434,7 +434,6 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements)
           elements(i)%matrix)
   END DO
   DEALLOCATE(elements)
-  NULLIFY(elements)
 END SUBROUTINE fm_pools_give_back_fm_vect
 
 END MODULE cp_fm_pool_types

@@ -726,14 +726,12 @@ CONTAINS
     NULLIFY(atom%integrals)
     IF(ASSOCIATED(atom%state)) THEN
       DEALLOCATE(atom%state)
-      NULLIFY(atom%state)
     END IF
     IF(ASSOCIATED(atom%orbitals)) THEN
       CALL release_atom_orbs(atom%orbitals)
     END IF
 
     DEALLOCATE(atom)
-    NULLIFY(atom)
 
   END SUBROUTINE release_atom_type
 
@@ -873,63 +871,48 @@ CONTAINS
 
     IF(ASSOCIATED(orbs%wfn)) THEN
       DEALLOCATE(orbs%wfn,orbs%wfna,orbs%wfnb)
-      NULLIFY(orbs%wfn,orbs%wfna,orbs%wfnb)
     END IF
     IF(ASSOCIATED(orbs%pmat)) THEN
       DEALLOCATE(orbs%pmat,orbs%pmata,orbs%pmatb)
-      NULLIFY(orbs%pmat,orbs%pmata,orbs%pmatb)
     END IF
     IF(ASSOCIATED(orbs%ener)) THEN
       DEALLOCATE(orbs%ener,orbs%enera,orbs%enerb)
-      NULLIFY(orbs%ener,orbs%enera,orbs%enerb)
     END IF
     IF(ASSOCIATED(orbs%refene)) THEN
       DEALLOCATE(orbs%refene)
-      NULLIFY(orbs%refene)
     END IF
     IF(ASSOCIATED(orbs%refchg)) THEN
       DEALLOCATE(orbs%refchg)
-      NULLIFY(orbs%refchg)
     END IF
     IF(ASSOCIATED(orbs%refnod)) THEN
       DEALLOCATE(orbs%refnod)
-      NULLIFY(orbs%refnod)
     END IF
     IF(ASSOCIATED(orbs%wrefene)) THEN
       DEALLOCATE(orbs%wrefene)
-      NULLIFY(orbs%wrefene)
     END IF
     IF(ASSOCIATED(orbs%wrefchg)) THEN
       DEALLOCATE(orbs%wrefchg)
-      NULLIFY(orbs%wrefchg)
     END IF
     IF(ASSOCIATED(orbs%wrefnod)) THEN
       DEALLOCATE(orbs%wrefnod)
-      NULLIFY(orbs%wrefnod)
     END IF
     IF(ASSOCIATED(orbs%crefene)) THEN
       DEALLOCATE(orbs%crefene)
-      NULLIFY(orbs%crefene)
     END IF
     IF(ASSOCIATED(orbs%crefchg)) THEN
       DEALLOCATE(orbs%crefchg)
-      NULLIFY(orbs%crefchg)
     END IF
     IF(ASSOCIATED(orbs%crefnod)) THEN
       DEALLOCATE(orbs%crefnod)
-      NULLIFY(orbs%crefnod)
     END IF
     IF(ASSOCIATED(orbs%rcmax)) THEN
       DEALLOCATE(orbs%rcmax)
-      NULLIFY(orbs%rcmax)
     END IF
     IF(ASSOCIATED(orbs%wpsir0)) THEN
       DEALLOCATE(orbs%wpsir0)
-      NULLIFY(orbs%wpsir0)
     END IF
 
     DEALLOCATE(orbs)
-    NULLIFY(orbs)
 
   END SUBROUTINE release_atom_orbs
 

@@ -445,7 +445,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
        DEALLOCATE(com_tasks%obj%tasks)
-       NULLIFY(com_tasks%obj%tasks)
     END IF
     com_tasks%obj%task_dim = TASK_N_RECORDS
     com_tasks%obj%ntasks = 0
@@ -472,7 +471,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
        DEALLOCATE(atom_pairs%obj%pairs)
-       NULLIFY(atom_pairs%obj%pairs)
     END IF
     atom_pairs%obj%npairs = 0
     atom_pairs%obj%natoms_encode = 0

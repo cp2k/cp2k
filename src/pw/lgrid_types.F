@@ -118,7 +118,6 @@ SUBROUTINE lgrid_release(lgrid)
            DEALLOCATE (lgrid%r)
         END IF
         DEALLOCATE (lgrid)
-        NULLIFY(lgrid)
      END IF
   END IF
 END SUBROUTINE

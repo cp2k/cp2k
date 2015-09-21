@@ -162,7 +162,6 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     IF (ASSOCIATED(quip_data%force)) THEN
       IF (SIZE(quip_data%force,2) /= n_atoms_use) THEN
          DEALLOCATE(quip_data%force, quip_data%use_indices)
-         NULLIFY(quip_data%force, quip_data%use_indices)
       END IF
     ENDIF
     IF (.not.ASSOCIATED(quip_data%force)) THEN

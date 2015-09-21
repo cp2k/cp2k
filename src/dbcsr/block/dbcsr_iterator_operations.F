@@ -333,7 +333,6 @@ CONTAINS
        !$OMP MASTER
        common_int_pointer => iterator%common_pos
        DEALLOCATE (common_int_pointer)
-       NULLIFY (common_int_pointer)
        !$OMP FLUSH (common_int_pointer)
        !$OMP END MASTER
        NULLIFY (iterator%common_pos)

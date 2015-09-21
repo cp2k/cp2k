@@ -670,17 +670,8 @@ MODULE helium_methods
         IF ( helium%rho_present ) THEN
           IF ( helium%rho_restart ) THEN
             DEALLOCATE( helium%rho_rstr)
-            NULLIFY( helium%rho_rstr )
           END IF
-          DEALLOCATE( &
-            helium%rho_inst, &
-            helium%rho_avrg, &
-            STAT=stat &
-          )
-          NULLIFY(&
-            helium%rho_inst, &
-            helium%rho_avrg &
-          )
+          DEALLOCATE(helium%rho_inst, helium%rho_avrg)
         END IF
 
         ! DEALLOCATE helium-related arrays
@@ -702,24 +693,6 @@ MODULE helium_methods
           helium%pos, &
           STAT=stat )
         CPASSERT(stat==0)
-        NULLIFY( &
-          helium%atom_plength, &
-          helium%plength_inst, &
-          helium%plength_avrg, &
-          helium%rdf_inst, &
-          helium%rdf_avrg, &
-          helium%num_accepted, &
-          helium%ipmatrix, &
-          helium%pmatrix, &
-          helium%nmatrix, &
-          helium%tmatrix, &
-          helium%iperm, &
-          helium%permutation, &
-          helium%ptable, &
-          helium%work, &
-          helium%pos &
-        )
-
           DO i = 1, SIZE ( helium%eij , 1 )
              DO j = 1, SIZE ( helium%eij , 1 )
                 CALL spline_data_release(helium%eij(i,j)%spline_data)
@@ -731,10 +704,8 @@ MODULE helium_methods
           END DO
 
           DEALLOCATE( helium%eij)
-          NULLIFY(helium%eij)
 
           DEALLOCATE( helium%uij)
-          NULLIFY(helium%uij)
 
           CALL delete_rng_stream(helium%rng_stream_uniform)
           CALL delete_rng_stream(helium%rng_stream_gaussian)
@@ -746,9 +717,6 @@ MODULE helium_methods
                        helium%solute_index, &
                        STAT=stat)
             CPASSERT(stat==0)
-            NULLIFY(helium%solute_element, &
-                    helium%solute_number, &
-                    helium%solute_index)
           END IF
 
           DEALLOCATE( helium)
@@ -1628,8 +1596,6 @@ MODULE helium_methods
     helium%rho_rstr(:,:,:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f)
 
     DEALLOCATE(f,m)
-    NULLIFY(message)
-
     RETURN
   END SUBROUTINE helium_densities_restore
 

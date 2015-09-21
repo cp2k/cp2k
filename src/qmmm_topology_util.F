@@ -181,7 +181,6 @@ CONTAINS
        END IF
     END DO
     IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
-    NULLIFY(qmmm_env%qm_molecule_index)
     qmmm_env%qm_molecule_index => qm_molecule_index
     IF(iw>0) WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&

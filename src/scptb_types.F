@@ -413,7 +413,6 @@ CONTAINS
            DEALLOCATE(scp_vec%vector(ikind)%vmat)
         END DO
         DEALLOCATE(scp_vec%vector)
-        NULLIFY(scp_vec%vector)
       END IF
       DEALLOCATE(scp_vec)
     END IF

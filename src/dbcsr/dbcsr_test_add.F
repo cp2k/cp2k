@@ -201,7 +201,6 @@ CONTAINS
                mp_group, data_type=TYPE, symmetry=b_symm, error=error)
 
           DEALLOCATE (sizes_m, sizes_n)
-          NULLIFY(sizes_m,sizes_n)
 
           !
           ! convert the dbcsr matrices to denses

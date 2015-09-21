@@ -365,14 +365,12 @@ CONTAINS
           CALL array_release (dist%d%other_l_rows(i))
        END DO
        DEALLOCATE (dist%d%other_l_rows)
-       NULLIFY (dist%d%other_l_rows)
     ENDIF
     IF (dist%d%has_other_l_cols) THEN
        DO i = LBOUND (dist%d%other_l_cols,1), UBOUND (dist%d%other_l_cols,1)
           CALL array_release (dist%d%other_l_cols(i))
        END DO
        DEALLOCATE (dist%d%other_l_cols)
-       NULLIFY (dist%d%other_l_cols)
     ENDIF
     IF (dist%d%has_global_row_map) THEN
        CALL array_release (dist%d%global_row_map)
@@ -403,7 +401,6 @@ CONTAINS
           !CALL mp_comm_free (mp_env%mp%mp_group)
           DEALLOCATE (mp_env%mp%pgrid)
           DEALLOCATE (mp_env%mp)
-          NULLIFY (mp_env%mp)
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_mp_release
@@ -1074,7 +1071,6 @@ CONTAINS
     ENDDO
     CALL dbcsr_image_dist_release (marray%image_dist, error)
     DEALLOCATE (marray%mats)
-    NULLIFY (marray%mats)
   END SUBROUTINE dbcsr_destroy_2d_array
 
 ! *****************************************************************************
@@ -1093,7 +1089,6 @@ CONTAINS
        IF (imgdist%i%refcount .EQ. 0) THEN
           CALL dbcsr_destroy_image_dist (imgdist%i)
           DEALLOCATE (imgdist%i)
-          NULLIFY (imgdist%i)
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_image_dist_release
@@ -1150,7 +1145,6 @@ CONTAINS
           CALL array_release (imgdist%other_vl_rows(i))
        END DO
        DEALLOCATE (imgdist%other_vl_rows)
-       NULLIFY (imgdist%other_vl_rows)
        imgdist%has_other_vl_rows = .FALSE.
     ENDIF
     !
@@ -1159,7 +1153,6 @@ CONTAINS
           CALL array_release (imgdist%other_vl_cols(i))
        END DO
        DEALLOCATE (imgdist%other_vl_cols)
-       NULLIFY (imgdist%other_vl_cols)
        imgdist%has_other_vl_cols = .FALSE.
     ENDIF
     !

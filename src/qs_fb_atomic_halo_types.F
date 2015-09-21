@@ -297,7 +297,6 @@ CONTAINS
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
        DEALLOCATE(atomic_halo%obj%halo_atoms)
-       NULLIFY(atomic_halo%obj%halo_atoms)
     END IF
     atomic_halo%obj%owner_atom = 0
     atomic_halo%obj%owner_id_in_halo = 0
@@ -811,7 +810,6 @@ CONTAINS
           CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
        END DO
        DEALLOCATE(atomic_halos%obj%halos)
-       NULLIFY(atomic_halos%obj%halos)
     END IF
     atomic_halos%obj%nhalos = 0
     atomic_halos%obj%max_nhalos = 0

@@ -700,12 +700,11 @@ CONTAINS
       END DO
 
       ! some cleanup
+      NULLIFY(weight)
       DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s)
-      NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
          DEALLOCATE(drho_h, drho_s, vxg_h, vxg_s)
          DEALLOCATE(drho1_h, drho1_s)
-         NULLIFY(drho_h, drho_s, drho1_h, drho1_s, vxg_h, vxc_s)
       END IF
 
       CALL xc_dset_release(deriv_set)

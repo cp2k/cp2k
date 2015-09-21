@@ -517,6 +517,7 @@ CONTAINS
     IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
+    NULLIFY(X, R)
     DO spin=1, nspins
        CALL cp_fm_struct_release(kv_fm_struct(spin)%struct)
        DO i=1, max_kv
@@ -529,7 +530,6 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
-    NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
 
     CALL timestop(handle)
 

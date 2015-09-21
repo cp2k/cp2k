@@ -159,7 +159,6 @@ CONTAINS
     DEALLOCATE(gt_elem%conf_n_acc)
     DEALLOCATE(gt_elem%conf)
     DEALLOCATE(gt_elem)
-    NULLIFY(gt_elem)
     ! end the timing
     CALL timestop(handle)
   END SUBROUTINE deallocate_global_tree_node  
@@ -264,7 +263,6 @@ CONTAINS
     IF(ASSOCIATED(tree_elem%pos)) DEALLOCATE(tree_elem%pos)
 
     DEALLOCATE(tree_elem)
-    NULLIFY(tree_elem)
     ! end the timing
     CALL timestop(handle)
   END SUBROUTINE deallocate_sub_tree_node

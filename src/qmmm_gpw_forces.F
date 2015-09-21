@@ -509,7 +509,6 @@ CONTAINS
     END IF
     IF (ASSOCIATED(tmp)) THEN
        DEALLOCATE(tmp)
-       NULLIFY(tmp)
     END IF
     ! Further setup of parallelization scheme
     IF (qmmm_env%par_scheme==do_par_atom) THEN

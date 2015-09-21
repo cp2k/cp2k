@@ -721,7 +721,6 @@ CONTAINS
     DEALLOCATE(potparm%type)
     DEALLOCATE(potparm%set)
     DEALLOCATE(potparm)
-    NULLIFY ( potparm )
   END SUBROUTINE pair_potential_single_release
 
 ! *****************************************************************************
