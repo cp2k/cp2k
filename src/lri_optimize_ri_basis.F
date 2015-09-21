@@ -758,7 +758,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iac, iatom, ikind, ilist, info, jatom, jkind, &
-      jneighbor, lwork, nfa, nfb, nkind, nlist, nn, nneighbor, stat
+      jneighbor, lwork, nfa, nfb, nkind, nlist, nn, nneighbor
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: diag, off_diag, tau
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
@@ -821,7 +821,6 @@ CONTAINS
        lrii%cond_num=MAXVAL(ABS(diag))/MINVAL(ABS(diag))
        
        DEALLOCATE(diag,off_diag,smat,tau,work)
-       CPASSERT(stat==0)
     END DO 
 
     CALL neighbor_list_iterator_release(nl_iterator)
