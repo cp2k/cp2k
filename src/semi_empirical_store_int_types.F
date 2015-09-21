@@ -75,7 +75,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: se_mem_section
 
@@ -114,7 +114,6 @@ CPSourceFileRef,&
        DO i=1,64
           store_int_env%integral_caches(i)%element_counter = 1
           store_int_env%integral_caches(i)%data = 0
-          CPASSERT(stat==0)
           ALLOCATE(store_int_env%integral_containers(i)%first)
           store_int_env%integral_containers(i)%first%prev => NULL()
           store_int_env%integral_containers(i)%first%next => NULL()

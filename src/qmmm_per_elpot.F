@@ -95,8 +95,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: I, idim, ig, ig_start, iw, ix, iy, iz, K, Kmax(3), &
-      n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, output_unit, &
-      stat
+      n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, output_unit
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     REAL(KIND=dp) :: Ak, alpha, box(3), Fac(3), fs, g, g2, Gk, Gmax, &
       mymaxradius, npl, npt, Prefactor, rc, rc2, Rmax, tmp, vec(3), vol
@@ -213,7 +212,6 @@ CONTAINS
 
        CASE DEFAULT
           DEALLOCATE(per_potentials(K)%Pot)
-          CPASSERT(stat==0)
           NULLIFY(per_potentials(K)%Pot)
           IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Periodic Potential - not Initialized!"
           CYCLE Potential_Type

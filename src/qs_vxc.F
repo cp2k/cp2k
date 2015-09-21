@@ -114,7 +114,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, myfun, &
-                                                nelec_spin(2), stat, vdw
+                                                nelec_spin(2), vdw
     LOGICAL :: compute_virial, do_adiabatic_rescaling, failure, &
       my_just_energy, rho_g_valid, sic_scaling_b_zero, tau_r_valid, uf_grid, &
       vdW_nl
@@ -549,7 +549,6 @@ CONTAINS
              CALL pw_release(my_vxc_rho(1)%pw)
              CALL pw_release(my_vxc_rho(2)%pw)
              DEALLOCATE(my_vxc_rho)
-             CPASSERT(stat==0)
           ENDIF
 
        ENDIF

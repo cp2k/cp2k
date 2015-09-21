@@ -882,10 +882,9 @@ CONTAINS
          END IF
          DEALLOCATE(r_ldos_p(ildos)%ldos)
        END DO
-       DEALLOCATE(read_r,STAT=stat)
-       DEALLOCATE(r_ldos_p, STAT=stat)
+       DEALLOCATE(read_r)
+       DEALLOCATE(r_ldos_p)
        DEALLOCATE(r_ldos_index)
-       CPASSERT(stat==0)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)
     END IF

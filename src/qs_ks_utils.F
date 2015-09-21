@@ -1501,12 +1501,11 @@ CONTAINS
     CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
     nspins = 1
     ALLOCATE(v_rspace_new(nspins),stat=stat)
+    CPASSERT(stat==0)
     CALL pw_pool_create_pw(pool=auxbas_pw_pool,pw=v_rspace_new(1)%pw,&
             use_data=REALDATA3D,in_space=REALSPACE)
-    CPASSERT(stat==0)
     CALL pw_pool_create_pw(pool=auxbas_pw_pool,pw=v_xc_rspace%pw,&
             use_data=REALDATA3D,in_space=REALSPACE)
-    CPASSERT(stat==0)
 
     CALL pw_zero(v_rspace_new(1)%pw)
     do_zmp_read=dft_control%apply_external_vxc
