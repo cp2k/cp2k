@@ -641,7 +641,6 @@ CPSourceFileRef,&
           ! Keep a list of onfo atoms for proper selection of specialized 1-4
           ! potentials instead of conventional nonbonding potentials.
           ALLOCATE(exclusions(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
-          CPASSERT(stat==0)
           ! copy of data, not copy of pointer
           exclusions(iatom)%list_onfo = ex_onfo_list(iatom)%array1
           IF (iw>0) THEN
