@@ -100,7 +100,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: natom, nshell, stat
+    INTEGER                                  :: natom, nshell
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles, shell_particles
@@ -108,8 +108,7 @@ CONTAINS
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(gopt_env))
-    ALLOCATE (gopt_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gopt_env)
     nshell = 0
 
     NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
@@ -211,7 +210,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -229,8 +227,7 @@ CONTAINS
           CALL dimer_env_release(gopt_env%dimer_env)
           CALL gopt_f_release(gopt_env%gopt_dimer_env)
           CALL gopt_param_release(gopt_env%gopt_dimer_param)
-          DEALLOCATE(gopt_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(gopt_env)
        END IF
     END IF
   END SUBROUTINE gopt_f_release

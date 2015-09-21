@@ -52,19 +52,15 @@ CONTAINS
     INTEGER, PARAMETER                       :: amb_imax = 47, &
                                                 chm_imax = 108, grm_imax = 22
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     SELECT CASE(ff_type)
     CASE("AMBER")
-       ALLOCATE(amber_map,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(amber_map)
        ! allocate substructures
-       ALLOCATE(amber_map%kind(amb_imax),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(amber_map%element(amb_imax),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(amber_map%kind(amb_imax))
+       ALLOCATE(amber_map%element(amb_imax))
 
        amber_map%kind=(/&
             "BR","C ","CA","CB","CC","CK","CM","CN","CQ","CR",&
@@ -80,13 +76,10 @@ CONTAINS
             "S ","Cu","Fe","Li","K ","Rb","Cs"/)
 
     CASE("CHARMM")
-       ALLOCATE(charmm_map,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(charmm_map)
        ! allocate substructures
-       ALLOCATE(charmm_map%kind(chm_imax),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(charmm_map%element(chm_imax),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(charmm_map%kind(chm_imax))
+       ALLOCATE(charmm_map%element(chm_imax))
 
        charmm_map%kind=(/&
             "CA  ","CAL ","C   ","CC  ","CD  ","CE  ","CEL ","CES ","CLA ","CL  ",&
@@ -115,13 +108,10 @@ CONTAINS
             "P ","S ","S ","Na","S ","S ","Zn","C "/)
 
     CASE("GROMOS")
-       ALLOCATE(gromos_map,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(gromos_map)
        ! allocate substructures
-       ALLOCATE(gromos_map%kind(grm_imax),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(gromos_map%element(grm_imax),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(gromos_map%kind(grm_imax))
+       ALLOCATE(gromos_map%element(grm_imax))
 
        gromos_map%kind=(/&
             "H1  ","CA  ","HA  ","SD  ","OG  ","CG  ","HD  ","SG  ",&
@@ -150,38 +140,28 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_ff_map', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     SELECT CASE(ff_type)
     CASE("AMBER")
        ! deallocate substructures
-       DEALLOCATE(amber_map%kind,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(amber_map%element,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(amber_map%kind)
+       DEALLOCATE(amber_map%element)
        ! deallocate main
-       DEALLOCATE(amber_map,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(amber_map)
     CASE("CHARMM")
        ! deallocate substructures
-       DEALLOCATE(charmm_map%kind,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(charmm_map%element,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charmm_map%kind)
+       DEALLOCATE(charmm_map%element)
        ! deallocate main
-       DEALLOCATE(charmm_map,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charmm_map)
     CASE("GROMOS")
        ! deallocate substructures
-       DEALLOCATE(gromos_map%kind,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(gromos_map%element,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(gromos_map%kind)
+       DEALLOCATE(gromos_map%element)
        ! deallocate main
-       DEALLOCATE(gromos_map,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(gromos_map)
     END SELECT
   END SUBROUTINE destroy_ff_map
 

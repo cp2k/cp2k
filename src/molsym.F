@@ -128,18 +128,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_molsym', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF ( ASSOCIATED(sym) ) CALL release_molsym(sym)
 
-    ALLOCATE(sym,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(sym)
 
     ALLOCATE (sym%ain(natoms),sym%aw(natoms),sym%group_of(natoms),sym%llequatom(natoms),&
-              sym%nequatom(natoms),sym%symequ_list(natoms),sym%ulequatom(natoms),STAT=ierr)
-    CPASSERT(ierr==0)
+              sym%nequatom(natoms),sym%symequ_list(natoms),sym%ulequatom(natoms))
 
   END SUBROUTINE create_molsym
 
@@ -154,43 +151,34 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_molsym', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(sym))
 
     IF ( ASSOCIATED(sym%aw) ) THEN
-      DEALLOCATE(sym%aw,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%aw)
     END IF
     IF ( ASSOCIATED(sym%ain) ) THEN
-      DEALLOCATE(sym%ain,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%ain)
     END IF
     IF ( ASSOCIATED(sym%group_of) ) THEN
-      DEALLOCATE(sym%group_of,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%group_of)
     END IF
     IF ( ASSOCIATED(sym%llequatom) ) THEN
-      DEALLOCATE(sym%llequatom,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%llequatom)
     END IF
     IF ( ASSOCIATED(sym%nequatom) ) THEN
-      DEALLOCATE(sym%nequatom,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%nequatom)
     END IF
     IF ( ASSOCIATED(sym%symequ_list) ) THEN
-      DEALLOCATE(sym%symequ_list,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%symequ_list)
     END IF
     IF ( ASSOCIATED(sym%ulequatom) ) THEN
-      DEALLOCATE(sym%ulequatom,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(sym%ulequatom)
     END IF
 
-    DEALLOCATE(sym,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(sym)
 
   END SUBROUTINE release_molsym
 

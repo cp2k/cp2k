@@ -391,7 +391,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
-      jneighbor, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, stat
+      jneighbor, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin
     LOGICAL                                  :: failure, found, trans
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m
@@ -489,8 +489,7 @@ CONTAINS
             lrho%lambda = (lrho%charge - lrho%nst)/lrii%nsn
 
             ! solve the linear system of equations
-            ALLOCATE(m(nn),STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(m(nn))
             m = 0._dp
             IF(iatom == jatom.AND.dab < lri_env%delta) THEN
               m(1:nfa) = lrho%tvec(1:nfa) + lrho%lambda * lrii%n(1:nfa)
@@ -501,8 +500,7 @@ CONTAINS
               CALL dgemv("N",nn,nn,1.0_dp,lrii%sinv(1,1),nn,&
                          m(1),1,0.0_dp,lrho%avec,1)
             ENDIF
-            DEALLOCATE(m,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(m)
            
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
@@ -545,7 +543,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iac, iatom, ikind, ilist, ispin, &
-      jatom, jkind, jneighbor, nat, natom, nfa, nfb, nkind, nspin, stat
+      jatom, jkind, jneighbor, nat, natom, nfa, nfb, nkind, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, rab(3)
@@ -573,8 +571,7 @@ CONTAINS
       nkind = lri_env%lri_ints%nkind
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=nat)
-      ALLOCATE(atom_of_kind(nat),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(atom_of_kind(nat))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -640,8 +637,7 @@ CONTAINS
 
       CALL set_qs_env(qs_env, lri_density=lri_density)
 
-      DEALLOCATE(atom_of_kind,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(atom_of_kind)
 
     END IF
 
@@ -751,8 +747,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nba, nbb, nfa, nfb, &
-                                                stat
+    INTEGER                                  :: handle, nba, nbb, nfa, nfb
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -808,8 +803,7 @@ CONTAINS
       CALL lri_int_abb_shg(lri_env,lrii%abbint,lrii%dabbint,rab,obasa,obasb,fbasb,&
                            scon_orba,scon_orbb,scon_rib,Waux_mat,dWaux_mat,&
                            lrii%calc_force_pair)
-      DEALLOCATE(Waux_mat,dWaux_mat,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(Waux_mat,dWaux_mat)
     ENDIF
 
     CALL timestop(handle)
@@ -845,7 +839,7 @@ CONTAINS
       routineN = 'lri_calculate_derivative_acoef', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nn, stat
+    INTEGER                                  :: handle, nn
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dlambdadp
@@ -857,14 +851,10 @@ CONTAINS
 
     nn = nfa + nfb
  
-    ALLOCATE(R(nba,nbb,nn),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(dlambdadp(nba,nbb),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Q(nba,nbb,nn),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(abxint_work(nba,nbb,nn),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(R(nba,nbb,nn))
+    ALLOCATE(dlambdadp(nba,nbb))
+    ALLOCATE(Q(nba,nbb,nn))
+    ALLOCATE(abxint_work(nba,nbb,nn))
 
     R(:,:,:)  = 0._dp
     dlambdadp = 0._dp
@@ -899,14 +889,10 @@ CONTAINS
       lrii%dacoef(1:nba,1:nbb,1:nn)= R(1:nba,1:nbb,1:nn)+Q(1:nba,1:nbb,1:nn)
     ENDIF
     
-    DEALLOCATE(abxint_work,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(R,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(dlambdadp,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Q,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(abxint_work)
+    DEALLOCATE(R)
+    DEALLOCATE(dlambdadp)
+    DEALLOCATE(Q)
 
     CALL timestop(handle)
   
@@ -925,7 +911,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, info, n, stat
+    INTEGER                                  :: handle, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: anorm, rcond, rskip
@@ -945,26 +931,20 @@ CONTAINS
     CASE(do_lri_inv)
        CALL invmat_symm(sinv)
     CASE(do_lri_pseudoinv_svd)
-       ALLOCATE(s(n,n),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(s(n,n))
        s(:,:) = sinv
        CALL get_pseudo_inverse_svd(s,sinv,rskip)
-       DEALLOCATE(s,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(s)
     CASE(do_lri_pseudoinv_diag)
-       ALLOCATE(s(n,n),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(s(n,n))
        s(:,:) = sinv
        CALL get_pseudo_inverse_diag(s,sinv,rskip)
-       DEALLOCATE(s,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(s)
     CASE(do_lri_inv_auto)
        ! decide whether to calculate inverse or pseudoinverse
-       ALLOCATE(s(n,n),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(s(n,n))
        s(:,:) = sinv
-       ALLOCATE(work(3*n),iwork(n),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(3*n),iwork(n))
        ! norm of matrix
        anorm = dlange('1',n,n,sinv,n,work)
        ! Cholesky factorization (fails if matrix not positive definite)
@@ -983,8 +963,7 @@ CONTAINS
        ELSE
            CALL get_pseudo_inverse_svd(s,sinv,rskip)
        END IF
-       DEALLOCATE(s,work,iwork,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(s,work,iwork)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
                  routineP,"No initialization for LRI overlap available?",&

@@ -121,7 +121,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_old', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idim, jdim, natoms, stat
+    INTEGER                                  :: idim, jdim, natoms
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -129,23 +129,17 @@ CONTAINS
     idim = SIZE ( npt, 1)
     jdim = SIZE ( npt, 2)
     CPASSERT(.NOT.ASSOCIATED(old))
-    ALLOCATE ( old, STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( old)
 
-    ALLOCATE ( old%v ( natoms, 3 ), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( old%v ( natoms, 3 ))
     old%v = 0.0_dp
-    ALLOCATE ( old%r ( natoms, 3 ), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( old%r ( natoms, 3 ))
     old%r = 0.0_dp
-    ALLOCATE ( old%eps ( idim, jdim ),STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( old%eps ( idim, jdim ))
     old%eps = 0.0_dp
-    ALLOCATE ( old%veps ( idim, jdim ),STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( old%veps ( idim, jdim ))
     old%veps = 0.0_dp
-    ALLOCATE ( old%h(3, 3),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( old%h(3, 3))
     old%h = 0.0_dp
 
   END SUBROUTINE allocate_old
@@ -163,33 +157,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(old)) THEN
        IF (ASSOCIATED(old%v)) THEN
-          DEALLOCATE ( old%v, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( old%v)
        END IF
        IF (ASSOCIATED(old%r)) THEN
-          DEALLOCATE ( old%r, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( old%r)
        END IF
        IF (ASSOCIATED(old%eps)) THEN
-          DEALLOCATE ( old%eps, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( old%eps)
        END IF
        IF (ASSOCIATED(old%veps)) THEN
-          DEALLOCATE ( old%veps, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( old%veps)
        END IF
        IF (ASSOCIATED(old%h)) THEN
-          DEALLOCATE ( old%h, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE ( old%h)
        END IF
-       DEALLOCATE ( old, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE ( old)
     END IF
 
   END SUBROUTINE deallocate_old
@@ -215,13 +202,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_tmp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(tmp))
-    ALLOCATE (tmp, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (tmp)
 
     ! Nullify Components
     NULLIFY(tmp%pos)
@@ -233,28 +218,22 @@ CONTAINS
     NULLIFY(tmp%itimes)
 
     !     *** Allocate work storage for positions and velocities ***
-    ALLOCATE (tmp%pos(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (tmp%pos(3,nparticle))
 
-    ALLOCATE (tmp%vel(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (tmp%vel(3,nparticle))
 
     tmp%pos(:,:) = 0.0_dp
     tmp%vel(:,:) = 0.0_dp
 
     IF(shell_adiabatic) THEN
        !     *** Allocate work storage for positions and velocities ***
-       ALLOCATE (tmp%shell_pos(3,nshell),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (tmp%shell_pos(3,nshell))
 
-       ALLOCATE (tmp%core_pos(3,nshell),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (tmp%core_pos(3,nshell))
 
-       ALLOCATE (tmp%shell_vel(3,nshell),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (tmp%shell_vel(3,nshell))
 
-       ALLOCATE (tmp%core_vel(3,nshell),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (tmp%core_vel(3,nshell))
 
        tmp%shell_pos(:,:) = 0.0_dp
        tmp%shell_vel(:,:) = 0.0_dp
@@ -310,7 +289,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure, my_deall, my_pos, &
                                                 my_vel
 
@@ -327,16 +305,13 @@ CONTAINS
     !      *** Broadcast the new particle positions ***
     IF(my_pos) THEN
        CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos)
-       DEALLOCATE (tmp%pos,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (tmp%pos)
 
        IF(shell_adiabatic)THEN
           CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos)
           CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos)
-          DEALLOCATE (tmp%shell_pos,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (tmp%core_pos,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (tmp%shell_pos)
+          DEALLOCATE (tmp%core_pos)
        END IF
     END IF
 
@@ -348,19 +323,15 @@ CONTAINS
           CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel)
        END IF
        IF(my_deall)THEN
-          DEALLOCATE (tmp%vel,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (tmp%vel)
           IF (shell_adiabatic) THEN
-             DEALLOCATE (tmp%shell_vel,STAT=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE (tmp%core_vel,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (tmp%shell_vel)
+             DEALLOCATE (tmp%core_vel)
           END IF
           CPASSERT(.NOT.ASSOCIATED(tmp%pos))
           CPASSERT(.NOT.ASSOCIATED(tmp%shell_pos))
           CPASSERT(.NOT.ASSOCIATED(tmp%core_pos))
-          DEALLOCATE (tmp,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (tmp)
        END IF
     END IF
 

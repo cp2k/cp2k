@@ -90,21 +90,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT. ASSOCIATED(reftraj))
-    ALLOCATE(reftraj, stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(reftraj)
     reftraj%ref_count = 1
 
     NULLIFY(reftraj%info)
     NULLIFY(reftraj%msd)
 
-    ALLOCATE(reftraj%info, STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(reftraj%info)
     NULLIFY(reftraj%info%traj_parser)
     NULLIFY(reftraj%info%cell_parser)
 
@@ -168,7 +165,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_reftraj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -179,35 +175,26 @@ CONTAINS
           CALL parser_release(reftraj%info%traj_parser)
           CALL parser_release(reftraj%info%cell_parser)
           IF(ASSOCIATED(reftraj%info)) THEN
-             DEALLOCATE (reftraj%info, STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (reftraj%info)
           END IF
           IF(ASSOCIATED(reftraj%msd)) THEN
-             DEALLOCATE(reftraj%msd%ref0_pos,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(reftraj%msd%ref0_pos)
              IF(reftraj%msd%msd_kind) THEN
-                 DEALLOCATE(reftraj%msd%val_msd_kind,STAT=istat)
-                 CPASSERT(istat==0)
+                 DEALLOCATE(reftraj%msd%val_msd_kind)
              END IF
              IF(reftraj%msd%msd_molecule) THEN
-                 DEALLOCATE(reftraj%msd%val_msd_molecule,STAT=istat)
-                 CPASSERT(istat==0)
-                 DEALLOCATE(reftraj%msd%ref0_com_molecule,STAT=istat)
-                 CPASSERT(istat==0)
+                 DEALLOCATE(reftraj%msd%val_msd_molecule)
+                 DEALLOCATE(reftraj%msd%ref0_com_molecule)
              END IF
              IF(reftraj%msd%disp_atom) THEN
-                 DEALLOCATE(reftraj%msd%disp_atom_index,STAT=istat)
-                 CPASSERT(istat==0)
-                 DEALLOCATE(reftraj%msd%disp_atom_dr,STAT=istat)
-                 CPASSERT(istat==0)
+                 DEALLOCATE(reftraj%msd%disp_atom_index)
+                 DEALLOCATE(reftraj%msd%disp_atom_dr)
              END IF
 
-             DEALLOCATE (reftraj%msd, STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (reftraj%msd)
           END IF
 
-          DEALLOCATE( reftraj , stat=istat )
-          CPASSERT(istat==0)
+          DEALLOCATE( reftraj )
        END IF
 
     END IF

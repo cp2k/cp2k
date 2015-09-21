@@ -657,7 +657,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_charge', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, m, n
+    INTEGER                                  :: i, j, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: den
@@ -665,8 +665,7 @@ CONTAINS
     failure = .FALSE.
     charge=0._dp
     m=SIZE(basis%bf,1)
-    ALLOCATE(den(m),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(den(m))
     n=basis%nbas(l)
     den=0._dp
     DO i=1,n
@@ -679,8 +678,7 @@ CONTAINS
       IF(basis%grid%rad(i) > rcov) den(i)=0._dp
     END DO
     charge = SUM ( den(1:m) * basis%grid%wr(1:m) )
-    DEALLOCATE(den,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(den)
 
   END SUBROUTINE atom_orbital_charge
 ! *****************************************************************************
@@ -701,7 +699,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3)                         :: my_typ
-    INTEGER                                  :: i, ierr, j, m, n
+    INTEGER                                  :: i, j, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
@@ -712,8 +710,7 @@ CONTAINS
 
     IF(gthpot%nlcc) THEN
       m = SIZE(corden)
-      ALLOCATE(fe(m),rc(m),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(fe(m),rc(m))
       n=gthpot%nexp_nlcc
       DO i=1,n
         a=gthpot%alpha_nlcc(i)
@@ -733,8 +730,7 @@ CONTAINS
           END IF
         END DO
       END DO
-      DEALLOCATE(fe,rc,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(fe,rc)
     END IF
 
   END SUBROUTINE atom_core_density
@@ -753,15 +749,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_local_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, m, n
+    INTEGER                                  :: i, j, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
     failure = .FALSE.
     m = SIZE(locpot)
-    ALLOCATE(fe(m),rc(m),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(fe(m),rc(m))
     rc(:)=rr(:)/gthpot%rc
     DO i=1,m
        locpot(i) = -gthpot%zion*erf(rc(i)/SQRT(2._dp))/rr(i)
@@ -782,8 +777,7 @@ CONTAINS
           END DO
        END DO
     END IF
-    DEALLOCATE(fe,rc,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(fe,rc)
 
   END SUBROUTINE atom_local_potential
 ! *****************************************************************************
@@ -804,15 +798,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_max', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, m, n
+    INTEGER                                  :: i, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dorb
 
     failure = .FALSE.
     m=SIZE(basis%bf,1)
-    ALLOCATE(dorb(m),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(dorb(m))
     n=basis%nbas(l)
     dorb=0._dp
     DO i=1,n
@@ -827,8 +820,7 @@ CONTAINS
         END IF
       END IF
     END DO
-    DEALLOCATE(dorb,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(dorb)
 
   END SUBROUTINE atom_orbital_max
 ! *****************************************************************************
@@ -849,7 +841,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, m, n
+    INTEGER                                  :: i, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: orb
@@ -857,8 +849,7 @@ CONTAINS
     failure = .FALSE.
     node=0
     m=SIZE(basis%bf,1)
-    ALLOCATE(orb(m),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orb(m))
     n=basis%nbas(l)
     orb=0._dp
     DO i=1,n
@@ -870,8 +861,7 @@ CONTAINS
         IF (orb(i)*orb(i+1) < 0._dp) node=node+1
       END IF
     END DO
-    DEALLOCATE(orb,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(orb)
 
   END SUBROUTINE atom_orbital_nodes
 ! *****************************************************************************
@@ -920,7 +910,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, info, l, lwork, m, n
+    INTEGER                                  :: info, l, lwork, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -935,8 +925,7 @@ CONTAINS
       m = nv(l)
       IF ( n > 0 .AND. m > 0 ) THEN
         lwork = 10*m
-        ALLOCATE(a(n,n),w(n),work(lwork),STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(a(n,n),w(n),work(lwork))
         a(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(hmat(1:n,1:n,l),umat(1:n,1:m,l)))
         CALL lapack_ssyev ( "V", "U", m, a(1:m,1:m), m, w(1:m), work, lwork, info )
         a(1:n,1:m) = MATMUL(umat(1:n,1:m,l),a(1:m,1:m))
@@ -945,8 +934,7 @@ CONTAINS
         orb(1:n,1:m,l) = a(1:n,1:m)
         ener(1:m,l) = w(1:m)
 
-        DEALLOCATE(a,w,work,STAT=ierr)
-        CPASSERT(ierr==0)
+        DEALLOCATE(a,w,work)
       END IF
     END DO
 
@@ -1095,7 +1083,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, k, l, m, n
+    INTEGER                                  :: i, j, k, l, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, ff, oab, sab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
@@ -1104,8 +1092,7 @@ CONTAINS
 
     failure = .FALSE.
     m = SIZE(cpot)
-    ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( erfa(1:m), expa(1:m), z(1:m))
 
     cpot = 0._dp
 
@@ -1146,8 +1133,7 @@ CONTAINS
         CASE ( CGTO_BASIS )
           n = basis%nprim(l)
           m = basis%nbas(l)
-          ALLOCATE ( unp(n,n), STAT=ierr )
-          CPASSERT(ierr==0)
+          ALLOCATE ( unp(n,n))
 
           unp(1:n,1:n) = MATMUL ( MATMUL(basis%cm(1:n,1:m,l),pmat(1:m,1:m,l)),&
                                   TRANSPOSE(basis%cm(1:n,1:m,l)))
@@ -1180,12 +1166,10 @@ CONTAINS
             END DO
           END DO
 
-          DEALLOCATE ( unp, STAT=ierr )
-          CPASSERT(ierr==0)
+          DEALLOCATE ( unp)
       END SELECT
     END DO
-    DEALLOCATE ( erfa, expa, z, STAT=ierr )
-    CPASSERT(ierr==0)
+    DEALLOCATE ( erfa, expa, z)
 
   END SUBROUTINE coulomb_potential_analytic
 
@@ -1212,8 +1196,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'exchange_numeric', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ia, ib, ierr, k, lad, lbc, &
-                                                lh, ll, nbas, norb, nr, nu
+    INTEGER                                  :: i, ia, ib, k, lad, lbc, lh, &
+                                                ll, nbas, norb, nr, nu
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: almn
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, nai, nbi
@@ -1231,16 +1215,14 @@ CONTAINS
     kmat = 0._dp
 
     nr = basis%grid%nr
-    ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( nai(nr), nbi(nr), cpot(nr))
 
     DO lad = 0, state%maxl_calc
       DO lbc = 0 , state%maxl_occ
         norb = state%maxn_occ(lbc)
         nbas = basis%nbas(lbc)
         ! calculate orbitals for angmom lbc
-        ALLOCATE ( orb(nr,norb), STAT=ierr )
-        CPASSERT(ierr==0)
+        ALLOCATE ( orb(nr,norb))
         orb = 0._dp
         DO i=1,norb
           DO k=1,nbas
@@ -1263,13 +1245,11 @@ CONTAINS
           END DO
 
         END DO
-        DEALLOCATE ( orb, STAT=ierr )
-        CPASSERT(ierr==0)
+        DEALLOCATE ( orb)
       END DO
     END DO
 
-    DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
-    CPASSERT(ierr==0)
+    DEALLOCATE ( nai, nbi, cpot)
 
   END SUBROUTINE exchange_numeric
 
@@ -1296,8 +1276,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'exchange_semi_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ia, ib, ierr, k, lad, lbc, &
-                                                lh, ll, nbas, norb, nr, nu
+    INTEGER                                  :: i, ia, ib, k, lad, lbc, lh, &
+                                                ll, nbas, norb, nr, nu
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: almn
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, nai, nbi
@@ -1318,18 +1298,15 @@ CONTAINS
 
     nr = basis%grid%nr
     nbas = MAXVAL(basis%nbas)
-    ALLOCATE ( pot(nr,nbas,nbas), STAT=ierr )
-    CPASSERT(ierr==0)
-    ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( pot(nr,nbas,nbas))
+    ALLOCATE ( nai(nr), nbi(nr), cpot(nr))
 
     DO lad = 0, state%maxl_calc
       DO lbc = 0 , state%maxl_occ
         norb = state%maxn_occ(lbc)
         nbas = basis%nbas(lbc)
         ! calculate orbitals for angmom lbc
-        ALLOCATE ( orb(nr,norb), STAT=ierr )
-        CPASSERT(ierr==0)
+        ALLOCATE ( orb(nr,norb))
         orb = 0._dp
         DO i=1,norb
           DO k=1,nbas
@@ -1355,15 +1332,12 @@ CONTAINS
             END DO
           END DO
         END DO
-        DEALLOCATE ( orb, STAT=ierr )
-        CPASSERT(ierr==0)
+        DEALLOCATE ( orb)
       END DO
     END DO
 
-    DEALLOCATE ( pot, STAT=ierr )
-    CPASSERT(ierr==0)
-    DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
-    CPASSERT(ierr==0)
+    DEALLOCATE ( pot)
+    DEALLOCATE ( nai, nbi, cpot)
 
   END SUBROUTINE exchange_semi_analytic
 
@@ -1424,15 +1398,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'potential_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, k, l, ll, m
+    INTEGER                                  :: i, j, k, l, ll, m
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, oab, sab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
 
     failure = .FALSE.
     m = SIZE(cpot,1)
-    ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( erfa(1:m), expa(1:m), z(1:m))
 
     ll = la+lb
 
@@ -1608,8 +1581,7 @@ CONTAINS
 
     END SELECT
 
-    DEALLOCATE ( erfa, expa, z, STAT=ierr )
-    CPASSERT(ierr==0)
+    DEALLOCATE ( erfa, expa, z)
 
   END SUBROUTINE potential_analytic
 ! *****************************************************************************
@@ -1873,7 +1845,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'err_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, l, m, n
+    INTEGER                                  :: l, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tkmat, tpmat
@@ -1884,8 +1856,7 @@ CONTAINS
       n = nval(l)
       m = nbs(l)
       IF (m > 0) THEN
-        ALLOCATE(tkmat(1:m,1:m),tpmat(1:m,1:m),STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(tkmat(1:m,1:m),tpmat(1:m,1:m))
         tkmat = 0._dp
         tpmat = 0._dp
         tkmat(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(kmat(1:n,1:n,l),umat(1:n,1:m,l)))
@@ -1894,8 +1865,7 @@ CONTAINS
 
         emat(1:m,1:m,l) = MATMUL(tkmat(1:m,1:m),tpmat(1:m,1:m)) - MATMUL(tpmat(1:m,1:m),tkmat(1:m,1:m))
 
-        DEALLOCATE(tkmat,tpmat,STAT=ierr)
-        CPASSERT(ierr==0)
+        DEALLOCATE(tkmat,tpmat)
       END IF
     END DO
     demax = MAXVAL(ABS(emat))

@@ -94,7 +94,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -104,16 +103,13 @@ CONTAINS
        IF (trial_fns%obj%ref_count == 0) THEN
           trial_fns%obj%ref_count = 1
           IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-             DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(trial_fns%obj%nfunctions)
           END IF
           IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-             DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(trial_fns%obj%functions)
           END IF
           trial_fns%obj%ref_count = 0
-          DEALLOCATE(trial_fns%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(trial_fns%obj)
        END IF
     ELSE
        NULLIFY(trial_fns%obj)
@@ -182,13 +178,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(trial_fns%obj))
-    ALLOCATE(trial_fns%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(trial_fns%obj)
     NULLIFY(trial_fns%obj%nfunctions)
     NULLIFY(trial_fns%obj%functions)
     trial_fns%obj%ref_count = 1
@@ -208,20 +202,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(trial_fns%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-       DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(trial_fns%obj%nfunctions)
        NULLIFY(trial_fns%obj%nfunctions)
     END IF
     IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-       DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(trial_fns%obj%functions)
        NULLIFY(trial_fns%obj%functions)
     END IF
   END SUBROUTINE fb_trial_fns_init
@@ -272,22 +263,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) THEN
        IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-          DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(trial_fns%obj%nfunctions)
        END IF
        trial_fns%obj%nfunctions => nfunctions
     END IF
     IF (PRESENT(functions)) THEN
        IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-          DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(trial_fns%obj%functions)
        END IF
        trial_fns%obj%functions => functions
     END IF

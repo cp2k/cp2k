@@ -112,7 +112,7 @@ MODULE mp2_ri_grad_util
       my_ia_size, my_ia_start, my_P_end, my_P_size, my_P_start, ncol_local, &
       nrow_local, pos_group, pos_sub, proc_receive, proc_send, proc_shift, &
       rec_B_size, rec_B_virtual_end, rec_B_virtual_start, row, row_offset, &
-      row_size, stat
+      row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_ia, ends_P, pos_info, &
                                                 proc_map, sizes_ia, sizes_P, &
                                                 starts_ia, starts_P
@@ -140,14 +140,11 @@ MODULE mp2_ri_grad_util
     ! reorder the local data in such a way to help the next stage of matrix creation
     ! now the data inside the group are divided into a ia x K matrix
     dimen_ia=homo*virtual
-    ALLOCATE(sizes_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes_ia(0:para_env_sub%num_pe-1))
     sizes_ia=0
-    ALLOCATE(starts_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(starts_ia(0:para_env_sub%num_pe-1))
     starts_ia=0
-    ALLOCATE(ends_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ends_ia(0:para_env_sub%num_pe-1))
     ends_ia=0
 
     DO iproc=0, para_env_sub%num_pe-1
@@ -162,8 +159,7 @@ MODULE mp2_ri_grad_util
     my_ia_size=sizes_ia(para_env_sub%mepos)
 
     ! reorder data (first (ia|K))
-    ALLOCATE(BIb_C_2D(my_ia_size,my_group_L_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(BIb_C_2D(my_ia_size,my_group_L_size))
     BIb_C_2D=0.0_dp
 
     DO iiB=1, homo
@@ -183,8 +179,7 @@ MODULE mp2_ri_grad_util
       rec_B_virtual_end=ends_B_virtual(proc_receive)
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
-      ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size))
       BIb_C_rec=0.0_dp
 
       CALL  mp_sendrecv(B_ia_Q,proc_send,&
@@ -205,8 +200,7 @@ MODULE mp2_ri_grad_util
     DEALLOCATE(B_ia_Q)
 
     ! reorder data (Gamma)
-    ALLOCATE(Gamma_2D(my_ia_size,my_group_L_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Gamma_2D(my_ia_size,my_group_L_size))
     Gamma_2D=0.0_dp
 
     DO iiB=1, homo
@@ -233,8 +227,7 @@ MODULE mp2_ri_grad_util
       rec_B_virtual_end=ends_B_virtual(proc_receive)
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
-      ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size))
       BIb_C_rec=0.0_dp
 
       IF (alpha_case) THEN 
@@ -265,30 +258,23 @@ MODULE mp2_ri_grad_util
     ENDIF
 
     ! create the processor map and size arrays
-    ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1))
     proc_map=0
-    ALLOCATE(sizes(2,0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes(2,0:para_env%num_pe-1))
     sizes=0
-    ALLOCATE(starts(2,0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(starts(2,0:para_env%num_pe-1))
     starts=0
-    ALLOCATE(ends(2,0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ends(2,0:para_env%num_pe-1))
     ends=0
 
-    ALLOCATE(pos_info(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pos_info(0:para_env%num_pe-1))
     pos_info=0
     pos_info(para_env%mepos)=para_env_sub%mepos
     CALL mp_sum(pos_info,para_env%group)
 
-    ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:ngroup-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:ngroup-1))
     group_grid_2_mepos=0
-    ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2))
     mepos_2_grid_group=0
 
     DO i=0,para_env%num_pe-1
@@ -340,14 +326,11 @@ MODULE mp2_ri_grad_util
 
     ! create PQ_half
     ! get the ranges and info for the (P|Q)^(-1/2) matrix
-    ALLOCATE(sizes_P(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes_P(0:para_env_sub%num_pe-1))
     sizes_P=0
-    ALLOCATE(starts_P(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(starts_P(0:para_env_sub%num_pe-1))
     starts_P=0
-    ALLOCATE(ends_P(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ends_P(0:para_env_sub%num_pe-1))
     ends_P=0
     DO iproc=0, para_env_sub%num_pe-1
       itmp=get_limit(dimen_RI,para_env_sub%num_pe,iproc)
@@ -379,8 +362,7 @@ MODULE mp2_ri_grad_util
     END DO
     ! since we will need (P|Q)^(-1/2) in the future, make a copy
     IF (alpha_case) THEN
-       ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size))
        mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
        CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
             my_P_start,my_P_end,&
@@ -389,8 +371,7 @@ MODULE mp2_ri_grad_util
             group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
             PQ_half)
     ELSE
-       ALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta(my_P_size,my_group_L_size),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta(my_P_size,my_group_L_size))
        mp2_env%ri_grad%Gamma_PQ_beta(:,:)=mp2_env%ri_grad%PQ_half
        CALL array2fm(mp2_env%ri_grad%Gamma_PQ_beta,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
             my_P_start,my_P_end,&
@@ -675,7 +656,6 @@ MODULE mp2_ri_grad_util
       rec_prow, rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, &
       ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
       size_send_buffer, start_col_block, start_row_block
-    INTEGER :: stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send
@@ -722,11 +702,9 @@ MODULE mp2_ri_grad_util
     ! 0) create array containing the processes position
     !    and supporting infos
     CALL timeset(routineN//"_info",handle2)
-    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1))
     grid_2_mepos=0
-    ALLOCATE(mepos_2_grid(0:para_env%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid(0:para_env%num_pe-1,2))
     mepos_2_grid=0
     ! fill the info array
     grid_2_mepos(myprow,mypcol)=para_env%mepos
@@ -737,8 +715,7 @@ MODULE mp2_ri_grad_util
     CALL mp_sum(mepos_2_grid,para_env%group)   
 
     ! 1) loop over my local data and define a map for the proc to send data
-    ALLOCATE(map_send_size(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_send_size(0:para_env%num_pe-1))
     map_send_size=0
     DO jjB=my_start_col, my_end_col
       send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
@@ -752,8 +729,7 @@ MODULE mp2_ri_grad_util
     END DO
 
     ! 2) loop over my local data of fm_mat and define a map for the proc from which rec data
-    ALLOCATE(map_rec_size(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_rec_size(0:para_env%num_pe-1))
     map_rec_size=0
     part_row=FLOAT(num_rows)/FLOAT(ngroup_row)
     part_col=FLOAT(num_cols)/FLOAT(ngroup_col)
@@ -820,13 +796,11 @@ MODULE mp2_ri_grad_util
       END IF
     END DO
     ! allocate the structure that will hold the messages to be sent
-    ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_send(number_of_send))
     ! grid_ref_2_send_pos is an array (map) that given a pair 
     ! (ref_send_prow,ref_send_pcol) returns
     ! the position in the buffer_send associated to that process
-    ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1))
     grid_ref_2_send_pos=0
     ! finalize the allocation of buffer_send with the actual size
     ! of each message (actual size is size_send_buffer)
@@ -837,8 +811,7 @@ MODULE mp2_ri_grad_util
       IF(map_send_size(proc_send)>0) THEN
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
-        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer))
         buffer_send(send_counter)%msg=0.0_dp
         buffer_send(send_counter)%proc=proc_send
         ! get the pointer to prow, pcol of the process that has 
@@ -853,8 +826,7 @@ MODULE mp2_ri_grad_util
     ! loop over the locally held data and fill the buffer_send
     ! for doing that we need an array that keep track if the 
     ! sequential increase of the index for each message
-    ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(iii_vet(number_of_send))
     iii_vet=0
     DO iiB=my_start_row, my_end_row
       send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
@@ -890,8 +862,7 @@ MODULE mp2_ri_grad_util
       END IF
     END DO
     
-    ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_rec(number_of_rec))
 
     rec_counter=0
     DO proc_shift=1, para_env%num_pe-1
@@ -900,8 +871,7 @@ MODULE mp2_ri_grad_util
       IF(map_rec_size(proc_receive)>0) THEN
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
-        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer))
         buffer_rec(rec_counter)%msg=0.0_dp
         buffer_rec(rec_counter)%proc=proc_receive
         ! post the message to be received
@@ -911,8 +881,7 @@ MODULE mp2_ri_grad_util
     END DO
 
     ! send messages
-    ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(req_send(number_of_send))
     send_counter=0
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
@@ -936,8 +905,7 @@ MODULE mp2_ri_grad_util
       IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
       my_num_row_blocks=my_num_row_blocks+1
     END DO
-    ALLOCATE(blocks_ranges_row(2,my_num_row_blocks),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(blocks_ranges_row(2,my_num_row_blocks))
     blocks_ranges_row=0
     blocks_ranges_row(1,1)=row_indices(1)
     iii=1
@@ -954,8 +922,7 @@ MODULE mp2_ri_grad_util
       IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
       my_num_col_blocks=my_num_col_blocks+1
     END DO
-    ALLOCATE(blocks_ranges_col(2,my_num_col_blocks),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(blocks_ranges_col(2,my_num_col_blocks))
     blocks_ranges_col=0
     blocks_ranges_col(1,1)=col_indices(1)
     iii=1
@@ -988,8 +955,7 @@ MODULE mp2_ri_grad_util
             num_rec_cols=num_rec_cols+1
           END DO
         END DO
-        ALLOCATE(index_col_rec(num_rec_cols),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(index_col_rec(num_rec_cols))
         index_col_rec=0
         iii=0
         DO jjB=1, my_num_col_blocks
@@ -1103,8 +1069,7 @@ MODULE mp2_ri_grad_util
       nrow_block, nrow_local, num_rec_rows, number_of_rec, number_of_send, &
       proc_receive, proc_send, proc_shift, rec_col_size, rec_counter, &
       rec_pcol, rec_prow, rec_row_size, ref_send_pcol, ref_send_prow, &
-      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
-      stat
+      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_row_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send
@@ -1121,8 +1086,7 @@ MODULE mp2_ri_grad_util
     failure=.FALSE.
 
     ! allocate the array
-    ALLOCATE(mat2D(my_rows,my_cols),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mat2D(my_rows,my_cols))
     mat2D=0.0_dp
 
     ! start procedure
@@ -1143,11 +1107,9 @@ MODULE mp2_ri_grad_util
     ! 0) create array containing the processes position
     !    and supporting infos
     CALL timeset(routineN//"_info",handle2)
-    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1))
     grid_2_mepos=0
-    ALLOCATE(mepos_2_grid(0:para_env%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid(0:para_env%num_pe-1,2))
     mepos_2_grid=0
     ! ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
     ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
@@ -1162,8 +1124,7 @@ MODULE mp2_ri_grad_util
     CALL mp_sum(mepos_2_grid,para_env%group)
 
     ! 1) loop over my local data and define a map for the proc to send data
-    ALLOCATE(map_send_size(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_send_size(0:para_env%num_pe-1))
     map_send_size=0
     part_row=FLOAT(num_rows)/FLOAT(ngroup_row)
     part_col=FLOAT(num_cols)/FLOAT(ngroup_col)   
@@ -1205,8 +1166,7 @@ MODULE mp2_ri_grad_util
     ! WRITE(*,*) para_env%mepos,'AAAA',map_send_size
 
     ! 2) loop over my local data of the array and define a map for the proc from which rec data
-    ALLOCATE(map_rec_size(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_rec_size(0:para_env%num_pe-1))
     map_rec_size=0
     DO jjB=my_start_col, my_end_col
       rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
@@ -1246,15 +1206,13 @@ MODULE mp2_ri_grad_util
       END IF
     END DO
     ! allocate the structure that will hold the messages to be sent
-    ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_send(number_of_send))
     ! grid_ref_2_send_pos is an array (map) that given a pair 
     ! (ref_send_prow,ref_send_pcol) returns
     ! the position in the buffer_send associated to that process
 
     ! ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
-    ALLOCATE(grid_ref_2_send_pos(0:ngroup_row-1,0:ngroup_col-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_ref_2_send_pos(0:ngroup_row-1,0:ngroup_col-1))
     grid_ref_2_send_pos=0
 
     ! finalize the allocation of buffer_send with the actual size
@@ -1266,8 +1224,7 @@ MODULE mp2_ri_grad_util
       IF(map_send_size(proc_send)>0) THEN
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
-        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer))
         buffer_send(send_counter)%msg=0.0_dp
         buffer_send(send_counter)%proc=proc_send
         ! get the pointer to prow, pcol of the process that has 
@@ -1282,8 +1239,7 @@ MODULE mp2_ri_grad_util
     ! loop over the locally held data and fill the buffer_send
     ! for doing that we need an array that keep track if the 
     ! sequential increase of the index for each message
-    ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(iii_vet(number_of_send))
     iii_vet=0
     DO jjB=1, ncol_local
       j_global=col_indices(jjB)
@@ -1339,8 +1295,7 @@ MODULE mp2_ri_grad_util
       END IF
     END DO
 
-    ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_rec(number_of_rec))
     
     rec_counter=0
     DO proc_shift=1, para_env%num_pe-1
@@ -1349,8 +1304,7 @@ MODULE mp2_ri_grad_util
       IF(map_rec_size(proc_receive)>0) THEN
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
-        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer))
         buffer_rec(rec_counter)%msg=0.0_dp
         buffer_rec(rec_counter)%proc=proc_receive
         ! post the message to be received
@@ -1360,8 +1314,7 @@ MODULE mp2_ri_grad_util
     END DO    
 
     ! send messages
-    ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(req_send(number_of_send))
     send_counter=0
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
@@ -1378,8 +1331,7 @@ MODULE mp2_ri_grad_util
     !    other processes
     CALL timeset(routineN//"_fill",handle2)
     iiB=MAXVAL(sizes(1,:))
-    ALLOCATE(index_row_rec(iiB),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(index_row_rec(iiB))
     index_row_rec=0
     rec_counter=0
     DO proc_shift=1, para_env%num_pe-1
@@ -1480,7 +1432,7 @@ MODULE mp2_ri_grad_util
       number_of_send, proc_receive, proc_send, proc_shift, rec_counter, &
       rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, &
       ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, &
-      size_rec_buffer, size_send_buffer, stat
+      size_rec_buffer, size_send_buffer
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, map_rec_size, &
                                                 map_send_size, req_send
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: grid_2_mepos, &
@@ -1542,11 +1494,9 @@ MODULE mp2_ri_grad_util
     npcol =fm_ia%matrix_struct%context%num_pe(2)
 
     ! 0) create array containing the processes position and supporting infos
-    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1))
     grid_2_mepos=0
-    ALLOCATE(mepos_2_grid(0:para_env_sub%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid(0:para_env_sub%num_pe-1,2))
     mepos_2_grid=0
     ! fill the info array
     grid_2_mepos(myprow,mypcol)=para_env_sub%mepos
@@ -1557,8 +1507,7 @@ MODULE mp2_ri_grad_util
     CALL mp_sum(mepos_2_grid,para_env_sub%group)
 
     ! loop over local index range and define the sending map
-    ALLOCATE(map_send_size(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_send_size(0:para_env_sub%num_pe-1))
     map_send_size=0   
     DO iaia=my_ia_start, my_ia_end
       i_global=(iaia-1)/virtual+1
@@ -1572,8 +1521,7 @@ MODULE mp2_ri_grad_util
     END DO
 
     ! loop over local data of fm_ia and define the receiving map
-    ALLOCATE(map_rec_size(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_rec_size(0:para_env_sub%num_pe-1))
     map_rec_size=0
     part_ia=FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
 
@@ -1604,11 +1552,9 @@ MODULE mp2_ri_grad_util
       END IF
     END DO
     ! allocate the structure that will hold the messages to be sent
-    ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_send(number_of_send))
     ! and the map from the grid of processess to the message position
-    ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1))
     grid_ref_2_send_pos=0
     ! finally allocate each message
     send_counter=0
@@ -1618,8 +1564,7 @@ MODULE mp2_ri_grad_util
       IF(map_send_size(proc_send)>0) THEN
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
-        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer))
         buffer_send(send_counter)%proc=proc_send
         ! get the pointer to prow, pcol of the process that has 
         ! to receive this message
@@ -1641,10 +1586,8 @@ MODULE mp2_ri_grad_util
     END DO
     ! allocate the structure that will hold the messages to be received
     ! and relative indeces
-    ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(indeces_rec(number_of_rec),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_rec(number_of_rec))
+    ALLOCATE(indeces_rec(number_of_rec))
     ! finally allocate each message and fill the array of indeces
     rec_counter=0
     DO proc_shift=1, para_env_sub%num_pe-1
@@ -1653,12 +1596,10 @@ MODULE mp2_ri_grad_util
       IF(map_rec_size(proc_receive)>0) THEN
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
-        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer))
         buffer_rec(rec_counter)%proc=proc_receive
         ! create the indeces array
-        ALLOCATE(indeces_rec(rec_counter)%map(2,size_rec_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(indeces_rec(rec_counter)%map(2,size_rec_buffer))
         indeces_rec(rec_counter)%map=0
         rec_iaia_start=starts_ia(proc_receive)
         rec_iaia_end=ends_ia(proc_receive)
@@ -1685,8 +1626,7 @@ MODULE mp2_ri_grad_util
     ! and create the index map for my local data
     IF(map_rec_size(para_env_sub%mepos)>0) THEN
       size_rec_buffer=map_rec_size(para_env_sub%mepos)
-      ALLOCATE(indeces_map_my(2,size_rec_buffer),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(indeces_map_my(2,size_rec_buffer))
       indeces_map_my=0
       iii=0
       DO iaia=my_ia_start, my_ia_end
@@ -1708,11 +1648,9 @@ MODULE mp2_ri_grad_util
     END IF
 
     ! auxiliary vector of indeces for the send buffer
-    ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(iii_vet(number_of_send))
     ! vector for the send requests
-    ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(req_send(number_of_send))
     ! loop over auxiliary basis function and redistribute into a fm
     ! and then compy the fm into a dbcsr matrix
     DO kkB=1, my_group_L_size

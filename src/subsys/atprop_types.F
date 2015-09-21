@@ -52,13 +52,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
   CALL atprop_release(atprop_env)
-  ALLOCATE(atprop_env,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(atprop_env)
   NULLIFY(atprop_env%atener,atprop_env%atstress)
   NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
   NULLIFY(atprop_env%ateself,atprop_env%atexc,atprop_env%ate1c)
@@ -79,7 +77,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -100,8 +97,7 @@ CONTAINS
     IF(ASSOCIATED(atprop_env%atstress)) THEN
       CPASSERT(SIZE(atprop_env%atstress,3)==natom)
     ELSE
-      ALLOCATE(atprop_env%atstress(3,3,natom),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(atprop_env%atstress(3,3,natom))
     END IF
     atprop_env%atstress = 0._dp
   END IF
@@ -120,7 +116,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -128,8 +123,7 @@ CONTAINS
     IF(ASSOCIATED(atarray)) THEN
       CPASSERT(SIZE(atarray)==natom)
     ELSE
-      ALLOCATE(atarray(natom),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(atarray(natom))
     END IF
     atarray = 0._dp
 
@@ -145,14 +139,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF(ASSOCIATED(atarray)) THEN
-      DEALLOCATE(atarray,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(atarray)
       NULLIFY(atarray)
     END IF
 
@@ -191,7 +183,6 @@ SUBROUTINE atprop_release(atprop_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -207,12 +198,10 @@ SUBROUTINE atprop_release(atprop_env)
      CALL atprop_array_release(atprop_env%atecoul)
      ! stress
      IF (ASSOCIATED(atprop_env%atstress)) THEN
-        DEALLOCATE(atprop_env%atstress,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(atprop_env%atstress)
      END IF
      ! atprop type
-     DEALLOCATE(atprop_env,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(atprop_env)
   END IF
   NULLIFY(atprop_env)
 END SUBROUTINE atprop_release

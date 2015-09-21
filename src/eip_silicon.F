@@ -77,7 +77,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
-      natom, nparticle_kind, nparticle_local, stat
+      natom, nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -120,8 +120,7 @@ CONTAINS
     natom = SIZE(particle_set)
     !natom = local_particles%n_el(1)
 
-    ALLOCATE(rxyz(3,natom), stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(rxyz(3,natom))
 
     DO i = 1,natom
       !iparticle = local_particles%list(1)%array(i)
@@ -164,8 +163,7 @@ CONTAINS
       particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
     END DO
 
-    DEALLOCATE(rxyz, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rxyz)
 
     ! Print
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -252,7 +250,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
-      natom, nparticle_kind, nparticle_local, stat
+      natom, nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -295,8 +293,7 @@ CONTAINS
     natom = SIZE(particle_set)
     !natom = local_particles%n_el(1)
 
-    ALLOCATE(rxyz(3,natom), stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(rxyz(3,natom))
 
     DO i = 1,natom
       !iparticle = local_particles%list(1)%array(i)
@@ -339,8 +336,7 @@ CONTAINS
       particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
     END DO
 
-    DEALLOCATE(rxyz, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rxyz)
 
     ! Print
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &

@@ -704,7 +704,6 @@ CONTAINS
 !> \brief ...
 ! *****************************************************************************
     SUBROUTINE integrate_general_subpatch()
-    INTEGER                                  :: stat
     INTEGER, DIMENSION(2, 3)                 :: local_b
     INTEGER, DIMENSION(3)                    :: local_s, periodic
     REAL(dp), DIMENSION((&
@@ -731,23 +730,21 @@ CONTAINS
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
             scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-        ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3)
         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
                                   current_maxl, ncoset(la_max_local), & 
                                   ncoset(lb_max_local))
 
-        DEALLOCATE(coef_xyz,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(coef_xyz)
     END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
     SUBROUTINE integrate_general_wings()
-    INTEGER                                  :: periodic(3), stat
+    INTEGER                                  :: periodic(3)
     INTEGER, DIMENSION(2, 3)                 :: local_b
     REAL(dp), DIMENSION((&
       la_max_local+lb_max_local+1)*(&
@@ -775,16 +772,14 @@ CONTAINS
             periodic=periodic,gdim=ng,local_bounds=local_b,&
             scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-        ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3)
         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
                                 current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
 
 
-        DEALLOCATE(coef_xyz,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(coef_xyz)
     END SUBROUTINE
 
 ! *****************************************************************************

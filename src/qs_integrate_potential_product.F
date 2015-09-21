@@ -160,7 +160,7 @@ CONTAINS
       iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, jpgf_new, &
       jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
       natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, &
-      offs_dv, sgfa, sgfb, stat
+      offs_dv, sgfa, sgfb
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -329,8 +329,7 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     IF (calculate_forces) THEN
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
@@ -359,8 +358,7 @@ CONTAINS
 
     ! initialize the working hmat structures
     h_duplicated = .FALSE.
-    ALLOCATE(dhmat(nimages),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dhmat(nimages))
     IF(do_kp) THEN
        DO img=1,nimages
           dhmat(img)%matrix => hmat_kp(img)%matrix
@@ -373,8 +371,7 @@ CONTAINS
        href => dhmat(1)%matrix
        DO img=1,nimages
           NULLIFY(dhmat(img)%matrix)
-          ALLOCATE(dhmat(img)%matrix,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(dhmat(img)%matrix)
           CALL cp_dbcsr_init(dhmat(img)%matrix)
           CALL cp_dbcsr_create(dhmat(img)%matrix, 'LocalH', &
                cp_dbcsr_distribution (href),&
@@ -386,8 +383,7 @@ CONTAINS
     p_duplicated = .FALSE.
     IF ( pab_required ) THEN
        ! initialize the working pmat structures
-       ALLOCATE(deltap(nimages),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(deltap(nimages))
        IF(do_kp) THEN
           DO img=1,nimages
              deltap(img)%matrix => pmat_kp(img)%matrix
@@ -399,8 +395,7 @@ CONTAINS
           p_duplicated = .TRUE.
           DO img=1,nimages
              NULLIFY(deltap(img)%matrix)
-             ALLOCATE(deltap(img)%matrix,STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(deltap(img)%matrix)
              CALL cp_dbcsr_init(deltap(img)%matrix)
           END DO
           IF(do_kp) THEN
@@ -452,8 +447,7 @@ CONTAINS
     ENDIF
 
     IF (debug_this_module) THEN
-       ALLOCATE(block_touched(natom,natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(block_touched(natom,natom))
     END IF
 
 !$omp parallel default(none), &
@@ -806,8 +800,7 @@ CONTAINS
 !$omp end parallel
 
     IF (debug_this_module) THEN
-       DEALLOCATE(block_touched,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(block_touched)
     END IF
 
     IF ( h_duplicated ) THEN
@@ -818,24 +811,21 @@ CONTAINS
           CALL rs_distribute_matrix (rs_descs, dhmat, atom_pair_recv, atom_pair_send,&
                natom, nimages, scatter, hmats=hmat_kp)
        ELSE
-          ALLOCATE(htemp(1),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(htemp(1))
           htemp(1)%matrix => hmat%matrix
 
           CALL rs_distribute_matrix (rs_descs, dhmat, atom_pair_recv, atom_pair_send,&
                natom, nimages, scatter, hmats=htemp)
 
           NULLIFY(htemp(1)%matrix)
-          DEALLOCATE(htemp,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(htemp)
        END IF
        CALL cp_dbcsr_deallocate_matrix_set ( dhmat)
     ELSE
        DO img=1,nimages
           NULLIFY ( dhmat(img)%matrix )
        END DO
-       DEALLOCATE(dhmat,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dhmat)
     END IF
 
     IF ( pab_required ) THEN
@@ -845,19 +835,16 @@ CONTAINS
           DO img=1,nimages
              NULLIFY ( deltap(img)%matrix )
           END DO
-          DEALLOCATE(deltap,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(deltap)
        END IF
     END IF
 
     !   *** Release work storage ***
 
-    DEALLOCATE (habt,workt,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (habt,workt)
 
     IF ( pab_required ) THEN
-       DEALLOCATE (pabt,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (pabt)
     END IF
 
     IF (ASSOCIATED(rs_v)) THEN
@@ -867,8 +854,7 @@ CONTAINS
     END IF
 
     IF (calculate_forces) THEN
-       DEALLOCATE (atom_of_kind,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (atom_of_kind)
     END IF
 
     CALL timestop(handle)

@@ -148,7 +148,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: ngto = 8
 
     CHARACTER(len=2)                         :: esym
-    INTEGER                                  :: ikind, nkind, stat
+    INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: al, rco, zeff
     REAL(KIND=dp), DIMENSION(ngto, 2)        :: ppdens
@@ -159,17 +159,14 @@ CONTAINS
     CPASSERT(ASSOCIATED(hirshfeld_env))
 
     nkind = SIZE(qs_kind_set)
-    ALLOCATE(hirshfeld_env%kind_shape_fn(nkind), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hirshfeld_env%kind_shape_fn(nkind))
 
     SELECT CASE(hirshfeld_env%shape_function_type)
        CASE (shape_function_gaussian)
           DO ikind=1,nkind
              hirshfeld_env%kind_shape_fn(ikind)%numexp = 1
-             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(1), stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(1), stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(1))
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(1))
              CALL get_qs_kind(qs_kind_set(ikind),element_symbol=esym)
              rco = 2.0_dp
              CALL get_ptable_info(symbol=esym,covalent_radius=rco,found=found)
@@ -186,10 +183,8 @@ CONTAINS
              CALL calculate_atomic_density(ppdens(:,:),atomic_kind,qs_kind,ngto,&
                                            confine=.FALSE.)
              hirshfeld_env%kind_shape_fn(ikind)%numexp = ngto
-             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(ngto), stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(ngto), stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(ngto))
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(ngto))
              hirshfeld_env%kind_shape_fn(ikind)%zet(:) = ppdens(:,1)
              CALL get_qs_kind(qs_kind,zeff=zeff)
              hirshfeld_env%kind_shape_fn(ikind)%coef(:) = ppdens(:,2)/zeff
@@ -218,7 +213,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirshfeld_charges', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: is, stat
+    INTEGER                                  :: is
     LOGICAL                                  :: failure, rho_r_valid
     REAL(KIND=dp)                            :: tnfun
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -235,8 +230,7 @@ CONTAINS
     tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw)
     tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
     ! 
-    ALLOCATE(rhonorm, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rhonorm)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho)
     CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
@@ -256,8 +250,7 @@ CONTAINS
     END DO
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhonorm%pw)
     !
-    DEALLOCATE(rhonorm, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rhonorm)
 
   END SUBROUTINE comp_hirshfeld_charges
 ! *****************************************************************************
@@ -324,7 +317,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: maxres = 1.0e-2_dp
 
     CHARACTER(len=3)                         :: yesno
-    INTEGER                                  :: iat, iloop, is, natom, stat
+    INTEGER                                  :: iat, iloop, is, natom
     LOGICAL                                  :: failure, rho_r_valid
     REAL(KIND=dp)                            :: res, tnfun
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -340,8 +333,7 @@ CONTAINS
 
     IF(ounit>0) WRITE(ounit,"(/,T2,A)") "Hirshfeld charge iterations: Residuals ..."
     !
-    ALLOCATE(rhonorm, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rhonorm)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho)
     CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
@@ -388,8 +380,7 @@ CONTAINS
     !
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhonorm%pw)
     !
-    DEALLOCATE(rhonorm, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rhonorm)
 
   END SUBROUTINE comp_hirshfeld_i_charges
 
@@ -407,9 +398,9 @@ CONTAINS
       routineN = 'calculate_hirshfeld_normalization', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, ierr, &
-                                                iex, ikind, ithread, j, &
-                                                natom, npme, nthread, numexp
+    INTEGER                                  :: atom_a, handle, iatom, iex, &
+                                                ikind, ithread, j, natom, &
+                                                npme, nthread, numexp
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure
@@ -442,8 +433,7 @@ CONTAINS
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-    ALLOCATE(pab(1,1),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(pab(1,1))
     nthread = 1
     ithread = 0
 
@@ -451,8 +441,7 @@ CONTAINS
       numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
       IF ( numexp <= 0 ) CYCLE
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-      ALLOCATE(cores(natom),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(cores(natom))
 
       DO iex=1,numexp
          alpha=hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
@@ -486,21 +475,17 @@ CONTAINS
          END DO
       END DO
 
-      DEALLOCATE(cores,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(cores)
     END DO
-    DEALLOCATE (pab,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE (pab)
 
     NULLIFY(fnorm)
     CALL get_hirshfeld_info(hirshfeld_env,fnorm=fnorm)
     IF (ASSOCIATED(fnorm)) THEN
        CALL pw_release(fnorm%pw)
-       DEALLOCATE(fnorm,stat=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE(fnorm)
     ENDIF
-    ALLOCATE(fnorm,stat=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(fnorm)
     CALL pw_pool_create_pw(auxbas_pw_pool,fnorm%pw,use_data=REALDATA3D)
     fnorm%pw%in_space=REALSPACE
     CALL set_hirshfeld_info(hirshfeld_env,fnorm=fnorm)
@@ -535,7 +520,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, handle, iatom, iex, &
                                                 ikind, ithread, j, natom, &
-                                                npme, nthread, numexp, stat
+                                                npme, nthread, numexp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cores
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: do_force, failure
@@ -574,15 +559,13 @@ CONTAINS
 
     nthread = 1
     ithread = 0
-    ALLOCATE(hab(1,1),pab(1,1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hab(1,1),pab(1,1))
 
     DO ikind=1,SIZE(atomic_kind_set)
       numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
       IF ( numexp <= 0 ) CYCLE
       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
-      ALLOCATE(cores(natom),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(cores(natom))
 
       DO iex=1,numexp
          alpha=hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
@@ -626,14 +609,12 @@ CONTAINS
          END DO
 
       END DO
-      DEALLOCATE(cores,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(cores)
 
     END DO
 
     CALL rs_grid_release(rs_v)
-    DEALLOCATE(hab,pab,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(hab,pab)
 
     CALL get_qs_env(qs_env=qs_env,para_env=para_env)
     CALL mp_sum(fval,para_env%group)

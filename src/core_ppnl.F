@@ -112,7 +112,7 @@ CONTAINS
       jneighbor, kac, katom, kbc, kkind, l, lc_max, lc_min, ldai, ldsab, &
       lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, mepos, &
       na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnode, np, nppnl, &
-      nprjc, nseta, nsgfa, nthread, prjc, sgfa, stat
+      nprjc, nseta, nsgfa, nthread, prjc, sgfa
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, &
@@ -161,8 +161,7 @@ CONTAINS
 
       dokp = (nimages > 1)
 
-      ALLOCATE (atom_of_kind(natom),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
       IF (calculate_forces) THEN
@@ -192,16 +191,14 @@ CONTAINS
       ldai = ncoset(maxl+nder+1)
 
       !sap_int needs to be shared as multiple threads need to access this
-      ALLOCATE(sap_int(nkind*nkind),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(sap_int(nkind*nkind))
       DO i=1,nkind*nkind
         NULLIFY(sap_int(i)%alist,sap_int(i)%asort,sap_int(i)%aindex)
         sap_int(i)%nalist=0
       END DO
 
       !set up direct access to basis and potential
-      ALLOCATE(basis_set(nkind),potential(nkind),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(basis_set(nkind),potential(nkind))
       DO ikind=1,nkind
          CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set)
          IF (ASSOCIATED(orb_basis_set)) THEN
@@ -231,15 +228,13 @@ CONTAINS
 !$OMP          sphi_a, zeta, cprj, lppnl, nppnl, nprj_ppnl, & 
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
 !$OMP          ncoc, rpgfa, first_col, vprj_ppnl, failure, i, l, &
-!$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl,stat)
+!$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl)
       mepos=0
 !$    mepos=omp_get_thread_num()
 
-      ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder))
       sab=0.0_dp
-      ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)))
       ai_work=0.0_dp
 
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
@@ -273,8 +268,7 @@ CONTAINS
             sap_int(iac)%a_kind = ikind
             sap_int(iac)%p_kind = kkind
             sap_int(iac)%nalist = nlist
-            ALLOCATE(sap_int(iac)%alist(nlist),STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(sap_int(iac)%alist(nlist))
             DO i=1,nlist
                NULLIFY(sap_int(iac)%alist(i)%clist)
                sap_int(iac)%alist(i)%aatom = 0
@@ -284,8 +278,7 @@ CONTAINS
          IF (.NOT.ASSOCIATED(sap_int(iac)%alist(ilist)%clist)) THEN
             sap_int(iac)%alist(ilist)%aatom  = iatom
             sap_int(iac)%alist(ilist)%nclist = nneighbor
-            ALLOCATE(sap_int(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(sap_int(iac)%alist(ilist)%clist(nneighbor))
             DO i=1,nneighbor
                sap_int(iac)%alist(ilist)%clist(i)%catom = 0
             END DO
@@ -297,8 +290,7 @@ CONTAINS
          clist%cell  = cell_c
          clist%rac   = rac
          ALLOCATE(clist%acint(nsgfa,nppnl,maxder),&
-                  clist%achint(nsgfa,nppnl,maxder),STAT=stat)
-         CPASSERT(stat==0)
+                  clist%achint(nsgfa,nppnl,maxder))
          clist%acint=0._dp
          clist%achint=0._dp
          clist%nsgf_cnt = 0
@@ -344,8 +336,7 @@ CONTAINS
          clist%maxach=MAXVAL(ABS(clist%achint(:,:,1)))
       END DO
 
-      DEALLOCATE(sab,ai_work,work,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(sab,ai_work,work)
 !$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -484,10 +475,8 @@ CONTAINS
 
       CALL release_sap_int(sap_int)
 
-      DEALLOCATE (atom_of_kind,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(basis_set,potential,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE (atom_of_kind)
+      DEALLOCATE(basis_set,potential)
 
       IF (calculate_forces) THEN
          ! *** If LSD, then recover alpha density and beta density     ***

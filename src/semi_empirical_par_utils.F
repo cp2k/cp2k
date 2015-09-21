@@ -1072,8 +1072,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ij, ij0, ind, ip, ipx, &
-                                                ipy, ipz, isize, kl, natorb, &
-                                                stat
+                                                ipy, ipz, isize, kl, natorb
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: gp2, gpp, gsp, gss, hsp
 
@@ -1083,8 +1082,7 @@ CPSourceFileRef)
     CPASSERT(defined)
 
     isize     = natorb*(natorb+1)/2
-    ALLOCATE(sep%w(isize,isize),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sep%w(isize,isize))
     ! Initialize array
     sep%w = 0.0_dp
     ! Fill the array

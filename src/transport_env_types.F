@@ -110,7 +110,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -126,8 +126,7 @@ CONTAINS
 
     transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
-    DEALLOCATE(transport_env, stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(transport_env)
 
     CALL timestop(handle)
 

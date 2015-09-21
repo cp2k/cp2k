@@ -111,15 +111,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: param_section, &
                                                 solvation_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    ALLOCATE(cp_ddapc_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cp_ddapc_env)
     cp_ddapc_env%ref_count=1
     last_cp_ddapc_id=last_cp_ddapc_id+1
     cp_ddapc_env%id_nr=last_cp_ddapc_id
@@ -157,8 +156,7 @@ CONTAINS
                             cp_ddapc_env%Md,&
                             radii)
        IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.cp_ddapc_ewald%do_decoupling) THEN
-          ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)))
           IF ( cp_ddapc_ewald%do_decoupling) THEN
              ! Just decoupling
              cp_ddapc_env%Mt = cp_ddapc_env%Md
@@ -214,7 +212,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -223,32 +220,25 @@ CONTAINS
        cp_ddapc_env%ref_count=cp_ddapc_env%ref_count-1
        IF (cp_ddapc_env%ref_count==0) THEN
           IF (ASSOCIATED(cp_ddapc_env%AmI)) THEN
-             DEALLOCATE(cp_ddapc_env%AmI, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%AmI)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Mt)) THEN
-             DEALLOCATE(cp_ddapc_env%Mt, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%Mt)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Md)) THEN
-             DEALLOCATE(cp_ddapc_env%Md, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%Md)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Mr)) THEN
-             DEALLOCATE(cp_ddapc_env%Mr, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%Mr)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Ms)) THEN
-             DEALLOCATE(cp_ddapc_env%Ms, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%Ms)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%gfunc)) THEN
-             DEALLOCATE(cp_ddapc_env%gfunc, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%gfunc)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%w)) THEN
-             DEALLOCATE(cp_ddapc_env%w, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(cp_ddapc_env%w)
           END IF
           NULLIFY(cp_ddapc_env%AmI,&
                   cp_ddapc_env%Md,&
@@ -256,8 +246,7 @@ CONTAINS
                   cp_ddapc_env%Ms,&
                   cp_ddapc_env%gfunc,&
                   cp_ddapc_env%w)
-          DEALLOCATE(cp_ddapc_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(cp_ddapc_env)
           NULLIFY(cp_ddapc_env)
        END IF
     END IF
@@ -287,8 +276,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_val, npts(3), output_unit, &
-                                                stat
+    INTEGER                                  :: my_val, npts(3), output_unit
     INTEGER, DIMENSION(:), POINTER           :: ngrids
     LOGICAL :: analyt, decoupling, do_qmmm_periodic_decpl, do_restraint, &
       do_restraintB, do_solvation, failure
@@ -304,8 +292,7 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald))
-    ALLOCATE(cp_ddapc_ewald, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cp_ddapc_ewald)
     NULLIFY(cp_ddapc_ewald%pw_grid_mm,&
             cp_ddapc_ewald%pw_grid_qm,&
             cp_ddapc_ewald%ewald_section,&
@@ -371,14 +358,10 @@ CONTAINS
           CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm,pw_pool=cp_ddapc_ewald%pw_pool_qm,&
                coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
                param_section=multipole_section,tag="ddapc",para_env=para_env,print_section=grid_print_section)
-          DEALLOCATE(LG, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(gx, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(gy, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(gz, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(LG)
+          DEALLOCATE(gx)
+          DEALLOCATE(gy)
+          DEALLOCATE(gz)
           NULLIFY(LG, gx, gy, gz)
           IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              NULLIFY(mm_cell, dummy_cell)
@@ -391,14 +374,10 @@ CONTAINS
                   coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
                   param_section=multipole_section,tag="ddapc",para_env=para_env, &
                   print_section=grid_print_section)
-             DEALLOCATE(LG, stat=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(gx, stat=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(gy, stat=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(gz, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(LG)
+             DEALLOCATE(gx)
+             DEALLOCATE(gy)
+             DEALLOCATE(gz)
              NULLIFY(LG, gx, gy, gz)
              CALL cell_release(dummy_cell)
              CALL cell_release(mm_cell)
@@ -429,7 +408,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k1, k2, k3, n_rep, ndim, &
-                                                nmax1, nmax2, nmax3, stat
+                                                nmax1, nmax2, nmax3
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, eps, fac, fs, fvec(3), &
                                                 galpha, gsq, gsqi, rcut, tol, &
@@ -451,14 +430,10 @@ CONTAINS
     fac    = 1.e0_dp/deth
     fvec   = 2.0_dp * pi / (/hmat(1,1),hmat(2,2),hmat(3,3)/)
     ndim   = (nmax1+1)*(2*nmax2+1)*(2*nmax3+1)-1
-    ALLOCATE(LG(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(gx(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(gy(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(gz(ndim), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(LG(ndim))
+    ALLOCATE(gx(ndim))
+    ALLOCATE(gy(ndim))
+    ALLOCATE(gz(ndim))
 
     i = 0
     DO k1 = 0, nmax1
@@ -492,7 +467,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -519,8 +493,7 @@ CONTAINS
           CALL pw_grid_release ( cp_ddapc_ewald%pw_grid_mm)
           CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_mm))
        END IF
-       DEALLOCATE(cp_ddapc_ewald, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(cp_ddapc_ewald)
        NULLIFY(cp_ddapc_ewald)
     END IF
 

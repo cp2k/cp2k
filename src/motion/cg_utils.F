@@ -161,7 +161,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_2pnt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, my_use_only_grad, &
                                                 save_consistent_energy_force
     REAL(KIND=dp) :: a, b, c, dx, dx_min, dx_min_save, dx_thrs, norm_grad1, &
@@ -174,10 +174,8 @@ CONTAINS
     my_use_only_grad = .FALSE.
     IF (PRESENT(use_only_grad)) my_use_only_grad = use_only_grad
     IF (norm_ls_vec/=0.0_dp) THEN
-       ALLOCATE(ls_norm(SIZE(ls_vec)),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(gradient2(SIZE(ls_vec)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ls_norm(SIZE(ls_vec)))
+       ALLOCATE(gradient2(SIZE(ls_vec)))
        ls_norm = ls_vec / norm_ls_vec
        dx      = norm_ls_vec
        dx_thrs = gopt_param%cg_ls%max_step
@@ -233,10 +231,8 @@ CONTAINS
                "***","DX (FITTED   )=",dx_min_save,"DX (ACCEPTED )=",dx_min,"***"
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
        END IF
-       DEALLOCATE(ls_norm,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(gradient2,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ls_norm)
+       DEALLOCATE(gradient2)
     ELSE
        ! Do Nothing, since.. if the effective force is 0 means that we are already
        ! in the saddle point..
@@ -266,7 +262,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tslmin_2pnt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dx_min, dx_min_acc, &
                                                 dx_min_save, dx_thrs, &
@@ -277,8 +273,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec,tls_vec))
     IF (norm_tls_vec/=0.0_dp) THEN
-       ALLOCATE(tls_norm(SIZE(tls_vec)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tls_norm(SIZE(tls_vec)))
 
        tls_norm = tls_vec / norm_tls_vec
        dimer_env%tsl%tls_vec => tls_norm
@@ -325,8 +320,7 @@ CONTAINS
        CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos,&
                        final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
 
-       DEALLOCATE(tls_norm,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tls_norm)
     ELSE
        ! Do Nothing, since.. if the effective force is 0 means that we are already
        ! in the saddle point..
@@ -353,7 +347,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmin_2pnt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a0, a1, angle, b1, &
                                                 curvature0, curvature1, &
@@ -392,8 +386,7 @@ CONTAINS
 
        ! Evaluate (by interpolation) the norm of the rotational force in the
        ! minimum of the rotational search (this is for print-out only)
-       ALLOCATE(work(SIZE(dimer_env%nvec)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(SIZE(dimer_env%nvec)))
        work = dimer_env%rot%g1
        work = SIN(dimer_env%rot%angle1-dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1+&
               SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p+&
@@ -402,8 +395,7 @@ CONTAINS
        work = -2.0_dp*(work-dimer_env%rot%g0)
        work = work  - DOT_PRODUCT(work, dimer_env%nvec) * dimer_env%nvec
        opt_energy = SQRT(DOT_PRODUCT(work, work))
-       DEALLOCATE(work,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(work)
     END IF
     dimer_env%rot%angle2 = angle
     CALL timestop(handle)
@@ -441,7 +433,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_fit', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, loc_iter, odim, stat
+    INTEGER                                  :: handle, loc_iter, odim
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: ax, bx, fprev, rms_dr, &
                                                 rms_force, scale, xmin, xx
@@ -454,10 +446,8 @@ CONTAINS
     NULLIFY(pcom,xicom,hist)
     rms_dr    = gopt_param%rms_dr
     rms_force = gopt_param%rms_force
-    ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pcom(SIZE(xvec)))
+    ALLOCATE(xicom(SIZE(xvec)))
 
     pcom  = xvec
     xicom = xi
@@ -490,12 +480,9 @@ CONTAINS
     xicom = xmin*xicom
     step = xmin
     xvec  = xvec + xicom
-    DEALLOCATE(pcom,  stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(xicom, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(hist, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pcom)
+    DEALLOCATE(xicom)
+    DEALLOCATE(hist)
     IF (output_unit>0) THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
        WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
@@ -539,7 +526,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_gold', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ax, bx, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
@@ -548,10 +535,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(pcom,xicom)
-    ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pcom(SIZE(xvec)))
+    ALLOCATE(xicom(SIZE(xvec)))
 
     pcom  = xvec
     xicom = xi
@@ -567,10 +552,8 @@ CONTAINS
     xicom = xmin*xicom
     step = xmin
     xvec  = xvec + xicom
-    DEALLOCATE(pcom,  stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(xicom, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pcom)
+    DEALLOCATE(xicom)
     CALL timestop(handle)
   END SUBROUTINE linmin_gold
 
@@ -609,7 +592,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, loc_iter, odim, stat
+    INTEGER                                  :: handle, loc_iter, odim
     LOGICAL                                  :: failure, hist, should_stop
     REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, gold, q, &
                                                 r, u, ulim
@@ -619,8 +602,7 @@ CONTAINS
     hist    = PRESENT(histpoint)
     IF (hist) THEN
        CPASSERT(.NOT.ASSOCIATED(histpoint))
-       ALLOCATE(histpoint(3,3), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(histpoint(3,3))
     END IF
     gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp
     IF (hist) THEN
@@ -945,20 +927,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xvec(SIZE(pcom)))
     xvec = pcom + x*xicom
     CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
                     final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
-    DEALLOCATE(xvec, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xvec)
 
     CALL timestop(handle)
 
@@ -986,7 +966,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: grad, xvec
@@ -994,19 +974,15 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(grad(SIZE(pcom)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xvec(SIZE(pcom)))
+    ALLOCATE(grad(SIZE(pcom)))
     xvec = pcom + x * xicom
     CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
                     final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
     my_val = DOT_PRODUCT(grad,xicom)
     fval   = energy
-    DEALLOCATE(xvec, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(grad, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xvec)
+    DEALLOCATE(grad)
     CALL timestop(handle)
 
   END FUNCTION cg_deval1d
@@ -1029,7 +1005,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, info, iwork(8*3), lwork, &
-                                                min_pos, np, stat
+                                                min_pos, np
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diag(3), res1(3), res2(3), &
                                                 res3(3), spread, sum_x, &
@@ -1071,12 +1047,10 @@ CONTAINS
     CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),tmpw,lwork,&
          iwork,info)
     lwork=CEILING(tmpw(1))
-    ALLOCATE(work(lwork),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(lwork))
     CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
          iwork,info)
-    DEALLOCATE(work, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
     CALL dgemv('T',SIZE(u,1),SIZE(u,2),1._dp,u,SIZE(u,1),b,1,0._dp,res1,1)
     DO i=1,3
        res2(i)=res1(i)/diag(i)

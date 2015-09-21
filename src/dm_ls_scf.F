@@ -162,7 +162,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, unit_nr
+    INTEGER                                  :: handle, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -189,8 +189,7 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    ALLOCATE(ls_scf_env,stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ls_scf_env)
 
 
     ! get basic quantities from the qs_env
@@ -211,8 +210,7 @@ CONTAINS
     CALL cp_para_env_retain(ls_scf_env%para_env)
 
     ! initialize block to group to defined molecules
-    ALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms))
 
     CALL molecule_of_atom(molecule_set,atom_to_mol=ls_scf_env%ls_mstruct%atom_to_molecule)
 

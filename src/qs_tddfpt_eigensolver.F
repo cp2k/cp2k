@@ -79,7 +79,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n_ev, nspins, &
-                                                output_unit, restarts, stat
+                                                output_unit, restarts
     LOGICAL                                  :: do_kernel_save, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ievals
     TYPE(cp_logger_type), POINTER            :: logger
@@ -97,8 +97,7 @@ CONTAINS
     n_ev      = dft_control%tddfpt_control%n_ev
     nspins    = dft_control%nspins
 
-    ALLOCATE(ievals(n_ev), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ievals(n_ev))
 
     !---------------!
     ! initial guess !
@@ -143,8 +142,7 @@ CONTAINS
     !---------!
     ! cleanup !
     !---------!
-    DEALLOCATE(ievals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ievals)
 
     CALL timestop(handle)
 
@@ -184,7 +182,7 @@ CONTAINS
 
     CHARACTER                                :: mode
     INTEGER :: col, handle, i, iev, iter, j, k, max_krylovspace_dim, max_kv, &
-      n_ev, n_kv, nspins, output_unit, row, spin, stat
+      n_ev, n_kv, nspins, output_unit, row, spin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: must_improve
     LOGICAL                                  :: failure
     REAL(dp)                                 :: Atilde_ij, convergence, tmp, &
@@ -258,23 +256,17 @@ CONTAINS
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X")
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R")
 
-    ALLOCATE(evals_difference(n_ev), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(evals_difference(n_ev))
 
-    ALLOCATE(must_improve(n_ev), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(must_improve(n_ev))
 
-    ALLOCATE(evals(max_kv, 0:max_kv), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(evals_tmp(max_kv), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(evals(max_kv, 0:max_kv))
+    ALLOCATE(evals_tmp(max_kv))
 
     ALLOCATE(b(max_kv,nspins), Ab(max_kv,nspins), &
-             Sb(max_kv,nspins), stat=stat)
-    CPASSERT(stat==0)
+             Sb(max_kv,nspins))
 
-    ALLOCATE(kv_fm_struct(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kv_fm_struct(nspins))
 
     DO spin=1, nspins
        NULLIFY (kv_fm_struct(spin)%struct)
@@ -536,8 +528,7 @@ CONTAINS
                CALL cp_fm_release(Sb(i,spin)%matrix)
        END DO
     END DO
-    DEALLOCATE(b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
     NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
 
     CALL timestop(handle)

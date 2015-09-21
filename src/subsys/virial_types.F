@@ -232,10 +232,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
-    ALLOCATE ( virial, stat=istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( virial)
 
     CALL zero_virial ( virial )
     last_virial_id_nr=last_virial_id_nr+1
@@ -282,7 +279,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -290,8 +286,7 @@ CONTAINS
        CPASSERT(virial%ref_count>0)
        virial%ref_count=virial%ref_count-1
        IF (virial%ref_count.EQ.0) THEN
-          DEALLOCATE(virial,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(virial)
        ENDIF
        NULLIFY(virial)
     END IF

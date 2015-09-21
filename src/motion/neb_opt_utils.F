@@ -72,7 +72,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: line
     INTEGER                                  :: i, iend, ind, indi, indj, &
                                                 info, istart, iv, iw, j, jv, &
-                                                k, lwork, np, nv, stat
+                                                k, lwork, np, nv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
     LOGICAL                                  :: failure, increase_error
     REAL(dp), DIMENSION(:, :), POINTER       :: work
@@ -93,10 +93,8 @@ CONTAINS
     IF (iw2>0) WRITE(iw2,'(A,I3)')"Entering into the DIIS module. Error vector number:: ",nv
     set_err(nv) = 1
     eps_svd     = 1.0E-10_dp
-    ALLOCATE(step(sline%size_wrk(1)*sline%size_wrk(2)),stat=stat)
- CPASSERT(stat==0)
-    ALLOCATE(ref(sline%size_wrk(1)*sline%size_wrk(2)),stat=stat)
- CPASSERT(stat==0)
+    ALLOCATE(step(sline%size_wrk(1)*sline%size_wrk(2)))
+    ALLOCATE(ref(sline%size_wrk(1)*sline%size_wrk(2)))
     err(:,nv) = RESHAPE(sline%wrk, (/sline%size_wrk(1) *sline%size_wrk(2)/))
     crr(:,nv) = RESHAPE(coords%wrk,(/coords%size_wrk(1)*coords%size_wrk(2)/))
     jv = n_diis
@@ -107,16 +105,11 @@ CONTAINS
           np = jv+1
           IF (iw2>0) WRITE(iw2,'(A,I5,A)')"Applying DIIS equations with the last",&
                jv," error vectors"
-          ALLOCATE(wrk(np,np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(work(np,np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(wrk_inv(np,np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(cwrk(np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(awrk(np),stat=stat)
- CPASSERT(stat==0)
+          ALLOCATE(wrk(np,np))
+          ALLOCATE(work(np,np))
+          ALLOCATE(wrk_inv(np,np))
+          ALLOCATE(cwrk(np))
+          ALLOCATE(awrk(np))
           awrk           = 0.0_dp
           wrk            = 1.0_dp
           wrk(np,np)     = 0.0_dp
@@ -137,23 +130,16 @@ CONTAINS
           ! Inverte the DIIS Matrix
           work=TRANSPOSE(wrk)
           ! Workspace query
-          ALLOCATE(iwork(8*np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(S(np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(U(np,np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(VT(np,np),stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(work_dgesdd(1),stat=stat)
- CPASSERT(stat==0)
+          ALLOCATE(iwork(8*np))
+          ALLOCATE(S(np))
+          ALLOCATE(U(np,np))
+          ALLOCATE(VT(np,np))
+          ALLOCATE(work_dgesdd(1))
           lwork=-1
           CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
           lwork=INT(work_dgesdd(1))
-          DEALLOCATE(work_dgesdd,stat=stat)
- CPASSERT(stat==0)
-          ALLOCATE(work_dgesdd(lwork),stat=stat)
- CPASSERT(stat==0)
+          DEALLOCATE(work_dgesdd)
+          ALLOCATE(work_dgesdd(lwork))
           CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
           ! Construct the inverse
           DO k=1,np
@@ -166,16 +152,11 @@ CONTAINS
              VT(k,:)=VT(k,:)*S(k)
           ENDDO
           CALL DGEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
-          DEALLOCATE(iwork,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(S,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(U,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(VT,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(work_dgesdd,stat=stat)
- CPASSERT(stat==0)
+          DEALLOCATE(iwork)
+          DEALLOCATE(S)
+          DEALLOCATE(U)
+          DEALLOCATE(VT)
+          DEALLOCATE(work_dgesdd)
           cwrk = MATMUL(wrk_inv,awrk)
           ! Check the DIIS solution
           step = 0.0_dp
@@ -193,28 +174,18 @@ CONTAINS
              accepted = .TRUE.
              sline%wrk  = RESHAPE(step,(/sline%size_wrk(1),sline%size_wrk(2)/))
           ELSE
-             DEALLOCATE(awrk,stat=stat)
- CPASSERT(stat==0)
-             DEALLOCATE(cwrk,stat=stat)
- CPASSERT(stat==0)
-             DEALLOCATE(wrk,stat=stat)
- CPASSERT(stat==0)
-             DEALLOCATE(work,stat=stat)
- CPASSERT(stat==0)
-             DEALLOCATE(wrk_inv,stat=stat)
- CPASSERT(stat==0)
+             DEALLOCATE(awrk)
+             DEALLOCATE(cwrk)
+             DEALLOCATE(wrk)
+             DEALLOCATE(work)
+             DEALLOCATE(wrk_inv)
              EXIT
           END IF
-          DEALLOCATE(awrk,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(cwrk,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(wrk,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(work,stat=stat)
- CPASSERT(stat==0)
-          DEALLOCATE(wrk_inv,stat=stat)
- CPASSERT(stat==0)
+          DEALLOCATE(awrk)
+          DEALLOCATE(cwrk)
+          DEALLOCATE(wrk)
+          DEALLOCATE(work)
+          DEALLOCATE(wrk_inv)
        END DO
        IF (iw2>0) THEN
           line ="Exiting DIIS accepting"//cp_to_string(MIN(n_diis,jv))//" errors."
@@ -238,10 +209,8 @@ CONTAINS
           set_err(iv) = -1
        END DO
     END IF
-    DEALLOCATE(step,stat=stat)
- CPASSERT(stat==0)
-    DEALLOCATE(ref,stat=stat)
- CPASSERT(stat==0)
+    DEALLOCATE(step)
+    DEALLOCATE(ref)
 
   END FUNCTION accept_diis_step
 
@@ -267,15 +236,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: costh, norm1, norm2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
 
     failure  = .FALSE.
     accepted = .TRUE.
-    ALLOCATE(tmp(SIZE(step)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp(SIZE(step)))
     IF (.NOT.failure) THEN
        IF (accepted) THEN
           ! (a) The direction of the DIIS step, can be compared to the reference step.
@@ -325,8 +292,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    DEALLOCATE(tmp, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmp)
   END FUNCTION check_diis_solution
 
 ! *****************************************************************************
@@ -368,7 +334,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_ls', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, np, stat
+    INTEGER                                  :: i, np
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, max_stepsize, xa, xb, &
                                                 xc_cray, ya, yb
@@ -378,8 +344,7 @@ CONTAINS
 ! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3
 
     failure  = .FALSE.
-    ALLOCATE(Icoord(coords%size_wrk(1),coords%size_wrk(2)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Icoord(coords%size_wrk(1),coords%size_wrk(2)))
     CALL section_vals_val_get(diis_section,"NP_LS", i_val=np)
     CALL section_vals_val_get(diis_section,"MAX_STEPSIZE", r_val=max_stepsize)
     Icoord(:,:) = coords%wrk
@@ -422,8 +387,7 @@ CONTAINS
     END DO
     stepsize = xc_cray
     coords%wrk = Icoord
-    DEALLOCATE(Icoord,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Icoord)
   END SUBROUTINE neb_ls
 
 END MODULE neb_opt_utils

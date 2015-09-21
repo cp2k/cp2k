@@ -98,8 +98,7 @@ MODULE helium_methods
     CHARACTER(len=default_path_length)       :: potential_file_name
     CHARACTER(len=default_string_length)     :: msg_str, stmp
     INTEGER                                  :: handle, i, input_unit, isize, &
-                                                itmp, j, jtmp, nlines, ntab, &
-                                                stat
+                                                itmp, j, jtmp, nlines, ntab
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
                                                 expl_nats, explicit, failure, &
@@ -122,8 +121,7 @@ MODULE helium_methods
                                            "MOTION%PINT%HELIUM")
     CALL section_vals_get(helium_section,explicit=explicit)
     CPASSERT(explicit)
-    ALLOCATE(helium, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(helium)
     NULLIFY ( helium%input, &
               helium%ptable,  helium%permutation, &
               helium%iperm, &
@@ -416,10 +414,8 @@ MODULE helium_methods
                   logger%para_env%group)
 
     isize = helium%pdx+1
-    ALLOCATE(helium%uij(isize,isize),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%eij(isize,isize),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(helium%uij(isize,isize))
+    ALLOCATE(helium%eij(isize,isize))
     DO i = 1, isize
        DO j = 1, i
           CALL spline_data_create(helium%uij(i,j)%spline_data)
@@ -440,8 +436,7 @@ MODULE helium_methods
     END DO
 
     isize = (helium%pdx+1)*(helium%pdx+2)
-    ALLOCATE(pot_transfer(nlines,isize), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pot_transfer(nlines,isize))
     IF (logger%para_env%ionode) THEN
        DO i = 1, nlines
           READ (input_unit,*) pot_transfer(i,:)
@@ -468,43 +463,27 @@ MODULE helium_methods
           ntab = ntab + 1
        END DO
     END DO
-    DEALLOCATE(pot_transfer, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pot_transfer)
 
     ! ALLOCATE helium-related arrays
     i = helium%atoms
     j = helium%beads
-    ALLOCATE(helium%pos(3,i,j),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%work(3,i,j),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%ptable(helium%maxcycle+1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%permutation(i),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%iperm(i),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%tmatrix(i,i),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%nmatrix(i,2*i),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%pmatrix(i,i),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%ipmatrix(i,i),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(helium%pos(3,i,j))
+    ALLOCATE(helium%work(3,i,j))
+    ALLOCATE(helium%ptable(helium%maxcycle+1))
+    ALLOCATE(helium%permutation(i))
+    ALLOCATE(helium%iperm(i))
+    ALLOCATE(helium%tmatrix(i,i))
+    ALLOCATE(helium%nmatrix(i,2*i))
+    ALLOCATE(helium%pmatrix(i,i))
+    ALLOCATE(helium%ipmatrix(i,i))
     itmp = helium%bisctlog2 + 2
-    ALLOCATE(helium%num_accepted(itmp,helium%maxcycle),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%rdf_avrg(helium%rdf_nbin),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%rdf_inst(helium%rdf_nbin),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%plength_avrg(helium%atoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%plength_inst(helium%atoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%atom_plength(helium%atoms),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(helium%num_accepted(itmp,helium%maxcycle))
+    ALLOCATE(helium%rdf_avrg(helium%rdf_nbin))
+    ALLOCATE(helium%rdf_inst(helium%rdf_nbin))
+    ALLOCATE(helium%plength_avrg(helium%atoms))
+    ALLOCATE(helium%plength_inst(helium%atoms))
+    ALLOCATE(helium%atom_plength(helium%atoms))
 
     ! density related data
     helium%rho_num = 1
@@ -522,10 +501,8 @@ MODULE helium_methods
       helium%rho_minb = INT(-helium%cell_size / 2.0_dp / helium%rho_delr )
       itmp = helium%rho_nbin
       jtmp = helium%rho_num
-      ALLOCATE(helium%rho_avrg(jtmp,itmp,itmp,itmp),STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(helium%rho_inst(jtmp,itmp,itmp,itmp),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(helium%rho_avrg(jtmp,itmp,itmp,itmp))
+      ALLOCATE(helium%rho_inst(jtmp,itmp,itmp,itmp))
       helium%rho_avrg(:,:,:,:) = 0.0_dp
       helium%rho_inst(:,:,:,:) = 0.0_dp
 
@@ -601,39 +578,27 @@ MODULE helium_methods
 
     ! ALLOCATE solute-related arrays
     ALLOCATE(helium%force_avrg(helium%solute_beads,&
-      helium%solute_atoms*3),STAT=stat)
-    CPASSERT(stat==0)
+      helium%solute_atoms*3))
     ALLOCATE(helium%force_inst(helium%solute_beads,&
-      helium%solute_atoms*3),STAT=stat)
-    CPASSERT(stat==0)
+      helium%solute_atoms*3))
 
     ! ALLOCATE temporary arrays
-    ALLOCATE(helium%itmp_atoms_1d(helium%atoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%ltmp_atoms_1d(helium%atoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_env),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(helium%rtmp_3_np_1d(3*helium%num_env),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(helium%itmp_atoms_1d(helium%atoms))
+    ALLOCATE(helium%ltmp_atoms_1d(helium%atoms))
+    ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_env))
+    ALLOCATE(helium%rtmp_3_np_1d(3*helium%num_env))
     ALLOCATE(helium%rtmp_p_ndim_1d(helium%solute_beads*&
-      helium%solute_atoms*3),STAT=stat)
-    CPASSERT(stat==0)
+      helium%solute_atoms*3))
     ALLOCATE(helium%rtmp_p_ndim_np_1d(helium%solute_beads*&
-      helium%solute_atoms*3*helium%num_env),STAT=stat)
-    CPASSERT(stat==0)
+      helium%solute_atoms*3*helium%num_env))
     ALLOCATE(helium%rtmp_3_atoms_beads_1d(3*helium%atoms*&
-      helium%beads),STAT=stat)
-    CPASSERT(stat==0)
+      helium%beads))
     ALLOCATE(helium%rtmp_3_atoms_beads_np_1d(3*helium%atoms*&
-      helium%beads*helium%num_env),STAT=stat)
-    CPASSERT(stat==0)
+      helium%beads*helium%num_env))
     ALLOCATE(helium%rtmp_p_ndim_2d(helium%solute_beads,&
-      helium%solute_atoms*3),STAT=stat)
-    CPASSERT(stat==0)
+      helium%solute_atoms*3))
     ALLOCATE(helium%ltmp_3_atoms_beads_3d(3,helium%atoms,&
-      helium%beads),STAT=stat)
-    CPASSERT(stat==0)
+      helium%beads))
 
     CALL helium_write_setup(helium)
 
@@ -704,8 +669,7 @@ MODULE helium_methods
 
         IF ( helium%rho_present ) THEN
           IF ( helium%rho_restart ) THEN
-            DEALLOCATE( helium%rho_rstr, STAT=stat )
-            CPASSERT(stat==0)
+            DEALLOCATE( helium%rho_rstr)
             NULLIFY( helium%rho_rstr )
           END IF
           DEALLOCATE( &
@@ -766,12 +730,10 @@ MODULE helium_methods
              END DO
           END DO
 
-          DEALLOCATE( helium%eij, STAT=stat )
-          CPASSERT(stat==0)
+          DEALLOCATE( helium%eij)
           NULLIFY(helium%eij)
 
-          DEALLOCATE( helium%uij, STAT=stat )
-          CPASSERT(stat==0)
+          DEALLOCATE( helium%uij)
           NULLIFY(helium%uij)
 
           CALL delete_rng_stream(helium%rng_stream_uniform)
@@ -789,8 +751,7 @@ MODULE helium_methods
                     helium%solute_index)
           END IF
 
-          DEALLOCATE( helium, STAT=stat )
-          CPASSERT(stat==0)
+          DEALLOCATE( helium)
 
        END IF
     END IF
@@ -1019,8 +980,7 @@ MODULE helium_methods
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
-                                                num_env_restart, offset, &
-                                                status
+                                                num_env_restart, offset
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
@@ -1049,15 +1009,12 @@ MODULE helium_methods
     msglen = helium%atoms * helium%beads * 3
     offset = msglen * MOD( logger%para_env%mepos, num_env_restart )
     NULLIFY(m,f)
-    ALLOCATE(m(3,helium%atoms,helium%beads),STAT=status)
-    CPASSERT(status==0)
-    ALLOCATE(f(3,helium%atoms,helium%beads),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(m(3,helium%atoms,helium%beads))
+    ALLOCATE(f(3,helium%atoms,helium%beads))
     m(:,:,:) = .TRUE.
     f(:,:,:) = 0.0_dp
     helium%pos(:,:,:) = UNPACK(message(offset+1:offset+msglen), MASK=m, FIELD=f )
-    DEALLOCATE(f,m,STAT=status)
-    CPASSERT(status==0)
+    DEALLOCATE(f,m)
 
     IF ( num_env_restart .NE. logger%para_env%num_pe ) THEN
       err_str = "Reading bead coordinates from the input file."
@@ -1136,7 +1093,7 @@ MODULE helium_methods
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
-                                                num_env_restart, status
+                                                num_env_restart
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :), POINTER        :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
@@ -1173,16 +1130,13 @@ MODULE helium_methods
 
     ! restore forces on all processors (no message passing)
     NULLIFY(m,f)
-    ALLOCATE(m(helium%solute_beads,helium%solute_atoms*3),STAT=status)
-    CPASSERT(status==0)
-    ALLOCATE(f(helium%solute_beads,helium%solute_atoms*3),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(m(helium%solute_beads,helium%solute_atoms*3))
+    ALLOCATE(f(helium%solute_beads,helium%solute_atoms*3))
     m(:,:) = .TRUE.
     f(:,:) = 0.0_dp
     helium%force_avrg(:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f )
     helium%force_inst(:,:) = 0.0_dp
-    DEALLOCATE(f,m,STAT=status)
-    CPASSERT(status==0)
+    DEALLOCATE(f,m)
 
     CALL helium_write_line("Forces on the solute read from the input file.")
 
@@ -1632,7 +1586,7 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp1, stmp2
-    INTEGER                                  :: istat, itmp, msglen
+    INTEGER                                  :: itmp, msglen
     LOGICAL                                  :: ltmp
     LOGICAL, DIMENSION(:, :, :, :), POINTER  :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
@@ -1640,8 +1594,7 @@ MODULE helium_methods
       POINTER                                :: f
 
     itmp = helium%rho_nbin
-    ALLOCATE(helium%rho_rstr(helium%rho_num,itmp,itmp,itmp),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(helium%rho_rstr(helium%rho_num,itmp,itmp,itmp))
 
     ! assign pointers to the memory locations in the input structure, where
     ! the old densities are stored and check if the sizes match
@@ -1667,17 +1620,14 @@ MODULE helium_methods
 
     itmp = helium%rho_nbin
     NULLIFY(m,f)
-    ALLOCATE(m(helium%rho_num,itmp,itmp,itmp),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(f(helium%rho_num,itmp,itmp,itmp),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(m(helium%rho_num,itmp,itmp,itmp))
+    ALLOCATE(f(helium%rho_num,itmp,itmp,itmp))
     m(:,:,:,:) = .TRUE.
     f(:,:,:,:) = 0.0_dp
 
     helium%rho_rstr(:,:,:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f)
 
-    DEALLOCATE(f,m,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(f,m)
     NULLIFY(message)
 
     RETURN
@@ -1723,13 +1673,11 @@ MODULE helium_methods
 
     natoms  = helium%solute_atoms
     NULLIFY(helium%solute_element)
-    ALLOCATE(helium%solute_element(natoms), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(helium%solute_element(natoms))
 
     ! in the worst case there will be as many atomic types as atoms
     NULLIFY(element)
-    ALLOCATE(element(natoms), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(element(natoms))
 
     ! find out how many different atomic types are there
     nelements = 0
@@ -1792,8 +1740,7 @@ MODULE helium_methods
       END SELECT
     END DO
 
-    DEALLOCATE(element, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(element)
 
     RETURN
   END SUBROUTINE helium_set_solute_indices

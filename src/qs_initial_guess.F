@@ -124,8 +124,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, filename
     INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, &
-      icol, id_nr, ikind, irow, iseed(4), ispin, istart_col, istart_row, &
-      istat, j, last_read, n, n_cols, n_rows, nao, natom, natoms, natoms_tmp, &
+      icol, id_nr, ikind, irow, iseed(4), ispin, istart_col, istart_row, j, &
+      last_read, n, n_cols, n_rows, nao, natom, natoms, natoms_tmp, &
       nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, output_unit, &
       qs_env_id, safe_density_guess, size_atomic_kind_set, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
@@ -599,10 +599,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        output_unit= cp_logger_get_default_io_unit(logger)
        group = para_env%group
        natoms = SIZE(particle_set)
-       ALLOCATE (kind_of(natoms),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE (first_sgf(natoms),last_sgf(natoms),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (kind_of(natoms))
+       ALLOCATE (first_sgf(natoms),last_sgf(natoms))
 
        checksum = cp_dbcsr_checksum(s_sparse(1)%matrix)
        i = cp_dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
@@ -616,8 +614,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                              last_sgf=last_sgf)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
-       ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (pmat(SIZE(atomic_kind_set)))
 
        DO ispin=1,nspin
           scale = 1._dp
@@ -675,8 +672,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              size_atomic_kind_set = SIZE(atomic_kind_set)
 
              ALLOCATE(buff(n,n),sort_kind(size_atomic_kind_set),&
-                      nelec_kind(size_atomic_kind_set),STAT=istat)
-             CPASSERT(istat==0)
+                      nelec_kind(size_atomic_kind_set))
              !
              ! sort kind vs nbr electron
              DO ikind = 1,size_atomic_kind_set
@@ -730,8 +726,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 CALL stop_program(routineN,moduleN,__LINE__,"Wrong2!")
              END IF
 
-             DEALLOCATE(buff,nelec_kind,sort_kind,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(buff,nelec_kind,sort_kind)
 
              IF(.FALSE.) THEN
                 ALLOCATE(buff(nao,1),buff2(nao,1))
@@ -833,20 +828,16 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                         p_rmpv(ispin)%matrix)
           DO ikind=1,SIZE(atomic_kind_set)
             IF(ASSOCIATED(pmat(ikind)%mat)) THEN
-              DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-              CPASSERT(istat==0)
+              DEALLOCATE (pmat(ikind)%mat)
             END IF
           END DO
        END DO
 
-       DEALLOCATE (pmat,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (pmat)
 
-       DEALLOCATE (kind_of,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (kind_of)
 
-       DEALLOCATE (first_sgf,last_sgf,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (first_sgf,last_sgf)
 
        did_guess = .TRUE.
     END IF
@@ -983,7 +974,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, handle, icol, ikind, &
-                                                irow, istat, natom
+                                                irow, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
@@ -1006,13 +997,11 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     natom = SIZE(particle_set)
 
-    ALLOCATE (kind_of(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (kind_of(natom))
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
-    ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (pmat(SIZE(atomic_kind_set)))
 
     ! precompute the atomic blocks corresponding to spherical atoms
     DO ikind=1,SIZE(atomic_kind_set)
@@ -1058,16 +1047,13 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     DO ikind=1,SIZE(atomic_kind_set)
       IF(ASSOCIATED(pmat(ikind)%mat)) THEN
-        DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (pmat(ikind)%mat)
       END IF
     END DO
 
-    DEALLOCATE (pmat,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (pmat)
 
-    DEALLOCATE (kind_of,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (kind_of)
 
     CALL timestop(handle)
 
@@ -1105,7 +1091,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, group, handle, iatom, ikind, iset, isgf, isgfa, &
-      ishell, istat, la, maxl, maxll, nao, natom, ncount, nset, nsgf, z
+      ishell, la, maxl, maxll, nao, natom, ncount, nset, nsgf, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
@@ -1128,21 +1114,17 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        maxocc=1.0_dp
     ENDIF
 
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
 
     CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf)
     CALL get_qs_kind_set(qs_kind_set, maxlgto=maxl)
 
-    ALLOCATE (econf(0:maxl),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (econf(0:maxl))
 
-    ALLOCATE (pdiag(nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (pdiag(nao))
     pdiag(:) = 0.0_dp
 
-    ALLOCATE (sdiag(nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (sdiag(nao))
 
     sdiag(:) = 0.0_dp
     IF (has_unit_metric) THEN
@@ -1327,17 +1309,13 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     CALL cp_dbcsr_set_diag(matrix_p, pdiag)
 
-    DEALLOCATE (econf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (econf)
 
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
 
-    DEALLOCATE (pdiag,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (pdiag)
 
-    DEALLOCATE (sdiag,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (sdiag)
 
     CALL timestop(handle)
 

@@ -90,8 +90,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, icor, ikind, &
-      inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind, &
-      nr_a, nra, nrb
+      inode, irow, itype, iw, j, jatom, jkind, natom, natorb_a, nkind, nr_a, &
+      nra, nrb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nrt
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, found, use_virial
@@ -180,13 +180,11 @@ CONTAINS
           CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
        END IF
        natom = SIZE (particle_set)
-       ALLOCATE (atom_of_kind(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (atom_of_kind(natom))
        delta = dft_control%qs_control%se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
-       ALLOCATE(diagmat_p,STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(diagmat_p)
        CALL cp_dbcsr_init (diagmat_p)
        CALL cp_dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p)
        CALL cp_dbcsr_replicate_all(diagmat_p)
@@ -194,15 +192,13 @@ CONTAINS
 
      ! Allocate the core Hamiltonian matrix
      CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
-     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE(matrix_h(1)%matrix)
      CALL cp_dbcsr_init(matrix_h(1)%matrix)
      CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX")
      CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp)
 
      ! Allocate a diagonal block matrix
-     ALLOCATE(diagmat_h,STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE(diagmat_h)
      CALL cp_dbcsr_init(diagmat_h)
      CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h)
      CALL cp_dbcsr_set(diagmat_h, 0.0_dp)
@@ -214,19 +210,13 @@ CONTAINS
 
      nkind = SIZE(atomic_kind_set)
 
-     ALLOCATE (se_defined(nkind),STAT=istat)
-     CPASSERT(istat==0)
-     ALLOCATE (hmt(16,nkind),STAT=istat)
-     CPASSERT(istat==0)
-     ALLOCATE (umt(16,nkind),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (se_defined(nkind))
+     ALLOCATE (hmt(16,nkind))
+     ALLOCATE (umt(16,nkind))
 
-     ALLOCATE (ZSt(nkind),STAT=istat)
-     CPASSERT(istat==0)
-     ALLOCATE (ZPt(nkind),STAT=istat)
-     CPASSERT(istat==0)
-     ALLOCATE (nrt(nkind),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (ZSt(nkind))
+     ALLOCATE (ZPt(nkind))
+     ALLOCATE (nrt(nkind))
 
      econst   = 0.0_dp
      DO ikind=1,nkind
@@ -405,8 +395,7 @@ CONTAINS
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
-     DEALLOCATE (se_defined,hmt,umt,ZSt,ZPt,nrt,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (se_defined,hmt,umt,ZSt,ZPt,nrt)
 
      CALL cp_dbcsr_sum_replicated(diagmat_h)
      CALL cp_dbcsr_distribute(diagmat_h)
@@ -429,8 +418,7 @@ CONTAINS
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
        END IF
-       DEALLOCATE(atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(atom_of_kind)
        CALL cp_dbcsr_deallocate_matrix(diagmat_p)
      END IF
 

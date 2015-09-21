@@ -110,8 +110,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iatom, ic, icol, ikind, inode, irow, &
-      iset, istat, jatom, jkind, jset, ldsab, natom, ncoa, ncob, nimg, nkind, &
-      nseta, nsetb, sgfa, sgfb
+      iset, jatom, jkind, jset, ldsab, natom, ncoa, ncob, nimg, nkind, nseta, &
+      nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -176,8 +176,7 @@ CONTAINS
      nimg = dft_control%nimages
      nkind = SIZE(atomic_kind_set)
 
-     ALLOCATE (atom_of_kind(natom),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (atom_of_kind(natom))
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
      do_forces = .FALSE.
@@ -188,8 +187,7 @@ CONTAINS
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
      ! prepare basis set
-     ALLOCATE (basis_set_list(nkind),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (basis_set_list(nkind))
      CALL basis_set_list_setup(basis_set_list,basis_type,qs_kind_set)
 
      IF(dokp) THEN
@@ -216,11 +214,9 @@ CONTAINS
 
      ! *** Allocate work storage ***
      ldsab = get_memory_usage(qs_kind_set,basis_type)
-     ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab))
      IF (do_forces) THEN
-        ALLOCATE(dab(ldsab,ldsab,3),pab(ldsab,ldsab),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(dab(ldsab,ldsab,3),pab(ldsab,ldsab))
      END IF
 
      ! Iterate of neighbor list
@@ -370,16 +366,12 @@ CONTAINS
      END IF
 
      ! Release work storage
-     DEALLOCATE (atom_of_kind,STAT=istat)
-     CPASSERT(istat==0)
-     DEALLOCATE (kab,qab,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (atom_of_kind)
+     DEALLOCATE (kab,qab)
      IF(do_forces) THEN
-        DEALLOCATE (pab,dab,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (pab,dab)
      END IF
-     DEALLOCATE (basis_set_list,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (basis_set_list)
 
      CALL timestop(handle)
 

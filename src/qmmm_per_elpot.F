@@ -125,27 +125,21 @@ CONTAINS
     IF (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)) ig_start = 2
 
     CPASSERT(.NOT.ASSOCIATED(per_potentials))
-    ALLOCATE(per_potentials(SIZE(pgfs)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(per_potentials(SIZE(pgfs)))
     CPASSERT(SIZE(pgfs)==SIZE(potentials))
     Potential_Type: DO K = 1, SIZE(pgfs)
 
        rc = pgfs(K)%pgf%Elp_Radius
-       ALLOCATE(per_potentials(K)%Pot, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(per_potentials(K)%Pot)
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
           CPASSERT(.FALSE.)
        CASE(do_qmmm_gauss,do_qmmm_swave)
-          ALLOCATE(Lg(Ndim), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(gx(Ndim), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(gy(Ndim), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(gz(Ndim), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(Lg(Ndim))
+          ALLOCATE(gx(Ndim))
+          ALLOCATE(gy(Ndim))
+          ALLOCATE(gz(Ndim))
        END SELECT
 
        LG = 0.0_dp
@@ -226,8 +220,7 @@ CONTAINS
        END SELECT
 
        NULLIFY(mm_atom_index)
-       ALLOCATE(mm_atom_index(SIZE(potentials(K)%pot%mm_atom_index)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(mm_atom_index(SIZE(potentials(K)%pot%mm_atom_index)))
        mm_atom_index = potentials(K)%pot%mm_atom_index
 
        NULLIFY(per_potentials(K)%Pot%LG, per_potentials(K)%Pot%mm_atom_index,&

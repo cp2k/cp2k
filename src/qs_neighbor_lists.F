@@ -130,7 +130,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, stat
+    INTEGER                                  :: handle, ikind
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -138,24 +138,19 @@ CONTAINS
     DO ikind=1,SIZE(atom2d)
        NULLIFY (atom2d(ikind)%list)
        IF (ASSOCIATED(atom2d(ikind)%list_local_a_index)) THEN
-          DEALLOCATE (atom2d(ikind)%list_local_a_index,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (atom2d(ikind)%list_local_a_index)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_local_b_index)) THEN
-          DEALLOCATE (atom2d(ikind)%list_local_b_index,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (atom2d(ikind)%list_local_b_index)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_a_mol)) THEN
-          DEALLOCATE (atom2d(ikind)%list_a_mol,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (atom2d(ikind)%list_a_mol)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_b_mol)) THEN
-          DEALLOCATE (atom2d(ikind)%list_b_mol,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (atom2d(ikind)%list_b_mol)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_1d)) THEN
-          DEALLOCATE (atom2d(ikind)%list_1d,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (atom2d(ikind)%list_1d)
        END IF
     END DO
     CALL timestop(handle)
@@ -201,7 +196,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, handle, ia, iat, iatom, iatom_local, ikind, imol, &
-      natom, natom_a, natom_local_a, natom_local_b, nel, nkind, stat
+      natom, natom_a, natom_local_a, natom_local_b, nel, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom2mol, listindex, listsort
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
                                                 local_cols_array, &
@@ -218,8 +213,7 @@ CONTAINS
 
     nkind=SIZE(atomic_kind_set)
     natom=SIZE(particle_set)
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind)
 
@@ -251,8 +245,7 @@ CONTAINS
        local_cols_array => distribution_2d%local_cols(ikind)%array
 
        nel = distribution_1d%n_el(ikind)
-       ALLOCATE (atom2d(ikind)%list_1d(nel),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom2d(ikind)%list_1d(nel))
        DO iat=1,nel
          ia = distribution_1d%list(ikind)%array(iat)
          atom2d(ikind)%list_1d(iat) = atom_of_kind(ia)
@@ -277,16 +270,13 @@ CONTAINS
        END IF
 
        IF ( orb_present(ikind) ) THEN
-          ALLOCATE (listsort(natom_a),listindex(natom_a),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (listsort(natom_a),listindex(natom_a))
           listsort(1:natom_a) = atom2d(ikind)%list(1:natom_a)
           CALL sort(listsort,natom_a,listindex)
           ! Block rows
           IF (natom_local_a > 0) THEN
-             ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a),STAT=stat)
-             CPASSERT(stat==0)
-             ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a))
+             ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a))
              atom2d(ikind)%list_a_mol(:) = 0
 
 
@@ -303,10 +293,8 @@ CONTAINS
           ! Block columns
           IF (natom_local_b > 0) THEN
 
-             ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b),STAT=stat)
-             CPASSERT(stat==0)
-             ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b))
+             ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b))
              atom2d(ikind)%list_b_mol(:) = 0
 
              ! Build index vector for mapping
@@ -319,15 +307,13 @@ CONTAINS
 
           END IF
 
-          DEALLOCATE (listsort,listindex,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (listsort,listindex)
 
        END IF
 
     ENDDO
 
-    DEALLOCATE (atom_of_kind,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom_of_kind)
 
     CALL timestop(handle)
 
@@ -356,7 +342,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER                                  :: handle, ikind, iw, maxatom, &
-                                                nkind, numshells, stat, zat
+                                                nkind, numshells, zat
     LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, &
       failure, gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, &
       nddo, paw_atom, paw_atom_present, scptb
@@ -496,12 +482,10 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (orb_present(nkind),aux_fit_present(nkind),aux_present(nkind),&
-              default_present(nkind),core_present(nkind),STAT=stat)
-    CPASSERT(stat==0)
+              default_present(nkind),core_present(nkind))
 
     ALLOCATE (orb_radius(nkind),aux_fit_radius(nkind),c_radius(nkind),&
-              core_radius(nkind),calpha(nkind),zeff(nkind),STAT=stat)
-    CPASSERT(stat==0)
+              core_radius(nkind),calpha(nkind),zeff(nkind))
     orb_radius(:) = 0.0_dp
     aux_fit_radius(:) = 0.0_dp
     c_radius(:) = 0.0_dp
@@ -509,33 +493,27 @@ CONTAINS
     calpha(:) = 0.0_dp
     zeff(:) = 0.0_dp
 
-    ALLOCATE (pair_radius(nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (pair_radius(nkind,nkind))
 
     IF (gth_potential_present) THEN
-       ALLOCATE (ppl_present(nkind),ppl_radius(nkind),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (ppl_present(nkind),ppl_radius(nkind))
        ppl_radius = 0.0_dp
-       ALLOCATE (ppnl_present(nkind),ppnl_radius(nkind),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (ppnl_present(nkind),ppnl_radius(nkind))
        ppnl_radius = 0.0_dp
     END IF
 
     IF (paw_atom_present) THEN
-       ALLOCATE (oce_present(nkind),oce_radius(nkind),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (oce_present(nkind),oce_radius(nkind))
        oce_radius = 0.0_dp
     END IF
 
     IF (all_potential_present) THEN
-       ALLOCATE (all_present(nkind),all_pot_rad(nkind),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (all_present(nkind),all_pot_rad(nkind))
        all_pot_rad = 0.0_dp
     END IF
 
     ! Initialize the local data structures
-    ALLOCATE (atom2d(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom2d(nkind))
 
     CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
                       atomic_kind_set,qs_kind_set,molecule_set,molecule_only,&
@@ -924,29 +902,20 @@ CONTAINS
     ! Release work storage
     CALL atom2d_cleanup(atom2d)
 
-    DEALLOCATE (atom2d,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (orb_present,default_present,core_present,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (orb_radius,aux_fit_radius,c_radius,core_radius,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (calpha,zeff,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (pair_radius,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom2d)
+    DEALLOCATE (orb_present,default_present,core_present)
+    DEALLOCATE (orb_radius,aux_fit_radius,c_radius,core_radius)
+    DEALLOCATE (calpha,zeff)
+    DEALLOCATE (pair_radius)
     IF (gth_potential_present) THEN
-       DEALLOCATE (ppl_present,ppl_radius,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (ppnl_present,ppnl_radius,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (ppl_present,ppl_radius)
+       DEALLOCATE (ppnl_present,ppnl_radius)
     END IF
     IF (paw_atom_present) THEN
-       DEALLOCATE (oce_present,oce_radius,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (oce_present,oce_radius)
     ENDIF
     IF (all_potential_present) THEN
-       DEALLOCATE (all_present,all_pot_rad,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (all_present,all_pot_rad)
     END IF
 
     CALL timestop(handle)
@@ -1001,7 +970,7 @@ CONTAINS
     END TYPE local_lists
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, maxat, mol_a, mol_b, nkind, otype, stat, natom
+      kcell, maxat, mol_a, mol_b, nkind, otype, natom
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: index_list
@@ -1058,20 +1027,17 @@ CONTAINS
        DO iab=1,SIZE(ab_list)
           CALL deallocate_neighbor_list_set(ab_list(iab)%neighbor_list_set)
        END DO
-       DEALLOCATE (ab_list,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (ab_list)
     END IF
     nkind = SIZE(atom)
     ! Allocate and initialize the new neighbor list structure
-    ALLOCATE (ab_list(nkind*nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ab_list(nkind*nkind))
     DO iab=1,SIZE(ab_list)
       NULLIFY (ab_list(iab)%neighbor_list_set)
     END DO
 
     ! Allocate and initialize the kind availability
-    ALLOCATE (pres_a(nkind),pres_b(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (pres_a(nkind),pres_b(nkind))
     DO ikind=1,nkind
       pres_a(ikind) = ANY(pair_radius(ikind,:) > 0._dp)
       pres_b(ikind) = ANY(pair_radius(:,ikind) > 0._dp)
@@ -1079,8 +1045,7 @@ CONTAINS
 
     ! create a copy of the pbc'ed coordinates
     natom=SIZE(particle_set)
-    ALLOCATE(r_pbc(3,natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(r_pbc(3,natom))
     DO i=1,natom
        r_pbc(1:3,i)=pbc(particle_set(i)%r(1:3),cell)
     ENDDO
@@ -1090,13 +1055,11 @@ CONTAINS
     DO ikind=1,nkind
       maxat=MAX(maxat,SIZE(atom(ikind)%list))
     END DO
-    ALLOCATE (index_list(maxat),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (index_list(maxat))
     DO i=1,maxat
       index_list(i) = i
     END DO
-    ALLOCATE (lista(nkind),listb(nkind),nlista(nkind),nlistb(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (lista(nkind),listb(nkind),nlista(nkind),nlistb(nkind))
     nlista = 0
     nlistb = 0
     DO ikind=1,nkind
@@ -1137,8 +1100,7 @@ CONTAINS
     DO ikind=1,nkind
       maxat=MAX(maxat,nlista(ikind),nlistb(ikind))
     END DO
-    ALLOCATE (kind_a(2*maxat),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (kind_a(2*maxat))
 
     ! Load informations about the simulation cell
     CALL get_cell(cell=cell,periodic=periodic,deth=deth)
@@ -1205,8 +1167,7 @@ CONTAINS
            DO j = 1,nsubcell(2)
               DO i = 1,nsubcell(1)
                  maxat = subcell(i,j,k)%natom + subcell(i,j,k)%natom/10
-                 ALLOCATE(subcell(i,j,k)%atom_list(maxat),stat=stat)
-                 CPASSERT(stat==0)
+                 ALLOCATE(subcell(i,j,k)%atom_list(maxat))
                  subcell(i,j,k)%natom   = 0
               END DO
            END DO
@@ -1349,18 +1310,14 @@ CONTAINS
       CASE (1:2,4)
       CASE (3)
          DO ikind=1,nkind
-           DEALLOCATE(lista(ikind)%list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(lista(ikind)%list)
          END DO
       CASE default
          CPASSERT(.FALSE.)
     END SELECT
-    DEALLOCATE (kind_a,pres_a,pres_b,lista,listb,nlista,nlistb,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (index_list,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r_pbc,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (kind_a,pres_a,pres_b,lista,listb,nlista,nlistb)
+    DEALLOCATE (index_list)
+    DEALLOCATE(r_pbc)
 
     CALL timestop(handle)
 
@@ -1385,7 +1342,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'combine_lists', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ib, ierr, na, nb
+    INTEGER                                  :: i, ib, na, nb
     INTEGER, DIMENSION(:), POINTER           :: lista, listb
     LOGICAL                                  :: failure
 
@@ -1408,8 +1365,7 @@ CONTAINS
        nb = 0
     END IF
 
-    ALLOCATE(list(na+nb),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(list(na+nb))
 
     n = na
     IF(na.GT.0) list(1:na) = lista(1:na)
@@ -1482,7 +1438,7 @@ CONTAINS
 
     INTEGER                                  :: group, handle, ikind, inode, &
                                                 ipe, jkind, mype, n, nkind, &
-                                                nnode, npe, stat
+                                                nnode, npe
     INTEGER(int_8)                           :: nblock_max, nblock_sum, &
                                                 nelement_max, nelement_sum, &
                                                 tmp(2)
@@ -1499,13 +1455,11 @@ CONTAINS
     npe = para_env%num_pe
 
     ! Allocate work storage
-    ALLOCATE (nblock(npe),nelement(npe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nblock(npe),nelement(npe))
     nblock(:) = 0
     nelement(:) = 0
     nkind = SIZE(qs_kind_set)
-    ALLOCATE (nnsgf(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nnsgf(nkind))
     nnsgf = 1
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set)
@@ -1568,8 +1522,7 @@ CONTAINS
 
     ! Release work storage
 
-    DEALLOCATE (nblock,nelement,nnsgf,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (nblock,nelement,nnsgf)
 
     CALL timestop(handle)
 

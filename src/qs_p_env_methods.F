@@ -135,7 +135,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
-                                                natom, spin, stat
+                                                natom, spin
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -159,8 +159,7 @@ CONTAINS
 
     n_spins = dft_control%nspins
 
-    ALLOCATE(p_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(p_env)
     NULLIFY(p_env%kpp1, &
          p_env%p1, &
          p_env%m_epsilon, &
@@ -285,8 +284,7 @@ CONTAINS
       ! Initialize the preconditioner matrix
         IF (.NOT.ASSOCIATED(p_env%preconditioner)) THEN
 
-          ALLOCATE(p_env%preconditioner(n_spins), STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(p_env%preconditioner(n_spins))
           DO spin =1,n_spins
             CALL init_preconditioner(p_env%preconditioner(spin),&
                  para_env=para_env,blacs_env=blacs_env)
@@ -296,8 +294,7 @@ CONTAINS
           CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%PS_psi0,&
                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0")
 
-          ALLOCATE(p_env%ev_h0(n_spins),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(p_env%ev_h0(n_spins))
 !             CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%ev_h0,&
 !                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%ev_h0")
         END IF
@@ -436,7 +433,7 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
-                                                output_unit, spin, stat
+                                                output_unit, spin
     LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -486,8 +483,7 @@ END SUBROUTINE p_env_did_change
     IF (PRESENT(psi0)) THEN
        CALL cp_fm_vect_copy(psi0,my_psi0)
     ELSE
-       ALLOCATE(my_psi0(n_spins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(my_psi0(n_spins))
        DO spin=1,n_spins
           NULLIFY(my_psi0(spin)%matrix)
           CALL get_mo_set(mos(spin)%mo_set,&

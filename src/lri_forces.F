@@ -153,7 +153,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, i, iac, iatom, ikind, ilist, ispin, &
       jatom, jkind, jneighbor, k, natom, nba, nbb, nfa, nfb, nkind, nlist, &
-      nn, nneighbor, nspin, stat
+      nn, nneighbor, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
     REAL(KIND=dp), DIMENSION(3)              :: dcharge, dlambda, force_a, &
@@ -191,8 +191,7 @@ CONTAINS
       nspin = SIZE(pmatrix)
  
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
-      ALLOCATE(atom_of_kind(natom),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -346,8 +345,7 @@ CONTAINS
 
       ENDDO
 
-      DEALLOCATE(atom_of_kind,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(atom_of_kind)
  
     ENDIF
 

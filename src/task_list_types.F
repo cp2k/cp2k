@@ -50,10 +50,7 @@ SUBROUTINE allocate_task_list(task_list)
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_task_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
-  ALLOCATE(task_list,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(task_list)
 
   NULLIFY(task_list%tasks)
   NULLIFY(task_list%dist_ab)
@@ -77,38 +74,28 @@ SUBROUTINE deallocate_task_list(task_list)
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_task_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
   IF (ASSOCIATED(task_list%tasks)) THEN
-     DEALLOCATE(task_list%tasks,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%tasks)
   ENDIF
   IF (ASSOCIATED(task_list%dist_ab)) THEN
-     DEALLOCATE(task_list%dist_ab,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%dist_ab)
   ENDIF
   IF (ASSOCIATED(task_list%atom_pair_send)) THEN
-     DEALLOCATE(task_list%atom_pair_send,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%atom_pair_send)
   ENDIF
   IF (ASSOCIATED(task_list%atom_pair_recv)) THEN
-     DEALLOCATE(task_list%atom_pair_recv,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%atom_pair_recv)
   ENDIF
   IF (ASSOCIATED(task_list%taskstart)) THEN
-     DEALLOCATE(task_list%taskstart,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%taskstart)
   ENDIF
   IF (ASSOCIATED(task_list%taskstop)) THEN
-     DEALLOCATE(task_list%taskstop,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%taskstop)
   ENDIF
   IF (ASSOCIATED(task_list%npairs)) THEN
-     DEALLOCATE(task_list%npairs,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(task_list%npairs)
   ENDIF
 
-  DEALLOCATE(task_list,stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(task_list)
 END SUBROUTINE deallocate_task_list
 END MODULE task_list_types

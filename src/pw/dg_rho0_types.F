@@ -130,10 +130,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
-    ALLOCATE ( dg_rho0, stat=istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( dg_rho0)
     NULLIFY ( dg_rho0 % gcc )
     NULLIFY ( dg_rho0 % zet )
     dg_rho0 % cutoff_radius = 0.0_dp
@@ -186,7 +183,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -196,18 +192,15 @@ CONTAINS
        dg_rho0%ref_count=dg_rho0%ref_count-1
        IF (dg_rho0%ref_count==0) THEN
           IF ( ASSOCIATED ( dg_rho0 % gcc ) ) THEN
-             DEALLOCATE ( dg_rho0 % gcc, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE ( dg_rho0 % gcc)
           END IF
           IF ( ASSOCIATED ( dg_rho0 % zet ) ) THEN
-             DEALLOCATE ( dg_rho0 % zet, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE ( dg_rho0 % zet)
           END IF
           CALL pw_release ( dg_rho0 % density % pw)
           NULLIFY ( dg_rho0 % gcc )
           NULLIFY ( dg_rho0 % zet )
-          DEALLOCATE (  dg_rho0 , stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  dg_rho0 )
        END IF
     END IF
     NULLIFY(dg_rho0)

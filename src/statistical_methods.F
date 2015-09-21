@@ -62,8 +62,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER :: stqr = 1.047198_dp, th = 0.375_dp, &
       two = 2.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: i, i1, j, n2, output_unit, &
-                                                stat
+    INTEGER                                  :: i, i1, j, n2, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, an, an25, asa, fac, &
@@ -92,12 +91,9 @@ CONTAINS
     ELSE
        n2 = (n-1)/2
     END IF
-    ALLOCATE(x(n),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(itmp(n),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(a(n2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(x(n))
+    ALLOCATE(itmp(n))
+    ALLOCATE(a(n2))
     x(:) = ix
     CALL sort(x, n, itmp)
     ! Check for zero range
@@ -201,12 +197,9 @@ CONTAINS
           pw = alnorm((y - m)/s, .TRUE.)
        END IF
     END IF
-    DEALLOCATE(x,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(itmp,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(a,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(x)
+    DEALLOCATE(itmp)
+    DEALLOCATE(a)
 
   END SUBROUTINE sw_test
 
@@ -471,7 +464,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tests', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n, stat
+    INTEGER                                  :: i, n
     LOGICAL                                  :: failure
     REAL(KINd=dp)                            :: prob, pw, r, tau, u, w, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ydata
@@ -480,8 +473,7 @@ CONTAINS
     IF (debug_this_module) THEN
        n = 50 ! original sample size
        NULLIFY(xdata)
-       ALLOCATE(xdata(n), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(xdata(n))
        DO i = 1, 10
           xdata(i) = 5.0_dp - REAL(i,KIND=dp)/2.0_dp + 0.1*&
                      next_random_number(globenv%gaussian_rng_stream)
@@ -500,19 +492,16 @@ CONTAINS
 
        ! Test for normality distribution and for serial correlation
        DO i = 1,n
-         ALLOCATE(ydata(n-i+1), stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(ydata(n-i+1))
          ydata = xdata(i:n)
          CALL sw_test ( ydata, n-i+1, w, pw)
          CALL vn_test(ydata,n-i+1,r,u,prob)
          WRITE(*,*)"Shapiro Wilks test",i,w,pw
          WRITE(*,*)"Von Neu",i,r,u,prob
-         DEALLOCATE(ydata, stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(ydata)
        END DO
 
-       DEALLOCATE(xdata, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(xdata)
     END IF
   END SUBROUTINE tests
 

@@ -120,8 +120,8 @@ MODULE hfx_compression_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: end_idx, increment_counter, &
-                                                start_idx, stat, &
-                                                tmp_elements, tmp_nints
+                                                start_idx, tmp_elements, &
+                                                tmp_nints
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -145,8 +145,7 @@ MODULE hfx_compression_methods
         container%file_counter = container%file_counter + 1
       ELSE
         !! Allocate new list entry
-        ALLOCATE(container%current%next, STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(container%current%next)
         !$OMP ATOMIC
         memory_usage = memory_usage + 1
         container%current%next%next => NULL()

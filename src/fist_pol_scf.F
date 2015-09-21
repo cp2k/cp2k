@@ -163,7 +163,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, j, &
-      max_ipol_iter, natom_of_kind, natoms, nkind, ntot, stat
+      max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, iwarn
     REAL(KIND=dp)                            :: apol, cpol, eps_pol, &
@@ -188,10 +188,8 @@ CONTAINS
          ewald_type=ewald_type)
 
     natoms = SIZE ( particle_set )
-    ALLOCATE (efield1(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (efield2(9,natoms), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE (efield1(3,natoms))
+    ALLOCATE (efield2(9,natoms))
 
     nkind = SIZE(atomic_kind_set)
     IF (iw>0) WRITE(iw,FMT='(/,T5,"POL_SCF|","Method: self-consistent")')
@@ -308,10 +306,8 @@ CONTAINS
     END IF
 
     ! Deallocate working arrays
-    DEALLOCATE(efield1,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(efield2,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(efield1)
+    DEALLOCATE(efield2)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
          "PRINT%EWALD_INFO")
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
@@ -387,7 +383,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, &
-      max_ipol_iter, natom_of_kind, natoms, nkind, ntot, stat
+      max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, iwarn
     REAL(KIND=dp)                            :: alpha, apol, beta, denom, &
@@ -415,18 +411,12 @@ CONTAINS
 
     ! allocate work arrays
     natoms = SIZE ( particle_set )
-    ALLOCATE (efield1(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (tmp_dipoles(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (residual(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (conjugate(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (conjugate_applied(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (efield1_ext(3,natoms), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE (efield1(3,natoms))
+    ALLOCATE (tmp_dipoles(3,natoms))
+    ALLOCATE (residual(3,natoms))
+    ALLOCATE (conjugate(3,natoms))
+    ALLOCATE (conjugate_applied(3,natoms))
+    ALLOCATE (efield1_ext(3,natoms))
 
     ! Compute the 'external' electrostatic field (all inducible dipoles
     ! equal to zero). this is required for the conjugate gradient solver.
@@ -651,18 +641,12 @@ CONTAINS
     END IF
 
     ! Deallocate working arrays
-    DEALLOCATE(efield1,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tmp_dipoles,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(residual,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(conjugate,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(conjugate_applied,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(efield1_ext,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(efield1)
+    DEALLOCATE(tmp_dipoles)
+    DEALLOCATE(residual)
+    DEALLOCATE(conjugate)
+    DEALLOCATE(conjugate_applied)
+    DEALLOCATE(efield1_ext)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
          "PRINT%EWALD_INFO")
     CALL cp_print_key_finished_output(iw,logger,mm_section,&

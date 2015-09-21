@@ -56,13 +56,11 @@ MODULE et_coupling_types
     CHARACTER(len=*), PARAMETER :: routineN = 'et_coupling_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
       failure=.FALSE.
 
-      ALLOCATE(et_coupling, stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(et_coupling)
 
       NULLIFY(et_coupling%et_mo_coeff)
       NULLIFY(et_coupling%rest_mat)
@@ -124,7 +122,7 @@ MODULE et_coupling_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'et_coupling_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
 
       IF(ASSOCIATED(et_coupling%et_mo_coeff))THEN
          DO i=1,SIZE(et_coupling%et_mo_coeff)
@@ -137,8 +135,7 @@ MODULE et_coupling_types
          DEALLOCATE(et_coupling%rest_mat)
       END IF
 
-      DEALLOCATE(et_coupling,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(et_coupling)
     END SUBROUTINE et_coupling_release
 
 END MODULE et_coupling_types

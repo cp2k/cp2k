@@ -112,25 +112,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     pairpot%ngrd = ngrd
     pairpot%spdim = spdim
     pairpot%llm = llm
 
     IF ( spdim > 0 ) THEN
-      ALLOCATE(pairpot%spxr(spdim,2),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(pairpot%spxr(spdim,2))
 
-      ALLOCATE(pairpot%scoeff(spdim,4),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(pairpot%scoeff(spdim,4))
     END IF
 
-    ALLOCATE(pairpot%fmat(ngrd,llm),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pairpot%fmat(ngrd,llm))
 
-    ALLOCATE(pairpot%smat(ngrd,llm),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pairpot%smat(ngrd,llm))
 
   END SUBROUTINE qs_dftb_pairpot_create
 
@@ -145,7 +139,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, n1, n2, stat
+    INTEGER                                  :: i, j, n1, n2
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -156,25 +150,20 @@ CONTAINS
       DO i=1,n1
         DO j=1,n2
           IF (ASSOCIATED(pairpot(i,j)%spxr)) THEN
-            DEALLOCATE(pairpot(i,j)%spxr,stat=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(pairpot(i,j)%spxr)
           END IF
           IF (ASSOCIATED(pairpot(i,j)%scoeff)) THEN
-            DEALLOCATE(pairpot(i,j)%scoeff,stat=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(pairpot(i,j)%scoeff)
           END IF
           IF (ASSOCIATED(pairpot(i,j)%smat)) THEN
-            DEALLOCATE(pairpot(i,j)%smat,stat=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(pairpot(i,j)%smat)
           END IF
           IF (ASSOCIATED(pairpot(i,j)%fmat)) THEN
-            DEALLOCATE(pairpot(i,j)%fmat,stat=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(pairpot(i,j)%fmat)
           END IF
         END DO
       END DO
-      DEALLOCATE(pairpot,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(pairpot)
     END IF
 
   END SUBROUTINE qs_dftb_pairpot_release

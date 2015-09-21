@@ -113,13 +113,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(kpp1_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kpp1_env)
     NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
          kpp1_env%rho_set, &
          kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
@@ -158,7 +156,7 @@ CONTAINS
 
     INTEGER                                  :: excitations, handle, ispin, &
                                                 ns, nspins, output_unit, &
-                                                res_etype, stat
+                                                res_etype
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: explicit, failure, gapw, &
                                                 gapw_xc, ionode, lsd, &
@@ -242,8 +240,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
          pw_pools=pw_pools, poisson_env=poisson_env)
-    ALLOCATE(v_rspace_new(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(v_rspace_new(nspins))
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
          use_data = COMPLEXDATA1D,&
          in_space = RECIPROCALSPACE)
@@ -336,8 +333,7 @@ CONTAINS
                           section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
                           auxbas_pw_pool)
 
-    ALLOCATE(v_xc(nspins),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(v_xc(nspins))
     DO ispin=1, nspins
        NULLIFY(v_xc(ispin)%pw)
        CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
@@ -359,8 +355,7 @@ CONTAINS
     DO ispin=1,nspins
        v_rspace_new(ispin)%pw => v_xc(ispin)%pw
     END DO
-    DEALLOCATE(v_xc,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(v_xc)
 
     IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section)
 
@@ -369,8 +364,7 @@ CONTAINS
     DO ispin=1,SIZE(rho1_r_pw)
        CALL pw_release(rho1_r_pw(ispin)%pw)
     END DO
-    DEALLOCATE(rho1_r_pw, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rho1_r_pw)
 
     !-------------------------------!
     ! Add both hartree and xc terms !
@@ -495,8 +489,7 @@ CONTAINS
     DO ispin=1,nspins
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
     END DO
-    DEALLOCATE(v_rspace_new, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(v_rspace_new)
 
     CALL timestop(handle)
   END SUBROUTINE kpp1_calc_k_p_p1
@@ -620,7 +613,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: excitations, ispin, nspins, &
-                                                res_etype, stat
+                                                res_etype
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -649,8 +642,7 @@ CONTAINS
     CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool)
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
-       ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(kpp1_env%v_rspace(nspins))
        DO ispin=1,nspins
           CALL pw_pool_create_pw(auxbas_pw_pool, &
                kpp1_env%v_rspace(ispin)%pw,&
@@ -678,16 +670,14 @@ CONTAINS
             i_val=res_etype)
        IF (nspins==1.AND.(excitations==tddfpt_excitations.and.&
             (lsd_singlets .OR. res_etype == tddfpt_triplet))) THEN
-          ALLOCATE(my_rho_r(2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(my_rho_r(2))
           DO ispin=1,2
              CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
                   use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
              my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
           END DO
        ELSE
-          ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(my_rho_r(SIZE(rho_r)))
           DO ispin=1,SIZE(rho_r)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
              CALL pw_retain(my_rho_r(ispin)%pw)
@@ -713,8 +703,7 @@ CONTAINS
        DO ispin=1,SIZE(my_rho_r)
           CALL pw_release(my_rho_r(ispin)%pw)
        END DO
-       DEALLOCATE(my_rho_r,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_rho_r)
     END IF
 
   END SUBROUTINE kpp1_check_i_alloc
@@ -739,7 +728,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_did_change', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, my_psi0_changed, &
                                                 my_s_struct_changed
 
@@ -759,24 +748,20 @@ CONTAINS
     END IF
     IF (my_s_struct_changed.or.my_psi0_changed) THEN
        IF (ASSOCIATED(kpp1_env%drho_r)) THEN
-          DEALLOCATE(kpp1_env%drho_r, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kpp1_env%drho_r)
        END IF
        IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
           CALL xc_dset_release(kpp1_env%deriv_set)
           NULLIFY(kpp1_env%deriv_set)
        END IF
        IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
-          DEALLOCATE(kpp1_env%spin_pot, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kpp1_env%spin_pot)
        END IF
        IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
-          DEALLOCATE(kpp1_env%grad_pot, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kpp1_env%grad_pot)
        END IF
        IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
-          DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kpp1_env%ndiag_term)
        END IF
        CALL xc_rho_set_release(kpp1_env%rho_set) ! it would be better to pass a pw pool
     END IF
@@ -786,8 +771,7 @@ CONTAINS
              DO i=1,SIZE(kpp1_env%v_rspace)
                 CALL pw_release(kpp1_env%v_rspace(i)%pw)
              END DO
-             DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%v_rspace)
           END IF
        END IF
     END IF

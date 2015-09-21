@@ -576,7 +576,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, idim, iend, istart, j, k, locij, n, ndim, nk, &
-      ntype, nunique, nvar, pot_target, stat, tmpij(2), tmpij0(2)
+      ntype, nunique, nvar, pot_target, tmpij(2), tmpij0(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: Iwork1, Iwork2, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_index
     LOGICAL                                  :: at_least_one, check, failure
@@ -593,8 +593,7 @@ CPSourceFileRef,&
           potparm%pot(i,j)%pot%undef = .FALSE.
        END DO
     END DO
-    ALLOCATE(tmp_index(ntype,ntype),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_index(ntype,ntype))
     !
     nunique = 0
     tmp_index = HUGE(0)
@@ -645,8 +644,7 @@ CPSourceFileRef,&
           CPASSERT(.FALSE.)
        END SELECT
        ! Setup a table of the indexes..
-       ALLOCATE(my_index(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(my_index(ndim))
        n  = 0
        nk = 0
        DO i = 1, ntype
@@ -660,8 +658,7 @@ CPSourceFileRef,&
           END DO
        END DO
        IF (nvar /=0) THEN
-          ALLOCATE(pot_par(ndim,nvar),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(pot_par(ndim,nvar))
           n  = 0
           nk = 0
           DO i = 1, ntype
@@ -763,14 +760,10 @@ CPSourceFileRef,&
              END DO
           END DO
           ! Main Sorting Loop
-          ALLOCATE(Rwork(ndim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(Iwork1(ndim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(Iwork2(ndim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(wtmp(nvar),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(Rwork(ndim))
+          ALLOCATE(Iwork1(ndim))
+          ALLOCATE(Iwork2(ndim))
+          ALLOCATE(wtmp(nvar))
           CALL sort(pot_par(:,1),ndim,Iwork1)
           ! Sort all the other components of the potential
           DO k = 2, nvar
@@ -821,19 +814,14 @@ CPSourceFileRef,&
                 my_index(i) = Iwork2(Iwork1(i))
              END DO
           END DO
-          DEALLOCATE(wtmp,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Iwork1,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Iwork2,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Rwork,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(wtmp)
+          DEALLOCATE(Iwork1)
+          DEALLOCATE(Iwork2)
+          DEALLOCATE(Rwork)
           !
           ! Let's determine the number of unique potentials and tag them
           !
-          ALLOCATE(Cwork(nvar),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(Cwork(nvar))
           Cwork(:) = pot_par(1,:)
           locij = my_index(1)
           CALL get_indexes(locij,ntype,tmpij0)
@@ -897,17 +885,14 @@ CPSourceFileRef,&
              tmp_index(tmpij(1),tmpij(2))=nunique
              tmp_index(tmpij(2),tmpij(1))=nunique
           END DO
-          DEALLOCATE(Cwork,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pot_par,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(Cwork)
+          DEALLOCATE(pot_par)
        ELSE
           nunique = nunique + 1
           CALL set_potparm_index(potparm, my_index, pot_target, ntype, tmpij,&
                atomic_kind_set, shift_cutoff, do_zbl)
        END IF
-       DEALLOCATE(my_index,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_index)
     END DO
     ! Multiple defined potential
     n = 0
@@ -926,8 +911,7 @@ CPSourceFileRef,&
     ! Concluding the postprocess..
     CALL spline_env_create(spline_env, ntype, nunique)
     spline_env%spltab=tmp_index
-    DEALLOCATE(tmp_index,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmp_index)
     CALL timestop(handle)
   END SUBROUTINE get_nonbond_storage
 
@@ -958,7 +942,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, min_val, nvalues, &
-                                                stat, tmpij(2), value, zi, zj
+                                                tmpij(2), value, zi, zj
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: hicut0, l_epsilon, l_sigma6, &
@@ -975,10 +959,8 @@ CPSourceFileRef,&
     failure = .FALSE.
     nvalues = SIZE(my_index)
     IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
-       ALLOCATE(sigma6(nvalues),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(wrk(nvalues),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(sigma6(nvalues))
+       ALLOCATE(wrk(nvalues))
        min_sigma6= HUGE(0.0_dp)
        m_epsilon =-HUGE(0.0_dp)
        DO i = 1, nvalues
@@ -1002,10 +984,8 @@ CPSourceFileRef,&
        IF (m_sigma6   == -HUGE(0.0_dp)) m_sigma6   = 1.0_dp
        IF (m_epsilon  == -HUGE(0.0_dp)) m_epsilon  = 0.0_dp
        IF (min_sigma6 ==  HUGE(0.0_dp)) min_sigma6 = 0.0_dp
-       DEALLOCATE(sigma6,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(wrk,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(sigma6)
+       DEALLOCATE(wrk)
     ELSE
        min_val = MINVAL(my_index(:))
     END IF

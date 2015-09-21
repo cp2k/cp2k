@@ -110,8 +110,7 @@ FUNCTION get_occupation(matrix,para_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, mype, natom, &
-                                                nblock_sum, nblock_tot, npe, &
-                                                stat
+                                                nblock_sum, nblock_tot, npe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure
 
@@ -123,12 +122,10 @@ FUNCTION get_occupation(matrix,para_env)
     npe = para_env%num_pe
 
     ! *** Allocate work storage ***
-    ALLOCATE (nblock(npe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nblock(npe))
     nblock(:) = 0
 
-    ALLOCATE (nelement(npe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nelement(npe))
     nelement(:) = 0
 
     nblock(mype) = cp_dbcsr_get_num_blocks(matrix)

@@ -315,9 +315,8 @@ CONTAINS
       182087882.613702_dp, 341890134.751331_dp /)
 
     CHARACTER(LEN=default_string_length)     :: basis_fn, basis_name
-    INTEGER                                  :: basistype, i, ierr, j, k, l, &
-                                                ll, m, ngp, nl, nr, nu, &
-                                                quadtype
+    INTEGER                                  :: basistype, i, j, k, l, ll, m, &
+                                                ngp, nl, nr, nu, quadtype
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: nqm, num_gto, num_slater, &
                                                 sindex
@@ -368,8 +367,7 @@ CONTAINS
            ENDIF
            basis%nbas = nu
            basis%nprim = nu
-           ALLOCATE (basis%am(nu,0:3),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE (basis%am(nu,0:3))
            basis%am(1:nu,0) = ugbs(1:nu)
            basis%am(1:nu,1) = ugbs(1:nu)
            basis%am(1:nu,2) = ugbs(1:nu)
@@ -381,8 +379,7 @@ CONTAINS
            END DO
            basis%nprim = basis%nbas
            m  = MAXVAL(basis%nbas)
-           ALLOCATE (basis%am(m,0:3),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE (basis%am(m,0:3))
            basis%am = 0._dp
            IF ( basis%nbas(0) > 0 ) THEN
              NULLIFY(expo)
@@ -420,10 +417,8 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
-         ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
-         ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE (basis%bf(nr,m,0:3))
+         ALLOCATE (basis%dbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -485,8 +480,7 @@ CONTAINS
            CALL section_vals_val_get(basis_section,"GEO_START_VALUE",r_val=aval)
          END IF
          m  = MAXVAL(basis%nbas)
-         ALLOCATE (basis%am(m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE (basis%am(m,0:3))
          basis%am = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
@@ -503,10 +497,8 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
-         ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
-         ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE (basis%bf(nr,m,0:3))
+         ALLOCATE (basis%dbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -531,10 +523,8 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
-         ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
-         ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE (basis%bf(nr,m,0:3))
+         ALLOCATE (basis%dbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -564,8 +554,7 @@ CONTAINS
            END DO
            basis%nprim = basis%nbas
            m  = MAXVAL(basis%nbas)
-           ALLOCATE (basis%as(m,0:3),basis%ns(m,0:3),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE (basis%as(m,0:3),basis%ns(m,0:3))
            basis%as = 0._dp
            basis%ns = 0
            IF ( basis%nbas(0) > 0 ) THEN
@@ -628,10 +617,8 @@ CONTAINS
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)
-         ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
-         ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE (basis%bf(nr,m,0:3))
+         ALLOCATE (basis%dbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
          DO l=0,3
@@ -664,34 +651,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF(ASSOCIATED(basis%am)) THEN
-       DEALLOCATE (basis%am,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (basis%am)
     END IF
     IF(ASSOCIATED(basis%cm)) THEN
-       DEALLOCATE (basis%cm,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (basis%cm)
     END IF
     IF(ASSOCIATED(basis%as)) THEN
-       DEALLOCATE (basis%as,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (basis%as)
     END IF
     IF(ASSOCIATED(basis%ns)) THEN
-       DEALLOCATE (basis%ns,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (basis%ns)
     END IF
     IF(ASSOCIATED(basis%bf)) THEN
-       DEALLOCATE (basis%bf,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (basis%bf)
     END IF
     IF(ASSOCIATED(basis%dbf)) THEN
-       DEALLOCATE (basis%dbf,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (basis%dbf)
     END IF
 
     CALL deallocate_grid_atom(basis%grid)
@@ -709,15 +689,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(atom))
 
-    ALLOCATE(atom,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(atom)
 
     NULLIFY(atom%zmp_section)
     NULLIFY(atom%xc_section)
@@ -738,7 +716,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -748,16 +725,14 @@ CONTAINS
     NULLIFY(atom%basis)
     NULLIFY(atom%integrals)
     IF(ASSOCIATED(atom%state)) THEN
-      DEALLOCATE(atom%state,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(atom%state)
       NULLIFY(atom%state)
     END IF
     IF(ASSOCIATED(atom%orbitals)) THEN
       CALL release_atom_orbs(atom%orbitals)
     END IF
 
-    DEALLOCATE(atom,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(atom)
     NULLIFY(atom)
 
   END SUBROUTINE release_atom_type
@@ -838,54 +813,44 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_orbs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(orbs))
 
-    ALLOCATE(orbs,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs)
 
-    ALLOCATE(orbs%wfn(mbas,mo,0:3),orbs%wfna(mbas,mo,0:3),orbs%wfnb(mbas,mo,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%wfn(mbas,mo,0:3),orbs%wfna(mbas,mo,0:3),orbs%wfnb(mbas,mo,0:3))
     orbs%wfn = 0._dp
     orbs%wfna = 0._dp
     orbs%wfnb = 0._dp
 
-    ALLOCATE(orbs%pmat(mbas,mbas,0:3),orbs%pmata(mbas,mbas,0:3),orbs%pmatb(mbas,mbas,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%pmat(mbas,mbas,0:3),orbs%pmata(mbas,mbas,0:3),orbs%pmatb(mbas,mbas,0:3))
     orbs%pmat = 0._dp
     orbs%pmata = 0._dp
     orbs%pmatb = 0._dp
 
-    ALLOCATE(orbs%ener(mo,0:3),orbs%enera(mo,0:3),orbs%enerb(mo,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%ener(mo,0:3),orbs%enera(mo,0:3),orbs%enerb(mo,0:3))
     orbs%ener = 0._dp
     orbs%enera = 0._dp
     orbs%enerb = 0._dp
 
-    ALLOCATE(orbs%refene(mo,0:3,2),orbs%refchg(mo,0:3,2),orbs%refnod(mo,0:3,2),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%refene(mo,0:3,2),orbs%refchg(mo,0:3,2),orbs%refnod(mo,0:3,2))
     orbs%refene = 0._dp
     orbs%refchg = 0._dp
     orbs%refnod = 0._dp
-    ALLOCATE(orbs%wrefene(mo,0:3,2),orbs%wrefchg(mo,0:3,2),orbs%wrefnod(mo,0:3,2),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%wrefene(mo,0:3,2),orbs%wrefchg(mo,0:3,2),orbs%wrefnod(mo,0:3,2))
     orbs%wrefene = 0._dp
     orbs%wrefchg = 0._dp
     orbs%wrefnod = 0._dp
-    ALLOCATE(orbs%crefene(mo,0:3,2),orbs%crefchg(mo,0:3,2),orbs%crefnod(mo,0:3,2),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%crefene(mo,0:3,2),orbs%crefchg(mo,0:3,2),orbs%crefnod(mo,0:3,2))
     orbs%crefene = 0._dp
     orbs%crefchg = 0._dp
     orbs%crefnod = 0._dp
-    ALLOCATE(orbs%rcmax(mo,0:3,2),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%rcmax(mo,0:3,2))
     orbs%rcmax = 0._dp
-    ALLOCATE(orbs%wpsir0(mo,2),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(orbs%wpsir0(mo,2))
     orbs%wpsir0 = 0._dp
 
   END SUBROUTINE create_atom_orbs
@@ -900,7 +865,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_orbs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -908,78 +872,63 @@ CONTAINS
     CPASSERT(ASSOCIATED(orbs))
 
     IF(ASSOCIATED(orbs%wfn)) THEN
-      DEALLOCATE(orbs%wfn,orbs%wfna,orbs%wfnb,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%wfn,orbs%wfna,orbs%wfnb)
       NULLIFY(orbs%wfn,orbs%wfna,orbs%wfnb)
     END IF
     IF(ASSOCIATED(orbs%pmat)) THEN
-      DEALLOCATE(orbs%pmat,orbs%pmata,orbs%pmatb,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%pmat,orbs%pmata,orbs%pmatb)
       NULLIFY(orbs%pmat,orbs%pmata,orbs%pmatb)
     END IF
     IF(ASSOCIATED(orbs%ener)) THEN
-      DEALLOCATE(orbs%ener,orbs%enera,orbs%enerb,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%ener,orbs%enera,orbs%enerb)
       NULLIFY(orbs%ener,orbs%enera,orbs%enerb)
     END IF
     IF(ASSOCIATED(orbs%refene)) THEN
-      DEALLOCATE(orbs%refene,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%refene)
       NULLIFY(orbs%refene)
     END IF
     IF(ASSOCIATED(orbs%refchg)) THEN
-      DEALLOCATE(orbs%refchg,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%refchg)
       NULLIFY(orbs%refchg)
     END IF
     IF(ASSOCIATED(orbs%refnod)) THEN
-      DEALLOCATE(orbs%refnod,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%refnod)
       NULLIFY(orbs%refnod)
     END IF
     IF(ASSOCIATED(orbs%wrefene)) THEN
-      DEALLOCATE(orbs%wrefene,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%wrefene)
       NULLIFY(orbs%wrefene)
     END IF
     IF(ASSOCIATED(orbs%wrefchg)) THEN
-      DEALLOCATE(orbs%wrefchg,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%wrefchg)
       NULLIFY(orbs%wrefchg)
     END IF
     IF(ASSOCIATED(orbs%wrefnod)) THEN
-      DEALLOCATE(orbs%wrefnod,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%wrefnod)
       NULLIFY(orbs%wrefnod)
     END IF
     IF(ASSOCIATED(orbs%crefene)) THEN
-      DEALLOCATE(orbs%crefene,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%crefene)
       NULLIFY(orbs%crefene)
     END IF
     IF(ASSOCIATED(orbs%crefchg)) THEN
-      DEALLOCATE(orbs%crefchg,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%crefchg)
       NULLIFY(orbs%crefchg)
     END IF
     IF(ASSOCIATED(orbs%crefnod)) THEN
-      DEALLOCATE(orbs%crefnod,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%crefnod)
       NULLIFY(orbs%crefnod)
     END IF
     IF(ASSOCIATED(orbs%rcmax)) THEN
-      DEALLOCATE(orbs%rcmax,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%rcmax)
       NULLIFY(orbs%rcmax)
     END IF
     IF(ASSOCIATED(orbs%wpsir0)) THEN
-      DEALLOCATE(orbs%wpsir0,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(orbs%wpsir0)
       NULLIFY(orbs%wpsir0)
     END IF
 
-    DEALLOCATE(orbs,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(orbs)
     NULLIFY(orbs)
 
   END SUBROUTINE release_atom_orbs
@@ -996,7 +945,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opmat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, m
+    INTEGER                                  :: m
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1004,12 +953,10 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(opmat))
 
-    ALLOCATE(opmat,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(opmat)
 
     opmat%n = n
-    ALLOCATE(opmat%op(m,m,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(opmat%op(m,m,0:3))
     opmat%op = 0._dp
 
   END SUBROUTINE create_opmat
@@ -1024,18 +971,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opmat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(opmat))
 
     opmat%n = 0
-    DEALLOCATE(opmat%op,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(opmat%op)
 
-    DEALLOCATE(opmat,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(opmat)
 
   END SUBROUTINE release_opmat
 
@@ -1051,21 +995,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opgrid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, nr
+    INTEGER                                  :: nr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(opgrid))
 
-    ALLOCATE(opgrid,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(opgrid)
 
     opgrid%grid => grid
 
     nr = grid%nr
 
-    ALLOCATE(opgrid%op(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(opgrid%op(nr))
     opgrid%op = 0._dp
 
   END SUBROUTINE create_opgrid
@@ -1080,18 +1022,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opgrid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(opgrid))
 
     NULLIFY(opgrid%grid)
-    DEALLOCATE(opgrid%op,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(opgrid%op)
 
-    DEALLOCATE(opgrid,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(opgrid)
 
   END SUBROUTINE release_opgrid
 
@@ -1885,9 +1824,9 @@ CONTAINS
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
-    INTEGER                                  :: i, ierr, ii, ipgf, irep, &
-                                                iset, ishell, j, k, lshell, &
-                                                nj, nmin, ns, nset, strlen1, &
+    INTEGER                                  :: i, ii, ipgf, irep, iset, &
+                                                ishell, j, k, lshell, nj, &
+                                                nmin, ns, nset, strlen1, &
                                                 strlen2
     INTEGER, DIMENSION(maxpri, maxset)       :: l
     INTEGER, DIMENSION(maxset)               :: lmax, lmin, n, npgf, nshell
@@ -2036,11 +1975,9 @@ CONTAINS
 
     nj = MAXVAL(basis%nprim)
     ns = MAXVAL(basis%nbas)
-    ALLOCATE (basis%am(nj,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%am(nj,0:3))
     basis%am = 0._dp
-    ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%cm(nj,ns,0:3))
     basis%cm = 0._dp
 
     DO j=0,3

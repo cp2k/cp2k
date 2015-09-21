@@ -167,8 +167,10 @@ CPSourceFileRef,&
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: name, title
-    INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom_read, &
-      nkind, nmol, nmolecule, nmolkind, npart
+    INTEGER                                  :: first_atom, iatom, ikind, &
+                                                imol, last_atom, natom_read, &
+                                                nkind, nmol, nmolecule, &
+                                                nmolkind, npart
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, &
                                                 x, y, z
@@ -194,8 +196,7 @@ CPSourceFileRef,&
              molecule_kinds, molecule_set, subsys, force_env, particles, particle_set)
     CPASSERT(.NOT. ASSOCIATED(msd))
 
-    ALLOCATE(msd, STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(msd)
 
     NULLIFY(msd%ref0_pos)
     NULLIFY(msd%ref0_com_molecule)
@@ -214,8 +215,7 @@ CPSourceFileRef,&
     CALL section_vals_val_get(msd_section,"REF0_FILENAME",c_val=filename)
     CALL open_file(TRIM(filename),unit_number=msd%ref0_unit)
 
-    ALLOCATE(msd%ref0_pos(3,reftraj%natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(msd%ref0_pos(3,reftraj%natom))
     msd%ref0_pos = 0.0_dp
 
     IF (para_env%mepos==para_env%source) THEN
@@ -256,11 +256,9 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(msd_section,"DISPLACED_ATOM",l_val=msd%disp_atom)
     IF(msd%disp_atom) THEN
-       ALLOCATE(msd%disp_atom_index(npart),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(msd%disp_atom_index(npart))
        msd%disp_atom_index = 0
-       ALLOCATE(msd%disp_atom_dr(3,npart),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(msd%disp_atom_dr(3,npart))
        msd%disp_atom_dr = 0.0_dp
        msd%msd_kind = .TRUE.
     END IF
@@ -271,8 +269,7 @@ CPSourceFileRef,&
       CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds)
       nkind = atomic_kinds%n_els
 
-      ALLOCATE(msd%val_msd_kind(4,nkind),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(msd%val_msd_kind(4,nkind))
       msd%val_msd_kind = 0.0_dp
     END IF
 
@@ -280,15 +277,13 @@ CPSourceFileRef,&
       CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,&
            molecule_kinds_new=molecule_kinds)
       nmolkind =  molecule_kinds%n_els
-      ALLOCATE(msd%val_msd_molecule(4,nmolkind),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(msd%val_msd_molecule(4,nmolkind))
 
       molecule_kind_set => molecule_kinds%els
       molecule_set => molecules%els
       nmol = molecules%n_els
 
-      ALLOCATE(msd%ref0_com_molecule(3,nmol), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(msd%ref0_com_molecule(3,nmol))
 
       DO ikind = 1, nmolkind
         molecule_kind => molecule_kind_set(ikind)

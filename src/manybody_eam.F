@@ -59,7 +59,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, i_a, i_b, iend, igrp, ikind, ilist, &
-      ipair, iparticle, istart, jkind, kind_a, kind_b, nkinds, nparticle, stat
+      ipair, iparticle, istart, jkind, kind_a, kind_b, nkinds, nparticle
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
     LOGICAL                                  :: do_eam, failure
     REAL(KIND=dp)                            :: fac, rab2, rab2_max
@@ -80,8 +80,7 @@ CONTAINS
          potparm = potparm, r_last_update=r_last_update,&
          r_last_update_pbc=r_last_update_pbc, eam_data=eam_data)
     nkinds = SIZE(potparm%pot, 1)
-    ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(eam_kinds_index(nkinds,nkinds))
     eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
@@ -102,8 +101,7 @@ CONTAINS
 
     IF (do_eam) THEN
        IF (.NOT. ASSOCIATED(eam_data)) THEN
-          ALLOCATE(eam_data(nparticle),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(eam_data(nparticle))
           CALL fist_nonbond_env_set (fist_nonbond_env,  eam_data=eam_data)
        ENDIF
        DO i=1,nparticle
@@ -117,8 +115,7 @@ CONTAINS
        ! Add citation
        CALL cite_reference(Foiles1986)
        NULLIFY(eam_a, eam_b)
-       ALLOCATE ( rho(nparticle), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( rho(nparticle))
        rho = 0._dp
        ! Starting the force loop
        DO ilist=1,nonbonded%nlists
@@ -159,11 +156,9 @@ CONTAINS
           eam_data(iparticle)%rho = rho(iparticle)
        END DO
 
-       DEALLOCATE (rho,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (rho)
     END IF
-    DEALLOCATE (eam_kinds_index, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (eam_kinds_index)
     CALL timestop(handle)
 
   END SUBROUTINE density_nonbond

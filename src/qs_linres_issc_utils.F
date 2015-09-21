@@ -102,8 +102,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idir, ijdir, ispin, &
-                                                istat, jdir, nao, nmo, &
-                                                nspins, output_unit
+                                                jdir, nao, nmo, nspins, &
+                                                output_unit
     LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
                                                 failure, should_stop
     REAL(dp)                                 :: chk, fro
@@ -169,8 +169,7 @@ CONTAINS
     !
     ! allocate the vectors
     ALLOCATE(psi0_order(nspins))
-    ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(psi1(nspins),h1_psi0(nspins))
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
        psi0_order(ispin)%matrix => mo_coeff
@@ -432,8 +431,7 @@ CONTAINS
        CALL cp_fm_release(psi1(ispin)%matrix)
        CALL cp_fm_release(h1_psi0(ispin)%matrix)
     ENDDO
-    DEALLOCATE(psi1,h1_psi0,psi0_order,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(psi1,h1_psi0,psi0_order)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO")
@@ -966,20 +964,15 @@ CONTAINS
     ENDDO
     !
     ! prepare for allocation
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
 
     !
     ! efg, pso and fc operators
@@ -1092,7 +1085,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ispin, istat
+    INTEGER                                  :: idir, ispin
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1100,16 +1093,13 @@ CONTAINS
     issc_env%ref_count = issc_env%ref_count - 1
     IF(issc_env%ref_count == 0 ) THEN
        IF(ASSOCIATED(issc_env%issc_on_atom_list)) THEN
-          DEALLOCATE(issc_env%issc_on_atom_list,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%issc_on_atom_list)
        ENDIF
        IF(ASSOCIATED(issc_env%issc)) THEN
-          DEALLOCATE(issc_env%issc,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%issc)
        ENDIF
        IF(ASSOCIATED(issc_env%issc_loc)) THEN
-          DEALLOCATE(issc_env%issc_loc,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%issc_loc)
        ENDIF
        !
        !efg_psi0
@@ -1119,8 +1109,7 @@ CONTAINS
                 CALL cp_fm_release(issc_env%efg_psi0(ispin,idir)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(issc_env%efg_psi0,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%efg_psi0)
        ENDIF
        !
        !pso_psi0
@@ -1130,8 +1119,7 @@ CONTAINS
                 CALL cp_fm_release(issc_env%pso_psi0(ispin,idir)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(issc_env%pso_psi0,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%pso_psi0)
        ENDIF
        !
        !dso_psi0
@@ -1141,8 +1129,7 @@ CONTAINS
                 CALL cp_fm_release(issc_env%dso_psi0(ispin,idir)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(issc_env%dso_psi0,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%dso_psi0)
        ENDIF
        !
        !fc_psi0
@@ -1150,8 +1137,7 @@ CONTAINS
           DO ispin = 1,SIZE(issc_env%fc_psi0,1)
              CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix)
           ENDDO
-          DEALLOCATE(issc_env%fc_psi0,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%fc_psi0)
        ENDIF
        !
        !psi1_efg
@@ -1161,8 +1147,7 @@ CONTAINS
                 CALL cp_fm_release(issc_env%psi1_efg(ispin,idir)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(issc_env%psi1_efg,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%psi1_efg)
        ENDIF
        !
        !psi1_pso
@@ -1172,8 +1157,7 @@ CONTAINS
                 CALL cp_fm_release(issc_env%psi1_pso(ispin,idir)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(issc_env%psi1_pso,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%psi1_pso)
        ENDIF
        !
        !psi1_dso
@@ -1183,8 +1167,7 @@ CONTAINS
                 CALL cp_fm_release(issc_env%psi1_dso(ispin,idir)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(issc_env%psi1_dso,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%psi1_dso)
        ENDIF
        !
        !psi1_fc
@@ -1192,8 +1175,7 @@ CONTAINS
           DO ispin = 1,SIZE(issc_env%psi1_fc,1)
              CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
           ENDDO
-          DEALLOCATE(issc_env%psi1_fc,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(issc_env%psi1_fc)
        ENDIF
        !
        ! cubes

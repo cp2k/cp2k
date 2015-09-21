@@ -339,7 +339,7 @@ CONTAINS
 
     INTEGER                                  :: bcntxt, ik, ikp, ikpgr, &
                                                 ispin, kplocal, nkp, &
-                                                nkp_groups, nspin, stat
+                                                nkp_groups, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
     INTEGER, DIMENSION(:, :), POINTER        :: kp_dist
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
@@ -391,8 +391,7 @@ CONTAINS
     kplocal = kp_range(2) - kp_range(1) + 1
 
     ! allocate some work matrices
-    ALLOCATE(rmatrix,cmatrix,tmpmat,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rmatrix,cmatrix,tmpmat)
     CALL cp_dbcsr_init(rmatrix)
     CALL cp_dbcsr_init(cmatrix)
     CALL cp_dbcsr_init(tmpmat)
@@ -565,9 +564,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, iloop, ispin, &
-                                                istat, nao, nmo, nspin, &
-                                                output_unit
+    INTEGER                                  :: handle, i, iloop, ispin, nao, &
+                                                nmo, nspin, output_unit
     LOGICAL                                  :: converged, failure
     REAL(dp)                                 :: ene_diff, ene_old, &
                                                 iter_delta, max_val, &
@@ -602,19 +600,15 @@ CONTAINS
     nspin = SIZE(mos)
     CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp)
 
-    ALLOCATE( eval_first(nspin), STAT=istat)
-      CPASSERT(istat==0)
-    ALLOCATE( occ_first(nspin),STAT=istat)
-      CPASSERT(istat==0)
+    ALLOCATE( eval_first(nspin))
+    ALLOCATE( occ_first(nspin))
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                       nmo=nmo,&
                       eigenvalues=mo_eigenvalues,&
                       occupation_numbers=mo_occupations)
-       ALLOCATE( eval_first(ispin)%array(nmo),STAT=istat)
-      CPASSERT(istat==0)
-       ALLOCATE( occ_first(ispin)%array(nmo),STAT=istat)
-      CPASSERT(istat==0)
+       ALLOCATE( eval_first(ispin)%array(nmo))
+       ALLOCATE( occ_first(ispin)%array(nmo))
        eval_first(ispin)%array(1:nmo) = mo_eigenvalues(1:nmo)
        occ_first(ispin)%array(1:nmo) = mo_occupations(1:nmo)
     END DO
@@ -778,8 +772,7 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'diag_subspace_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, istat, nmo, &
-                                                nspin
+    INTEGER                                  :: handle, i, ispin, nmo, nspin
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -817,12 +810,9 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos)
 
     END IF
 
-    ALLOCATE(subspace_env%chc_mat(nspin),STAT=istat)
-          CPASSERT(istat==0)
-    ALLOCATE(subspace_env%c_vec(nspin),STAT=istat)
-          CPASSERT(istat==0)
-    ALLOCATE(subspace_env%c0(nspin),STAT=istat)
-          CPASSERT(istat==0)
+    ALLOCATE(subspace_env%chc_mat(nspin))
+    ALLOCATE(subspace_env%c_vec(nspin))
+    ALLOCATE(subspace_env%c0(nspin))
 
     DO ispin = 1,nspin
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo)

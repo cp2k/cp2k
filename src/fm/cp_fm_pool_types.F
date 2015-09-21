@@ -89,13 +89,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(pool, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pool)
     pool%el_struct=> el_struct
     CALL cp_fm_struct_retain(pool%el_struct)
     last_fm_pool_id_nr=last_fm_pool_id_nr+1
@@ -170,7 +168,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -184,8 +181,7 @@ CONTAINS
           CALL cp_fm_struct_release(pool%el_struct)
           pool%ref_count=0
 
-          DEALLOCATE(pool,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pool)
        END IF
     END IF
     NULLIFY(pool)
@@ -322,14 +318,13 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools)
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPASSERT(ASSOCIATED(source_pools))
-  ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(target_pools(SIZE(source_pools)))
   DO i=1,SIZE(source_pools)
      target_pools(i)%pool => source_pools(i)%pool
      CALL fm_pool_retain(source_pools(i)%pool)
@@ -350,7 +345,7 @@ SUBROUTINE fm_pools_dealloc(pools)
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -359,8 +354,7 @@ SUBROUTINE fm_pools_dealloc(pools)
      DO i=1,SIZE(pools)
         CALL fm_pool_release(pools(i)%pool)
      END DO
-     DEALLOCATE(pools,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(pools)
   END IF
 END SUBROUTINE fm_pools_dealloc
 
@@ -384,7 +378,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_create_fm_vect', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: pool
 
@@ -392,8 +386,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
   NULLIFY(pool)
 
   CPASSERT(ASSOCIATED(pools))
-  ALLOCATE(elements(SIZE(pools)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(elements(SIZE(pools)))
   DO i=1,SIZE(pools)
      NULLIFY(elements(i)%matrix)
      pool => pools(i)%pool
@@ -428,7 +421,7 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements)
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_give_back_fm_vect', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -440,8 +433,7 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements)
      CALL fm_pool_give_back_fm(pools(i)%pool,&
           elements(i)%matrix)
   END DO
-  DEALLOCATE(elements, stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(elements)
   NULLIFY(elements)
 END SUBROUTINE fm_pools_give_back_fm_vect
 

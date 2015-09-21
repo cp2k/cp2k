@@ -94,7 +94,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iadd, ideg, imap, &
-                                                istat, ndim, num
+                                                ndim, num
     LOGICAL                                  :: failure, my_shell_adiabatic, &
                                                 present_vel
     REAL(dp)                                 :: alpha, beta, rr
@@ -109,13 +109,10 @@ CONTAINS
     NULLIFY( rng_stream)
     present_vel = PRESENT(vel)
     ndim = gle%ndim
-    ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPASSERT(istat==0)
+    ALLOCATE (s_tmp(ndim,gle%loc_num_gle))
     s_tmp = 0.0_dp
-    ALLOCATE (e_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPASSERT(istat==0)
-    ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPASSERT(istat==0)
+    ALLOCATE (e_tmp(ndim,gle%loc_num_gle))
+    ALLOCATE (h_tmp(ndim,gle%loc_num_gle))
 
 
     map_info => gle%map_info
@@ -176,8 +173,7 @@ CONTAINS
             0.5_dp*( gle%nvt(ideg)%kin_energy - map_info%s_kin(imap))
     END DO
 
-    DEALLOCATE(e_tmp,s_tmp,h_tmp,STAT=istat)
-       CPASSERT(istat==0)
+    DEALLOCATE(e_tmp,s_tmp,h_tmp)
 
     CALL timestop(handle)
   END SUBROUTINE gle_particles
@@ -355,8 +351,7 @@ CONTAINS
 
     INTEGER                                  :: i, imap, j, mal_size, &
                                                 natoms_local, nkind, number, &
-                                                region, stat, &
-                                                sum_of_thermostats
+                                                region, sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
     LOGICAL                                  :: do_shell, failure
@@ -424,10 +419,8 @@ CONTAINS
              gle%nvt(i)%degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_atom_list)
     END SELECT
 
   END SUBROUTINE gle_to_particle_mapping

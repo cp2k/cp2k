@@ -83,8 +83,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilevel, j, Ndim, &
-                                                num_geep_gauss, output_unit, &
-                                                stat
+                                                num_geep_gauss, output_unit
     LOGICAL                                  :: Failure, Found, use_geep_lib
     REAL(KIND=dp)                            :: alpha, mymaxradius, Prefactor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c_radius, radius
@@ -112,10 +111,8 @@ CONTAINS
        !
        ! Preprocessing...
        !
-       ALLOCATE(radius(1),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(c_radius(1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(radius(1))
+       ALLOCATE(c_radius(1))
        Ndim = SIZE(radius)
        Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
           Found=.FALSE.
@@ -139,20 +136,16 @@ CONTAINS
           CALL REALLOCATE(radius,1,Ndim-1)
           CALL REALLOCATE(c_radius,1,Ndim-1)
        ELSE IF (Ndim-1 == 0) THEN
-          DEALLOCATE(radius,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(c_radius,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(radius)
+          DEALLOCATE(c_radius)
        ELSE
           CPASSERT(.FALSE.)
        END IF
        !
-       ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qmmm_gaussian_fns(Ndim-1))
        DO I = 1, Ndim-1
           NULLIFY(qmmm_gaussian_fns(I)%pgf)
-          ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(qmmm_gaussian_fns(I)%pgf)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
@@ -163,12 +156,10 @@ CONTAINS
           qmmm_gaussian_fns(I)%pgf%Elp_Radius_corr     = c_radius(I)
        END DO
        IF (ASSOCIATED(radius)) THEN
-          DEALLOCATE(radius,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(radius)
        END IF
        IF (ASSOCIATED(c_radius)) THEN
-          DEALLOCATE(c_radius,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(c_radius)
        END IF
        !
        IF (use_geep_lib) THEN
@@ -185,13 +176,11 @@ CONTAINS
        END IF
        !
        CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info)
-       ALLOCATE(maxradius(SIZE(pools)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(maxradius(SIZE(pools)))
        maxradius = 0.0_dp
        DO J = 1, SIZE(qmmm_gaussian_fns)
           mypgf => qmmm_gaussian_fns(J)%pgf
-          ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)))
           mypgf%grid_level=0
           mymaxradius = 0.0_dp
           DO I = 1, mypgf%number_of_gaussians

@@ -118,13 +118,11 @@ SUBROUTINE wfs_create(snapshot)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
-  ALLOCATE(snapshot, stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(snapshot)
   last_wfs_id=last_wfs_id+1
   snapshot%id_nr=last_wfs_id
   NULLIFY(snapshot%wf, snapshot%rho_r, &
@@ -155,7 +153,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, img, ispin, nimg, &
-                                                nspins, stat
+                                                nspins
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, rho_ao
@@ -213,8 +211,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
      CALL qs_rho_get(rho, rho_r=rho_r)
      CPASSERT(ASSOCIATED(rho_r))
      IF (.NOT.ASSOCIATED(snapshot%rho_r)) THEN
-        ALLOCATE(snapshot%rho_r(nspins),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(snapshot%rho_r(nspins))
         DO ispin=1,nspins
            NULLIFY(snapshot%rho_r(ispin)%pw)
            CALL pw_pool_create_pw(auxbas_pw_pool,snapshot%rho_r(ispin)%pw,&
@@ -228,16 +225,14 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
      DO ispin=1,SIZE(snapshot%rho_r)
         CALL pw_pool_give_back_pw(auxbas_pw_pool,snapshot%rho_r(ispin)%pw)
      END DO
-     DEALLOCATE(snapshot%rho_r,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(snapshot%rho_r)
   END IF
 
   IF (wf_history%store_rho_g) THEN
      CALL qs_rho_get(rho, rho_g=rho_g)
      CPASSERT(ASSOCIATED(rho_g))
      IF (.NOT.ASSOCIATED(snapshot%rho_g)) THEN
-        ALLOCATE(snapshot%rho_g(nspins),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(snapshot%rho_g(nspins))
         DO ispin=1,nspins
            NULLIFY(snapshot%rho_g(ispin)%pw)
            CALL pw_pool_create_pw(auxbas_pw_pool,snapshot%rho_g(ispin)%pw,&
@@ -251,8 +246,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
      DO ispin=1,SIZE(snapshot%rho_g)
         CALL pw_pool_give_back_pw(auxbas_pw_pool,snapshot%rho_g(ispin)%pw)
      END DO
-     DEALLOCATE(snapshot%rho_g,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(snapshot%rho_g)
   END IF
 
   IF (ASSOCIATED(snapshot%rho_ao)) THEN ! the sparsity might be different
@@ -335,15 +329,14 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
   failure=.FALSE.
 
-  ALLOCATE(wf_history, stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(wf_history)
   last_wfi_id=last_wfi_id+1
   wf_history%id_nr=last_wfi_id
   wf_history%ref_count=1
@@ -402,8 +395,7 @@ CPSourceFileRef,&
           failure)
      wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
   END SELECT
-  ALLOCATE(wf_history%past_states(wf_history%memory_depth),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(wf_history%past_states(wf_history%memory_depth))
 
   DO i=1,SIZE(wf_history%past_states)
      NULLIFY(wf_history%past_states(i)%snapshot)

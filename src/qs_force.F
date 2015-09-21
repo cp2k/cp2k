@@ -135,9 +135,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: after, dir, handle, i, iatom, &
-                                                ic, ikind, ispin, istat, iw, &
-                                                natom, nkind, nspin, &
-                                                output_unit
+                                                ic, ikind, ispin, iw, natom, &
+                                                nkind, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: failure, has_unit_metric
@@ -185,8 +184,7 @@ CONTAINS
     ! get atom mapping
     NULLIFY (atomic_kind_set)
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set)
-    ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (atom_of_kind(natom),kind_of(natom))
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          atom_of_kind=atom_of_kind,&
          kind_of=kind_of)
@@ -198,13 +196,11 @@ CONTAINS
     IF (.NOT.ASSOCIATED(force)) THEN
        !   *** Allocate the force data structure ***
        nkind = SIZE(atomic_kind_set)
-       ALLOCATE (natom_of_kind(nkind),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (natom_of_kind(nkind))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
        CALL allocate_qs_force(force,natom_of_kind)
-       DEALLOCATE (natom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (natom_of_kind)
        CALL qs_subsys_set(subsys,force=force)
     END IF
     CALL zero_qs_force(force)
@@ -476,8 +472,7 @@ CONTAINS
     CALL cp_dbcsr_deallocate_matrix_set(matrix_w_kp)
     CALL set_ks_env(ks_env,matrix_w=Null(),matrix_w_kp=Null())
 
-    DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (atom_of_kind,kind_of)
 
     CALL timestop(handle)
 

@@ -195,29 +195,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n, stat
+    INTEGER                                  :: i, n
     LOGICAL                                  :: check, failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(keyword))
-    ALLOCATE(keyword,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(keyword)
     keyword%ref_count=1
     last_keyword_id=last_keyword_id+1
     keyword%id_nr=last_keyword_id
     NULLIFY(keyword%unit)
 
     IF (PRESENT(variants)) THEN
-       ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(keyword%names(SIZE(variants)+1))
        keyword%names(1)=name
        DO i=1,SIZE(variants)
           keyword%names(i+1)=variants(i)
        END DO
     ELSE
-       ALLOCATE(keyword%names(1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(keyword%names(1))
        IF (.not.failure) keyword%names(1)=name
     END IF
     DO i=1,SIZE(keyword%names)
@@ -238,8 +235,7 @@ CONTAINS
     END DO
 
     IF (PRESENT(citations)) THEN
-       ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(keyword%citations(SIZE(citations,1)))
        keyword%citations=citations
     ELSE
        NULLIFY(keyword%citations)
@@ -445,7 +441,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -453,19 +448,16 @@ CONTAINS
        CPASSERT(keyword%ref_count>0)
        keyword%ref_count=keyword%ref_count-1
        IF (keyword%ref_count==0) THEN
-          DEALLOCATE(keyword%names,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(keyword%names)
           DEALLOCATE(keyword%description)
           CALL val_release(keyword%default_value)
           CALL val_release(keyword%lone_keyword_value)
           CALL enum_release(keyword%enum)
           CALL cp_unit_release(keyword%unit)
           IF (ASSOCIATED(keyword%citations)) THEN
-             DEALLOCATE(keyword%citations,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(keyword%citations)
           ENDIF
-          DEALLOCATE(keyword,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(keyword)
        END IF
     END IF
     NULLIFY(keyword)

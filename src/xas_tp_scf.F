@@ -395,8 +395,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ikind, isgf, ispin, istat, istate, j, my_kind, &
-      my_state, nao, natom, nexc_search, nmo, nvirtual2, uno_iter, xas_estate
+    INTEGER :: handle, i, ikind, isgf, ispin, istate, j, my_kind, my_state, &
+      nao, natom, nexc_search, nmo, nvirtual2, uno_iter, xas_estate
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: mykind_of_kind
     LOGICAL                                  :: failure
@@ -467,18 +467,14 @@ CONTAINS
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,&
          eigenvalues=eigenvalues)
 
-    ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuffer(1,nao))
     vecbuffer = 0.0_dp
-    ALLOCATE(vecbuffer2(1,nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuffer2(1,nao))
     vecbuffer2 = 0.0_dp
     natom=SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
-    ALLOCATE(centers_wfn(3,nexc_search),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(centers_wfn(3,nexc_search))
     centers_wfn=0.0_dp
 
     ! Possible only for emission only
@@ -571,8 +567,7 @@ CONTAINS
        END IF
 
        NULLIFY(uno_orbs,uno_evals,local_preconditioner)
-       ALLOCATE(local_preconditioner,STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(local_preconditioner)
        CALL init_preconditioner(local_preconditioner,para_env=para_env,&
                                 blacs_env=blacs_env)
 
@@ -598,8 +593,7 @@ CONTAINS
             uno_evals,do_rotation=.TRUE.)
        CALL destroy_preconditioner(local_preconditioner)
 
-       DEALLOCATE(local_preconditioner,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(local_preconditioner)
     END IF
 
     CALL mp_sync(para_env%group)
@@ -626,12 +620,9 @@ CONTAINS
        END IF
     END IF
 
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(vecbuffer2,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(vecbuffer)
+    DEALLOCATE(vecbuffer2)
+    DEALLOCATE(centers_wfn,first_sgf)
 
     CALL timestop(handle)
 

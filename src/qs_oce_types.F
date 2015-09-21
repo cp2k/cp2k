@@ -61,13 +61,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_oce_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    ALLOCATE(oce_set%intac(nkind*nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(oce_set%intac(nkind*nkind))
     DO i=1,nkind*nkind
       NULLIFY(oce_set%intac(i)%alist)
       NULLIFY(oce_set%intac(i)%asort)

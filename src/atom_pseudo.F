@@ -68,8 +68,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: ads, do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, &
-      maxl, mb, method, mo, n_meth, n_rep, reltyp, zcore, zval, zz
+    INTEGER                                  :: ads, do_eric, do_erie, &
+                                                handle, i, im, in, iw, k, l, &
+                                                maxl, mb, method, mo, n_meth, &
+                                                n_rep, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, pp_calc
@@ -103,8 +105,7 @@ CONTAINS
     IF ( zz /= 1 ) zval = zz
 
     ! read and set up information on the basis sets
-    ALLOCATE(ae_basis,pp_basis,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_basis,pp_basis)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS")
     NULLIFY(ae_basis%grid)
     CALL init_atom_basis(ae_basis,basis_section,zval,"AA")
@@ -127,8 +128,7 @@ CONTAINS
     ! read and setup information on the pseudopotential
     NULLIFY(potential_section)
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL")
-    ALLOCATE(ae_pot,p_pot,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_pot,p_pot)
     CALL init_atom_potential(p_pot,potential_section,zval)
     CALL init_atom_potential(ae_pot,potential_section,-1)
     IF ( .NOT.p_pot%confinement .AND. .NOT.ae_pot%confinement ) THEN
@@ -175,11 +175,9 @@ CONTAINS
     CALL section_vals_get(method_section,n_repetition=n_meth)
 
     ! integrals
-    ALLOCATE(ae_int, pp_int,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_int, pp_int)
 
-    ALLOCATE(atom_info(n_rep,n_meth),atom_refs(n_rep,n_meth),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(atom_info(n_rep,n_meth),atom_refs(n_rep,n_meth))
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log")
     IF(iw > 0) THEN
@@ -205,8 +203,7 @@ CONTAINS
         atom_info(in,im)%atom%xc_section => xc_section
         atom_refs(in,im)%atom%xc_section => xc_section
 
-        ALLOCATE(state,statepp,STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(state,statepp)
 
         ! get the electronic configuration
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
@@ -368,11 +365,9 @@ CONTAINS
         CALL release_atom_type(atom_refs(in,im)%atom)
       END DO
     END DO
-    DEALLOCATE(atom_info,atom_refs,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(atom_info,atom_refs)
 
-    DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int)
 
     CALL timestop(handle)
 

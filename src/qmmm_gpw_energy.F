@@ -403,8 +403,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, IGauss, &
                                                 ilevel, Imm, IndMM, IRadTyp, &
-                                                LIndMM, myind, n_rep_real(3), &
-                                                stat
+                                                LIndMM, myind, n_rep_real(3)
     INTEGER, DIMENSION(2, 3)                 :: bo2
     REAL(KIND=dp)                            :: alpha, height, &
                                                 sph_chrg_factor, W
@@ -418,12 +417,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL timeset(routineNb//"_G",handle2)
     bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
-    ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (xdat(bo2(1,1):bo2(2,1)))
+    ALLOCATE (ydat(bo2(1,2):bo2(2,2)))
+    ALLOCATE (zdat(bo2(1,3):bo2(2,3)))
     IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
@@ -470,16 +466,13 @@ CONTAINS
        END DO Gaussian
     END DO Radius
     IF (ASSOCIATED(xdat)) THEN
-       DEALLOCATE (xdat, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (xdat)
     ENDIF
     IF (ASSOCIATED(ydat)) THEN
-       DEALLOCATE (ydat, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (ydat)
     ENDIF
     IF (ASSOCIATED(zdat)) THEN
-       DEALLOCATE (zdat, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (zdat)
     ENDIF
     CALL timestop(handle2)
     CALL timeset(routineNb//"_R",handle2)

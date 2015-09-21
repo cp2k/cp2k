@@ -214,8 +214,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create_descriptor', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: border_size, dir, handle, i, j, k, l, lb( 2 ), n_slices(3), &
-      n_slices_tmp(3), neighbours(3), nmin, stat
+    INTEGER                                  :: border_size, dir, handle, i, &
+                                                j, k, l, lb( 2 ), &
+                                                n_slices(3), n_slices_tmp(3), &
+                                                neighbours(3), nmin
     LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
@@ -231,8 +233,7 @@ CONTAINS
        border_size = 0
     END IF
 
-    ALLOCATE(desc,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(desc)
 
     CALL mp_sync(pw_grid % para % group)
 
@@ -408,20 +409,13 @@ CONTAINS
           desc % group_head = ( desc % my_pos == 0 )
 
           ! set up global info about the distribution
-          ALLOCATE( desc % rank2coord(3,0:desc % group_size-1),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE( desc % coord2rank(0:desc % group_dim(1)-1,0:desc % group_dim(2)-1,0:desc % group_dim(3)-1),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE( desc % lb_global(3,0:desc % group_size-1),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE( desc % ub_global(3,0:desc % group_size-1),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE( desc % x2coord(desc % lb(1):desc % ub(1)),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE( desc % y2coord(desc % lb(2):desc % ub(2)),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE( desc % z2coord(desc % lb(3):desc % ub(3)),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE( desc % rank2coord(3,0:desc % group_size-1))
+          ALLOCATE( desc % coord2rank(0:desc % group_dim(1)-1,0:desc % group_dim(2)-1,0:desc % group_dim(3)-1))
+          ALLOCATE( desc % lb_global(3,0:desc % group_size-1))
+          ALLOCATE( desc % ub_global(3,0:desc % group_size-1))
+          ALLOCATE( desc % x2coord(desc % lb(1):desc % ub(1)))
+          ALLOCATE( desc % y2coord(desc % lb(2):desc % ub(2)))
+          ALLOCATE( desc % z2coord(desc % lb(3):desc % ub(3)))
 
           DO i=0, desc% group_size - 1
              ! Calculate coordinates in a row-major order (to be SMP-friendly)
@@ -511,12 +505,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
-    ALLOCATE(rs,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rs)
 
     last_rs_id = last_rs_id+1
     rs % id_nr = last_rs_id
@@ -559,14 +552,10 @@ CONTAINS
 
     ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
                        rs % lb_local(2):rs % ub_local(2), &
-                       rs % lb_local(3):rs % ub_local(3)), STAT = stat )
-    CPASSERT(stat==0)
-    ALLOCATE ( rs % px ( desc % npts ( 1 ) ), STAT = stat )
-    CPASSERT(stat==0)
-    ALLOCATE ( rs % py ( desc % npts ( 2 ) ), STAT = stat )
-    CPASSERT(stat==0)
-    ALLOCATE ( rs % pz ( desc % npts ( 3 ) ), STAT = stat )
-    CPASSERT(stat==0)
+                       rs % lb_local(3):rs % ub_local(3)))
+    ALLOCATE ( rs % px ( desc % npts ( 1 ) ))
+    ALLOCATE ( rs % py ( desc % npts ( 2 ) ))
+    ALLOCATE ( rs % pz ( desc % npts ( 3 ) ))
 
     CALL timestop(handle)
 
@@ -876,7 +865,7 @@ CONTAINS
     INTEGER                                  :: dest, group, i, ii, im, ip, &
                                                 ix, iy, iz, j, jm, k, km, &
                                                 mepos, nma, nn, np, req(2), &
-                                                s(3), source, stat
+                                                s(3), source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
     INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
@@ -892,14 +881,12 @@ CONTAINS
     pbo => pw % pw_grid % bounds
     group = pw % pw_grid % para % rs_group
     mepos = pw % pw_grid % para % rs_mpo
-    ALLOCATE ( rcount ( 0 : np - 1 ), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rcount ( 0 : np - 1 ))
     DO ip = 1, np
        rcount ( ip-1 ) = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
     END DO
     nma = MAXVAL ( rcount ( 0 : np - 1 ) )
-    ALLOCATE(sendbuf(nma),recvbuf(nma), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sendbuf(nma),recvbuf(nma))
     sendbuf=1.0E99_dp ; recvbuf=1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
     grid=>rs%r
 
@@ -1026,12 +1013,9 @@ CONTAINS
        END IF
     END IF
 
-    DEALLOCATE ( rcount, STAT=stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( sendbuf, STAT=stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( recvbuf, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rcount)
+    DEALLOCATE ( sendbuf)
+    DEALLOCATE ( recvbuf)
 
   END SUBROUTINE rs_pw_transfer_replicated
 
@@ -1069,7 +1053,7 @@ CONTAINS
     CHARACTER(LEN=200)                       :: error_string
     INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, &
       my_pw_rank, my_rs_rank, n_shifts, nn, num_threads, position, &
-      source_down, source_up, stat, ub, x, y, z
+      source_down, source_up, ub, x, y, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
                                                 recv_reqs, recv_sizes, &
                                                 send_disps, send_reqs, &
@@ -1110,10 +1094,8 @@ CONTAINS
 
           IF ( rs % desc % perd (idir) .NE. 1) THEN
 
-             ALLOCATE ( dshifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPASSERT(stat==0)
-             ALLOCATE ( ushifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPASSERT(stat==0)
+             ALLOCATE ( dshifts ( 0:rs % desc % neighbours (idir ) ))
+             ALLOCATE ( ushifts ( 0:rs % desc % neighbours (idir ) ))
 
              ushifts = 0
              dshifts = 0
@@ -1168,15 +1150,13 @@ CONTAINS
 
                 ! post the recieve
                 ALLOCATE ( recv_buf_3d_down (lb_recv_down(1):ub_recv_down(1), &
-                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)),stat=stat)
-                CPASSERT(stat==0)
+                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)))
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % desc % group, req(1))
 
                 ! now allocate, pack and send the send buffer
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
-                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
-                CPASSERT(stat==0)
+                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ))
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1230,15 +1210,13 @@ CONTAINS
 
                 ! post the recieve
                 ALLOCATE ( recv_buf_3d_up (lb_recv_up(1):ub_recv_up(1), &
-                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)),STAT=stat)
-                CPASSERT(stat==0)
+                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)))
                 CALL mp_irecv(recv_buf_3d_up, source_up, rs % desc % group, req(2))
 
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
                 ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
-                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
-                CPASSERT(stat==0)
+                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ))
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1285,8 +1263,7 @@ CONTAINS
                          END IF
 !$omp end parallel
                       END IF
-                      DEALLOCATE( recv_buf_3d_down, STAT=stat)
-                      CPASSERT(stat==0)
+                      DEALLOCATE( recv_buf_3d_down)
                    ELSE
 
                       ! only some procs may need later shifts
@@ -1309,8 +1286,7 @@ CONTAINS
                          END IF
 !$omp end parallel
                       END IF
-                      DEALLOCATE( recv_buf_3d_up, STAT=stat)
-                      CPASSERT(stat==0)
+                      DEALLOCATE( recv_buf_3d_up)
                    END IF
 
                 END DO
@@ -1319,16 +1295,12 @@ CONTAINS
 
                 CALL mp_waitall (req(3:4))
 
-                DEALLOCATE( send_buf_3d_down, STAT=stat)
-                CPASSERT(stat==0)
-                DEALLOCATE( send_buf_3d_up, STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE( send_buf_3d_down)
+                DEALLOCATE( send_buf_3d_up)
              END DO
 
-             DEALLOCATE ( dshifts, STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( ushifts, STAT=stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( dshifts)
+             DEALLOCATE ( ushifts)
 
           END IF
 
@@ -1337,8 +1309,7 @@ CONTAINS
        END DO
 
        ! This is the real redistribution
-       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ))
 
        ! work out the pw grid points each proc holds
        DO i = 0, pw % pw_grid % para % group_size - 1
@@ -1348,18 +1319,12 @@ CONTAINS
           bounds ( i , 3:4 ) = bounds ( i , 3:4 ) - pw % pw_grid % npts (2) / 2 - 1
        ENDDO
 
-       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ))
+       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ))
+       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ))
+       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ))
+       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ))
+       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ))
        send_tasks(:,1)=1
        send_tasks(:,2)=0
        send_tasks(:,3)=1
@@ -1450,10 +1415,8 @@ CONTAINS
 
        CPASSERT(SUM(send_sizes)==PRODUCT(ub_recv - lb_recv + 1))
 
-       ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ))
+       ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ))
 
        DO i = 0, rs % desc % group_size - 1
          IF ( send_sizes(i) .NE. 0 ) THEN
@@ -1468,8 +1431,7 @@ CONTAINS
          END IF
        END DO
 
-       ALLOCATE (recv_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (recv_reqs (0:rs % desc % group_size - 1))
        recv_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1495,8 +1457,7 @@ CONTAINS
        ENDDO
 !$omp end parallel do
 
-       ALLOCATE (send_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (send_reqs (0:rs % desc % group_size - 1))
        send_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1524,10 +1485,8 @@ CONTAINS
 
        CALL mp_waitall(send_reqs)
 
-       DEALLOCATE ( recv_reqs, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_reqs, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE ( recv_reqs)
+       DEALLOCATE ( send_reqs)
 
        DO i = 0, rs % desc % group_size - 1
          IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
@@ -1538,22 +1497,14 @@ CONTAINS
          END IF
        END DO
 
-       DEALLOCATE ( send_bufs, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_bufs, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_tasks, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_sizes, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_disps, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_tasks, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_sizes, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_disps, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE ( send_bufs)
+       DEALLOCATE ( recv_bufs)
+       DEALLOCATE ( send_tasks)
+       DEALLOCATE ( send_sizes)
+       DEALLOCATE ( send_disps)
+       DEALLOCATE ( recv_tasks)
+       DEALLOCATE ( recv_sizes)
+       DEALLOCATE ( recv_disps)
 
        IF (debug_this_module) THEN
           ! safety check, to be removed once we're absolute sure the routine is correct
@@ -1575,8 +1526,7 @@ CONTAINS
 
        ! This is the real redistribution
 
-       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ))
 
        DO i = 0, pw % pw_grid % para % group_size - 1
           bounds ( i , 1:2 ) = pw % pw_grid % para % bo (1:2,1,i,1)
@@ -1585,18 +1535,12 @@ CONTAINS
           bounds ( i , 3:4 ) = bounds ( i , 3:4 ) - pw % pw_grid % npts (2) / 2 - 1
        ENDDO
 
-       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ))
+       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ))
+       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ))
+       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ))
+       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ))
+       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ))
 
        send_tasks = 0
        send_tasks(:,1)=1
@@ -1700,10 +1644,8 @@ CONTAINS
 
        CPASSERT(SUM(recv_sizes)==PRODUCT(ub_recv - lb_recv + 1))
 
-       ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ))
+       ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ))
 
        DO i = 0, rs % desc % group_size - 1
          IF ( send_sizes(i) .NE. 0 ) THEN
@@ -1718,8 +1660,7 @@ CONTAINS
          END IF
        END DO
 
-       ALLOCATE (recv_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (recv_reqs (0:rs % desc % group_size - 1))
        recv_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1745,8 +1686,7 @@ CONTAINS
        ENDDO
 !$omp end parallel do
 
-       ALLOCATE (send_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (send_reqs (0:rs % desc % group_size - 1))
        send_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1775,10 +1715,8 @@ CONTAINS
 
        CALL mp_waitall(send_reqs)
 
-       DEALLOCATE ( recv_reqs, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_reqs, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE ( recv_reqs)
+       DEALLOCATE ( send_reqs)
 
        DO i = 0, rs % desc % group_size - 1
          IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
@@ -1789,22 +1727,14 @@ CONTAINS
          END IF
        END DO
 
-       DEALLOCATE ( send_bufs, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_bufs, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_tasks, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_sizes, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( send_disps, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_tasks, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_sizes, STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( recv_disps, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE ( send_bufs)
+       DEALLOCATE ( recv_bufs)
+       DEALLOCATE ( send_tasks)
+       DEALLOCATE ( send_sizes)
+       DEALLOCATE ( send_disps)
+       DEALLOCATE ( recv_tasks)
+       DEALLOCATE ( recv_sizes)
+       DEALLOCATE ( recv_disps)
 
        ! now pass wings around
        halo_swapped = .FALSE.
@@ -1813,10 +1743,8 @@ CONTAINS
 
           IF ( rs % desc % perd (idir) /= 1) THEN
 
-             ALLOCATE ( dshifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPASSERT(stat==0)
-             ALLOCATE ( ushifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPASSERT(stat==0)
+             ALLOCATE ( dshifts ( 0:rs % desc % neighbours (idir ) ))
+             ALLOCATE ( ushifts ( 0:rs % desc % neighbours (idir ) ))
              ushifts = 0
              dshifts = 0
 
@@ -1871,8 +1799,7 @@ CONTAINS
                 ! allocate the recv buffer
                 nn = PRODUCT ( ub_recv_down - lb_recv_down + 1 )
                 ALLOCATE ( recv_buf_3d_down ( lb_recv_down(1):ub_recv_down(1), &
-                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ), STAT=stat )
-                CPASSERT(stat==0)
+                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ))
 
                 ! recv buffer is now ready, so post the recieve
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % desc % group, req(1))
@@ -1880,8 +1807,7 @@ CONTAINS
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
-                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
-                CPASSERT(stat==0)
+                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ))
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1936,8 +1862,7 @@ CONTAINS
                 ! allocate the recv buffer
                 nn = PRODUCT ( ub_recv_up - lb_recv_up + 1 )
                 ALLOCATE ( recv_buf_3d_up ( lb_recv_up(1):ub_recv_up(1), &
-                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ), STAT=stat )
-                CPASSERT(stat==0)
+                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ))
 
                 ! recv buffer is now ready, so post the recieve
 
@@ -1946,8 +1871,7 @@ CONTAINS
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
                 ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
-                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
-                CPASSERT(stat==0)
+                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ))
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1993,8 +1917,7 @@ CONTAINS
 !$omp end parallel
                       END IF
 
-                      DEALLOCATE ( recv_buf_3d_down, STAT=stat )
-                      CPASSERT(stat==0)
+                      DEALLOCATE ( recv_buf_3d_down)
                    ELSE
 
                       ! only some procs may need later shifts
@@ -2016,23 +1939,18 @@ CONTAINS
 !$omp end parallel
                       END IF
 
-                      DEALLOCATE ( recv_buf_3d_up, STAT=stat )
-                      CPASSERT(stat==0)
+                      DEALLOCATE ( recv_buf_3d_up)
                    END IF
                 END DO
 
                 CALL mp_waitall (req(3:4))
 
-                DEALLOCATE ( send_buf_3d_down, STAT=stat )
-                CPASSERT(stat==0)
-                DEALLOCATE ( send_buf_3d_up, STAT=stat )
-                CPASSERT(stat==0)
+                DEALLOCATE ( send_buf_3d_down)
+                DEALLOCATE ( send_buf_3d_up)
              END DO
 
-             DEALLOCATE ( ushifts, STAT=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE ( dshifts, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE ( ushifts)
+             DEALLOCATE ( dshifts)
           END IF
 
           halo_swapped (idir) = .TRUE.
@@ -2199,7 +2117,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -2212,16 +2129,11 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
           CALL rs_grid_release_descriptor(rs_grid % desc)
 
           allocated_rs_grid_count=allocated_rs_grid_count-1
-          DEALLOCATE ( rs_grid % r, STAT=stat )
-          CPASSERT(stat==0)
-          DEALLOCATE ( rs_grid % px , STAT=stat )
-          CPASSERT(stat==0)
-          DEALLOCATE ( rs_grid % py , STAT=stat )
-          CPASSERT(stat==0)
-          DEALLOCATE ( rs_grid % pz , STAT=stat )
-          CPASSERT(stat==0)
-          DEALLOCATE(rs_grid, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE ( rs_grid % r)
+          DEALLOCATE ( rs_grid % px )
+          DEALLOCATE ( rs_grid % py )
+          DEALLOCATE ( rs_grid % pz )
+          DEALLOCATE(rs_grid)
           NULLIFY(rs_grid)
        END IF
     END IF
@@ -2240,7 +2152,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release_descriptor', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -2256,31 +2167,21 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
              ! release the group communicator
              CALL mp_comm_free ( rs_desc % group )
 
-             DEALLOCATE ( rs_desc % virtual2real, STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % real2virtual, STAT=stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( rs_desc % virtual2real)
+             DEALLOCATE ( rs_desc % real2virtual)
           END IF
 
           IF (rs_desc % distributed) THEN
-             DEALLOCATE ( rs_desc % rank2coord , STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % coord2rank , STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % lb_global , STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % ub_global , STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % x2coord , STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % y2coord , STAT=stat )
-             CPASSERT(stat==0)
-             DEALLOCATE ( rs_desc % z2coord , STAT=stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( rs_desc % rank2coord )
+             DEALLOCATE ( rs_desc % coord2rank )
+             DEALLOCATE ( rs_desc % lb_global )
+             DEALLOCATE ( rs_desc % ub_global )
+             DEALLOCATE ( rs_desc % x2coord )
+             DEALLOCATE ( rs_desc % y2coord )
+             DEALLOCATE ( rs_desc % z2coord )
           ENDIF
 
-          DEALLOCATE(rs_desc, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rs_desc)
           NULLIFY(rs_desc)
        END IF
     END IF

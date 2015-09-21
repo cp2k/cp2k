@@ -155,7 +155,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol_local, npcol, &
-                                                nprow, nrow_local, stat
+                                                nprow, nrow_local
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -170,8 +170,7 @@ CPSourceFileRef)
 #endif
 
     CPASSERT(ASSOCIATED(matrix_struct))
-    ALLOCATE(matrix,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix)
     context => matrix_struct%context
     matrix%matrix_struct => matrix_struct
     CALL cp_fm_struct_retain(matrix%matrix_struct)
@@ -194,11 +193,9 @@ CPSourceFileRef)
     nrow_local=matrix_struct%local_leading_dimension
     ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
     IF(matrix%use_sp) THEN
-       ALLOCATE(matrix%local_data_sp(nrow_local,ncol_local),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(matrix%local_data_sp(nrow_local,ncol_local))
     ELSE
-       ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(matrix%local_data(nrow_local,ncol_local))
     ENDIF
 
     ! JVDV we should remove this, as it is up to the user to zero afterwards
@@ -254,7 +251,7 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -266,17 +263,14 @@ CPSourceFileRef)
        matrix%ref_count=matrix%ref_count-1
        IF (matrix%ref_count<1) THEN
           IF (ASSOCIATED(matrix%local_data)) THEN
-             DEALLOCATE(matrix%local_data,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(matrix%local_data)
           END IF
           IF (ASSOCIATED(matrix%local_data_sp)) THEN
-             DEALLOCATE(matrix%local_data_sp,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(matrix%local_data_sp)
           END IF
           matrix%name=""
           CALL cp_fm_struct_release(matrix%matrix_struct)
-          DEALLOCATE(matrix,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(matrix)
        END IF
     END IF
     NULLIFY(matrix)
@@ -966,9 +960,8 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ic_max_local, &
-                                                ir_max_local, istat, j, &
-                                                mepos, ncol_local, &
-                                                nrow_local, num_pe
+                                                ir_max_local, j, mepos, &
+                                                ncol_local, nrow_local, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ic_max_vec, ir_max_vec
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
@@ -995,14 +988,11 @@ CPSourceFileRef)
     IF(PRESENT(ir_max)) THEN
       num_pe = matrix%matrix_struct%para_env%num_pe
       mepos = matrix%matrix_struct%para_env%mepos
-      ALLOCATE(ir_max_vec(0:num_pe-1),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(ir_max_vec(0:num_pe-1))
       ir_max_vec(0:num_pe-1) = 0
-      ALLOCATE(ic_max_vec(0:num_pe-1),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(ic_max_vec(0:num_pe-1))
       ic_max_vec(0:num_pe-1) = 0
-      ALLOCATE(a_max_vec(0:num_pe-1),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(a_max_vec(0:num_pe-1))
       a_max_vec(0:num_pe-1) = 0.0_dp
       my_max = 0.0_dp
 
@@ -1043,8 +1033,7 @@ CPSourceFileRef)
         END IF
       END DO
 
-      DEALLOCATE(ir_max_vec,ic_max_vec,a_max_vec, STAT = istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(ir_max_vec,ic_max_vec,a_max_vec)
       CPASSERT(ic_max>0)
       CPASSERT(ir_max>0)
 
@@ -1708,7 +1697,7 @@ CPSourceFileRef)
 #if defined(__SCALAPACK)
     INTEGER                                  :: i, i_block, icol_local,&
                                                 ictxt_loc, in, info, ipcol, &
-                                                iprow, irow_local, istat, &
+                                                iprow, irow_local, &
                                                 mepos, mypcol, myprow, &
                                                 npcol, nprow, num_pe, rb, tag
     INTEGER, DIMENSION(9)                    :: desc
@@ -1742,8 +1731,7 @@ CPSourceFileRef)
          fm%matrix_struct%descriptor, &
          newdat(1,1),1,1,desc,ictxt_loc)
 
-   ALLOCATE(vecbuf(nrow_global*max_block),STAT=istat)
-   CPASSERT(istat==0)
+   ALLOCATE(vecbuf(nrow_global*max_block))
    vecbuf=HUGE(1.0_dp) ! init for valgrind
 
    DO i=1,ncol_global,MAX(max_block,1)
@@ -1774,13 +1762,11 @@ CPSourceFileRef)
       END IF
 
    END DO
-   DEALLOCATE(vecbuf,STAT=istat)
-   CPASSERT(istat==0)
+   DEALLOCATE(vecbuf)
 
    CALL cp_blacs_gridexit(ictxt_loc)
 
-   DEALLOCATE(newdat,STAT=istat)
-   CPASSERT(istat==0)
+   DEALLOCATE(newdat)
 
 #else
 
@@ -1812,7 +1798,7 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
-    INTEGER                                  :: k, n_cols, stat
+    INTEGER                                  :: k, n_cols
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuf
 #endif
 
@@ -1826,8 +1812,7 @@ CPSourceFileRef)
 
    ! the parallel case could be made more efficient (see cp_fm_write_unformatted)
 
-   ALLOCATE(vecbuf(nrow_global,max_block),stat=stat)
-   CPASSERT(stat==0)
+   ALLOCATE(vecbuf(nrow_global,max_block))
 
    DO j=1,ncol_global,max_block
 
@@ -1842,8 +1827,7 @@ CPSourceFileRef)
 
    ENDDO
 
-   DEALLOCATE(vecbuf,stat=stat)
-   CPASSERT(stat==0)
+   DEALLOCATE(vecbuf)
 
 #else
 

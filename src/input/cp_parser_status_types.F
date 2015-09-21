@@ -46,13 +46,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_status_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(status))
-    ALLOCATE(status, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(status)
     status%in_use                = .FALSE.
     status%old_input_line        = ""
     status%old_input_line_number = HUGE(0)
@@ -75,14 +73,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_status_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(status))
     CALL release_buffer_type(status%buffer)
-    DEALLOCATE(status, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(status)
   END SUBROUTINE release_status_type
 
 END MODULE cp_parser_status_types

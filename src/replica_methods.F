@@ -146,8 +146,7 @@ MODULE replica_methods
        CALL mp_cart_sub( comm=comm_cart, rdim=rdim , sub_comm=comm_inter_rep)
        CALL cp_para_env_create(para_env_inter_rep,comm_inter_rep,&
             owns_group=.TRUE.)
-       ALLOCATE(rep_env,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rep_env)
     END IF
     ALLOCATE(gridinfo(2,0:para_env%num_pe-1))
     gridinfo=0
@@ -234,8 +233,7 @@ MODULE replica_methods
        CPASSERT(ierr==0)
        rep_env%nparticle = nparticle
        rep_env%ndim = 3*nparticle
-       ALLOCATE(rep_env%replica_owner(nrep),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rep_env%replica_owner(nrep))
 
        i0=nrep/para_env_inter_rep%num_pe
        ir=MODULO(nrep,para_env_inter_rep%num_pe)
@@ -248,8 +246,7 @@ MODULE replica_methods
        nrep_local=i0
        IF (rep_env%my_rep_group<ir) nrep_local=nrep_local+1
        ALLOCATE(rep_env%local_rep_indices(nrep_local),&
-                rep_env%rep_is_local(nrep),stat=stat)
-       CPASSERT(stat==0)
+                rep_env%rep_is_local(nrep))
        nrep_local=0
        rep_env%rep_is_local = .FALSE.
        DO irep=1,nrep
@@ -267,8 +264,7 @@ MODULE replica_methods
        rep_env%para_env_inter_rep => para_env_inter_rep
 
        ALLOCATE (rep_env%r(rep_env%ndim,nrep),rep_env%v(rep_env%ndim,nrep),&
-                 rep_env%f(rep_env%ndim+1,nrep), stat=stat)
-       CPASSERT(stat==0)
+                 rep_env%f(rep_env%ndim+1,nrep))
 
        rep_env%r=0._dp
        rep_env%f=0._dp
@@ -331,8 +327,7 @@ MODULE replica_methods
        IF (in_use==use_qs_force) THEN
           CALL force_env_get(f_env%force_env,qs_env=qs_env)
           CALL get_qs_env(qs_env,dft_control=dft_control)
-          ALLOCATE(rep_env%wf_history(SIZE(rep_env%local_rep_indices)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(rep_env%wf_history(SIZE(rep_env%local_rep_indices)))
           DO i=1,SIZE(rep_env%wf_history)
              NULLIFY(rep_env%wf_history(i)%wf_history)
              IF (i==1) THEN
@@ -356,8 +351,7 @@ MODULE replica_methods
           rep_env%keep_wf_history=.FALSE.
        END IF
     END IF
-    ALLOCATE(rep_env%results(rep_env%nrep),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rep_env%results(rep_env%nrep))
     DO i=1, rep_env%nrep
        NULLIFY(rep_env%results(i)%results)
        IF (i==1) THEN

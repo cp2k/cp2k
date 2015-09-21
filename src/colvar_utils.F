@@ -214,7 +214,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 n_tot, natom, nkind, &
-                                                nmol_per_kind, offset, stat
+                                                nmol_per_kind, offset
     INTEGER, DIMENSION(:), POINTER           :: map, wrk
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: inv_error
@@ -243,8 +243,7 @@ CONTAINS
        Bmatrix = 0.0_dp
     END IF
     CALL timeset(routineN,handle)
-    ALLOCATE(map(SIZE(cvalues)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map(SIZE(cvalues)))
     map=HUGE(0) ! init all, since used in a sort, but not all set in parallel.
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
     n_tot=0
@@ -293,10 +292,8 @@ CONTAINS
     CPASSERT(n_tot==SIZE(cvalues))
     ! Sort values of Collective Variables according the order of the input
     ! sections
-    ALLOCATE(wrk(SIZE(cvalues)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(rwrk(SIZE(cvalues)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wrk(SIZE(cvalues)))
+    ALLOCATE(rwrk(SIZE(cvalues)))
     CALL sort(map, SIZE(map), wrk)
     rwrk = cvalues
     DO i = 1, SIZE(wrk)
@@ -306,21 +303,16 @@ CONTAINS
     IF (PRESENT(Bmatrix)) THEN
        check = n_tot==SIZE(Bmatrix,2)
        CPASSERT(check)
-       ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)))
        bwrk(:,:) = Bmatrix
        DO i = 1, SIZE(wrk)
           Bmatrix(:,i) = bwrk(:,wrk(i))
        END DO
-       DEALLOCATE(bwrk, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bwrk)
     END IF
-    DEALLOCATE(rwrk, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(wrk, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rwrk)
+    DEALLOCATE(wrk)
+    DEALLOCATE(map)
     ! Construction of the Amatrix
     IF (PRESENT(Bmatrix).AND.PRESENT(Amatrix)) THEN
        CPASSERT(ASSOCIATED(Amatrix))
@@ -328,20 +320,16 @@ CONTAINS
        CPASSERT(check)
        check = SIZE(Bmatrix,2)==SIZE(Amatrix,1)
        CPASSERT(check)
-       ALLOCATE(Gmatrix(n_tot,n_tot), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Gmatrix(n_tot,n_tot))
+       ALLOCATE(Gmatrix_i(n_tot,n_tot))
        Gmatrix(:,:) = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
        CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error)
        CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
             "Error in inverting the Gmatrix larger than 1.0E-8!"//&
 CPSourceFileRef)
        Amatrix = MATMUL(Gmatrix_i,TRANSPOSE(Bmatrix))
-       DEALLOCATE(Gmatrix_i, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(Gmatrix, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Gmatrix_i)
+       DEALLOCATE(Gmatrix)
     END IF
     IF (PRESENT(MassI)) THEN
        natom = SIZE(particle_set)
@@ -575,32 +563,26 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'get_clv_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, stat
+    INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: MassI, wrk
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix
 
     failure = .FALSE.
-    ALLOCATE(Bmatrix(nsize_xyz,nsize_int),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(MassI(nsize_xyz),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Bmatrix(nsize_xyz,nsize_int))
+    ALLOCATE(MassI(nsize_xyz))
     ! Transform gradients if requested
     IF (PRESENT(forces)) THEN
-       ALLOCATE(wrk(nsize_int),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(Amatrix(nsize_int,nsize_xyz),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(wrk(nsize_int))
+       ALLOCATE(Amatrix(nsize_int,nsize_xyz))
        ! Compute the transformation matrices and the invese mass diagonal Matrix
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix)
        wrk = MATMUL(Amatrix,forces)
        forces              = 0.0_dp
        forces(1:nsize_int) = wrk
-       DEALLOCATE(Amatrix, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(wrk, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Amatrix)
+       DEALLOCATE(wrk)
     ELSE
        ! Compute the transformation matrices and the invese mass diagonal Matrix
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI)
@@ -616,10 +598,8 @@ CPSourceFileRef)
           Mmatrix((j-1)*nsize_int+i) = tmp
        END DO
     END DO
-    DEALLOCATE(MassI, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Bmatrix, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(MassI)
+    DEALLOCATE(Bmatrix)
   END SUBROUTINE get_clv_force
 
 ! *****************************************************************************

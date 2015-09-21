@@ -690,9 +690,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
-                                                cob, ia, ib, ipgf, istat, &
-                                                jpgf, la, lb, ldrr, lma, lmb, &
-                                                ma, mb, na, nb, ofa, ofb
+                                                cob, ia, ib, ipgf, jpgf, la, &
+                                                lb, ldrr, lma, lmb, ma, mb, &
+                                                na, nb, ofa, ofb
     REAL(KIND=dp)                            :: a, ambm, ambp, apbm, apbp, b, &
                                                 dumx, dumy, dumz, f0, rab2, &
                                                 tab, xhi, zet
@@ -721,8 +721,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa = ncoset(la_min-1)
@@ -936,8 +935,7 @@ CONTAINS
        ma = ma + na
     END DO
 
-    DEALLOCATE(rr,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr)
 
   END SUBROUTINE overlap_ab
 
@@ -985,8 +983,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, &
-      coa2, cob, i1pgf, i2pgf, ia1, ia2, ib, istat, jpgf, la1, la2, lb, ldrr, &
-      lma, lmb, ma1, ma2, mb, na1, na2, nb, ofa1, ofa2, ofb
+      coa2, cob, i1pgf, i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, &
+      lmb, ma1, ma2, mb, na1, na2, nb, ofa1, ofa2, ofb
     REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
                                                 rab2, rpgfa, tab, xhi, zet
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1010,8 +1008,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa1 = ncoset(la1_min-1)
@@ -1121,8 +1118,7 @@ CONTAINS
        ma1 = ma1 + na1
     END DO
 
-    DEALLOCATE(rr,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr)
 
   END SUBROUTINE overlap_aab
 
@@ -1170,8 +1166,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, &
-      cob1, cob2, ia, ib1, ib2, ipgf, istat, j1pgf, j2pgf, la, lb1, lb2, &
-      ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, ofb1, ofb2
+      cob1, cob2, ia, ib1, ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, &
+      lmb, ma, mb1, mb2, na, nb1, nb2, ofa, ofb1, ofb2
     REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
                                                 rab2, rpgfb, tab, xhi, zet
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1195,8 +1191,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa = ncoset(la_min-1)
@@ -1306,8 +1301,7 @@ CONTAINS
        ma = ma + na
     END DO
 
-    DEALLOCATE(rr,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr)
 
   END SUBROUTINE overlap_abb
 
@@ -1365,8 +1359,8 @@ CONTAINS
 
     INTEGER :: ax, ax1, ax2, ax3, ay, ay1, ay2, ay3, az, az1, az2, az3, bx, &
       by, bz, coa1, coa2, coa3, cob, i1pgf, i2pgf, i3pgf, ia1, ia2, ia3, ib, &
-      istat, jpgf, la1, la2, la3, lb, ldrr, lma, lmb, ma1, ma2, ma3, mb, na1, &
-      na2, na3, nb, ofa1, ofa2, ofa3, ofb
+      jpgf, la1, la2, la3, lb, ldrr, lma, lmb, ma1, ma2, ma3, mb, na1, na2, &
+      na3, nb, ofa1, ofa2, ofa3, ofb
     REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
                                                 rab2, rpgfa, tab, xhi, zet
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1390,8 +1384,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa1 = ncoset(la1_min-1)
@@ -1519,8 +1512,7 @@ CONTAINS
        ma1 = ma1 + na1
     END DO
 
-    DEALLOCATE(rr,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr)
 
   END SUBROUTINE overlap_aaab
 ! *****************************************************************************
@@ -1577,8 +1569,8 @@ CONTAINS
 
     INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, bx1, bx2, by, &
       by1, by2, bz, bz1, bz2, coa1, coa2, cob1, cob2, i1pgf, i2pgf, ia1, ia2, &
-      ib1, ib2, istat, j1pgf, j2pgf, la1, la2, lb1, lb2, ldrr, lma, lmb, ma1, &
-      ma2, mb1, mb2, na1, na2, nb1, nb2, ofa1, ofa2, ofb1, ofb2
+      ib1, ib2, j1pgf, j2pgf, la1, la2, lb1, lb2, ldrr, lma, lmb, ma1, ma2, &
+      mb1, mb2, na1, na2, nb1, nb2, ofa1, ofa2, ofb1, ofb2
     REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
                                                 rab2, rpgfa, rpgfb, tab, xhi, &
                                                 zet
@@ -1603,8 +1595,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa1 = ncoset(la1_min-1)
@@ -1736,8 +1727,7 @@ CONTAINS
        ma1 = ma1 + na1
     END DO
 
-    DEALLOCATE(rr,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr)
 
   END SUBROUTINE overlap_aabb
 ! *****************************************************************************
@@ -1793,9 +1783,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, bx1, bx2, bx3, by, by1, by2, by3, bz, bz1, &
-      bz2, bz3, coa, cob1, cob2, cob3, ia, ib1, ib2, ib3, ipgf, istat, j1pgf, &
-      j2pgf, j3pgf, la, lb1, lb2, lb3, ldrr, lma, lmb, ma, mb1, mb2, mb3, na, &
-      nb1, nb2, nb3, ofa, ofb1, ofb2, ofb3
+      bz2, bz3, coa, cob1, cob2, cob3, ia, ib1, ib2, ib3, ipgf, j1pgf, j2pgf, &
+      j3pgf, la, lb1, lb2, lb3, ldrr, lma, lmb, ma, mb1, mb2, mb3, na, nb1, &
+      nb2, nb3, ofa, ofb1, ofb2, ofb3
     REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
                                                 rab2, rpgfb, tab, xhi, zet
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1819,8 +1809,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa = ncoset(la_min-1)
@@ -1948,8 +1937,7 @@ CONTAINS
        ma = ma + na
     END DO
 
-    DEALLOCATE(rr,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr)
 
   END SUBROUTINE overlap_abbb
 

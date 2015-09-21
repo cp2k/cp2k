@@ -117,9 +117,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, &
-      jatom, jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, ncob, &
-      nkind, nm, nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, &
+      jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, ncob, nkind, nm, &
+      nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
@@ -175,22 +175,18 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco, maxsgf=maxsgf)
 
-    ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mab(maxco,maxco,nm))
     mab(:,:,:) = 0.0_dp
 
-    ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (work(maxco,maxsgf))
     work(:,:) = 0.0_dp
 
-    ALLOCATE (mint(nm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mint(nm))
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -330,15 +326,12 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    DEALLOCATE (mab,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (work,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (mab,basis_set_list)
+    DEALLOCATE (work)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
-    DEALLOCATE (mint,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (mint)
 
     CALL timestop(handle)
 
@@ -366,9 +359,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, &
-      jatom, jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, ncob, &
-      nkind, nm, nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, &
+      jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, ncob, nkind, nm, &
+      nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
@@ -436,22 +429,18 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco, maxsgf=maxsgf)
 
-    ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mab(maxco,maxco,nm))
     mab(:,:,:) = 0.0_dp
 
-    ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (work(maxco,maxsgf))
     work(:,:) = 0.0_dp
 
-    ALLOCATE (mint(nm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mint(nm))
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -591,15 +580,12 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    DEALLOCATE (mab,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (work,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (mab,basis_set_list)
+    DEALLOCATE (work)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
-    DEALLOCATE (mint,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (mint)
 
     CALL timestop(handle)
 
@@ -621,9 +607,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, istat, jatom, &
-      jkind, jset, ldab, ldsa, ldsb, ldwork, natom, ncoa, ncob, nkind, nseta, &
-      nsetb, sgfa, sgfb
+    INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, jatom, jkind, &
+      jset, ldab, ldsa, ldsb, ldwork, natom, ncoa, ncob, nkind, nseta, nsetb, &
+      sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -665,18 +651,14 @@ CONTAINS
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
     ldab = ldwork
-    ALLOCATE(cosab(ldab,ldab),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(sinab(ldab,ldab),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(cosab(ldab,ldab))
+    ALLOCATE(sinab(ldab,ldab))
+    ALLOCATE(work(ldwork,ldwork))
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -774,14 +756,10 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE(cosab,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(sinab,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(work,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cosab)
+    DEALLOCATE(sinab)
+    DEALLOCATE(work)
+    DEALLOCATE(basis_set_list)
 
     CALL timestop(handle)
 
@@ -814,9 +792,9 @@ CONTAINS
                                                 zi(3), zij(3,3), zijk(3,3,3), &
                                                 zijkl(3,3,3,3), zphase(3), zz
     INTEGER                                  :: handle, i, ia, idim, ikind, &
-                                                ispin, istat, ix, iy, iz, j, &
-                                                k, l, nao, nm, nmo, nmom, &
-                                                nmotot, tmp_dim
+                                                ispin, ix, iy, iz, j, k, l, &
+                                                nao, nm, nmo, nmom, nmotot, &
+                                                tmp_dim
     LOGICAL                                  :: failure, ghost, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
@@ -867,16 +845,13 @@ CONTAINS
      ! rmom(:,1)=electronic
      ! rmom(:,2)=nuclear
      ! rmom(:,1)=total
-     ALLOCATE (rmom(nm+1,3),STAT=istat)
-     CPASSERT(istat==0)
-     ALLOCATE (rlab(nm+1),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (rmom(nm+1,3))
+     ALLOCATE (rlab(nm+1))
      rmom = 0.0_dp
      rlab = ""
      IF(magnetic) THEN
         nm=3
-        ALLOCATE (mmom(nm),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE (mmom(nm))
         mmom = 0._dp
      END IF
 
@@ -906,12 +881,9 @@ CONTAINS
      CALL cp_dbcsr_set(cosmat,0.0_dp)
      CALL cp_dbcsr_set(sinmat,0.0_dp)
 
-     ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-     CPASSERT(istat==0)
-     ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
-     CPASSERT(istat==0)
-     ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-     CPASSERT(istat==0)
+     ALLOCATE ( op_fm_set( 2, dft_control%nspins ))
+     ALLOCATE ( opvec( dft_control%nspins ))
+     ALLOCATE ( eigrmat( dft_control%nspins ))
      nmotot = 0
      DO ispin = 1, dft_control%nspins
        NULLIFY(tmp_fm_struct,mo_coeff)
@@ -1212,13 +1184,10 @@ CONTAINS
         CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.)
      END IF
 
-     DEALLOCATE (rmom,STAT=istat)
-     CPASSERT(istat==0)
-     DEALLOCATE (rlab,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (rmom)
+     DEALLOCATE (rlab)
      IF(magnetic) THEN
-        DEALLOCATE ( mmom, STAT = istat )
-        CPASSERT(istat==0)
+        DEALLOCATE ( mmom)
      END IF
 
      CALL cp_dbcsr_deallocate_matrix ( cosmat)
@@ -1231,12 +1200,9 @@ CONTAINS
          CALL cp_fm_release(op_fm_set(i,ispin)%matrix)
        END DO
      END DO
-     DEALLOCATE ( op_fm_set, STAT = istat )
-     CPASSERT(istat==0)
-     DEALLOCATE ( opvec, STAT = istat )
-     CPASSERT(istat==0)
-     DEALLOCATE ( eigrmat, STAT = istat )
-     CPASSERT(istat==0)
+     DEALLOCATE ( op_fm_set)
+     DEALLOCATE ( opvec)
+     DEALLOCATE ( eigrmat)
 
      CALL timestop(handle)
 
@@ -1393,8 +1359,8 @@ CONTAINS
       DIMENSION(:)                           :: rlab
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: akind, handle, i, ia, iatom, &
-                                                ikind, ispin, istat, ix, iy, &
-                                                iz, l, nm, nmom
+                                                ikind, ispin, ix, iy, iz, l, &
+                                                nm, nmom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
@@ -1432,8 +1398,7 @@ CONTAINS
     nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
     CALL cp_dbcsr_allocate_matrix_set(moments,nm)
     DO i=1,nm
-       ALLOCATE(moments(i)%matrix,STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(moments(i)%matrix)
        CALL cp_dbcsr_init(moments(i)%matrix)
        CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments")
        CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp)
@@ -1455,10 +1420,8 @@ CONTAINS
     CALL qs_rho_get(rho, rho_ao=rho_ao)
 
     nm = SIZE(moments)
-    ALLOCATE (rmom(nm+1,3),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (rlab(nm+1),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (rmom(nm+1,3))
+    ALLOCATE (rlab(nm+1))
     rmom=0.0_dp
     rlab = ""
 
@@ -1484,8 +1447,7 @@ CONTAINS
        NULLIFY ( magmom )
        CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc)
        nm = SIZE(magmom)
-       ALLOCATE (mmom(nm),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (mmom(nm))
        DO i = 1, SIZE(magmom)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
@@ -1537,13 +1499,10 @@ CONTAINS
        CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.)
     END IF
 
-    DEALLOCATE (rmom,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (rlab,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (rmom)
+    DEALLOCATE (rlab)
     IF (magnetic) THEN
-       DEALLOCATE (mmom,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (mmom)
     END IF
 
     CALL timestop(handle)

@@ -59,21 +59,18 @@ MODULE hartree_local_types
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat
+    INTEGER                                  :: iat
 
     IF(ASSOCIATED(ecoul_1c)) THEN
       CALL deallocate_ecoul_1center(ecoul_1c)
     END IF
 
-    ALLOCATE(ecoul_1c(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ecoul_1c(natom))
 
     DO iat = 1,natom
-      ALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-    CPASSERT(istat==0)
+      ALLOCATE(ecoul_1c(iat)%Vh1_h)
       NULLIFY(ecoul_1c(iat)%Vh1_h%r_coef)
-      ALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-    CPASSERT(istat==0)
+      ALLOCATE(ecoul_1c(iat)%Vh1_s)
       NULLIFY(ecoul_1c(iat)%Vh1_s%r_coef)
     END DO
 
@@ -91,29 +88,24 @@ MODULE hartree_local_types
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat, natom
+    INTEGER                                  :: iat, natom
 
     natom = SIZE(ecoul_1c,1)
 
     DO iat= 1,natom
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_h%r_coef)) THEN
-          DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
-    CPASSERT(istat==0)
+          DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef)
       ENDIF
-      DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-    CPASSERT(istat==0)
+      DEALLOCATE(ecoul_1c(iat)%Vh1_h)
 
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN
-          DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
-    CPASSERT(istat==0)
+          DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef)
       ENDIF
-      DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-    CPASSERT(istat==0)
+      DEALLOCATE(ecoul_1c(iat)%Vh1_s)
 
     END DO
 
-    DEALLOCATE(ecoul_1c, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(ecoul_1c)
 
   END SUBROUTINE deallocate_ecoul_1center
 
@@ -168,13 +160,11 @@ MODULE hartree_local_types
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(hartree_local, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hartree_local)
 
     NULLIFY (hartree_local%ecoul_1c)
 
@@ -191,15 +181,12 @@ MODULE hartree_local_types
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(hartree_local)) THEN
       IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
         CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
       END IF
 
-      DEALLOCATE(hartree_local,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(hartree_local)
     END IF
 
   END SUBROUTINE hartree_local_release

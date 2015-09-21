@@ -181,7 +181,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -190,11 +190,9 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(tmc_env))
 
-    ALLOCATE(tmc_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmc_env)
 
-    ALLOCATE(tmc_env%tmc_comp_set,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmc_env%tmc_comp_set)
 
     tmc_env%tmc_comp_set%group_ener_size = 0 
     tmc_env%tmc_comp_set%group_ener_nr   = 0
@@ -213,8 +211,7 @@ CONTAINS
     NULLIFY(tmc_env%m_env, tmc_env%w_env)
 
     ! initialize the parameter section
-    ALLOCATE(tmc_env%params,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmc_env%params)
 
     tmc_env%params%task_type = task_type_MC
     ! dim_per_elem can be variable somewhen, 
@@ -254,7 +251,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -271,8 +268,7 @@ CONTAINS
       DEALLOCATE(tmc_env%params%cell)
     IF(ASSOCIATED(tmc_env%params%atoms)) &
       CALL deallocate_tmc_atom_type(tmc_env%params%atoms)
-    DEALLOCATE(tmc_env%params,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmc_env%params)
 
     CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_sub_group)
     CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_w)
@@ -283,11 +279,9 @@ CONTAINS
     IF(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_only))&
     CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_only)
 
-    DEALLOCATE(tmc_env%tmc_comp_set,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmc_env%tmc_comp_set)
 
-    DEALLOCATE(tmc_env,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmc_env)
 
     CALL timestop(handle)
 

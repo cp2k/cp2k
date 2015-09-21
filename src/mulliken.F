@@ -407,7 +407,7 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, nblock, nspin
+    INTEGER                                  :: handle, nblock, nspin
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
@@ -419,15 +419,13 @@ END SUBROUTINE rf_deriv_check
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
-    ALLOCATE(charges(nblock,nspin),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(charges(nblock,nspin))
 
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
     CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
-    DEALLOCATE(charges,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(charges)
 
     CALL timestop(handle)
 
@@ -521,8 +519,7 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_akp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ic, istat, nblock, &
-                                                nspin
+    INTEGER                                  :: handle, ic, nblock, nspin
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -537,8 +534,7 @@ END SUBROUTINE rf_deriv_check
 
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
-    ALLOCATE(charges(nblock,nspin),charges_im(nblock,nspin),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(charges(nblock,nspin),charges_im(nblock,nspin))
     charges = 0.0_dp
 
     DO ic=1,SIZE(s_matrix_kp,2)
@@ -552,8 +548,7 @@ END SUBROUTINE rf_deriv_check
 
     CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
-    DEALLOCATE(charges,charges_im,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(charges,charges_im)
 
     CALL timestop(handle)
 
@@ -576,8 +571,7 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_bkp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ic, istat, natom, &
-                                                nspin
+    INTEGER                                  :: handle, ic, natom, nspin
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -592,8 +586,7 @@ END SUBROUTINE rf_deriv_check
        mcharge = 0.0_dp
        natom = SIZE(mcharge,1)
        nspin = SIZE(mcharge,2)
-       ALLOCATE(mcharge_im(natom,nspin),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(mcharge_im(natom,nspin))
 
        DO ic=1,SIZE(s_matrix_kp,2)
           NULLIFY(p_matrix,s_matrix)
@@ -605,8 +598,7 @@ END SUBROUTINE rf_deriv_check
           END IF
        END DO
 
-       DEALLOCATE(mcharge_im,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(mcharge_im)
 
     END IF
 
@@ -633,8 +625,7 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_ckp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ic, istat, natom, &
-                                                nder, nspin
+    INTEGER                                  :: handle, ic, natom, nder, nspin
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dmcharge_im, mcharge_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -650,8 +641,7 @@ END SUBROUTINE rf_deriv_check
        natom = SIZE(mcharge,1)
        nspin = SIZE(mcharge,2)
        nder  = SIZE(dmcharge,2)
-       ALLOCATE(mcharge_im(natom,nspin),dmcharge_im(natom,nder),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(mcharge_im(natom,nspin),dmcharge_im(natom,nder))
 
        DO ic=1,SIZE(s_matrix_kp,2)
           NULLIFY(p_matrix,s_matrix)
@@ -664,8 +654,7 @@ END SUBROUTINE rf_deriv_check
           END IF
        END DO
 
-       DEALLOCATE(mcharge_im,dmcharge_im,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(mcharge_im,dmcharge_im)
 
     END IF
 

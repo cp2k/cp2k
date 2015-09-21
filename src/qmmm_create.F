@@ -119,8 +119,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: qm_atom_type
     INTEGER                                  :: center_i, delta_charge, &
                                                 handle, iw, iw2, orig_charge, &
-                                                qmmm_coupl_type, stat, &
-                                                use_multipole
+                                                qmmm_coupl_type, use_multipole
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index
     LOGICAL :: add_mm_charges, explicit, move_mm_charges, nocompatibility, &
@@ -274,8 +273,7 @@ CONTAINS
     ! Duplicate structure for link atoms
     IF (qmmm_link) THEN
        IF (ASSOCIATED(mm_link_atoms)) THEN
-          ALLOCATE(qmmm_env_qm%mm_link_atoms(SIZE(mm_link_atoms)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(qmmm_env_qm%mm_link_atoms(SIZE(mm_link_atoms)))
           qmmm_env_qm%mm_link_atoms = mm_link_atoms
        END IF
     END IF
@@ -300,12 +298,9 @@ CONTAINS
 
     ! Assign charges and mm_el_pot_radius from fist_topology
     CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env)
-    ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mm_el_pot_radius_corr(SIZE(mm_atom_index)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)))
+    ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)))
+    ALLOCATE(mm_el_pot_radius_corr(SIZE(mm_atom_index)))
     mm_atom_chrg     = 0.0_dp
     mm_el_pot_radius = 0.0_dp
     mm_el_pot_radius_corr = 0.0_dp
@@ -371,8 +366,7 @@ CONTAINS
 
     IF (qmmm_env_qm%periodic) THEN
        IF (.NOT.ASSOCIATED(super_cell)) THEN
-          ALLOCATE (super_cell,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (super_cell)
        END IF
        CALL cell_clone(mm_cell, super_cell)
        CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic)

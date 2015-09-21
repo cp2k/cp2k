@@ -167,7 +167,7 @@ CONTAINS
       routineN = 'calc_image_coeff_gaussalgorithm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, info, natom, stat
+    INTEGER                                  :: handle, info, natom
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eta, V0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pot_const
@@ -182,11 +182,9 @@ CONTAINS
     eta=qmmm_env%image_charge_pot%eta
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
 
-    ALLOCATE(pot_const(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pot_const(natom))
     IF(.NOT.ASSOCIATED(coeff)) THEN
-       ALLOCATE(coeff(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(coeff(natom))
     ENDIF
     coeff=0.0_dp
 
@@ -203,8 +201,7 @@ CONTAINS
 
     coeff = pot_const
 
-    DEALLOCATE(pot_const,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pot_const)
 
     CALL timestop(handle)
 
@@ -231,7 +228,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iter_steps, natom, &
-                                                output_unit, stat
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, eta, rsnew, rsold, V0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Ad, d, pot_const, r, &
@@ -252,21 +249,14 @@ CONTAINS
     eta=qmmm_env%image_charge_pot%eta
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
    
-    ALLOCATE(pot_const(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(vmetal_const(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(r(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(d(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(z(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Ad(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pot_const(natom))
+    ALLOCATE(vmetal_const(natom))
+    ALLOCATE(r(natom))
+    ALLOCATE(d(natom))
+    ALLOCATE(z(natom))
+    ALLOCATE(Ad(natom))
     IF(.NOT.ASSOCIATED(coeff)) THEN
-       ALLOCATE(coeff(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(coeff(natom))
     ENDIF
    
     CALL integrate_potential_ga_rspace(v_hartree_rspace,qmmm_env,qs_env,&
@@ -340,16 +330,11 @@ CONTAINS
     ENDIF
    
     CALL pw_release(v_metal_rspace_guess%pw)
-    DEALLOCATE(pot_const,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(vmetal_const,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(d,z,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Ad,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pot_const)
+    DEALLOCATE(vmetal_const)
+    DEALLOCATE(r)
+    DEALLOCATE(d,z)
+    DEALLOCATE(Ad)
    
     CALL timestop(handle)
 
@@ -381,7 +366,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, atom_b, atom_ref, &
                                                 handle, iatom, j, k, natom, &
-                                                npme, stat
+                                                npme
     INTEGER, DIMENSION(:), POINTER           :: cores
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -397,8 +382,7 @@ CONTAINS
 
     NULLIFY(cores,hab,cell,auxbas_rs_desc,pw_env,para_env,&
            dft_control,rs_v)
-    ALLOCATE (hab(1,1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (hab(1,1))
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
@@ -468,8 +452,7 @@ CONTAINS
 
     CALL mp_sum(int_res,para_env%group)
 
-    DEALLOCATE (hab,cores,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (hab,cores)
 
     CALL rs_grid_release(rs_v)
 
@@ -501,7 +484,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, j, &
-                                                natom, npme, stat
+                                                natom, npme
     INTEGER, DIMENSION(:), POINTER           :: cores
     LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: eps_rho_rspace
@@ -522,10 +505,8 @@ CONTAINS
     failure=.FALSE.
     use_virial=.FALSE.
    
-    ALLOCATE (hab(1,1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (pab(1,1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (hab(1,1))
+    ALLOCATE (pab(1,1))
    
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
@@ -552,8 +533,7 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
    
     IF(.NOT.ASSOCIATED(forces)) THEN
-     ALLOCATE(forces(3,natom), stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(forces(3,natom))
     ENDIF
    
     forces(:,:)=0.0_dp
@@ -600,8 +580,7 @@ CONTAINS
 
     CALL mp_sum(forces,para_env%group)
 
-    DEALLOCATE (hab,pab,cores,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (hab,pab,cores)
 
     CALL rs_grid_release(rs_v)
 
@@ -694,17 +673,14 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
    
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
-        ALLOCATE(image_matrix(natom,natom),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(image_matrix(natom,natom))
     ENDIF
     IF (PRESENT(ipiv)) THEN
        IF (.NOT.ASSOCIATED(ipiv)) THEN
-           ALLOCATE(ipiv(natom),stat=stat)
-           CPASSERT(stat==0)
+           ALLOCATE(ipiv(natom))
        ENDIF
     ENDIF
-    ALLOCATE(int_res(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(int_res(natom))
    
     image_matrix=0.0_dp
     IF(PRESENT(ipiv)) ipiv=0
@@ -787,8 +763,7 @@ CONTAINS
     CALL pw_release(vb_rspace%pw)
     CALL pw_release(rho_gb%pw)
 
-    DEALLOCATE(int_res,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(int_res)
    
     CALL timestop(handle)
 
@@ -1002,7 +977,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: image_filename
     INTEGER                                  :: handle, natom, output_unit, &
-                                                rst_unit, stat
+                                                rst_unit
     LOGICAL                                  :: exist, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1019,8 +994,7 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
  
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
-       ALLOCATE(image_matrix(natom,natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(image_matrix(natom,natom))
     ENDIF
    
     image_matrix=0.0_dp 

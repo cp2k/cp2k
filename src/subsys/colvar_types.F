@@ -382,13 +382,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(colvar))
-    ALLOCATE(colvar, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(colvar)
     ! Nullify all available COLVAR types
     NULLIFY(colvar%dist_param)
     NULLIFY(colvar%angle_param)
@@ -419,80 +417,57 @@ CONTAINS
     colvar%use_points = .FALSE.
     SELECT CASE (colvar_id)
     CASE(dist_colvar_id)
-       ALLOCATE(colvar%dist_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%dist_param)
        colvar%dist_param%axis_id = do_clv_xyz
     CASE(coord_colvar_id)
-       ALLOCATE(colvar%coord_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%coord_param)
     CASE(population_colvar_id)
-       ALLOCATE(colvar%population_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%population_param)
     CASE(gyration_colvar_id)
-       ALLOCATE(colvar%gyration_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%gyration_param)
     CASE(angle_colvar_id)
-       ALLOCATE(colvar%angle_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%angle_param)
     CASE(torsion_colvar_id)
-       ALLOCATE(colvar%torsion_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%torsion_param)
     CASE(plane_distance_colvar_id)
-       ALLOCATE(colvar%plane_distance_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%plane_distance_param)
     CASE(plane_plane_angle_colvar_id)
-       ALLOCATE(colvar%plane_plane_angle_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%plane_plane_angle_param)
     CASE(rotation_colvar_id)
-       ALLOCATE(colvar%rotation_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%rotation_param)
     CASE(dfunct_colvar_id)
-       ALLOCATE(colvar%dfunct_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%dfunct_param)
     CASE(qparm_colvar_id)
-       ALLOCATE(colvar%qparm_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%qparm_param)
     CASE(xyz_diag_colvar_id)
-       ALLOCATE(colvar%xyz_diag_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%xyz_diag_param)
        ! Initialize r0 with dummy..
        colvar%xyz_diag_param%r0=HUGE(0.0_dp)
     CASE(xyz_outerdiag_colvar_id)
-       ALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%xyz_outerdiag_param)
        ! Initialize r0 with dummy..
        colvar%xyz_outerdiag_param%r0=HUGE(0.0_dp)
     CASE(u_colvar_id)
-       ALLOCATE(colvar%u_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%u_param)
        NULLIFY(colvar%u_param%mixed_energy_section)
     CASE(hydronium_colvar_id)
-       ALLOCATE(colvar%hydronium_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%hydronium_param)
     CASE(reaction_path_colvar_id)
-       ALLOCATE(colvar%reaction_path_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%reaction_path_param)
     CASE(distance_from_path_colvar_id)
-       ALLOCATE(colvar%reaction_path_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%reaction_path_param)
     CASE(combine_colvar_id)
-       ALLOCATE(colvar%combine_cvs_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%combine_cvs_param)
     CASE(rmsd_colvar_id)
-       ALLOCATE(colvar%rmsd_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%rmsd_param)
     CASE(Wc_colvar_id)
-       ALLOCATE(colvar%Wc, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%Wc)
     CASE(HBP_colvar_id)
-       ALLOCATE(colvar%HBP, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%HBP)
     CASE(ring_puckering_colvar_id)
-       ALLOCATE(colvar%ring_puckering_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%ring_puckering_param)
     CASE(mindist_colvar_id)
-       ALLOCATE(colvar%mindist_param, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%mindist_param)
     CASE(no_colvar_id)
        ! Do nothing
     CASE DEFAULT
@@ -528,8 +503,7 @@ CONTAINS
        colvar%n_atom_s=COLV_SIZE(colvar,i)+&
                        COLV_SIZE(colvar,j)
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        list(1) = colvar%dist_param%i_at
        list(2) = colvar%dist_param%j_at
     CASE(coord_colvar_id)
@@ -552,8 +526,7 @@ CONTAINS
          ENDDO
        END IF
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%coord_param%n_atoms_from
           idum = idum + 1
@@ -586,8 +559,7 @@ CONTAINS
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%population_param%n_atoms_from
           idum = idum + 1
@@ -609,8 +581,7 @@ CONTAINS
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
       ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%gyration_param%n_atoms
           idum = idum + 1
@@ -627,8 +598,7 @@ CONTAINS
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1, 3
           idum = idum + 1
@@ -645,8 +615,7 @@ CONTAINS
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1, 4
           idum = idum + 1
@@ -665,8 +634,7 @@ CONTAINS
        i = colvar%plane_distance_param%point
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1, 3
           idum = idum + 1
@@ -704,8 +672,7 @@ CPSourceFileRef)
        END IF
 
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
           DO ii=1, 3
@@ -731,8 +698,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1, 4
           idum = idum + 1
@@ -753,8 +719,7 @@ CPSourceFileRef)
        i = colvar%rotation_param%i_at2_bond2
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        i = colvar%rotation_param%i_at1_bond1
        list(1) = i
        i = colvar%rotation_param%i_at2_bond1
@@ -776,8 +741,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%qparm_param%n_atoms_from
           idum = idum + 1
@@ -803,8 +767,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%hydronium_param%n_oxygens
           idum = idum + 1
@@ -826,8 +789,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%rmsd_param%n_atoms
          idum = idum+1
@@ -866,8 +828,7 @@ CPSourceFileRef)
        i = colvar%xyz_diag_param%i_atom
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        i = colvar%xyz_diag_param%i_atom
        list(1) = i
     CASE(xyz_outerdiag_colvar_id)
@@ -879,8 +840,7 @@ CPSourceFileRef)
        i = colvar%xyz_outerdiag_param%i_atoms(2)
        colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        i = colvar%xyz_outerdiag_param%i_atoms(1)
        list(1) = i
        i = colvar%xyz_outerdiag_param%i_atoms(2)
@@ -898,8 +858,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1, 3
           idum = idum + 1
@@ -918,8 +877,7 @@ CPSourceFileRef)
          ENDDO
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO j=1,colvar%HBP%nPoints
          DO ii=1, 3
@@ -938,8 +896,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%ring_puckering_param%nring
           idum = idum + 1
@@ -965,8 +922,7 @@ CPSourceFileRef)
           colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
        ENDDO
        ! Create a List of points...
-       ALLOCATE(list(np),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(list(np))
        idum = 0
        DO ii=1,colvar%mindist_param%n_dist_from
           idum = idum + 1
@@ -1000,17 +956,13 @@ CPSourceFileRef)
     END SELECT
 
     IF (ASSOCIATED(colvar%dsdr)) THEN
-       DEALLOCATE(colvar%dsdr, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%dsdr)
     END IF
     IF (ASSOCIATED(colvar%i_atom)) THEN
-       DEALLOCATE(colvar%i_atom, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%i_atom)
     END IF
-    ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(colvar%dsdr(3,colvar%n_atom_s))
+    ALLOCATE(colvar%i_atom(colvar%n_atom_s))
     ! And now map real atoms
     istart = 0
     iend   = 0
@@ -1028,8 +980,7 @@ CPSourceFileRef)
        END IF
     END DO
     CPASSERT(iend==colvar%n_atom_s)
-    DEALLOCATE(list, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(list)
 
   END SUBROUTINE colvar_setup
 
@@ -1065,221 +1016,158 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(ASSOCIATED(colvar))
     IF (ASSOCIATED(colvar%dsdr)) THEN
-       DEALLOCATE(colvar%dsdr, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%dsdr)
     END IF
     IF (ASSOCIATED(colvar%i_atom)) THEN
-        DEALLOCATE(colvar%i_atom, stat=stat)
-       CPASSERT(stat==0)
+        DEALLOCATE(colvar%i_atom)
     END IF
     IF (ASSOCIATED(colvar%points)) THEN
        DO i = 1, SIZE(colvar%points)
           IF (ASSOCIATED(colvar%points(i)%atoms)) THEN
-             DEALLOCATE(colvar%points(i)%atoms, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(colvar%points(i)%atoms)
           END IF
           IF (ASSOCIATED(colvar%points(i)%weights)) THEN
-             DEALLOCATE(colvar%points(i)%weights, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(colvar%points(i)%weights)
           END IF
        END DO
-       DEALLOCATE(colvar%points, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%points)
     END IF
     SELECT CASE(colvar%type_id)
     CASE (dist_colvar_id)
-       DEALLOCATE(colvar%dist_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%dist_param)
     CASE (coord_colvar_id)
        IF (ASSOCIATED(colvar%coord_param%i_at_from)) THEN
-          DEALLOCATE(colvar%coord_param%i_at_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%coord_param%i_at_from)
        END IF
        IF (ASSOCIATED(colvar%coord_param%i_at_to)) THEN
-          DEALLOCATE(colvar%coord_param%i_at_to,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%coord_param%i_at_to)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_from)) THEN
-          DEALLOCATE(colvar%coord_param%c_kinds_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%coord_param%c_kinds_from)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_to)) THEN
-          DEALLOCATE(colvar%coord_param%c_kinds_to,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%coord_param%c_kinds_to)
        END IF
        IF (ASSOCIATED(colvar%coord_param%i_at_to_b)) THEN
-          DEALLOCATE(colvar%coord_param%i_at_to_b,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%coord_param%i_at_to_b)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_to_b)) THEN
-          DEALLOCATE(colvar%coord_param%c_kinds_to_b,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%coord_param%c_kinds_to_b)
        END IF
-       DEALLOCATE(colvar%coord_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%coord_param)
     CASE (population_colvar_id)
        IF (ASSOCIATED(colvar%population_param%i_at_from)) THEN
-          DEALLOCATE(colvar%population_param%i_at_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%population_param%i_at_from)
        END IF
        IF (ASSOCIATED(colvar%population_param%i_at_to)) THEN
-          DEALLOCATE(colvar%population_param%i_at_to,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%population_param%i_at_to)
        END IF
        IF (ASSOCIATED(colvar%population_param%c_kinds_from)) THEN
-          DEALLOCATE(colvar%population_param%c_kinds_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%population_param%c_kinds_from)
        END IF
        IF (ASSOCIATED(colvar%population_param%c_kinds_to)) THEN
-          DEALLOCATE(colvar%population_param%c_kinds_to,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%population_param%c_kinds_to)
        END IF
-       DEALLOCATE(colvar%population_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%population_param)
     CASE (gyration_colvar_id)
        IF (ASSOCIATED(colvar%gyration_param%i_at)) THEN
-          DEALLOCATE(colvar%gyration_param%i_at, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%gyration_param%i_at)
        END IF
        IF (ASSOCIATED(colvar%gyration_param%c_kinds)) THEN
-          DEALLOCATE(colvar%gyration_param%c_kinds, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%gyration_param%c_kinds)
        END IF
-       DEALLOCATE(colvar%gyration_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%gyration_param)
     CASE(angle_colvar_id)
-       DEALLOCATE(colvar%angle_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%angle_param)
     CASE (torsion_colvar_id)
-       DEALLOCATE(colvar%torsion_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%torsion_param)
     CASE(plane_distance_colvar_id)
-       DEALLOCATE(colvar%plane_distance_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%plane_distance_param)
     CASE(plane_plane_angle_colvar_id)
-       DEALLOCATE(colvar%plane_plane_angle_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%plane_plane_angle_param)
     CASE(dfunct_colvar_id)
-       DEALLOCATE(colvar%dfunct_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%dfunct_param)
     CASE (rotation_colvar_id)
-       DEALLOCATE(colvar%rotation_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%rotation_param)
     CASE (qparm_colvar_id)
-       DEALLOCATE(colvar%qparm_param%i_at_from, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%qparm_param%i_at_to,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%qparm_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%qparm_param%i_at_from)
+       DEALLOCATE(colvar%qparm_param%i_at_to)
+       DEALLOCATE(colvar%qparm_param)
     CASE (xyz_diag_colvar_id)
-       DEALLOCATE(colvar%xyz_diag_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%xyz_diag_param)
     CASE (xyz_outerdiag_colvar_id)
-       DEALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%xyz_outerdiag_param)
     CASE (u_colvar_id)
        NULLIFY(colvar%u_param%mixed_energy_section)
-       DEALLOCATE(colvar%u_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%u_param)
     CASE (hydronium_colvar_id)
-       DEALLOCATE(colvar%hydronium_param%i_oxygens, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%hydronium_param%i_hydrogens,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%hydronium_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%hydronium_param%i_oxygens)
+       DEALLOCATE(colvar%hydronium_param%i_hydrogens)
+       DEALLOCATE(colvar%hydronium_param)
     CASE (reaction_path_colvar_id, distance_from_path_colvar_id)
        IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
-         DEALLOCATE(colvar%reaction_path_param%r_ref,STAT=stat)
-         CPASSERT(stat==0)
-         DEALLOCATE(colvar%reaction_path_param%i_rmsd,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(colvar%reaction_path_param%r_ref)
+         DEALLOCATE(colvar%reaction_path_param%i_rmsd)
        ELSE
          DO i=1,SIZE(colvar%reaction_path_param%colvar_p)
              CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar)
          END DO
-         DEALLOCATE(colvar%reaction_path_param%colvar_p, stat=stat)
-         CPASSERT(stat==0)
-         DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(colvar%reaction_path_param%colvar_p)
+         DEALLOCATE(colvar%reaction_path_param%f_vals)
        END IF
-       DEALLOCATE(colvar%reaction_path_param,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%reaction_path_param)
     CASE (combine_colvar_id)
        DO i=1,SIZE(colvar%combine_cvs_param%colvar_p)
           CALL colvar_release(colvar%combine_cvs_param%colvar_p(i)%colvar)
        END DO
-       DEALLOCATE(colvar%combine_cvs_param%colvar_p, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%combine_cvs_param%c_parameters, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%combine_cvs_param%v_parameters, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%combine_cvs_param%variables, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%combine_cvs_param,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%combine_cvs_param%colvar_p)
+       DEALLOCATE(colvar%combine_cvs_param%c_parameters)
+       DEALLOCATE(colvar%combine_cvs_param%v_parameters)
+       DEALLOCATE(colvar%combine_cvs_param%variables)
+       DEALLOCATE(colvar%combine_cvs_param)
     CASE (rmsd_colvar_id)
-       DEALLOCATE(colvar%rmsd_param%weights, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%rmsd_param%r_ref, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%rmsd_param%i_rmsd, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%rmsd_param,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%rmsd_param%weights)
+       DEALLOCATE(colvar%rmsd_param%r_ref)
+       DEALLOCATE(colvar%rmsd_param%i_rmsd)
+       DEALLOCATE(colvar%rmsd_param)
     CASE(Wc_colvar_id)
-       DEALLOCATE(colvar%Wc, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%Wc)
     CASE(HBP_colvar_id)
-       DEALLOCATE(colvar%HBP%ewc, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%HBP%ids, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%HBP, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%HBP%ewc)
+       DEALLOCATE(colvar%HBP%ids)
+       DEALLOCATE(colvar%HBP)
     CASE (ring_puckering_colvar_id)
-       DEALLOCATE(colvar%ring_puckering_param%atoms, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(colvar%ring_puckering_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%ring_puckering_param%atoms)
+       DEALLOCATE(colvar%ring_puckering_param)
     CASE (mindist_colvar_id)
        IF (ASSOCIATED(colvar%mindist_param%i_dist_from)) THEN
-          DEALLOCATE(colvar%mindist_param%i_dist_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%mindist_param%i_dist_from)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%i_coord_from)) THEN
-          DEALLOCATE(colvar%mindist_param%i_coord_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%mindist_param%i_coord_from)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%i_coord_to)) THEN
-          DEALLOCATE(colvar%mindist_param%i_coord_to,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%mindist_param%i_coord_to)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%k_coord_from)) THEN
-          DEALLOCATE(colvar%mindist_param%k_coord_from, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%mindist_param%k_coord_from)
        END IF
        IF (ASSOCIATED(colvar%mindist_param%k_coord_to)) THEN
-          DEALLOCATE(colvar%mindist_param%k_coord_to,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(colvar%mindist_param%k_coord_to)
        END IF
-       DEALLOCATE(colvar%mindist_param, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar%mindist_param)
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
        CPASSERT(.FALSE.)
     END SELECT
-    DEALLOCATE(colvar, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(colvar)
 
   END SUBROUTINE colvar_release
 
@@ -1333,40 +1221,34 @@ CPSourceFileRef)
        IF(colvar_in%coord_param%use_kinds_from) THEN
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_from)
-          ALLOCATE(colvar_out%coord_param%c_kinds_from(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%coord_param%c_kinds_from(ndim))
           colvar_out%coord_param%c_kinds_from    = colvar_in%coord_param%c_kinds_from
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%coord_param%i_at_from)
-          ALLOCATE(colvar_out%coord_param%i_at_from(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%coord_param%i_at_from(ndim))
           colvar_out%coord_param%i_at_from    = colvar_in%coord_param%i_at_from + my_offset
        END IF
        IF(colvar_in%coord_param%use_kinds_to) THEN
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_to)
-          ALLOCATE(colvar_out%coord_param%c_kinds_to(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%coord_param%c_kinds_to(ndim))
           colvar_out%coord_param%c_kinds_to    = colvar_in%coord_param%c_kinds_to
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%coord_param%i_at_to)
-          ALLOCATE(colvar_out%coord_param%i_at_to(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%coord_param%i_at_to(ndim))
           colvar_out%coord_param%i_at_to      = colvar_in%coord_param%i_at_to + my_offset
        END IF
        IF(colvar_in%coord_param%use_kinds_to_b) THEN
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_to_b)
-          ALLOCATE(colvar_out%coord_param%c_kinds_to_b(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%coord_param%c_kinds_to_b(ndim))
           colvar_out%coord_param%c_kinds_to_b    = colvar_in%coord_param%c_kinds_to_b
        ELSEIF(ASSOCIATED(colvar_in%coord_param%i_at_to_b)) THEN
           ! INDEX
           ndim = SIZE(colvar_in%coord_param%i_at_to_b)
-          ALLOCATE(colvar_out%coord_param%i_at_to_b(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%coord_param%i_at_to_b(ndim))
           colvar_out%coord_param%i_at_to_b      = colvar_in%coord_param%i_at_to_b + my_offset
        END IF
 
@@ -1384,27 +1266,23 @@ CPSourceFileRef)
        IF(colvar_in%population_param%use_kinds_from) THEN
           ! KINDS
           ndim = SIZE(colvar_in%population_param%c_kinds_from)
-          ALLOCATE(colvar_out%population_param%c_kinds_from(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%population_param%c_kinds_from(ndim))
           colvar_out%population_param%c_kinds_from    = colvar_in%population_param%c_kinds_from
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%population_param%i_at_from)
-          ALLOCATE(colvar_out%population_param%i_at_from(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%population_param%i_at_from(ndim))
           colvar_out%population_param%i_at_from    = colvar_in%population_param%i_at_from + my_offset
        END IF
        IF(colvar_in%population_param%use_kinds_to) THEN
           ! KINDS
           ndim = SIZE(colvar_in%population_param%c_kinds_to)
-          ALLOCATE(colvar_out%population_param%c_kinds_to(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%population_param%c_kinds_to(ndim))
           colvar_out%population_param%c_kinds_to    = colvar_in%population_param%c_kinds_to
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%population_param%i_at_to)
-          ALLOCATE(colvar_out%population_param%i_at_to(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%population_param%i_at_to(ndim))
           colvar_out%population_param%i_at_to      = colvar_in%population_param%i_at_to + my_offset
        END IF
 
@@ -1415,14 +1293,12 @@ CPSourceFileRef)
        IF(colvar_in%gyration_param%use_kinds) THEN
           ! KINDS
           ndim = SIZE(colvar_in%gyration_param%c_kinds)
-          ALLOCATE(colvar_out%gyration_param%c_kinds(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%gyration_param%c_kinds(ndim))
           colvar_out%gyration_param%c_kinds   = colvar_in%gyration_param%c_kinds
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%gyration_param%i_at)
-          ALLOCATE(colvar_out%gyration_param%i_at(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%gyration_param%i_at(ndim))
           colvar_out%gyration_param%i_at    = colvar_in%gyration_param%i_at + my_offset
        END IF
     CASE(angle_colvar_id)
@@ -1464,11 +1340,9 @@ CPSourceFileRef)
        colvar_out%qparm_param%l            = colvar_in%qparm_param%l
        colvar_out%qparm_param%alpha        = colvar_in%qparm_param%alpha
        ndim = SIZE(colvar_in%qparm_param%i_at_from)
-       ALLOCATE(colvar_out%qparm_param%i_at_from(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%qparm_param%i_at_from(ndim))
        ndim = SIZE(colvar_in%qparm_param%i_at_to)
-       ALLOCATE(colvar_out%qparm_param%i_at_to(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%qparm_param%i_at_to(ndim))
        colvar_out%qparm_param%i_at_from    = colvar_in%qparm_param%i_at_from + my_offset
        colvar_out%qparm_param%i_at_to      = colvar_in%qparm_param%i_at_from + my_offset
      CASE(xyz_diag_colvar_id)
@@ -1497,11 +1371,9 @@ CPSourceFileRef)
        colvar_out%hydronium_param%r_OO        = colvar_in%hydronium_param%r_OO
        colvar_out%hydronium_param%r_OH        = colvar_in%hydronium_param%r_OH
        ndim = SIZE(colvar_in%hydronium_param%i_oxygens)
-       ALLOCATE(colvar_out%hydronium_param%i_oxygens(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%hydronium_param%i_oxygens(ndim))
        ndim = SIZE(colvar_in%hydronium_param%i_hydrogens)
-       ALLOCATE(colvar_out%hydronium_param%i_hydrogens(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%hydronium_param%i_hydrogens(ndim))
        colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
     CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
@@ -1522,8 +1394,7 @@ CPSourceFileRef)
          colvar_out%reaction_path_param%r_ref = colvar_in%reaction_path_param%r_ref
        ELSE
          ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
-         ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim))
          DO i=1,ndim
             NULLIFY(colvar_out%reaction_path_param%colvar_p(i)%colvar)
             CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar,&
@@ -1534,8 +1405,7 @@ CPSourceFileRef)
          NULLIFY(colvar_out%reaction_path_param%f_vals)
          ndim=SIZE(colvar_in%reaction_path_param%f_vals,1)
          ndim2=SIZE(colvar_in%reaction_path_param%f_vals,2)
-         ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2),stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2))
          colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals
        END IF
        colvar_out%reaction_path_param%step_size        = colvar_in%reaction_path_param%step_size
@@ -1543,8 +1413,7 @@ CPSourceFileRef)
        colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda
     CASE(combine_colvar_id)
        ndim=SIZE(colvar_in%combine_cvs_param%colvar_p)
-       ALLOCATE(colvar_out%combine_cvs_param%colvar_p(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%combine_cvs_param%colvar_p(ndim))
        DO i=1,ndim
           NULLIFY(colvar_out%combine_cvs_param%colvar_p(i)%colvar)
           CALL colvar_clone(colvar_out%combine_cvs_param%colvar_p(i)%colvar,&
@@ -1556,18 +1425,15 @@ CPSourceFileRef)
        colvar_out%combine_cvs_param%function     = colvar_in%combine_cvs_param%function
        !
        ndim = SIZE(colvar_in%combine_cvs_param%c_parameters)
-       ALLOCATE(colvar_out%combine_cvs_param%c_parameters(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%combine_cvs_param%c_parameters(ndim))
        colvar_out%combine_cvs_param%c_parameters = colvar_in%combine_cvs_param%c_parameters
        !
        ndim = SIZE(colvar_in%combine_cvs_param%v_parameters)
-       ALLOCATE(colvar_out%combine_cvs_param%v_parameters(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%combine_cvs_param%v_parameters(ndim))
        colvar_out%combine_cvs_param%v_parameters = colvar_in%combine_cvs_param%v_parameters
        !
        ndim = SIZE(colvar_in%combine_cvs_param%variables)
-       ALLOCATE(colvar_out%combine_cvs_param%variables(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%combine_cvs_param%variables(ndim))
        colvar_out%combine_cvs_param%variables    = colvar_in%combine_cvs_param%variables
      CASE(rmsd_colvar_id)
        colvar_out%rmsd_param%n_atoms   = colvar_in%rmsd_param%n_atoms
@@ -1579,28 +1445,23 @@ CPSourceFileRef)
        NULLIFY( colvar_out%rmsd_param%r_ref)
        ! INDEX
        ndim = SIZE(colvar_in%rmsd_param%i_rmsd)
-       ALLOCATE(colvar_out%rmsd_param%i_rmsd(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%rmsd_param%i_rmsd(ndim))
        colvar_out%rmsd_param%i_rmsd    = colvar_in%rmsd_param%i_rmsd + my_offset
        ! A and Bconfigurations and weights
        ndim = SIZE(colvar_in%rmsd_param%weights)
-       ALLOCATE(colvar_out%rmsd_param%weights(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%rmsd_param%weights(ndim))
        colvar_out%rmsd_param%weights    = colvar_in%rmsd_param%weights
        ndim = SIZE(colvar_in%rmsd_param%r_ref,1)
        ndim2 = SIZE(colvar_in%rmsd_param%r_ref,2)
-       ALLOCATE(colvar_out%rmsd_param%r_ref(ndim,ndim2),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%rmsd_param%r_ref(ndim,ndim2))
        colvar_out%rmsd_param%r_ref    = colvar_in%rmsd_param%r_ref
     CASE(Wc_colvar_id)
        colvar_out%Wc%ids   = colvar_in%Wc%ids + my_offset
        colvar_out%Wc%rcut   = colvar_in%Wc%rcut
     CASE(HBP_colvar_id)
        ndim=colvar_out%HBP%nPoints
-       ALLOCATE(colvar_out%HBP%ids(ndim,3),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(colvar_out%HBP%ewc(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%HBP%ids(ndim,3))
+       ALLOCATE(colvar_out%HBP%ewc(ndim))
        colvar_out%HBP%ids   = colvar_in%HBP%ids + my_offset
        colvar_out%HBP%ewc   = colvar_in%HBP%ewc + my_offset
        colvar_out%HBP%nPoints   = colvar_in%HBP%nPoints
@@ -1610,8 +1471,7 @@ CPSourceFileRef)
        ndim = colvar_in%ring_puckering_param%nring
        colvar_out%ring_puckering_param%nring = colvar_in%ring_puckering_param%nring
        colvar_out%ring_puckering_param%iq    = colvar_in%ring_puckering_param%iq
-       ALLOCATE(colvar_out%ring_puckering_param%atoms(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%ring_puckering_param%atoms(ndim))
        colvar_out%ring_puckering_param%atoms = colvar_in%ring_puckering_param%atoms + my_offset
     CASE(mindist_colvar_id)
        colvar_out%mindist_param%n_dist_from   = colvar_in%mindist_param%n_dist_from
@@ -1628,33 +1488,28 @@ CPSourceFileRef)
        NULLIFY(colvar_out%mindist_param%i_dist_from)
        ! INDEX
        ndim = SIZE(colvar_in%mindist_param%i_dist_from)
-       ALLOCATE(colvar_out%mindist_param%i_dist_from(ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%mindist_param%i_dist_from(ndim))
        colvar_out%mindist_param%i_dist_from    = colvar_in%mindist_param%i_dist_from + my_offset
        IF(colvar_in%mindist_param%use_kinds_from) THEN
           ! KINDS
           ndim = SIZE(colvar_in%mindist_param%k_coord_from)
-          ALLOCATE(colvar_out%mindist_param%k_coord_from(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%mindist_param%k_coord_from(ndim))
           colvar_out%mindist_param%k_coord_from    = colvar_in%mindist_param%k_coord_from
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%mindist_param%i_coord_from)
-          ALLOCATE(colvar_out%mindist_param%i_coord_from(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%mindist_param%i_coord_from(ndim))
           colvar_out%mindist_param%i_coord_from    = colvar_in%mindist_param%i_coord_from + my_offset
        END IF
        IF(colvar_in%mindist_param%use_kinds_to) THEN
           ! KINDS
           ndim = SIZE(colvar_in%mindist_param%k_coord_to)
-          ALLOCATE(colvar_out%mindist_param%k_coord_to(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%mindist_param%k_coord_to(ndim))
           colvar_out%mindist_param%k_coord_to    = colvar_in%mindist_param%k_coord_to
        ELSE
           ! INDEX
           ndim = SIZE(colvar_in%mindist_param%i_coord_to)
-          ALLOCATE(colvar_out%mindist_param%i_coord_to(ndim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar_out%mindist_param%i_coord_to(ndim))
           colvar_out%mindist_param%i_coord_to      = colvar_in%mindist_param%i_coord_to + my_offset
        END IF
 
@@ -1676,7 +1531,7 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone_points', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, natoms, npoints, stat
+    INTEGER                                  :: i, natoms, npoints
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1684,21 +1539,18 @@ CPSourceFileRef)
     IF (colvar_in%use_points) THEN
        CPASSERT(ASSOCIATED(colvar_in%points))
        npoints = SIZE(colvar_in%points)
-       ALLOCATE(colvar_out%points(npoints),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar_out%points(npoints))
        DO i = 1, npoints
           IF (ASSOCIATED(colvar_in%points(i)%atoms)) THEN
              natoms = SIZE(colvar_in%points(i)%atoms)
-             ALLOCATE(colvar_out%points(i)%atoms(natoms),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(colvar_out%points(i)%atoms(natoms))
              colvar_out%points(i)%atoms = colvar_in%points(i)%atoms+offset
           ELSE
              NULLIFY(colvar_out%points(i)%atoms)
           END IF
           IF (ASSOCIATED(colvar_in%points(i)%weights)) THEN
              natoms = SIZE(colvar_in%points(i)%weights)
-             ALLOCATE(colvar_out%points(i)%weights(natoms),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(colvar_out%points(i)%weights(natoms))
              colvar_out%points(i)%weights = colvar_in%points(i)%weights
           ELSE
              NULLIFY(colvar_out%points(i)%weights)
@@ -1727,8 +1579,7 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_p_reallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j, lb1, lb1_old, stat, ub1, &
-                                                ub1_old
+    INTEGER                                  :: j, lb1, lb1_old, ub1, ub1_old
     LOGICAL                                  :: failure
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: work
@@ -1740,8 +1591,7 @@ CPSourceFileRef)
        ub1_old = UBOUND(colvar_set,1)
        lb1 = MAX(lb1_new,lb1_old)
        ub1 = MIN(ub1_new,ub1_old)
-       ALLOCATE (work(lb1:ub1),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (work(lb1:ub1))
        DO j = lb1, ub1
           NULLIFY(work(j)%colvar)
           CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar)
@@ -1750,12 +1600,10 @@ CPSourceFileRef)
           CALL colvar_release(colvar_set(j)%colvar)
           NULLIFY(colvar_set(j)%colvar)
        END DO
-       DEALLOCATE(colvar_set, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(colvar_set)
     END IF
 
-    ALLOCATE (colvar_set(lb1_new:ub1_new),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (colvar_set(lb1_new:ub1_new))
 
     DO j = lb1_new, ub1_new
        NULLIFY(colvar_set(j)%colvar)
@@ -1770,8 +1618,7 @@ CPSourceFileRef)
           CALL colvar_release(work(j)%colvar)
           NULLIFY(work(j)%colvar)
        END DO
-       DEALLOCATE (work,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (work)
     END IF
   END SUBROUTINE colvar_p_reallocate
 

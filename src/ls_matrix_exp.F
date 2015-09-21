@@ -75,7 +75,7 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     CHARACTER(LEN=1)                         :: transa2, transb2
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha2, alpha3, alpha4
     TYPE(cp_dbcsr_type), POINTER             :: a_plus_b, ac, bd, c_plus_d
@@ -108,23 +108,19 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
 
     !create the work matrices
     NULLIFY(ac)
-    ALLOCATE(ac,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ac)
     CALL cp_dbcsr_init(ac)
     CALL cp_dbcsr_create(ac,template=A_re,matrix_type="N")
     NULLIFY(bd)
-    ALLOCATE(bd,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bd)
     CALL cp_dbcsr_init(bd)
     CALL cp_dbcsr_create(bd,template=A_re,matrix_type="N")
     NULLIFY(a_plus_b)
-    ALLOCATE(a_plus_b,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(a_plus_b)
     CALL cp_dbcsr_init(a_plus_b)
     CALL cp_dbcsr_create(a_plus_b,template=A_re,matrix_type="N")
     NULLIFY(c_plus_d)
-    ALLOCATE(c_plus_d,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(c_plus_d)
     CALL cp_dbcsr_init(c_plus_d)
     CALL cp_dbcsr_create(c_plus_d,template=A_re,matrix_type="N")
     
@@ -183,7 +179,7 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, nloop, stat
+    INTEGER                                  :: handle, i, nloop
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, Tres_im, Tres_re
@@ -197,23 +193,19 @@ END SUBROUTINE
 
     !Allocate work matrices
     NULLIFY(T1)
-    ALLOCATE(T1,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(T1)
     CALL cp_dbcsr_init(T1)
     CALL cp_dbcsr_create(T1,template=im_matrix,matrix_type="N")
     NULLIFY(T2)
-    ALLOCATE(T2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(T2)
     CALL cp_dbcsr_init(T2)
     CALL cp_dbcsr_create(T2,template=im_matrix,matrix_type="N")
     NULLIFY(Tres_re)
-    ALLOCATE(Tres_re,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Tres_re)
     CALL cp_dbcsr_init(Tres_re)
     CALL cp_dbcsr_create(Tres_re,template=im_matrix,matrix_type="N")
     NULLIFY(Tres_im)
-    ALLOCATE(Tres_im,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Tres_im)
     CALL cp_dbcsr_init(Tres_im)
     CALL cp_dbcsr_create(Tres_im,template=im_matrix,matrix_type="N")
 
@@ -293,7 +285,7 @@ END SUBROUTINE
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: square_fac
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, T3, Tres
 
@@ -306,26 +298,22 @@ END SUBROUTINE
 
     !Allocate work matrices
     NULLIFY(T1)
-    ALLOCATE(T1,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(T1)
     CALL cp_dbcsr_init(T1)
     CALL cp_dbcsr_create(T1,template=re_part,matrix_type="N",&
          data_type=dbcsr_type_complex_8)
     NULLIFY(T2)
-    ALLOCATE(T2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(T2)
     CALL cp_dbcsr_init(T2)
     CALL cp_dbcsr_create(T2,template=re_part,matrix_type="N",&
          data_type=dbcsr_type_complex_8)
     NULLIFY(T3)
-    ALLOCATE(T3,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(T3)
     CALL cp_dbcsr_init(T3)
     CALL cp_dbcsr_create(T3,template=re_part,matrix_type="N",&
          data_type=dbcsr_type_complex_8)
     NULLIFY(Tres)
-    ALLOCATE(Tres,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Tres)
     CALL cp_dbcsr_init(Tres)
     CALL cp_dbcsr_create(Tres,template=re_part,matrix_type="N",&
          data_type=dbcsr_type_complex_8)
@@ -396,7 +384,7 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, stat, unit_nr
+    INTEGER                                  :: handle, i, unit_nr
     LOGICAL                                  :: convergence, failure
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
@@ -409,23 +397,19 @@ END SUBROUTINE
 
     failure=.FALSE.
     NULLIFY(tmp)
-    ALLOCATE(tmp,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)
     CALL cp_dbcsr_create(tmp,template=propagator)
     NULLIFY(tmp2)
-    ALLOCATE(tmp2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp2)
     CALL cp_dbcsr_init(tmp2)
     CALL cp_dbcsr_create(tmp2,template=propagator)
     NULLIFY(comm)
-    ALLOCATE(comm,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(comm)
     CALL cp_dbcsr_init(comm)
     CALL cp_dbcsr_create(comm,template=propagator)
     NULLIFY(comm2)
-    ALLOCATE(comm2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(comm2)
     CALL cp_dbcsr_init(comm2)
     CALL cp_dbcsr_create(comm2,template=propagator)
 
@@ -503,7 +487,7 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, stat, unit_nr
+    INTEGER                                  :: handle, i, unit_nr
     LOGICAL                                  :: convergence, failure
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
@@ -516,23 +500,19 @@ END SUBROUTINE
 
     failure=.FALSE.
     NULLIFY(tmp)
-    ALLOCATE(tmp,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)
     CALL cp_dbcsr_create(tmp,template=propagator_re)
     NULLIFY(tmp2)
-    ALLOCATE(tmp2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp2)
     CALL cp_dbcsr_init(tmp2)
     CALL cp_dbcsr_create(tmp2,template=propagator_re)
     NULLIFY(comm)
-    ALLOCATE(comm,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(comm)
     CALL cp_dbcsr_init(comm)
     CALL cp_dbcsr_create(comm,template=propagator_re)
     NULLIFY(comm2)
-    ALLOCATE(comm2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(comm2)
     CALL cp_dbcsr_init(comm2)
     CALL cp_dbcsr_create(comm2,template=propagator_re)
 

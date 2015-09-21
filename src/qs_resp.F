@@ -131,7 +131,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, my_per, natom, &
-                                                nvar, output_unit, stat
+                                                nvar, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: failure, has_resp
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -177,15 +177,12 @@ CONTAINS
        natom=particles%n_els
        nvar=natom+resp_env%ncons
 
-       ALLOCATE(ipiv(nvar),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ipiv(nvar))
        IF(.NOT.ASSOCIATED(resp_env%matrix)) THEN 
-        ALLOCATE(resp_env%matrix(nvar,nvar),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(resp_env%matrix(nvar,nvar))
        ENDIF
        IF(.NOT.ASSOCIATED(resp_env%rhs)) THEN
-        ALLOCATE(resp_env%rhs(nvar),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(resp_env%rhs(nvar))
        ENDIF
        ipiv =0
        resp_env%matrix = 0.0_dp
@@ -228,8 +225,7 @@ CONTAINS
        CALL print_resp_charges(qs_env,resp_env,output_unit,natom)
        CALL print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_unit)
 
-       DEALLOCATE(ipiv, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ipiv)
        CALL resp_dealloc(resp_env,rep_sys)
        CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
             "PRINT%PROGRAM_RUN_INFO")
@@ -252,13 +248,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_resp_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env,rep_sys)
-    ALLOCATE(resp_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(resp_env)
 
     NULLIFY(resp_env%matrix,&
             resp_env%fitpoints,&
@@ -296,41 +290,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'resp_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
 
     IF (ASSOCIATED(resp_env)) THEN
      IF (ASSOCIATED(resp_env%matrix)) THEN
-      DEALLOCATE(resp_env%matrix, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(resp_env%matrix)
      ENDIF
      IF (ASSOCIATED(resp_env%rhs)) THEN
-      DEALLOCATE(resp_env%rhs, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(resp_env%rhs)
      ENDIF
      IF (ASSOCIATED(resp_env%fitpoints)) THEN
-      DEALLOCATE(resp_env%fitpoints, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(resp_env%fitpoints)
      ENDIF
      IF (ASSOCIATED(resp_env%rmin_kind))THEN
-      DEALLOCATE(resp_env%rmin_kind, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(resp_env%rmin_kind)
      ENDIF
      IF (ASSOCIATED(resp_env%rmax_kind))THEN
-      DEALLOCATE(resp_env%rmax_kind, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(resp_env%rmax_kind)
      ENDIF
-     DEALLOCATE(resp_env, stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(resp_env)
     ENDIF
     IF (ASSOCIATED(rep_sys)) THEN
      DO i=1, SIZE(rep_sys)
-      DEALLOCATE(rep_sys(i)%p_resp%atom_surf_list, stat=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(rep_sys(i)%p_resp, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(rep_sys(i)%p_resp%atom_surf_list)
+      DEALLOCATE(rep_sys(i)%p_resp)
      ENDDO
-     DEALLOCATE(rep_sys, stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(rep_sys)
     ENDIF
 
   END SUBROUTINE resp_dealloc
@@ -361,7 +346,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_resp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nrep, stat
+    INTEGER                                  :: handle, i, nrep
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, my_stride
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: slab_section, sphere_section
@@ -384,11 +369,9 @@ CONTAINS
     ! get the parameter for periodic/surface systems
     CALL section_vals_get(slab_section, explicit=explicit, n_repetition=nrep)
     IF(explicit) THEN
-     ALLOCATE(rep_sys(nrep), stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(rep_sys(nrep))
      DO i=1, nrep
-      ALLOCATE(rep_sys(i)%p_resp, stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(rep_sys(i)%p_resp)
       NULLIFY(rep_sys(i)%p_resp%range_surf, rep_sys(i)%p_resp%atom_surf_list)
       CALL section_vals_val_get(slab_section,"RANGE",r_vals=rep_sys(i)%p_resp%range_surf,&
                                 i_rep_section=i)
@@ -421,8 +404,7 @@ CONTAINS
         CALL build_atom_list(cons_section,subsys,atom_list_cons,i)
         !instead of using EQUAL_CHARGES the constraint sections could be repeated
         resp_env%ncons=resp_env%ncons+SIZE(atom_list_cons)-2
-        DEALLOCATE(atom_list_cons,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(atom_list_cons)
        ENDDO
     ENDIF
     CALL section_vals_get(rest_section, explicit=explicit)
@@ -485,7 +467,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: ikind, j, kind_number, nkind, &
-                                                nrep_rmax, nrep_rmin, stat
+                                                nrep_rmax, nrep_rmin
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: rmax, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -502,10 +484,8 @@ CPSourceFileRef,&
       CALL section_vals_val_get(sphere_section,"RMAX",r_val=rmax)
       CALL section_vals_val_get(sphere_section,"RMIN_KIND", n_rep_val=nrep_rmin)
       CALL section_vals_val_get(sphere_section,"RMAX_KIND", n_rep_val=nrep_rmax)
-      ALLOCATE(resp_env%rmin_kind(nkind),stat=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(resp_env%rmax_kind(nkind),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(resp_env%rmin_kind(nkind))
+      ALLOCATE(resp_env%rmax_kind(nkind))
       resp_env%rmin_kind(:)=rmin
       resp_env%rmax_kind(:)=rmax
       DO j=1, nrep_rmin
@@ -580,7 +560,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: atom_a, atom_b, handle, i, &
                                                 irep, j, max_index, n_var, &
-                                                num_atom, stat
+                                                num_atom
     INTEGER, DIMENSION(:), POINTER           :: indexes
     LOGICAL                                  :: failure, index_in_range
 
@@ -599,8 +579,7 @@ CPSourceFileRef,&
                                 i_rep_val=i,i_vals=indexes)
      num_atom=num_atom + SIZE(indexes)
     ENDDO 
-    ALLOCATE(atom_list(num_atom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_list(num_atom))
     atom_list=0
     num_atom=1
     DO i=1,n_var
@@ -660,7 +639,7 @@ CPSourceFileRef,&
     INTEGER                                  :: bo(2,3), gbo(2,3), handle, i, &
                                                 ikind, jx, jy, jz, k, &
                                                 kind_number, l, m, nkind, &
-                                                now, np(3), p, stat
+                                                now, np(3), p
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: not_in_range
     REAL(KIND=dp)                            :: delta, dh(3,3), dvol, r(3), &
@@ -706,18 +685,15 @@ CPSourceFileRef,&
     dvol=v_hartree_pw%pw_grid%dvol
     nkind=SIZE(atomic_kind_set)
 
-    ALLOCATE(dist(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(not_in_range(natom,2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dist(natom))
+    ALLOCATE(not_in_range(natom,2))
 
     !only store fitting points when printing RESP potential
     IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
         "PRINT%V_RESP_CUBE"),cp_p_file)) THEN
      IF(.NOT.ASSOCIATED(resp_env%fitpoints)) THEN
         now = 1000
-        ALLOCATE(resp_env%fitpoints(3,now),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(resp_env%fitpoints(3,now))
      ELSE
         now = SIZE(resp_env%fitpoints,2)
      END IF
@@ -800,10 +776,8 @@ CPSourceFileRef,&
     matrix=matrix/resp_env%npoints
     rhs=rhs/resp_env%npoints
 
-    DEALLOCATE(dist,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(not_in_range,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(dist)
+    DEALLOCATE(not_in_range)
 
     CALL timestop(handle)
 
@@ -831,8 +805,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_matrix_periodic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ip, j, jx, jy, jz, &
-                                                stat
+    INTEGER                                  :: handle, i, ip, j, jx, jy, jz
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: normalize_factor
     REAL(KIND=dp), ALLOCATABLE, &
@@ -874,8 +847,7 @@ CPSourceFileRef,&
     !get fitting points and store them in resp_env%fitpoints
     CALL get_fitting_points(qs_env,resp_env,rep_sys,particles=particles,&
          cell=cell)
-    ALLOCATE(vpot(resp_env%npoints,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vpot(resp_env%npoints,natom))
     normalize_factor=SQRT((resp_env%eta/pi)**3)
 
     DO i=1,natom
@@ -909,8 +881,7 @@ CPSourceFileRef,&
       CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(i),vpot(:,i))
     ENDDO
 
-    DEALLOCATE(vpot,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(vpot)
     
     resp_env%npoints_proc=resp_env%npoints
     CALL mp_sum(resp_env%npoints,para_env%group)
@@ -944,8 +915,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2,3), gbo(2,3), handle, i, iatom, ikind, in_x, in_y, in_z, &
-      jx, jy, jz, k, kind_number, l, m, natom, nkind, now, output_unit, p, &
-      stat
+      jx, jy, jz, k, kind_number, l, m, natom, nkind, now, output_unit, p
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: not_in_range
     REAL(KIND=dp)                            :: delta, dh(3,3), r(3), rmax, &
@@ -991,16 +961,13 @@ CPSourceFileRef,&
 
     IF(.NOT.ASSOCIATED(resp_env%fitpoints)) THEN
        now = 1000
-       ALLOCATE(resp_env%fitpoints(3,now),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(resp_env%fitpoints(3,now))
     ELSE
        now = SIZE(resp_env%fitpoints,2)
     END IF
 
-    ALLOCATE(dist(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(not_in_range(natom,2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dist(natom))
+    ALLOCATE(not_in_range(natom,2))
 
     !every proc gets another bo, grid is distributed
     DO jz=bo(1,3),bo(2,3)
@@ -1092,10 +1059,8 @@ CPSourceFileRef,&
 
     CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
                        "PRINT%COORD_FIT_POINTS")
-    DEALLOCATE(dist,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(not_in_range,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(dist)
+    DEALLOCATE(not_in_range)
 
     CALL timestop(handle)
  
@@ -1170,8 +1135,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, i, iatom, ip, jx, jy, &
-                                                jz, k, l, my_pos, p, req(6), &
-                                                stat
+                                                jz, k, l, my_pos, p, req(6)
     INTEGER, DIMENSION(:), POINTER           :: tmp_npoints, tmp_size
     INTEGER, DIMENSION(:, :), POINTER        :: tmp_points
     LOGICAL                                  :: failure
@@ -1224,10 +1188,8 @@ CPSourceFileRef,&
      ENDDO 
     ENDIF
 
-    ALLOCATE(tmp_size(1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tmp_npoints(1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_size(1))
+    ALLOCATE(tmp_npoints(1))
 
     !sending data of all other prosc to proc which makes the output (proc 0) 
     IF(output_unit>0) THEN
@@ -1237,8 +1199,7 @@ CPSourceFileRef,&
        CALL mp_irecv(msgout=tmp_size,source=i-1,comm=para_env%group,&
             request=req(1))
        CALL mp_wait(req(1))
-       ALLOCATE(tmp_points(3,tmp_size(1)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_points(3,tmp_size(1)))
        CALL mp_irecv(msgout=tmp_points,source=i-1,comm=para_env%group,&
             request=req(3))
        CALL mp_wait(req(3))
@@ -1258,8 +1219,7 @@ CPSourceFileRef,&
         r(:)=r(:)*conv 
         WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r(1), r(2),r(3)
        ENDDO 
-       DEALLOCATE(tmp_points,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_points)
       ENDDO
     ELSE
      tmp_size(1)=SIZE(resp_env%fitpoints,2)
@@ -1276,10 +1236,8 @@ CPSourceFileRef,&
      CALL mp_wait(req(6))
     ENDIF
 
-    DEALLOCATE(tmp_size,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tmp_npoints,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmp_size)
+    DEALLOCATE(tmp_npoints)
 
     CALL timestop(handle)
  
@@ -1311,8 +1269,7 @@ CPSourceFileRef,&
       routineN = 'add_restraints_and_constraints', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, k, m, ncons_v, &
-                                                stat, z
+    INTEGER                                  :: handle, i, k, m, ncons_v, z
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, atom_list_res
     LOGICAL                                  :: explicit_coeff, failure
     REAL(KIND=dp)                            :: my_atom_coef(2), strength, &
@@ -1354,8 +1311,7 @@ CPSourceFileRef,&
                                        2.0_dp*TARGET*strength
          ENDIF
        ENDDO
-       DEALLOCATE(atom_list_res,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_list_res)
     ENDDO
 
     ! if heavies are restrained to zero, add these as well
@@ -1402,8 +1358,7 @@ CPSourceFileRef,&
             resp_env%rhs(ncons_v)=0.0_dp
          ENDDO
        ENDIF
-       DEALLOCATE(atom_list_cons,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_list_cons)
     ENDDO
     CALL timestop(handle)
 

@@ -84,8 +84,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_response', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, idir, ispin, istat, &
-                                                nao, nmo, nspins, output_unit
+    INTEGER                                  :: handle, idir, ispin, nao, &
+                                                nmo, nspins, output_unit
     LOGICAL                                  :: do_raman, failure, should_stop
     REAL(dp)                                 :: chk, fro
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -136,8 +136,7 @@ CONTAINS
     !
     ! allocate the vectors
     ALLOCATE(psi0_order(nspins))
-    ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(psi1(nspins),h1_psi0(nspins))
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
        psi0_order(ispin)%matrix => mo_coeff
@@ -209,8 +208,7 @@ CONTAINS
        CALL cp_fm_release(psi1(ispin)%matrix)
        CALL cp_fm_release(h1_psi0(ispin)%matrix)
     ENDDO
-    DEALLOCATE(psi1,h1_psi0,psi0_order,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(psi1,h1_psi0,psi0_order)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
                                      "PRINT%PROGRAM_RUN_INFO")
@@ -233,8 +231,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_polar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, istat, &
-                                                nspins, output_unit, z
+    INTEGER                                  :: handle, i, ispin, nspins, &
+                                                output_unit, z
     LOGICAL                                  :: do_raman, failure
     REAL(dp), DIMENSION(:, :), POINTER       :: polar, polar_tmp
     TYPE(cell_type), POINTER                 :: cell
@@ -279,8 +277,7 @@ CONTAINS
 !         & "PROPERTIES%LINRES%POLAR")
     !
     ! Initialize
-    ALLOCATE ( polar_tmp( 3, 3), STAT = istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( polar_tmp( 3, 3))
     polar_tmp(:,:)=0.0_dp
 
     DO i = 1,3 ! directions of electric field
@@ -302,8 +299,7 @@ CONTAINS
 
     !
        IF(ASSOCIATED(polar_tmp)) THEN
-         DEALLOCATE(polar_tmp, STAT = istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(polar_tmp)
        END IF
        
     ENDIF  !raman
@@ -411,9 +407,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, idir, ispin, istat, &
-                                                m, nao, nmo, nspins, &
-                                                output_unit
+    INTEGER                                  :: handle, idir, ispin, m, nao, &
+                                                nmo, nspins, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -469,14 +464,12 @@ CONTAINS
    !
    !
    !
-   ALLOCATE(polar_env%polar(3,3), STAT=istat)
-    CPASSERT(istat==0)
+   ALLOCATE(polar_env%polar(3,3))
     polar_env%polar(:,:) = 0.0_dp
   !
       ! allocation
    ALLOCATE(polar_env%dBerry_psi0(3,nspins), &
-           polar_env%psi1_dBerry(3,nspins), polar_env%mo_derivs(3,nspins), STAT=istat)
-   CPASSERT(istat==0)
+           polar_env%psi1_dBerry(3,nspins), polar_env%mo_derivs(3,nspins))
    DO ispin = 1,nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
       CALL cp_fm_get_info(mo_coeff,ncol_global=m,nrow_global=nao)
@@ -516,7 +509,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ispin, istat
+    INTEGER                                  :: idir, ispin
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -524,8 +517,7 @@ CONTAINS
     polar_env%ref_count = polar_env%ref_count - 1
     IF(polar_env%ref_count == 0 ) THEN
        IF(ASSOCIATED(polar_env%polar)) THEN
-          DEALLOCATE(polar_env%polar,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(polar_env%polar)
        ENDIF
        IF(ASSOCIATED(polar_env%dBerry_psi0)) THEN
           DO idir = 1,SIZE(polar_env%dBerry_psi0,1)
@@ -533,8 +525,7 @@ CONTAINS
                 CALL cp_fm_release(polar_env%dBerry_psi0(idir,ispin)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(polar_env%dBerry_psi0,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(polar_env%dBerry_psi0)
        ENDIF
        IF(ASSOCIATED(polar_env%mo_derivs)) THEN
           DO idir = 1,SIZE(polar_env%mo_derivs,1)
@@ -542,8 +533,7 @@ CONTAINS
                 CALL cp_fm_release(polar_env%mo_derivs(idir,ispin)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(polar_env%mo_derivs,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(polar_env%mo_derivs)
        ENDIF
        IF(ASSOCIATED(polar_env%psi1_dBerry)) THEN
           DO idir = 1,SIZE(polar_env%psi1_dBerry,1)
@@ -551,8 +541,7 @@ CONTAINS
                 CALL cp_fm_release(polar_env%psi1_dBerry(idir,ispin)%matrix)
              ENDDO
           ENDDO
-          DEALLOCATE(polar_env%psi1_dBerry,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(polar_env%psi1_dBerry)
        ENDIF
        !
 

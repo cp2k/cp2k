@@ -293,9 +293,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, isgf, istat, &
-                                                ldz, nao, natom, ncol, &
-                                                nmoloc, output_unit, sweeps
+    INTEGER                                  :: handle, iatom, isgf, ldz, &
+                                                nao, natom, ncol, nmoloc, &
+                                                output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -326,12 +326,9 @@ CONTAINS
                   particle_set=particle_set,qs_kind_set=qs_kind_set)
 
     natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (nsgf(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
+    ALLOCATE (nsgf(natom))
 
     !   construction of
     CALL get_particle_set(particle_set, qs_kind_set,&
@@ -390,8 +387,7 @@ CONTAINS
     CALL centers_spreads_pipek( qs_loc_env, zij_fm_set, particle_set, ispin,&
           print_loc_section)
 
-    DEALLOCATE (first_sgf, last_sgf, nsgf, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf, last_sgf, nsgf)
 
     CALL cp_fm_release(opvec)
     CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO")
@@ -539,8 +535,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: file_tmp, iter
-    INTEGER                                  :: iatom, istat, istate, natom, &
-                                                nstate, unit_out_s
+    INTEGER                                  :: iatom, istate, natom, nstate, &
+                                                unit_out_s
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
     LOGICAL                                  :: failure
     REAL(dp)                                 :: r(3)
@@ -567,12 +563,10 @@ CONTAINS
     iter = cp_iter_string(logger%iter_info)
     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') TRIM(iter)
 
-    ALLOCATE (atom_of_state(nstate),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (atom_of_state(nstate))
     atom_of_state = 0
 
-    ALLOCATE(diag(nstate,natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(diag(nstate,natom))
     diag = 0.0_dp
 
     DO iatom = 1,natom
@@ -581,8 +575,7 @@ CONTAINS
        END DO
     END DO
 
-    ALLOCATE (Qii(nstate),ziimax(nstate),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (Qii(nstate),ziimax(nstate))
     ziimax = 0.0_dp
     Qii    = 0.0_dp
 
@@ -610,8 +603,7 @@ CONTAINS
 
     CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS")
 
-    DEALLOCATE(Qii,ziimax,atom_of_state,diag,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(Qii,ziimax,atom_of_state,diag)
 
   END SUBROUTINE centers_spreads_pipek
 
@@ -639,9 +631,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_pos
-    INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istat, istate, j, &
-      jstate, l_spin, lb, loc_method, n_rep, nao, ncubes, nmo, nmosub, &
-      s_spin, ub
+    INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istate, j, jstate, &
+      l_spin, lb, loc_method, n_rep, nao, ncubes, nmo, nmosub, s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
     LOGICAL                                  :: append_cube, failure, &
                                                 list_cubes_setup
@@ -705,8 +696,7 @@ CONTAINS
                   ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
           END IF
           !
-          ALLOCATE ( op_fm_set( 2, dim_op), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE ( op_fm_set( 2, dim_op))
           DO i = 1, dim_op
              DO j = 1, SIZE ( op_fm_set, 1 )
                 NULLIFY(op_fm_set(j,i)%matrix)
@@ -728,8 +718,7 @@ CONTAINS
                    CALL cp_fm_release(op_fm_set(j,i)%matrix)
                 END DO
              END DO
-             DEALLOCATE(op_fm_set,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(op_fm_set)
           END IF
 
        CASE(op_loc_boys)
@@ -752,8 +741,7 @@ CONTAINS
        ub = localized_wfn_control%lu_bound_states(2,ispin)
 
        IF(localized_wfn_control%set_of_states == state_loc_list) THEN
-          ALLOCATE(vecbuffer(1,nao),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(vecbuffer(1,nao))
           nmosub = SIZE(localized_wfn_control%loc_states,1)
           imoloc = 0
           DO i = lb,ub
@@ -772,8 +760,7 @@ CONTAINS
                      nao,1,transpose=.TRUE.)
              END IF
           END DO
-          DEALLOCATE(vecbuffer,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(vecbuffer)
 
        ELSE
           nmosub = localized_wfn_control%nloc_states(ispin)
@@ -795,8 +782,7 @@ CONTAINS
           ncubes = bounds(2) - bounds(1)  + 1
           IF(ncubes > 0) THEN
              list_cubes_setup =.TRUE.
-             ALLOCATE( list_cubes(ncubes),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE( list_cubes(ncubes))
              DO ir = 1,ncubes
                 list_cubes(ir) = bounds(1) + (ir-1)
              END DO
@@ -826,8 +812,7 @@ CONTAINS
              list_cubes_setup =.TRUE.
              ncubes = localized_wfn_control%nloc_states(1)
              IF(ncubes>0) THEN
-                ALLOCATE(list_cubes(ncubes),STAT=istat)
-                CPASSERT(istat==0)
+                ALLOCATE(list_cubes(ncubes))
              END IF
              DO i = 1, ncubes
                 list_cubes(i) = i
@@ -836,8 +821,7 @@ CONTAINS
 
           ncubes = SIZE(list_cubes)
           ncubes = MIN(ncubes,nmo)
-          ALLOCATE(centers(6,ncubes),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(centers(6,ncubes))
           DO i = 1, ncubes
              istate = list_cubes(i)
              DO j = 1,localized_wfn_control%nloc_states(ispin)
@@ -861,10 +845,8 @@ CONTAINS
                print_key,"loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)),&
                ispin=ispin,file_position=my_pos)
 
-          DEALLOCATE(centers,STAT=istat)
-          CPASSERT(istat==0)
-          DEALLOCATE(list_cubes,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(centers)
+          DEALLOCATE(list_cubes)
        END IF
     END DO  ! ispin
     first_time = .FALSE.

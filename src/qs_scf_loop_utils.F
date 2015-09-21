@@ -679,7 +679,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_scf_loop', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, stat
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -694,8 +694,7 @@ CONTAINS
           DO ispin=1,SIZE(scf_env%qs_ot_env)
              CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
           ENDDO
-          DEALLOCATE(scf_env%qs_ot_env,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(scf_env%qs_ot_env)
        CASE(ot_diag_method_nr)
    !
        CASE(general_diag_method_nr)

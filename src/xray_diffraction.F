@@ -98,8 +98,8 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock = 100
 
     INTEGER                                  :: group, handle, i, ig, &
-                                                ig_shell, ipe, ishell, istat, &
-                                                jg, ng, npe, nshell, &
+                                                ig_shell, ipe, ishell, jg, &
+                                                ng, npe, nshell, &
                                                 nshell_gather, source
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(3)                    :: npts
@@ -309,13 +309,11 @@ CONTAINS
       CALL mp_gatherv(f4sum,f4sum_gather,nshell_pe,offset_pe,source,group)
 
       IF (ASSOCIATED(offset_pe)) THEN
-        DEALLOCATE (offset_pe,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (offset_pe)
       END IF
 
       IF (ASSOCIATED(nshell_pe)) THEN
-        DEALLOCATE (nshell_pe,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (nshell_pe)
       END IF
 
       ! Print X-ray diffraction spectrum (I/O node only)
@@ -375,8 +373,7 @@ CONTAINS
         ! The auxiliary index array is no longer needed now
 
         IF (ASSOCIATED(aux_index)) THEN
-          DEALLOCATE (aux_index,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (aux_index)
         END IF
 
         ! Allocate the final arrays for printing with their real size
@@ -433,73 +430,59 @@ CONTAINS
       ! Release work storage
 
       IF (ASSOCIATED(fmin)) THEN
-        DEALLOCATE (fmin,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (fmin)
       END IF
 
       IF (ASSOCIATED(fmax)) THEN
-        DEALLOCATE (fmax,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (fmax)
       END IF
 
       IF (ASSOCIATED(fsum)) THEN
-        DEALLOCATE (fsum,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (fsum)
       END IF
 
       IF (ASSOCIATED(f2sum)) THEN
-        DEALLOCATE (f2sum,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (f2sum)
       END IF
 
       IF (ASSOCIATED(f4sum)) THEN
-        DEALLOCATE (f4sum,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (f4sum)
       END IF
 
       IF (ASSOCIATED(ng_shell)) THEN
-        DEALLOCATE (ng_shell,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (ng_shell)
       END IF
 
       IF (ASSOCIATED(q_shell)) THEN
-        DEALLOCATE (q_shell,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (q_shell)
       END IF
 
       IF (ASSOCIATED(fmin_gather)) THEN
-        DEALLOCATE (fmin_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (fmin_gather)
       END IF
 
       IF (ASSOCIATED(fmax_gather)) THEN
-        DEALLOCATE (fmax_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (fmax_gather)
       END IF
 
       IF (ASSOCIATED(fsum_gather)) THEN
-        DEALLOCATE (fsum_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (fsum_gather)
       END IF
 
       IF (ASSOCIATED(f2sum_gather)) THEN
-        DEALLOCATE (f2sum_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (f2sum_gather)
       END IF
 
       IF (ASSOCIATED(f4sum_gather)) THEN
-        DEALLOCATE (f4sum_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (f4sum_gather)
       END IF
 
       IF (ASSOCIATED(ng_shell_gather)) THEN
-        DEALLOCATE (ng_shell_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (ng_shell_gather)
       END IF
 
       IF (ASSOCIATED(q_shell_gather)) THEN
-        DEALLOCATE (q_shell_gather,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (q_shell_gather)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool,&
@@ -540,10 +523,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom, handle, iatom, ico, ico1_pgf, ico1_set, ikind, ipgf, &
-      iset, iso, iso1_pgf, iso1_set, ison, ispin, istat, jco, jco1_pgf, &
-      jco1_set, jpgf, jset, jso, jso1_pgf, jso1_set, json, la, lb, maxco, &
-      maxso, na, natom, nb, ncoa, ncob, ncotot, nkind, nsatbas, nset, nsoa, &
-      nsob, nsotot, nspin
+      iset, iso, iso1_pgf, iso1_set, ison, ispin, jco, jco1_pgf, jco1_set, &
+      jpgf, jset, jso, jso1_pgf, jso1_set, json, la, lb, maxco, maxso, na, &
+      natom, nb, ncoa, ncob, ncotot, nkind, nsatbas, nset, nsoa, nsob, &
+      nsotot, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
                                                 o2nindex
     LOGICAL                                  :: failure, orthorhombic, &
@@ -786,18 +769,15 @@ CONTAINS
       ! Release work storage
 
       IF (ASSOCIATED(delta_cpc)) THEN
-        DEALLOCATE (delta_cpc,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (delta_cpc)
       END IF
 
       IF (ASSOCIATED(work)) THEN
-        DEALLOCATE (work,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (work)
       END IF
 
       IF (ASSOCIATED(pab)) THEN
-        DEALLOCATE (pab,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (pab)
       END IF
 
       CALL timestop(handle)

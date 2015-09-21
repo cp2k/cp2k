@@ -81,8 +81,7 @@ CONTAINS
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(store_int_env))
-    ALLOCATE (store_int_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (store_int_env)
     store_int_env%filling_containers = .TRUE.
     store_int_env%nbuffer             = 0
     NULLIFY(store_int_env%max_val_buffer, store_int_env%uncompressed_container)
@@ -110,16 +109,13 @@ CPSourceFileRef,&
 
     ! Allocate containers/caches for integral storage if requested
     IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN
-       ALLOCATE(store_int_env%integral_containers(64), STAT=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(store_int_env%integral_caches(64), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(store_int_env%integral_containers(64))
+       ALLOCATE(store_int_env%integral_caches(64))
        DO i=1,64
           store_int_env%integral_caches(i)%element_counter = 1
           store_int_env%integral_caches(i)%data = 0
           CPASSERT(stat==0)
-          ALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(store_int_env%integral_containers(i)%first)
           store_int_env%integral_containers(i)%first%prev => NULL()
           store_int_env%integral_containers(i)%first%next => NULL()
           store_int_env%integral_containers(i)%current => store_int_env%integral_containers(i)%first
@@ -141,7 +137,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -154,27 +150,21 @@ CPSourceFileRef,&
                 CALL hfx_init_container(store_int_env%integral_containers(i),&
                      store_int_env%memory_parameter%actual_memory_usage,&
                      .FALSE.)
-                DEALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(store_int_env%integral_containers(i)%first)
              END DO
              IF (ASSOCIATED(store_int_env%max_val_buffer)) THEN
-                DEALLOCATE(store_int_env%max_val_buffer,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(store_int_env%max_val_buffer)
              END IF
-             DEALLOCATE(store_int_env%integral_containers,STAT=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(store_int_env%integral_caches,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(store_int_env%integral_containers)
+             DEALLOCATE(store_int_env%integral_caches)
           ELSE
              IF (ASSOCIATED(store_int_env%uncompressed_container)) THEN
-                DEALLOCATE(store_int_env%uncompressed_container,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(store_int_env%uncompressed_container)
              END IF
           END IF
        END IF
        ! Deallocate the full store_int_env
-       DEALLOCATE (store_int_env,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (store_int_env)
     END IF
 
   END SUBROUTINE semi_empirical_si_release

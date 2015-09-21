@@ -150,7 +150,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, re, stat
+    INTEGER                                  :: handle, i, im, re
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 propagator_matrix, rho_new, &
@@ -166,13 +166,11 @@ CONTAINS
 
     !I could store these matrices in the type
     NULLIFY(tmp_re)
-    ALLOCATE(tmp_re,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_re)
     CALL cp_dbcsr_init(tmp_re)
     CALL cp_dbcsr_create(tmp_re,template=propagator_matrix(1)%matrix,matrix_type="N")
     NULLIFY(tmp_im)
-    ALLOCATE(tmp_im,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_im)
     CALL cp_dbcsr_init(tmp_im)
     CALL cp_dbcsr_create(tmp_im,template=propagator_matrix(1)%matrix,matrix_type="N")
 

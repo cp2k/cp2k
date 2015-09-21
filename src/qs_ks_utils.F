@@ -139,7 +139,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, iterm, k, &
                                                 k_alpha, k_beta, n_rep, &
-                                                Nelectron, Nspin, Nterms, stat
+                                                Nelectron, Nspin, Nterms
     INTEGER, DIMENSION(:), POINTER           :: ivec
     INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
     LOGICAL                                  :: compute_virial, failure, &
@@ -261,10 +261,8 @@ CONTAINS
     NULLIFY(tau,vxc_tau,vxc)
     CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool)
 
-    ALLOCATE(rho_r(Nspin),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(rho_g(Nspin),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_r(Nspin))
+    ALLOCATE(rho_g(Nspin))
     DO ispin=1,Nspin
        CALL pw_pool_create_pw(auxbas_pw_pool,rho_r(ispin)%pw,&
                             use_data=REALDATA3D,&
@@ -287,8 +285,7 @@ CONTAINS
     CALL cp_dbcsr_copy(fm_deriv,mo_coeff)
 
 
-    ALLOCATE(scaling(k_alpha),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(scaling(k_alpha))
 
     ! for each term, add it with the given scaling factor to the energy, and compute the required derivatives
     DO iterm=1,Nterms
@@ -398,7 +395,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, Iorb, k_alpha, &
-                                                k_beta, Norb, stat
+                                                k_beta, Norb
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
     LOGICAL                                  :: compute_virial, failure, &
                                                 uniform_occupation
@@ -492,8 +489,7 @@ CONTAINS
       ENDIF
 
       Norb=k_alpha + k_beta
-      ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(sic_orbital_list(3,Norb))
 
       iorb=0
       DO i=1,k_alpha
@@ -527,8 +523,7 @@ CONTAINS
       CALL cp_fm_get_info(mo_coeff,ncol_global=k_beta)
 
       Norb=k_alpha-k_beta
-      ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(sic_orbital_list(3,Norb))
 
       iorb=0
       DO i=k_beta+1,k_alpha
@@ -587,21 +582,18 @@ CONTAINS
 
 
 
-    ALLOCATE(mo_derivs_local(SIZE(mo_array,1)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mo_derivs_local(SIZE(mo_array,1)))
     DO I=1,SIZE(mo_array,1)
        CALL get_mo_set(mo_set=mo_array(i)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_create(mo_derivs_local(I)%matrix,mo_coeff%matrix_struct)
     ENDDO
 
-    ALLOCATE(rho_r(2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_r(2))
     rho_r(1)%pw=>orb_rho_r%pw
     rho_r(2)%pw=>tmp_r%pw
     CALL pw_zero(tmp_r%pw)
 
-    ALLOCATE(rho_g(2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_g(2))
     rho_g(1)%pw=>orb_rho_g%pw
     rho_g(2)%pw=>tmp_g%pw
     CALL pw_zero(tmp_g%pw)
@@ -1202,7 +1194,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_up_and_integrate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
     REAL(dp)                                 :: dvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1350,8 +1342,7 @@ CONTAINS
        CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_sic_rspace%pw)
        END SELECT
-       DEALLOCATE(v_rspace_new,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(v_rspace_new)
 
     ELSE
        ! not implemented (or at least not tested)
@@ -1397,8 +1388,7 @@ CONTAINS
                gapw=gapw)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw)
        END DO
-       DEALLOCATE(v_tau_rspace, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(v_tau_rspace)
     ENDIF
 
     ! Add contributions from ADMM if requested
@@ -1433,16 +1423,14 @@ CONTAINS
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new_aux_fit(ispin)%pw)
         END DO
-        DEALLOCATE(v_rspace_new_aux_fit,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(v_rspace_new_aux_fit)
       END IF
       ! Clean up v_tau_rspace_aux_fit, which is actually not needed
       IF( ASSOCIATED(v_tau_rspace_aux_fit)) THEN
         DO ispin=1,nspins
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace_aux_fit(ispin)%pw)
         END DO
-        DEALLOCATE(v_tau_rspace_aux_fit, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(v_tau_rspace_aux_fit)
       END IF
     END IF
 

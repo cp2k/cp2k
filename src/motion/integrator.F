@@ -135,7 +135,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, &
-      ireg, nparticle, nparticle_kind, nparticle_local, nshell, stat
+      ireg, nparticle, nparticle_kind, nparticle_local, nshell
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: do_langevin
@@ -213,8 +213,7 @@ CONTAINS
     molecule_set => molecules%els
 
     ! Setup the langevin regions information
-    ALLOCATE(do_langevin(nparticle), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(do_langevin(nparticle))
     IF (simpar%do_thermal_region) THEN
        DO iparticle = 1, nparticle
           do_langevin(iparticle) = thermal_regions%do_langevin(iparticle)
@@ -228,8 +227,7 @@ CONTAINS
     ! atoms because of the possiblity of Langevin regions, and var_w
     ! for each region should depend on the temperature defined in the
     ! region
-    ALLOCATE(var_w(nparticle), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(var_w(nparticle))
     var_w(1:nparticle) = simpar%var_w
     IF (simpar%do_thermal_region) THEN
        DO ireg = 1, thermal_regions%nregions
@@ -243,16 +241,13 @@ CONTAINS
     END IF
 
     ! Allocate work storage
-    ALLOCATE (pos(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (pos(3,nparticle))
     pos(:,:) = 0.0_dp
 
-    ALLOCATE (vel(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (vel(3,nparticle))
     vel(:,:) = 0.0_dp
 
-    ALLOCATE (w(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (w(3,nparticle))
     w(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci,local_molecules,molecule_set,&
@@ -276,8 +271,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(var_w,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(var_w)
 
     ! Apply fix atom constraint
     CALL fix_atom_control(force_env,w)
@@ -327,8 +321,7 @@ CONTAINS
     ! Broadcast the new particle positions
     CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
-    DEALLOCATE(pos,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pos)
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env)
@@ -370,14 +363,11 @@ CONTAINS
     ! Broadcast the new particle velocities
     CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
-    DEALLOCATE(vel,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(vel)
 
-    DEALLOCATE(w,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(w)
 
-    DEALLOCATE(do_langevin,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(do_langevin)
 
     ! Update virial
     IF (simpar%constraint) CALL pv_constraint(gci,local_molecules,molecule_set,&
@@ -757,7 +747,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nvt_adiabatic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, ivar, nparticle, &
+    INTEGER                                  :: ivar, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, shell_adiabatic, &
@@ -836,8 +826,7 @@ CONTAINS
     IF (ASSOCIATED(force_env%meta_env)) THEN
        ! Allocate random number for Langevin Thermostat acting on COLVARS
        IF(force_env%meta_env%langevin) THEN
-          ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (rand(force_env%meta_env%n_colvar))
           rand(:) = 0.0_dp
        ENDIF
     ENDIF
@@ -953,8 +942,7 @@ CONTAINS
 
     IF (ASSOCIATED(force_env%meta_env)) THEN
        IF(force_env%meta_env%langevin) THEN
-          DEALLOCATE(rand,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(rand)
        ENDIF
     ENDIF
 
@@ -986,7 +974,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, ivar, nparticle, &
+    INTEGER                                  :: ivar, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, shell_adiabatic, &
@@ -1063,8 +1051,7 @@ CONTAINS
     IF (ASSOCIATED(force_env%meta_env)) THEN
        ! Allocate random number for Langevin Thermostat acting on COLVARS
        IF(force_env%meta_env%langevin) THEN
-          ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (rand(force_env%meta_env%n_colvar))
           rand(:) = 0.0_dp
        ENDIF
     ENDIF
@@ -1212,8 +1199,7 @@ CONTAINS
 
     IF (ASSOCIATED(force_env%meta_env)) THEN
        IF(force_env%meta_env%langevin) THEN
-          DEALLOCATE(rand,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(rand)
        ENDIF
     ENDIF
 
@@ -1248,9 +1234,8 @@ CONTAINS
                                                 e6 = e4/42.0_dp, &
                                                 e8 = e6/72.0_dp
 
-    INTEGER                                  :: iroll, istat, ivar, &
-                                                nparticle, nparticle_kind, &
-                                                nshell
+    INTEGER                                  :: iroll, ivar, nparticle, &
+                                                nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, &
@@ -1342,8 +1327,7 @@ CONTAINS
     IF (ASSOCIATED(force_env%meta_env)) THEN
        ! Allocate random number for Langevin Thermostat acting on COLVARS
        IF(force_env%meta_env%langevin) THEN
-          ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (rand(force_env%meta_env%n_colvar))
           rand(:) = 0.0_dp
        ENDIF
     ENDIF
@@ -1566,8 +1550,7 @@ CONTAINS
 
     IF (ASSOCIATED(force_env%meta_env)) THEN
        IF(force_env%meta_env%langevin) THEN
-          DEALLOCATE(rand,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(rand)
        ENDIF
     ENDIF
 
@@ -2585,7 +2568,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, &
-      n_time_steps, nparticle, nparticle_kind, nparticle_local, stat
+      n_time_steps, nparticle, nparticle_kind, nparticle_local
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dm, dt, mass
@@ -2647,10 +2630,8 @@ CPSourceFileRef,&
     molecule_set => molecules%els
 
     ! Allocate work storage for positions and velocities
-    ALLOCATE (pos(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (vel(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (pos(3,nparticle))
+    ALLOCATE (vel(3,nparticle))
     vel(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
@@ -2731,8 +2712,7 @@ CPSourceFileRef,&
 
        IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
     END DO
-    DEALLOCATE (pos,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (pos)
 
     ! Multiple time step (second part)
     ! Compute forces for respa force_env
@@ -2757,8 +2737,7 @@ CPSourceFileRef,&
     ! Broadcast the new particle velocities
     CALL update_particle_set ( particle_set, para_env%group, vel = vel)
 
-    DEALLOCATE (vel,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (vel)
 
   END SUBROUTINE nve_respa
 

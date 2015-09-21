@@ -66,7 +66,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lri_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, istat, lmax_ikind_orb, &
+    INTEGER                                  :: ikind, lmax_ikind_orb, &
                                                 lmax_ikind_ri, maxl_orb, &
                                                 maxl_ri, nkind
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -80,8 +80,7 @@ CONTAINS
     ! initialize the basic basis sets (orb and ri)
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
     nkind = SIZE(atomic_kind_set)
-    ALLOCATE(lri_env%orb_basis(nkind),lri_env%ri_basis(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(lri_env%orb_basis(nkind),lri_env%ri_basis(nkind))
     maxl_orb = 0
     maxl_ri = 0
     DO ikind=1,nkind
@@ -137,7 +136,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lri_basis_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, stat
+    INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: orb_norm_r, ri_int_fbas, &
                                                 ri_norm_r, ri_norm_s
@@ -153,8 +152,7 @@ CONTAINS
           CPASSERT(ASSOCIATED(lri_env%ri_basis))
           nkind = SIZE(lri_env%orb_basis)
           CALL deallocate_bas_properties(lri_env)
-          ALLOCATE (lri_env%bas_prop(nkind),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (lri_env%bas_prop(nkind))
           DO ikind = 1, nkind
              NULLIFY(orb_basis, ri_basis)
              orb_basis => lri_env%orb_basis(ikind)%gto_basis_set
@@ -182,8 +180,7 @@ CONTAINS
                 NULLIFY(scon_orb)
                 CALL contraction_matrix_shg(orb_basis,scon_orb)
                 lri_env%bas_prop(ikind)%scon_orb => scon_orb
-                DEALLOCATE (orb_norm_r,ri_norm_r,ri_norm_s,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (orb_norm_r,ri_norm_r,ri_norm_s)
              END IF
           END DO
        END IF
@@ -206,14 +203,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, &
-                                                jpgf, l, nbas, stat
+                                                jpgf, l, nbas
     REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
 
     NULLIFY(norm)
 
     nbas = basis%nsgf
-    ALLOCATE (norm(nbas),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (norm(nbas))
     norm = 0._dp
 
     DO iset=1,basis%nset
@@ -254,14 +250,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, &
-                                                jpgf, l, nbas, stat
+                                                jpgf, l, nbas
     REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
 
     NULLIFY(norm)
 
     nbas = basis%nsgf
-    ALLOCATE (norm(nbas),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (norm(nbas))
     norm = 0._dp
 
     DO iset=1,basis%nset
@@ -342,12 +337,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, l, &
-                                                nbas, stat
+                                                nbas
     REAL(KIND=dp)                            :: aa, cc, pp
 
     nbas = basis%nsgf
-    ALLOCATE (int_aux(nbas),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (int_aux(nbas))
     int_aux = 0._dp
 
     DO iset=1,basis%nset
@@ -387,14 +381,13 @@ CONTAINS
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, &
                                                 jpgf, jset, jsgf, jshell, l, &
-                                                li, lj, nbas, stat
+                                                li, lj, nbas
     REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, &
                                                 m_i, m_j, norm_i, norm_j, oo, &
                                                 ppl
 
     nbas = basis%nsgf
-    ALLOCATE (ovlp(nbas,nbas),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ovlp(nbas,nbas))
     ovlp = 0._dp
 
     DO iset=1,basis%nset
@@ -450,7 +443,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipgf, iset, ishell, l, &
-                                                maxpgf, maxshell, nset, stat
+                                                maxpgf, maxshell, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
     REAL(KIND=dp)                            :: gcc, norm_w
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: norm, zet
@@ -462,10 +455,8 @@ CONTAINS
 
     maxpgf   = SIZE(basis%gcc,1)
     maxshell = SIZE(basis%gcc,2)
-    ALLOCATE(norm(basis%nset,maxshell),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(scon_shg(maxpgf,maxshell,nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(norm(basis%nset,maxshell))
+    ALLOCATE(scon_shg(maxpgf,maxshell,nset))
 
     CALL basis_norm_shg(basis,norm)
 
@@ -480,8 +471,7 @@ CONTAINS
        END DO
     END DO
    
-   DEALLOCATE(norm,STAT=stat)
-   CPASSERT(stat==0)
+   DEALLOCATE(norm)
 
   END SUBROUTINE contraction_matrix_shg
 
@@ -508,7 +498,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: il, ilist, iso, iso1, iso2, l1, l1l2, l2, lc1, lc2, lp, m1, &
-      m2, maxl, mm, mp, nlist, nlist_max, nsfunc, nsfunc1, nsfunc2, stat
+      m2, maxl, mm, mp, nlist, nlist_max, nsfunc, nsfunc1, nsfunc2
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
 
@@ -522,18 +512,14 @@ CONTAINS
 
     CALL clebsch_gordon_init(maxl)
    
-    ALLOCATE(my_cg(nsfunc1,nsfunc2,nsfunc),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(my_cg(nsfunc1,nsfunc2,nsfunc))
     my_cg =0.0_dp
-    ALLOCATE(ncg_none0(nsfunc1,nsfunc2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ncg_none0(nsfunc1,nsfunc2))
     ncg_none0 = 0
-    ALLOCATE(cg_none0_list(nsfunc1,nsfunc2,nlist_max),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cg_none0_list(nsfunc1,nsfunc2,nlist_max))
     cg_none0_list = 0
 
-    ALLOCATE(rga(maxl,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rga(maxl,2))
     rga = 0.0_dp
     DO lc1 = 0,maxl1
        DO iso1=nsoset(lc1-1)+1,nsoset(lc1)
@@ -590,8 +576,7 @@ CONTAINS
        ENDDO    ! iso1
     ENDDO      ! lc1
 
-    DEALLOCATE(rga,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rga)
     CALL clebsch_gordon_deallocate()
 
   END SUBROUTINE get_clebsch_gordon_coefficients

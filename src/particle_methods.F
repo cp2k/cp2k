@@ -644,7 +644,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: handle, iatom, iw, jatom, &
-                                                natom, stat
+                                                natom
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: conv, dab
@@ -666,8 +666,7 @@ CONTAINS
     IF (iw>0) THEN
        CALL get_cell(cell=cell, periodic=periodic)
        natom = SIZE(particle_set)
-       ALLOCATE (distance_matrix(natom,natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (distance_matrix(natom,natom))
        distance_matrix(:,:) = 0.0_dp
        DO iatom=1,natom
           DO jatom=iatom+1,natom
@@ -775,8 +774,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: string, unit_str
-    INTEGER                                  :: handle, i, i_rep, istat, iw, &
-                                                n, n_rep, n_vals, natom, &
+    INTEGER                                  :: handle, i, i_rep, iw, n, &
+                                                n_rep, n_vals, natom, &
                                                 new_size, old_size, wrk2(2), &
                                                 wrk3(3), wrk4(4)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
@@ -829,11 +828,9 @@ CONTAINS
             index_list(old_size+1:new_size) = atomic_indices(1:n_vals)
             old_size = new_size
          END DO
-         ALLOCATE (work(new_size),STAT=istat)
-         CPASSERT(istat == 0)
+         ALLOCATE (work(new_size))
          CALL sort(index_list,new_size,work)
-         DEALLOCATE (work,STAT=istat)
-         CPASSERT(istat == 0)
+         DEALLOCATE (work)
          DO i=1,new_size
             WRITE (UNIT=string,FMT="(A,I0,A)") "(",index_list(i),")"
             IF ((index_list(i) < 1).OR.(index_list(i) > natom)) THEN
@@ -848,8 +845,7 @@ CONTAINS
             WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
              "r"//TRIM(string),"=",pbc(particle_set(index_list(i))%r(1:3),cell)*conv
          END DO
-         DEALLOCATE (index_list,STAT=istat)
-         CPASSERT(istat == 0)
+         DEALLOCATE (index_list)
       END IF
 
       ! Print the requested atomic position vectors in scaled coordinates
@@ -871,11 +867,9 @@ CONTAINS
             index_list(old_size+1:new_size) = atomic_indices(1:n_vals)
             old_size = new_size
          END DO
-         ALLOCATE (work(new_size),STAT=istat)
-         CPASSERT(istat == 0)
+         ALLOCATE (work(new_size))
          CALL sort(index_list,new_size,work)
-         DEALLOCATE (work,STAT=istat)
-         CPASSERT(istat == 0)
+         DEALLOCATE (work)
          DO i=1,new_size
             WRITE (UNIT=string,FMT="(A,I0,A)") "(",index_list(i),")"
             IF ((index_list(i) < 1).OR.(index_list(i) > natom)) THEN
@@ -892,8 +886,7 @@ CONTAINS
             WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
              "s"//TRIM(string),"=",s(1:3)
          END DO
-         DEALLOCATE (index_list,STAT=istat)
-         CPASSERT(istat == 0)
+         DEALLOCATE (index_list)
       END IF
 
       ! Print the requested distances

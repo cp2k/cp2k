@@ -247,12 +247,10 @@ MODULE qs_rho0_ggrid
     END DO  ! ikind
 
     IF (ASSOCIATED(cores)) THEN
-      DEALLOCATE (cores,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE (cores)
     END IF
 
-    DEALLOCATE(pab,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(pab)
 
     IF(igrid /= auxbas_grid) THEN
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
@@ -266,8 +264,7 @@ MODULE qs_rho0_ggrid
       CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw)
       CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw)
 
-      DEALLOCATE(coeff_rspace,coeff_gspace,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(coeff_rspace,coeff_gspace)
 
     ELSE
 
@@ -304,7 +301,6 @@ MODULE qs_rho0_ggrid
     CHARACTER(len=*), PARAMETER :: routineN = 'rho0_s_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure, my_tddft
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
@@ -331,11 +327,9 @@ MODULE qs_rho0_ggrid
   ! rho0 density in real space
   IF (ASSOCIATED(rho_rs)) THEN
      CALL pw_release(rho_rs%pw)
-     DEALLOCATE(rho_rs,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(rho_rs)
   END IF
-  ALLOCATE(rho_rs,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(rho_rs)
   CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw,&
            use_data=REALDATA3D,in_space=REALSPACE)
   rho0_mpole%rho0_s_rs => rho_rs
@@ -343,11 +337,9 @@ MODULE qs_rho0_ggrid
   ! rho0 density in reciprocal space
   IF (ASSOCIATED(rho_gs)) THEN
      CALL pw_release(rho_gs%pw)
-     DEALLOCATE(rho_gs,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(rho_gs)
   END IF
-  ALLOCATE(rho_gs,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(rho_gs)
   CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
        use_data=COMPLEXDATA1D)
   rho_gs%pw%in_space=RECIPROCALSPACE
@@ -382,7 +374,7 @@ MODULE qs_rho0_ggrid
 
     INTEGER :: auxbas_grid, bo(2), handle, i, iat, iatom, ic, icg, ico, ig1, &
       ig2, igrid, ii, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, &
-      ispin, istat, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
+      ispin, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
       max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1, n2, nat, &
       nch_ik, nch_max, ncurr, nset, nsotot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
@@ -490,10 +482,8 @@ MODULE qs_rho0_ggrid
     rs_desc => rs_descs(igrid)%rs_desc
     pw_pool => pw_pools(igrid)%pool
 
-    ALLOCATE(coeff_gspace, STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(coeff_rspace, STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(coeff_gspace)
+    ALLOCATE(coeff_rspace)
     CALL pw_pool_create_pw(pw_pool,coeff_gspace%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE)
@@ -503,8 +493,7 @@ MODULE qs_rho0_ggrid
 
     IF (igrid /= auxbas_grid) THEN
        pw_aux => pw_pools(auxbas_grid)%pool
-       ALLOCATE(coeff_gaux,STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(coeff_gaux)
        CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw,&
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE)
@@ -512,17 +501,14 @@ MODULE qs_rho0_ggrid
        CALL pw_copy(coeff_gaux%pw,coeff_gspace%pw)
        CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
        CALL pw_pool_give_back_pw(pw_aux,coeff_gaux%pw)
-       DEALLOCATE(coeff_gaux, STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE(coeff_raux,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(coeff_gaux)
+       ALLOCATE(coeff_raux)
        CALL pw_pool_create_pw(pw_aux, coeff_raux%pw,use_data=REALDATA3D,&
                                in_space=REALSPACE)
        scale = coeff_rspace%pw%pw_grid%dvol/coeff_raux%pw%pw_grid%dvol
        coeff_rspace%pw%cr3d = scale*coeff_rspace%pw%cr3d
        CALL pw_pool_give_back_pw(pw_aux,coeff_raux%pw)
-       DEALLOCATE(coeff_raux, STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(coeff_raux)
     ELSE
 
        IF(coeff_gspace%pw%pw_grid%spherical) THEN
@@ -533,8 +519,7 @@ MODULE qs_rho0_ggrid
        END IF
     END IF
     CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw)
-    DEALLOCATE(coeff_gspace, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(coeff_gspace)
 
     ! *** set up the rs grid at level igrid
     CALL rs_grid_create(rs_v, rs_desc)
@@ -542,8 +527,7 @@ MODULE qs_rho0_ggrid
     CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs)
 
     CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw)
-    DEALLOCATE(coeff_rspace, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(coeff_rspace)
 
     ! *** Now the potential is on the right grid => integration
 
@@ -587,8 +571,7 @@ MODULE qs_rho0_ggrid
                              nset=nset, npgf=npgf)
 
       nsotot = maxso*nset
-      ALLOCATE(intloc(nsotot,nsotot),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(intloc(nsotot,nsotot))
 
       ! Initialize the local KS integrals
 
@@ -597,8 +580,7 @@ MODULE qs_rho0_ggrid
       max_s_harm = harmonics%max_s_harm
       llmax = harmonics%llmax
 
-      ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm))
 
       num_pe = para_env%num_pe
       mepos  = para_env%mepos
@@ -745,17 +727,14 @@ MODULE qs_rho0_ggrid
         END DO
       END DO
 
-      DEALLOCATE(intloc,STAT=istat)
-      CPASSERT(istat==0)
-      DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(intloc)
+      DEALLOCATE(cg_list,cg_n_list)
 
     END DO  ! ikind
 
     CALL rs_grid_release(rs_v)
 
-    DEALLOCATE (hab,hdab,hadb,hab_sph,hdab_sph,pab,a_hdab,a_hdab_sph,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (hab,hdab,hadb,hab_sph,hdab_sph,pab,a_hdab,a_hdab_sph)
 
     CALL timestop(handle)
 

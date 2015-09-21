@@ -88,8 +88,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_B, idir, ispin, &
-                                                istat, n_mo(2), nao, natom, &
-                                                nmoloc, nspins, output_unit
+                                                n_mo(2), nao, natom, nmoloc, &
+                                                nspins, output_unit
     LOGICAL                                  :: failure, gapw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -193,8 +193,7 @@ CONTAINS
     ENDIF
     !
     ! Bind
-    ALLOCATE(epr_env%bind_set(3,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(epr_env%bind_set(3,3))
     DO i_B = 1,3
       DO idir = 1,3
         NULLIFY(epr_env%bind_set(idir,i_B)%rho, rho_r, rho_g)
@@ -209,8 +208,7 @@ CONTAINS
     END DO
 
     ! Nabla_V_ks
-    ALLOCATE(epr_env%nablavks_set(3,dft_control%nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(epr_env%nablavks_set(3,dft_control%nspins))
     DO idir = 1,3
       DO ispin = 1,nspins
         NULLIFY(epr_env%nablavks_set(idir,ispin)%rho, rho_r, rho_g)
@@ -226,12 +224,9 @@ CONTAINS
     END DO
 
     ! Initialize the g tensor components
-    ALLOCATE(epr_env%g_total(3,3),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(epr_env%g_so(3,3),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(epr_env%g_soo(3,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(epr_env%g_total(3,3))
+    ALLOCATE(epr_env%g_so(3,3))
+    ALLOCATE(epr_env%g_soo(3,3))
     epr_env%g_total = 0.0_dp
     epr_env%g_zke = 0.0_dp
     epr_env%g_so = 0.0_dp
@@ -258,7 +253,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_B, idir, ispin, istat
+    INTEGER                                  :: i_B, idir, ispin
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -273,8 +268,7 @@ CONTAINS
               DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho)
            ENDDO
            ENDDO
-           DEALLOCATE(epr_env%nablavks_set,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(epr_env%nablavks_set)
         END IF
         ! nablavks_atom_set
         IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
@@ -292,28 +286,23 @@ CONTAINS
               DEALLOCATE(epr_env%bind_set(idir,i_B)%rho)
            ENDDO
            ENDDO
-          DEALLOCATE(epr_env%bind_set,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(epr_env%bind_set)
         END IF
         ! bind_atom_set
         IF(ASSOCIATED(epr_env%bind_atom_set)) THEN
-          DEALLOCATE(epr_env%bind_atom_set,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(epr_env%bind_atom_set)
         END IF
         ! g_total
         IF(ASSOCIATED(epr_env%g_total)) THEN
-          DEALLOCATE(epr_env%g_total,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(epr_env%g_total)
         END IF
         ! g_so
         IF(ASSOCIATED(epr_env%g_so)) THEN
-          DEALLOCATE(epr_env%g_so,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(epr_env%g_so)
         END IF
         ! g_soo
         IF(ASSOCIATED(epr_env%g_soo)) THEN
-          DEALLOCATE(epr_env%g_soo,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(epr_env%g_soo)
         END IF
       END IF  ! ref count
     END IF ! failure

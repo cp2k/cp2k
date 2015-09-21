@@ -74,11 +74,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
-    ALLOCATE ( dg, stat=istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( dg)
     NULLIFY ( dg_rho0 )
     CALL dg_rho0_create ( dg_rho0)
     dg % dg_rho0 => dg_rho0
@@ -127,7 +125,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -137,8 +134,7 @@ CONTAINS
        dg%ref_count=dg%ref_count-1
        IF (dg%ref_count==0) THEN
           CALL dg_rho0_release ( dg % dg_rho0)
-          DEALLOCATE (  dg, stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  dg)
        END IF
     END IF
     NULLIFY(dg)

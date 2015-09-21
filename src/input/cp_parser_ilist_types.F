@@ -43,13 +43,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ilist_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ilist))
-    ALLOCATE(ilist, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ilist)
     ilist%istart   = HUGE(0)
     ilist%iend     = HUGE(0)
     ilist%nel_list = HUGE(0)
@@ -70,13 +68,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_ilist_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(ilist))
-    DEALLOCATE(ilist, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ilist)
   END SUBROUTINE release_ilist_type
 
 END MODULE cp_parser_ilist_types

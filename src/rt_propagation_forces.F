@@ -99,7 +99,7 @@ MODULE  rt_propagation_forces
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, im, ispin, nao, &
-                                                natom, nmo, re, stat
+                                                natom, nmo, re
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
     LOGICAL                                  :: failure
@@ -134,20 +134,16 @@ MODULE  rt_propagation_forces
     CALL get_rtp(rtp=rtp,C_mat=C_mat,S_der=S_der,&
                  SinvH=SinvH,SinvB=SinvB,mos_new=mos_new)
 
-    ALLOCATE(tmp_dbcsr,stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(rho_im_sparse,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_dbcsr)
+    ALLOCATE(rho_im_sparse)
     CALL cp_dbcsr_init(tmp_dbcsr)
     CALL cp_dbcsr_create(tmp_dbcsr,template=SinvH(1)%matrix)
     CALL cp_dbcsr_init(rho_im_sparse)
     CALL cp_dbcsr_create(rho_im_sparse,template=SinvH(1)%matrix)
 
     natom = SIZE(particle_set)
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (kind_of(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
+    ALLOCATE (kind_of(natom))
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
@@ -203,14 +199,10 @@ MODULE  rt_propagation_forces
  
     CALL cp_dbcsr_release(tmp_dbcsr)     
     CALL cp_dbcsr_release(rho_im_sparse)     
-    DEALLOCATE (atom_of_kind,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (kind_of,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tmp_dbcsr,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(rho_im_sparse,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom_of_kind)
+    DEALLOCATE (kind_of)
+    DEALLOCATE(tmp_dbcsr)
+    DEALLOCATE(rho_im_sparse)
      
     CALL timestop(handle)
 
@@ -234,7 +226,7 @@ MODULE  rt_propagation_forces
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: handle, i, im, ispin, natom, &
-                                                re, stat
+                                                re
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -268,27 +260,22 @@ MODULE  rt_propagation_forces
                  SinvH=SinvH,SinvB=SinvB)
 
     natom = SIZE(particle_set)
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (kind_of(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
+    ALLOCATE (kind_of(natom))
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
 
     NULLIFY(tmp)
-    ALLOCATE(tmp,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)
     CALL cp_dbcsr_create(tmp,template=SinvB(1)%matrix)
     NULLIFY(tmp2)
-    ALLOCATE(tmp2,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp2)
     CALL cp_dbcsr_init(tmp2)
     CALL cp_dbcsr_create(tmp2,template=SinvB(1)%matrix)
     NULLIFY(tmp3)
-    ALLOCATE(tmp3,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp3)
     CALL cp_dbcsr_init(tmp3)
     CALL cp_dbcsr_create(tmp3,template=SinvB(1)%matrix)
 
@@ -330,10 +317,8 @@ MODULE  rt_propagation_forces
     CALL cp_dbcsr_deallocate_matrix(tmp2)
     CALL cp_dbcsr_deallocate_matrix(tmp3)
 
-    DEALLOCATE (atom_of_kind,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (kind_of,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom_of_kind)
+    DEALLOCATE (kind_of)
 
     CALL timestop(handle)
 
@@ -467,8 +452,8 @@ MODULE  rt_propagation_forces
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_forces_none', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: im, ispin, istat, nao, natom, &
-                                                naux, nmo, re
+    INTEGER                                  :: im, ispin, nao, natom, naux, &
+                                                nmo, re
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: admm_force
@@ -560,8 +545,7 @@ MODULE  rt_propagation_forces
 ! *** This can be done in one call w_total = w_alpha + w_beta
        ! allocate force vector
        CALL get_qs_env(qs_env=qs_env,natom=natom)
-       ALLOCATE(admm_force(3,natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(admm_force(3,natom))
        admm_force = 0.0_dp
        CALL build_overlap_force(ks_env, admm_force,&
             basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
@@ -573,8 +557,7 @@ MODULE  rt_propagation_forces
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                        force=force)
        CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
-       DEALLOCATE(admm_force,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(admm_force)
        
        ! *** Deallocated weighted density matrices
        CALL cp_dbcsr_deallocate_matrix(matrix_w_s)

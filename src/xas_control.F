@@ -83,7 +83,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, n_rep, nex_at
+    INTEGER                                  :: i, ir, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, hempty, was_present
 
@@ -151,8 +151,7 @@ CONTAINS
 
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
-      ALLOCATE(xas_control%exc_atoms(1),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(xas_control%exc_atoms(1))
       xas_control%exc_atoms(1) = 1
     END IF
 
@@ -253,14 +252,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(xas_control))
-    ALLOCATE(xas_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xas_control)
 
     xas_control%ref_count= 1
     xas_control%xas_method = xas_tp_hh
@@ -289,7 +286,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -298,15 +294,12 @@ CONTAINS
       xas_control%ref_count=xas_control%ref_count-1
       IF (xas_control%ref_count==0) THEN
         IF (ASSOCIATED(xas_control%exc_atoms)) THEN
-          DEALLOCATE(xas_control%exc_atoms,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(xas_control%exc_atoms)
         END IF
         IF (ASSOCIATED(xas_control%list_cubes)) THEN
-          DEALLOCATE(xas_control%list_cubes,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(xas_control%list_cubes)
         END IF
-        DEALLOCATE(xas_control,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(xas_control)
       END IF
     END IF
 

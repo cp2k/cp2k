@@ -225,9 +225,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iat, iatom, ikind, ipgf1, is1, iset1, iso, &
-      istat, l_ang, llmax, lmax0, lmax_0, m1, max_iso, max_iso_not0, &
-      max_s_harm, maxl, maxso, mepos, n1, nat, natom, nchan_0, nkind, nr, &
-      nset, nsotot, nspins, num_pe
+      l_ang, llmax, lmax0, lmax_0, m1, max_iso, max_iso_not0, max_s_harm, &
+      maxl, maxso, mepos, n1, nat, natom, nchan_0, nkind, nr, nset, nsotot, &
+      nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
@@ -352,27 +352,18 @@ CONTAINS
          llmax = harmonics%llmax
 
          nsotot = maxso*nset
-         ALLOCATE(gsph(nr,nsotot),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(gexp(nr),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(sqrtwr(nr),g0_h_w(nr,0:lmax_0),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(gsph(nr,nsotot))
+         ALLOCATE(gexp(nr))
+         ALLOCATE(sqrtwr(nr),g0_h_w(nr,0:lmax_0))
 
          NULLIFY(Vh1_h,Vh1_s)
-         ALLOCATE(Vh1_h(nr,max_iso_not0),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(Vh1_s(nr,max_iso_not0),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(Vh1_h(nr,max_iso_not0))
+         ALLOCATE(Vh1_s(nr,max_iso_not0))
 
-         ALLOCATE(aVh1b_hh(nsotot,nsotot),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(aVh1b_ss(nsotot,nsotot),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(aVh1b_hh(nsotot,nsotot))
+         ALLOCATE(aVh1b_ss(nsotot,nsotot))
+         ALLOCATE(aVh1b_00(nsotot,nsotot))
+         ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm))
 
          NULLIFY(Qlm_gg,g0_h)
          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
@@ -449,22 +440,14 @@ CONTAINS
 
          END DO  ! iat
 
-         DEALLOCATE(aVh1b_hh,STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(aVh1b_ss,STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(aVh1b_00,STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(Vh1_h,Vh1_s, STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(gsph,STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(gexp,STAT=istat)
-           CPASSERT(istat==0)
-         DEALLOCATE(sqrtwr,g0_h_w,STAT=istat)
-           CPASSERT(istat==0)
+         DEALLOCATE(aVh1b_hh)
+         DEALLOCATE(aVh1b_ss)
+         DEALLOCATE(aVh1b_00)
+         DEALLOCATE(Vh1_h,Vh1_s)
+         DEALLOCATE(cg_list,cg_n_list)
+         DEALLOCATE(gsph)
+         DEALLOCATE(gexp)
+         DEALLOCATE(sqrtwr,g0_h_w)
 
       ELSE
 !===========   NO  PAW   ===============

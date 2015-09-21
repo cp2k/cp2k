@@ -55,14 +55,13 @@ SUBROUTINE lgrid_create(lgrid,rs_descs)
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ngpts, stat
+    INTEGER                                  :: i, ngpts
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(lgrid))
-  ALLOCATE(lgrid, stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(lgrid)
   NULLIFY(lgrid%r)
   lgrid%ref_count=1
   ! Find the maximum number of grid points needed
@@ -108,7 +107,6 @@ SUBROUTINE lgrid_release(lgrid)
     CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -117,11 +115,9 @@ SUBROUTINE lgrid_release(lgrid)
      lgrid%ref_count=lgrid%ref_count-1
      IF (lgrid%ref_count<1) THEN
         IF (ASSOCIATED(lgrid%r)) THEN
-           DEALLOCATE (lgrid%r,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (lgrid%r)
         END IF
-        DEALLOCATE (lgrid,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE (lgrid)
         NULLIFY(lgrid)
      END IF
   END IF

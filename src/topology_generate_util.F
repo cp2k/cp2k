@@ -100,7 +100,7 @@ CONTAINS
       PARAMETER                              :: basename = "MOL"
 
     CHARACTER(LEN=default_string_length)     :: molname
-    INTEGER                                  :: i, N, nmol, stat
+    INTEGER                                  :: i, N, nmol
     LOGICAL                                  :: check, failure
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
@@ -108,11 +108,9 @@ CONTAINS
     failure = .FALSE.
     ! convert a simple list of bonds to a list of bonds per atom
     ! (each bond is present in the forward and backward direction
-    ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_bond_list(natom))
     DO I=1,natom
-       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(atom_bond_list(I)%array1(0))
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a) - nbond_prev
@@ -130,11 +128,9 @@ CONTAINS
        END IF
     END DO
     DO I=1,natom
-       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_bond_list(I)%array1)
     ENDDO
-    DEALLOCATE(atom_bond_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_bond_list)
 
   END SUBROUTINE topology_generate_molname
 
@@ -237,18 +233,15 @@ CONTAINS
     stat  = 0
     IF (ASSOCIATED(atom_info%map_mol_typ)) DEALLOCATE(atom_info%map_mol_typ,STAT=stat)
     CPASSERT(stat==0)
-    ALLOCATE (atom_info%map_mol_typ(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_info%map_mol_typ(natom))
 
     IF (ASSOCIATED(atom_info%map_mol_num)) DEALLOCATE(atom_info%map_mol_num,STAT=stat)
     CPASSERT(stat==0)
-    ALLOCATE (atom_info%map_mol_num(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_info%map_mol_num(natom))
 
     IF (ASSOCIATED(atom_info%map_mol_res)) DEALLOCATE(atom_info%map_mol_res,STAT=stat)
     CPASSERT(stat==0)
-    ALLOCATE (atom_info%map_mol_res(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_info%map_mol_res(natom))
 
     ! Initialisation
     atom_info%map_mol_typ(:) =  0
@@ -305,38 +298,31 @@ CONTAINS
           END IF
        END IF
     END DO
-    DEALLOCATE (wrk1,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (wrk1)
 
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "Start of molecule generation"
 
     ! convert a simple list of bonds to a list of bonds per atom
     ! (each bond is present in the forward and backward direction
-    ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_bond_list(natom))
     DO I=1,natom
-       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(atom_bond_list(I)%array1(0))
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
     CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N)
     CALL find_molecule(atom_bond_list,atom_info%map_mol_num,atom_info%id_molname)
     DO I=1,natom
-       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_bond_list(I)%array1)
     ENDDO
-    DEALLOCATE(atom_bond_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_bond_list)
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "End of molecule generation"
 
     ! Modify according map_mol_typ the array map_mol_num
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "Checking for non-continuous generated molecules"
     ! Check molecule number
-    ALLOCATE(wrk1(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(wrk2(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wrk1(natom))
+    ALLOCATE(wrk2(natom))
     wrk1 = atom_info%map_mol_num
 
     IF (debug_this_module) THEN
@@ -382,10 +368,8 @@ CONTAINS
             "If you have not yet employed the REORDERING keyword, please do so."//&
             "It may help to fix this issue.")
     END IF
-    DEALLOCATE(wrk1, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(wrk2,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wrk1)
+    DEALLOCATE(wrk2)
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "End of check"
 
     IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A)") "Start of renumbering molecules"
@@ -474,8 +458,7 @@ CONTAINS
        IF (iw>0) WRITE(iw,*)"MAP_MOL_NUM ",atom_info%map_mol_num
        IF (iw>0) WRITE(iw,*)"MAP_MOL_TYP ",atom_info%map_mol_typ
        IF (iw>0) WRITE(iw,*)"MAP_MOL_RES ",atom_info%map_mol_res
-       ALLOCATE(qm_atom_index(SIZE(qmmm_env%qm_atom_index)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qm_atom_index(SIZE(qmmm_env%qm_atom_index)))
        qm_atom_index = qmmm_env%qm_atom_index
        CPASSERT(ALL(qm_atom_index /= 0))
        DO myind = 1, SIZE(qm_atom_index)
@@ -541,8 +524,7 @@ CONTAINS
 
           IF (.NOT.do_again) EXIT
        END DO
-       DEALLOCATE(qm_atom_index,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(qm_atom_index)
 
        IF(iw>0) THEN
           WRITE(iw,*)"After the QM/MM Setup:"
@@ -609,7 +591,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: upper_sym_1
     INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, idim, &
       iw, j, jatom, k, n_bonds, n_heavy_bonds, n_hydr_bonds, n_rep, natom, &
-      npairs, output_unit, stat
+      npairs, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
     INTEGER, DIMENSION(:), POINTER           :: isolated_atoms, tmp_v
     LOGICAL                                  :: connectivity_ok, explicit, &
@@ -645,8 +627,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog")
     ! Get atoms that one considers isolated (like ions in solution)
-    ALLOCATE(isolated_atoms(0), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(isolated_atoms(0))
     generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE")
     isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS")
     CALL section_vals_get(isolated_section, explicit=explicit)
@@ -665,14 +646,10 @@ CONTAINS
     natom = topology%natoms
     NULLIFY(radius)
     ! Allocate temporary arrays
-    ALLOCATE(radius(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(list(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(h_list(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(pbc_coord(3,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(radius(natom))
+    ALLOCATE(list(natom))
+    ALLOCATE(h_list(natom))
+    ALLOCATE(pbc_coord(3,natom))
     h_list = .FALSE.
     CALL timeset(TRIM(routineN)//"_1",handle2)
     DO iatom=1,natom
@@ -743,12 +720,9 @@ CONTAINS
     DO i = 1, SIZE(nonbonded%neighbor_kind_pairs)
        npairs = npairs + nonbonded%neighbor_kind_pairs(i)%npairs
     END DO
-    ALLOCATE(bond_a(npairs),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(bond_b(npairs),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_nb(npairs),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bond_a(npairs))
+    ALLOCATE(bond_b(npairs))
+    ALLOCATE(map_nb(npairs))
     idim = 0
     DO j = 1, SIZE(nonbonded%neighbor_kind_pairs)
        DO i = 1, nonbonded%neighbor_kind_pairs(j)%npairs
@@ -761,21 +735,15 @@ CONTAINS
     CALL timestop(handle2)
     CALL timeset(TRIM(routineN)//"_4",handle2)
     ! We have a list of neighbors let's order the list w.r.t. the particle number
-    ALLOCATE(bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bond_list(natom))
     DO I = 1, natom
-       ALLOCATE(bond_list(I)%array1(0),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(bond_list(I)%array2(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(I)%array1(0))
+       ALLOCATE(bond_list(I)%array2(0))
     ENDDO
     CALL reorder_structure(bond_list, bond_a, bond_b, map_nb, SIZE(bond_a))
-    DEALLOCATE(bond_a,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bond_b,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_nb,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(bond_a)
+    DEALLOCATE(bond_b)
+    DEALLOCATE(map_nb)
     ! Find the Real bonds in the system
     ! Let's start with heavy atoms.. hydrogens will be treated only later on...
     ! Heavy atoms loop
@@ -928,19 +896,13 @@ CONTAINS
     CALL timeset(TRIM(routineN)//"_6",handle2)
     ! Deallocate temporary working arrays
     DO I = 1, natom
-       DEALLOCATE(bond_list(I)%array1,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(bond_list(I)%array2,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bond_list(I)%array1)
+       DEALLOCATE(bond_list(I)%array2)
     ENDDO
-    DEALLOCATE(bond_list,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(pbc_coord,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(radius,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(list,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(bond_list)
+    DEALLOCATE(pbc_coord)
+    DEALLOCATE(radius)
+    DEALLOCATE(list)
     CALL deallocate_particle_set(particle_set)
     CALL deallocate_atomic_kind_set(atomic_kind_set)
     !
@@ -976,8 +938,7 @@ CONTAINS
        END DO
     END IF
     CALL timestop(handle2)
-    DEALLOCATE(isolated_atoms,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(isolated_atoms)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO")
@@ -1006,7 +967,7 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: ctmp1, ctmp2, ctmp3
     INTEGER                                  :: handle, i, idim, itype, j, &
-                                                mol_natom, natom, nsize, stat
+                                                mol_natom, natom, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mol_info_tmp
     INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
     INTEGER, DIMENSION(:, :), POINTER        :: mol_info
@@ -1019,19 +980,14 @@ CONTAINS
     conn_ok = .TRUE.
     failure = .FALSE.
     natom   = SIZE(atom_info%id_atmname)
-    ALLOCATE(bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bond_list(natom))
     DO I = 1, natom
-       ALLOCATE(bond_list(I)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(I)%array1(0))
     ENDDO
     CALL reorder_structure(bond_list, bond_a, bond_b, SIZE(bond_a))
-    ALLOCATE(mol_map(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mol_map_o(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(wrk(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mol_map(natom))
+    ALLOCATE(mol_map_o(natom))
+    ALLOCATE(wrk(natom))
 
     DO i = 1, natom
        mol_map(i) = atom_info%id_molname(i)
@@ -1052,8 +1008,7 @@ CONTAINS
     ! check if the newest connectivity is bug free..
     !
 
-    ALLOCATE(mol_info_tmp(natom,2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mol_info_tmp(natom,2))
 
     itype = mol_map(1)
     nsize = 1
@@ -1072,19 +1027,16 @@ CONTAINS
     END DO
     mol_info_tmp(nsize,2) = idim
 
-    ALLOCATE(mol_info(nsize,4),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mol_info(nsize,4))
     mol_info(1:nsize,1:2) = mol_info_tmp(1:nsize,1:2)
-    DEALLOCATE(mol_info_tmp,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mol_info_tmp)
 
     DO i =1, nsize
        mol_info(i,3) = 0
        mol_info(i,4) = 0
     END DO
     !
-    ALLOCATE(icheck(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(icheck(natom))
     icheck = .FALSE.
     DO i = 1, natom
        IF (icheck(i)) CYCLE
@@ -1124,22 +1076,15 @@ CONTAINS
        END IF
     END DO
 
-    DEALLOCATE(icheck,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mol_info,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mol_map,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mol_map_o,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(wrk,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(icheck)
+    DEALLOCATE(mol_info)
+    DEALLOCATE(mol_map)
+    DEALLOCATE(mol_map_o)
+    DEALLOCATE(wrk)
     DO I = 1, natom
-       DEALLOCATE(bond_list(I)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bond_list(I)%array1)
     ENDDO
-    DEALLOCATE(bond_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(bond_list)
     CALL timestop(handle)
   END FUNCTION check_generate_mol
 
@@ -1175,7 +1120,7 @@ CONTAINS
     CHARACTER(LEN=8)                         :: fmt
     INTEGER                                  :: do_action, do_it, i, j, k, &
                                                 n_rep, n_rep_val, natom, &
-                                                new_size, nsize, stat
+                                                new_size, nsize
     INTEGER, DIMENSION(:), POINTER           :: atlist, Ilist1, Ilist2, &
                                                 Ilist3, Ilist4
     LOGICAL                                  :: explicit, failure, ip3, ip4
@@ -1194,23 +1139,18 @@ CONTAINS
     CALL section_vals_get(section,explicit=explicit,n_repetition=n_rep)
     IF (explicit) THEN
        NULLIFY(Ilist1, Ilist2, Ilist3, Ilist4, atlist)
-       ALLOCATE(Ilist1(nvar),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(Ilist2(nvar),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Ilist1(nvar))
+       ALLOCATE(Ilist2(nvar))
        Ilist1 = Iarray1(1:nvar)
        Ilist2 = Iarray2(1:nvar)
        SELECT CASE(nsize)
        CASE(2) !do nothing
        CASE(3)
-          ALLOCATE(Ilist3(nvar),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(Ilist3(nvar))
           Ilist3 = Iarray3(1:nvar)
        CASE(4)
-          ALLOCATE(Ilist3(nvar),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(Ilist4(nvar),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(Ilist3(nvar))
+          ALLOCATE(Ilist4(nvar))
           Ilist3 = Iarray3(1:nvar)
           Ilist4 = Iarray4(1:nvar)
        CASE DEFAULT
@@ -1308,20 +1248,15 @@ CONTAINS
 
           END DO
        END DO
-       DEALLOCATE(Ilist1,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(Ilist2,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Ilist1)
+       DEALLOCATE(Ilist2)
        SELECT CASE(nsize)
        CASE(2) ! do nothing
        CASE(3)
-          DEALLOCATE(Ilist3,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(Ilist3)
        CASE(4)
-          DEALLOCATE(Ilist3,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Ilist4,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(Ilist3)
+          DEALLOCATE(Ilist4)
        CASE DEFAULT
           ! Should never reach this point
           CPASSERT(.FALSE.)
@@ -1602,7 +1537,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, i, iw, &
                                                 natom, nbond, nsize, ntheta, &
-                                                output_unit, stat
+                                                output_unit
     LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
@@ -1634,11 +1569,9 @@ CONTAINS
        CALL reallocate(conn_info%theta_b,1,nsize)
        CALL reallocate(conn_info%theta_c,1,nsize)
        ! Get list of bonds to pre-process theta
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(natom))
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(bond_list(I)%array1(0))
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
        ! All the dirty job is handled by this routine.. for bends it_levl is equal 3
@@ -1652,11 +1585,9 @@ CONTAINS
                                  Oarray3 =conn_info%theta_c)
        CALL timestop(handle2)
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(bond_list(I)%array1)
        ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bond_list)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Bends generated:",&
                ntheta
@@ -1718,8 +1649,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'match_iterative_path', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, j, my_levl, natom, &
-                                                stat
+    INTEGER                                  :: i, ind, j, my_levl, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_list
     LOGICAL                                  :: check, failure
     TYPE(array1_list_type), DIMENSION(:), &
@@ -1750,8 +1680,7 @@ CONTAINS
     natom   = SIZE(Iarray1)
     IF (.NOT.PRESENT(Ilist)) THEN
        ! Start a new loop.. Only the first time the routine is called
-       ALLOCATE(my_list(max_levl),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(my_list(max_levl))
        DO i = 1, natom
           my_levl =  1
           my_list = -1
@@ -1768,8 +1697,7 @@ CONTAINS
                                     nvar   =nvar,&
                                     Ilist  =my_list)
        END DO
-       DEALLOCATE(my_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_list)
     ELSE
        SELECT CASE(it_levl)
        CASE(2)
@@ -1906,7 +1834,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw, natom, nbond, &
-                                                nphi, nsize, output_unit, stat
+                                                nphi, nsize, output_unit
     LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
@@ -1932,11 +1860,9 @@ CONTAINS
        CALL reallocate(conn_info%phi_d,1,nsize)
        ! Get list of bonds to pre-process phi
        natom = topology%natoms
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(natom))
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(bond_list(I)%array1(0))
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
        ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
@@ -1950,11 +1876,9 @@ CONTAINS
                                  Oarray3 =conn_info%phi_c,&
                                  Oarray4 =conn_info%phi_d)
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(bond_list(I)%array1)
        ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bond_list)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Torsions generated:",&
                nphi
@@ -2002,7 +1926,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: atm_symbol
     INTEGER                                  :: handle, i, ind, iw, j, natom, &
                                                 nbond, nimpr, nsize, &
-                                                output_unit, stat
+                                                output_unit
     LOGICAL                                  :: accept_impr, failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
@@ -2030,11 +1954,9 @@ CONTAINS
        CALL reallocate(conn_info%impr_c,1,nsize)
        CALL reallocate(conn_info%impr_d,1,nsize)
        ! Get list of bonds to pre-process phi
-       ALLOCATE(bond_list(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(natom))
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(bond_list(I)%array1(0))
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
        DO I = 1, natom
@@ -2070,11 +1992,9 @@ CONTAINS
           END IF
        END DO
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(bond_list(I)%array1)
        ENDDO
-       DEALLOCATE(bond_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bond_list)
        ! External defined impropers (useful for complex connectivity)
        impr_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%IMPROPER")
        CALL connectivity_external_control(section=impr_section,&
@@ -2117,8 +2037,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, atom_b, handle, i, &
                                                 ionfo, iw, natom, nbond, &
-                                                nphi, ntheta, output_unit, &
-                                                stat
+                                                nphi, ntheta, output_unit
     LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list, phi_list, &
@@ -2138,31 +2057,25 @@ CONTAINS
     natom  = topology%natoms
 
     ! Get list of bonds (sic). Get a list of bonded neighbors for every atom.
-    ALLOCATE(bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bond_list(natom))
     DO i = 1, natom
-       ALLOCATE(bond_list(i)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(i)%array1(0))
     ENDDO
     nbond = SIZE(conn_info%bond_a)
     CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
 
     ! Get a list of next nearest neighbors for every atom.
-    ALLOCATE(theta_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(theta_list(natom))
     DO i = 1, natom
-       ALLOCATE(theta_list(i)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(theta_list(i)%array1(0))
     ENDDO
     ntheta = SIZE(conn_info%theta_a)
     CALL reorder_structure(theta_list, conn_info%theta_a, conn_info%theta_c, ntheta)
 
     ! Get a list of next next nearest neighbors for every atom.
-    ALLOCATE(phi_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(phi_list(natom))
     DO i = 1, natom
-       ALLOCATE(phi_list(i)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(phi_list(i)%array1(0))
     ENDDO
     nphi = SIZE(conn_info%phi_a)
     CALL reorder_structure(phi_list, conn_info%phi_a, conn_info%phi_d, nphi)
@@ -2195,25 +2108,19 @@ CONTAINS
 
     ! Deallocate bond_list
     DO i = 1, natom
-       DEALLOCATE(bond_list(i)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(bond_list(i)%array1)
     ENDDO
-    DEALLOCATE(bond_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(bond_list)
     ! Deallocate theta_list
     DO i = 1, natom
-       DEALLOCATE(theta_list(i)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(theta_list(i)%array1)
     ENDDO
-    DEALLOCATE(theta_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(theta_list)
     ! Deallocate phi_list
     DO i = 1, natom
-       DEALLOCATE(phi_list(i)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(phi_list(i)%array1)
     ENDDO
-    DEALLOCATE(phi_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(phi_list)
 
     ! Final output
     IF (output_unit>0 .AND. ionfo > 0) THEN

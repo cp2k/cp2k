@@ -190,7 +190,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
-    INTEGER                                  :: i, ii, ispin, j, k, stat
+    INTEGER                                  :: i, ii, ispin, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diff, exc2, maxdiff, tmp
@@ -210,8 +210,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
 
   bo = rho_r(1)%pw%pw_grid%bounds_local
 
-  ALLOCATE(rho2_r(2), stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(rho2_r(2))
   DO ispin=1,2
      NULLIFY(rho2_r(ispin)%pw)
      CALL pw_pool_create_pw(pw_pool,rho2_r(ispin)%pw,in_space=REALSPACE,&
@@ -228,8 +227,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
   END DO
 
   IF (ASSOCIATED(tau)) THEN
-     ALLOCATE(tau2(2),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(tau2(2))
      DO ispin=1,2
         NULLIFY(tau2(ispin)%pw)
         CALL pw_pool_create_pw(pw_pool,tau2(ispin)%pw,in_space=REALSPACE,&
@@ -492,11 +490,9 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
           CALL pw_pool_give_back_pw(pw_pool,vxc_tau2(ispin)%pw)
        END IF
     END DO
-    DEALLOCATE(vxc_rho2,rho2_r,rho2_g, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(vxc_rho2,rho2_r,rho2_g)
     IF (ASSOCIATED(vxc_tau2)) THEN
-       DEALLOCATE(vxc_tau2,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(vxc_tau2)
     END IF
 
 END SUBROUTINE xc_vxc_pw_create_test_lsd
@@ -1101,7 +1097,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
     INTEGER :: handle, i, idir, ispin, j, jdir, k, n_deriv, npoints, nspins, &
-      order, stat, xc_deriv_method_id, xc_rho_smooth_id
+      order, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd, nd_laplace
     LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
@@ -1227,8 +1223,7 @@ CPSourceFileRef,&
   END DO
 
   IF (.NOT.failure) THEN
-     ALLOCATE(vxc_rho(nspins),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(vxc_rho(nspins))
      DO ispin=1,nspins
         NULLIFY(vxc_rho(ispin)%pw)
      END DO
@@ -1785,8 +1780,7 @@ CPSourceFileRef,&
              message="Stress tensor not available for Meta-functionals.", &
              error_level=cp_failure_level)
         END IF
-        ALLOCATE(vxc_tau(nspins), stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(vxc_tau(nspins))
         DO ispin=1,nspins
            NULLIFY(vxc_tau(ispin)%pw)
         END DO
@@ -2018,8 +2012,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
   fac = 0.0_dp
   IF (PRESENT(tddfpt_fac)) fac=tddfpt_fac
 
-  ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins))
   DO ispin=1, nspins
      NULLIFY(tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw)
   END DO
@@ -2130,8 +2123,7 @@ CPSourceFileRef,&
                    in_space = REALSPACE)
               CALL pw_zero(tmp_r(ispin)%pw)
            ELSE
-              ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
-              CPASSERT(stat==0)
+              ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw)
               ALLOCATE(tmp_a(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    tmp_b(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    tmp_r(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
@@ -2748,10 +2740,8 @@ CPSourceFileRef,&
               CALL pw_pool_give_back_pw(pw_pool,tmp_b(ispin)%pw)
               CALL pw_pool_give_back_pw(pw_pool,tmp_r(ispin)%pw)
            ELSE
-              DEALLOCATE(tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d, stat=stat)
-              CPASSERT(stat==0)
-              DEALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d)
+              DEALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw)
            END IF
         END DO
 
@@ -2774,8 +2764,7 @@ CPSourceFileRef,&
                 in_space = REALSPACE)
            CALL pw_zero(v_drho%pw)
         ELSE
-           ALLOCATE(v_drho%pw, stat=stat)
-           CPASSERT(stat==0)
+           ALLOCATE(v_drho%pw)
            ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                 stat=stat)
            v_drho%pw%cr3d = 0.0_dp
@@ -2885,8 +2874,7 @@ CPSourceFileRef,&
                    use_data = REALDATA3D,&
                    in_space = REALSPACE)
            ELSE
-              ALLOCATE(tmp_r(1)%pw, stat=stat)
-              CPASSERT(stat==0)
+              ALLOCATE(tmp_r(1)%pw)
               ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    stat=stat)
               CPASSERT(stat==0)
@@ -2932,27 +2920,22 @@ CPSourceFileRef,&
            IF (ASSOCIATED(pw_pool)) THEN
               CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw)
            ELSE
-              DEALLOCATE(tmp_r(1)%pw%cr3d, stat=stat)
-              CPASSERT(stat==0)
-              DEALLOCATE(tmp_r(1)%pw, stat=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(tmp_r(1)%pw%cr3d)
+              DEALLOCATE(tmp_r(1)%pw)
            END IF
         END IF
         IF (ASSOCIATED(pw_pool)) THEN
            CALL pw_pool_give_back_pw(pw_pool,v_drho%pw)
         ELSE
-           DEALLOCATE(v_drho%pw%cr3d, stat=stat)
-           CPASSERT(stat==0)
-           DEALLOCATE(v_drho%pw, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(v_drho%pw%cr3d)
+           DEALLOCATE(v_drho%pw)
         END IF
 
      END IF
 
   END IF
 
-  DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b)
 
   CALL timestop(handle)
 END SUBROUTINE xc_calc_2nd_deriv
@@ -2985,7 +2968,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
 
@@ -3000,8 +2983,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     nspins     = SIZE(rho_r)
     lsd = (nspins /= 1)
 
-    ALLOCATE(rho_r_pw(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_r_pw(nspins))
     DO ispin=1, nspins
        rho_r_pw(ispin)%pw => rho_r(ispin)%pw
     END DO
@@ -3011,8 +2993,7 @@ END SUBROUTINE xc_calc_2nd_deriv
        rho_r_pw,rho_g,tau,xc_section,pw_pool,&
        needs_basic_components=.TRUE.)
 
-    DEALLOCATE(rho_r_pw, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rho_r_pw)
 
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 

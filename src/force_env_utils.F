@@ -82,7 +82,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local, stat
+      my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local
     LOGICAL                                  :: failure, has_pos, has_vel, &
                                                 my_dump_lm
     REAL(KIND=dp)                            :: mydt
@@ -132,8 +132,7 @@ CONTAINS
     has_pos=.FALSE.
     IF (.NOT.ASSOCIATED(my_pos)) THEN
        has_pos=.TRUE.
-       ALLOCATE(my_pos(3,particles%n_els),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(my_pos(3,particles%n_els))
        my_pos = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -146,8 +145,7 @@ CONTAINS
     has_vel=.FALSE.
     IF (.NOT.ASSOCIATED(my_vel)) THEN
        has_vel=.TRUE.
-       ALLOCATE(my_vel(3,particles%n_els),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(my_vel(3,particles%n_els))
        my_vel = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -215,13 +213,11 @@ CONTAINS
 
     IF (has_pos) THEN
        CALL update_particle_set ( particles%els, force_env%para_env%group, pos=my_pos)
-       DEALLOCATE(my_pos,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_pos)
     END IF
     IF (has_vel) THEN
        CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
-       DEALLOCATE(my_vel,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_vel)
     END IF
     CALL timestop(handle)
   END SUBROUTINE force_env_shake
@@ -258,7 +254,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local, stat
+      my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local
     LOGICAL                                  :: failure, has_vel, my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
@@ -301,8 +297,7 @@ CONTAINS
     has_vel=.FALSE.
     IF (.NOT.ASSOCIATED(my_vel)) THEN
        has_vel=.TRUE.
-       ALLOCATE(my_vel(3,particles%n_els),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(my_vel(3,particles%n_els))
        my_vel = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -371,8 +366,7 @@ CONTAINS
     IF (has_vel) THEN
        CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
     END IF
-    DEALLOCATE(my_vel,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(my_vel)
     CALL timestop(handle)
   END SUBROUTINE force_env_rattle
 

@@ -69,15 +69,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'damping_p_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
      failure=.FALSE.
      CPASSERT(.NOT.ASSOCIATED(damping))
-     ALLOCATE ( damping, stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE ( damping%damp( nkinds ), stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE ( damping)
+     ALLOCATE ( damping%damp( nkinds ))
      DO i = 1, nkinds
         CALL init_damping ( damping%damp(i) )
      END DO
@@ -95,17 +93,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'damping_p_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     IF(ASSOCIATED(damping)) THEN
       IF (ASSOCIATED(damping%damp)) THEN
-         DEALLOCATE(damping%damp,stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(damping%damp)
       END IF
-      DEALLOCATE(damping,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(damping)
     END IF
     NULLIFY(damping)
 

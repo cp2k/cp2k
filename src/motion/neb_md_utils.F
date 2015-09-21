@@ -182,7 +182,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'control_vels_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, temp_tol_steps
+    INTEGER                                  :: i, temp_tol_steps
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: ext_temp, f_annealing, scale, &
                                                 temp_tol, temploc, tmp_r1, &
@@ -196,8 +196,7 @@ CONTAINS
        CALL section_vals_val_get(tc_section,"TEMP_TOL_STEPS",i_val=temp_tol_steps)
        CALL section_vals_val_get(tc_section,"TEMPERATURE",r_val=ext_temp)
        CALL section_vals_val_get(tc_section,"TEMP_TOL",r_val=temp_tol)
-       ALLOCATE(temperatures(SIZE(vels%wrk,2)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(temperatures(SIZE(vels%wrk,2)))
        ! Computes temperatures
        CALL get_temperatures(vels,particle_set,temperatures,factor=1.0_dp)
        ! Possibly rescale
@@ -218,8 +217,7 @@ CONTAINS
              END IF
           END DO
        END IF
-       DEALLOCATE(temperatures,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(temperatures)
     END IF
     ! Annealing
     CALL section_vals_get(vc_section,explicit=explicit)

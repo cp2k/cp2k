@@ -154,7 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: m, m1, m2, mp, mt, mx(0:3,2), &
-                                                n, stat
+                                                n
     LOGICAL                                  :: calc(0:4), failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
 
@@ -167,8 +167,7 @@ CONTAINS
                                      "Size of POT array too small.")
 
     n = SIZE ( rho )
-    ALLOCATE ( rs(n), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rs(n))
 
     CALL calc_rs ( rho, rs )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -190,8 +189,7 @@ CONTAINS
        CALL pade_lda_3(n, rho, rs, pot(:,m1:m1))
     END IF
 
-    DEALLOCATE ( rs, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rs)
 
   END SUBROUTINE pade_lda
 
@@ -210,7 +208,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda_pw_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, stat
+    INTEGER                                  :: n
     LOGICAL                                  :: calc(0:4), failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -223,8 +221,7 @@ CONTAINS
     IF (order < 0) calc(-order) = .TRUE.
 
     n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
-    ALLOCATE ( rs(n), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rs(n))
 
     CALL calc_rs_pw ( rho_set%rho, rs, n )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -259,8 +256,7 @@ CONTAINS
        CALL pade_lda_3(n, rho_set%rho, rs, e_rrr)
     END IF
 
-    DEALLOCATE ( rs, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rs)
 
   END SUBROUTINE pade_lda_pw_eval
 

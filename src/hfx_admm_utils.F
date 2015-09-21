@@ -227,7 +227,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, img, irep, &
                                                 ispin, mspin, n_rep_hf, &
-                                                nimages, ns, nspins, stat
+                                                nimages, ns, nspins
     LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, failure, &
       hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
@@ -309,8 +309,7 @@ CONTAINS
           force(ikind)%fock_4c(:,:) = 0.0_dp
        END DO
     END IF
-    ALLOCATE(hf_energy(n_rep_hf), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hf_energy(n_rep_hf))
     DO irep = 1,n_rep_hf
 
        IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&

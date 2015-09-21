@@ -112,7 +112,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatom, image_IndMM, &
-                                                Imm, IndMM, ispin, iw, stat
+                                                Imm, IndMM, ispin, iw
     LOGICAL                                  :: failure, gapw, need_f, &
                                                 periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
@@ -160,10 +160,8 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     ! If forces are required allocate these temporary arrays
     IF (need_f) THEN
-       ALLOCATE(Forces(3,qmmm_env%num_mm_atoms),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(Forces_added_charges(3,qmmm_env%added_charges%num_mm_atoms),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Forces(3,qmmm_env%num_mm_atoms))
+       ALLOCATE(Forces_added_charges(3,qmmm_env%added_charges%num_mm_atoms))
        Forces(:,:)               = 0.0_dp
        Forces_added_charges(:,:) = 0.0_dp
     END IF
@@ -357,8 +355,7 @@ CONTAINS
           ! Minux sign to take care of this misunderstanding...
           mm_particles(IndMM)%f(:) = - Forces(:,Imm) + mm_particles(IndMM)%f(:)
        END DO
-       DEALLOCATE(Forces, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Forces)
        IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
           DO Imm = 1, qmmm_env%added_charges%num_mm_atoms
              IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
@@ -367,8 +364,7 @@ CONTAINS
              qmmm_env%added_charges%added_particles(IndMM)%f(:) = - Forces_added_charges(:,Imm)
           END DO
        END IF
-       DEALLOCATE(Forces_added_charges, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Forces_added_charges)
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
     CALL timestop(handle)
@@ -512,8 +508,7 @@ CONTAINS
        grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=tmp(lb(2),lb(3))
     END IF
     IF (ASSOCIATED(tmp)) THEN
-       DEALLOCATE(tmp, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp)
        NULLIFY(tmp)
     END IF
     ! Further setup of parallelization scheme
@@ -623,8 +618,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, IGauss, &
                                                 ilevel, Imm, IndMM, IRadTyp, &
-                                                LIndMM, myind, n_rep_real(3), &
-                                                stat
+                                                LIndMM, myind, n_rep_real(3)
     INTEGER, DIMENSION(2, 3)                 :: bo
     REAL(KIND=dp)                            :: alpha, dvol, height, &
                                                 sph_chrg_factor, W
@@ -654,12 +648,9 @@ CONTAINS
           ilevel    = pgf%grid_level(IGauss)
           dvol      = grids(ilevel)%pw%pw_grid%dvol
           bo        = grids(ilevel) % pw % pw_grid % bounds_local
-          ALLOCATE (xdat(2,bo(1,1):bo(2,1)), STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE (ydat(2,bo(1,2):bo(2,2)), STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE (zdat(2,bo(1,3):bo(2,3)), STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (xdat(2,bo(1,1):bo(2,1)))
+          ALLOCATE (ydat(2,bo(1,2):bo(2,2)))
+          ALLOCATE (zdat(2,bo(1,3):bo(2,3)))
           Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
              IF (par_scheme==do_par_atom) THEN
                 myind = myind + 1
@@ -711,12 +702,9 @@ CONTAINS
                                                      iw=iw)
              END IF
           END DO Atoms
-          DEALLOCATE (xdat, STAT=stat)
- CPASSERT(stat==0)
-          DEALLOCATE (ydat, STAT=stat)
- CPASSERT(stat==0)
-          DEALLOCATE (zdat, STAT=stat)
- CPASSERT(stat==0)
+          DEALLOCATE (xdat)
+          DEALLOCATE (ydat)
+          DEALLOCATE (zdat)
        END DO Gaussian
     END DO Radius
     CALL timestop(handle2)
@@ -812,7 +800,7 @@ CONTAINS
 
     INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, &
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_i, my_j, my_k, &
-      myind, npts(3), stat
+      myind, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: a1, a2, a3, abc_X(4,4), abc_X_Y(4), b1, b2, b3, c1, c2, &
@@ -834,8 +822,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grid)
-    ALLOCATE(LForces(3,num_mm_atoms), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(LForces(3,num_mm_atoms))
     LForces = 0.0_dp
     dr1c  = cgrid%pw_grid%dr(1)
     dr2c  = cgrid%pw_grid%dr(2)
@@ -1175,8 +1162,7 @@ CONTAINS
                                             par_scheme=par_scheme,&
                                             qmmm_spherical_cutoff=qmmm_spherical_cutoff)
     END IF
-    DEALLOCATE(LForces, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(LForces)
     CALL timestop(handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
@@ -1233,7 +1219,7 @@ CONTAINS
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
                                                 my_i, my_j, my_k, myind, n1, &
-                                                n2, n3, stat
+                                                n2, n3
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: dr1, dr2, dr3, dvol, dx, fac, ft1, ft2, ft3, qt, r, r2, &
@@ -1249,8 +1235,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    ALLOCATE(LForces(3,num_mm_atoms), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(LForces(3,num_mm_atoms))
     LForces = 0.0_dp
     n1   = cgrid%pw_grid%npts(1)
     n2   = cgrid%pw_grid%npts(2)
@@ -1359,8 +1344,7 @@ CONTAINS
                                             qmmm_spherical_cutoff=qmmm_spherical_cutoff)
     END IF
 
-    DEALLOCATE(LForces, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(LForces)
     CALL timestop(handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 
@@ -1398,8 +1382,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, I, IndMM, iw, J, K, &
-                                                stat
+    INTEGER                                  :: handle, I, IndMM, iw, J, K
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
@@ -1426,8 +1409,7 @@ CONTAINS
     CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools)
     CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace%pw,&
          use_data=REALDATA3D, in_space=REALSPACE)
-    ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Num_Forces(3,num_mm_atoms))
     ks_qmmm_env_loc =>  qs_env%ks_qmmm_env
     IF (iw>0) WRITE(iw,'(/A)')"DEBUG SECTION:"
     Atoms: DO I = 1, num_mm_atoms
@@ -1513,8 +1495,7 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
 
     CALL pw_pool_give_back_pw ( pw_pools(1)%pool, v_qmmm_rspace%pw)
-    DEALLOCATE(Num_Forces,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Num_Forces)
     CALL timestop(handle)
 100 FORMAT(I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qmmm_debug_forces
@@ -1560,8 +1541,7 @@ CONTAINS
       routineN = 'debug_integrate_gf_rspace_NoPBC', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, igrid, k, ngrids, &
-                                                stat
+    INTEGER                                  :: handle, i, igrid, k, ngrids
     INTEGER, DIMENSION(2, 3)                 :: bo2
     INTEGER, SAVE                            :: Icount
     LOGICAL                                  :: failure
@@ -1582,12 +1562,9 @@ CONTAINS
        CALL pw_zero(grids(igrid)%pw)
     END DO
     bo2 = grids(auxbas_grid)%pw%pw_grid%bounds
-    ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (xdat(bo2(1,1):bo2(2,1)))
+    ALLOCATE (ydat(bo2(1,2):bo2(2,2)))
+    ALLOCATE (zdat(bo2(1,3):bo2(2,3)))
 
     Icount = Icount + 1
     DO i = 1, 3
@@ -1628,16 +1605,13 @@ CONTAINS
     CPASSERT(ABS(Err(3))<=MaxErr)
 
     IF (ASSOCIATED(xdat)) THEN
-       DEALLOCATE (xdat, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (xdat)
     ENDIF
     IF (ASSOCIATED(ydat)) THEN
-       DEALLOCATE (ydat, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (ydat)
     ENDIF
     IF (ASSOCIATED(zdat)) THEN
-       DEALLOCATE (zdat, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (zdat)
     ENDIF
 
     CALL pw_pools_give_back_pws(aug_pools,grids)
@@ -1696,15 +1670,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
-                                                K, ngrids, stat
+                                                K, ngrids
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
-    ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Num_Forces(3,num_mm_atoms))
     NULLIFY(grids)
     CALL timeset(routineN,handle)
     ngrids = SIZE(aug_pools)
@@ -1760,8 +1733,7 @@ CONTAINS
        CPASSERT(ABS(Err(3))<=MaxErr)
     END DO
 
-    DEALLOCATE(Num_Forces,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Num_Forces)
     CALL pw_pools_give_back_pws(aug_pools,grids)
     CALL timestop(handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
@@ -1818,15 +1790,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
-                                                K, ngrids, stat
+                                                K, ngrids
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
-    ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Num_Forces(3,num_mm_atoms))
     NULLIFY(grids)
     CALL timeset(routineN,handle)
     ngrids = SIZE(aug_pools)
@@ -1882,8 +1853,7 @@ CONTAINS
        CPASSERT(ABS(Err(3))<=MaxErr)
     END DO
 
-    DEALLOCATE(Num_Forces,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Num_Forces)
     CALL pw_pools_give_back_pws(aug_pools,grids)
     CALL timestop(handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")

@@ -43,7 +43,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'exclusion_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, stat
+    INTEGER                                  :: iatom
     LOGICAL                                  :: failure
 
    failure=.FALSE.
@@ -51,25 +51,20 @@ CONTAINS
       DO iatom=1,SIZE(exclusions)
          IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw,&
               exclusions(iatom)%list_exclude_ei)) THEN
-            DEALLOCATE(exclusions(iatom)%list_exclude_vdw,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(exclusions(iatom)%list_exclude_vdw)
          ELSE
             IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw)) THEN
-               DEALLOCATE(exclusions(iatom)%list_exclude_vdw,STAT=stat)
-               CPASSERT(stat==0)
+               DEALLOCATE(exclusions(iatom)%list_exclude_vdw)
             END IF
             IF (ASSOCIATED(exclusions(iatom)%list_exclude_ei)) THEN
-               DEALLOCATE(exclusions(iatom)%list_exclude_ei,STAT=stat)
-               CPASSERT(stat==0)
+               DEALLOCATE(exclusions(iatom)%list_exclude_ei)
             END IF
          ENDIF
          IF (ASSOCIATED(exclusions(iatom)%list_onfo)) THEN
-           DEALLOCATE(exclusions(iatom)%list_onfo,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(exclusions(iatom)%list_onfo)
          ENDIF
       ENDDO
-      DEALLOCATE(exclusions,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(exclusions)
    ENDIF
  END SUBROUTINE exclusion_release
 

@@ -159,7 +159,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, my_homo(2), &
+    INTEGER :: handle, homo, i, iat, iatom, ispin, my_homo(2), &
       my_nelectron(2), nao, nexc_atoms, nexc_search, nmo, nspins, &
       output_unit, state_to_be_excited
     INTEGER, DIMENSION(2)                    :: added_mos
@@ -365,10 +365,8 @@ CONTAINS
               "SCF with empty homo NOT converged"
           ! Release what has to be released
           IF(ASSOCIATED(vecbuffer)) THEN
-             DEALLOCATE(vecbuffer,STAT=istat)
-             CPASSERT(istat==0)
-             DEALLOCATE(op_sm,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(vecbuffer)
+             DEALLOCATE(op_sm)
           END IF
 
           DO ispin = 1,dft_control%nspins
@@ -405,10 +403,8 @@ CONTAINS
              source_start=1,target_start=1)
     END IF
 
-    ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (op_sm(3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuffer(1,nao))
+    ALLOCATE (op_sm(3))
 
   ! copy the coefficients of the mos in a temporary fm with the right structure
     IF(transition_potential) THEN
@@ -552,10 +548,8 @@ CONTAINS
 
   ! Release what has to be released
     IF(ASSOCIATED(vecbuffer)) THEN
-        DEALLOCATE(vecbuffer,STAT=istat)
-        CPASSERT(istat==0)
-        DEALLOCATE(op_sm,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(vecbuffer)
+        DEALLOCATE(op_sm)
     END IF
 
     DO ispin = 1,dft_control%nspins
@@ -680,8 +674,7 @@ CONTAINS
         nexc_search = lfomo -1
       END IF
       nexc_atoms = xas_control%nexc_atoms
-      ALLOCATE(xas_env%exc_atoms(nexc_atoms),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(xas_env%exc_atoms(nexc_atoms))
       xas_env%exc_atoms = xas_control%exc_atoms
       CALL set_xas_env(xas_env=xas_env,nexc_search=nexc_search,&
            nexc_atoms=nexc_atoms)
@@ -701,19 +694,13 @@ CONTAINS
 
       n_mo(1:2) = nmo
 
-      ALLOCATE(xas_env%centers_wfn(3,nexc_search),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(xas_env%atom_of_state(nexc_search),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(xas_env%type_of_state(nexc_search),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(xas_env%state_of_atom(nexc_atoms),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(xas_env%mykind_of_atom(nexc_atoms),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(xas_env%centers_wfn(3,nexc_search))
+      ALLOCATE(xas_env%atom_of_state(nexc_search))
+      ALLOCATE(xas_env%type_of_state(nexc_search))
+      ALLOCATE(xas_env%state_of_atom(nexc_atoms))
+      ALLOCATE(xas_env%mykind_of_atom(nexc_atoms))
       nkind = SIZE(atomic_kind_set,1)
-      ALLOCATE(xas_env%mykind_of_kind(nkind),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(xas_env%mykind_of_kind(nkind))
       xas_env%mykind_of_kind = 0
 
       ! create a new matrix structure nao x 1
@@ -780,8 +767,7 @@ CONTAINS
              i_vals=bounds)
         ncubes = bounds(2) - bounds(1)  + 1
         IF(ncubes > 0 ) THEN
-          ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE( xas_control%list_cubes(ncubes))
 
           DO ik = 1,ncubes
             xas_control%list_cubes(ik) = bounds(1) + (ik-1)
@@ -811,8 +797,7 @@ CONTAINS
         IF(.NOT. ASSOCIATED(xas_control%list_cubes)) THEN
           ncubes = MAX(10,xas_control%added_mos/10)
           ncubes = MIN(ncubes,xas_control%added_mos)
-          ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE( xas_control%list_cubes(ncubes))
           DO ik = 1,ncubes
             xas_control%list_cubes(ik) = homo + ik
           END DO
@@ -828,8 +813,7 @@ CONTAINS
       CALL cp_fm_create (xas_env%fm_work,tmp_fm_struct)
       CALL cp_fm_struct_release ( tmp_fm_struct)
 
-      ALLOCATE (xas_env%groundstate_coeff(nspins), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (xas_env%groundstate_coeff(nspins))
       DO ispin = 1,nspins
         NULLIFY(xas_env%groundstate_coeff(ispin)%matrix)
         CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
@@ -842,8 +826,7 @@ CONTAINS
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=1,&
            ncol_global=nvirtual,para_env=para_env,&
            context=mo_coeff%matrix_struct%context)
-      ALLOCATE (xas_env%dip_fm_set(2,3),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (xas_env%dip_fm_set(2,3))
       DO i = 1,3
         DO j = 1,2
            NULLIFY(xas_env%dip_fm_set(j,i)%matrix)
@@ -854,8 +837,7 @@ CONTAINS
 
       !Array to store all the eigenstates: occupied and the required not occupied
       IF(nvirtual2 .GT. 0) THEN
-        ALLOCATE(xas_env%unoccupied_evals(nvirtual2), STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(xas_env%unoccupied_evals(nvirtual2))
         NULLIFY(tmp_fm_struct)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
              ncol_global=nvirtual2,&
@@ -874,8 +856,7 @@ CONTAINS
       CALL cp_fm_struct_release ( tmp_fm_struct)
 
       ! Array to store all the energies needed  for the spectrum
-      ALLOCATE(xas_env%all_evals(nvirtual), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(xas_env%all_evals(nvirtual))
 
       IF(xas_control%dipole_form==xas_dip_len2) THEN
         CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3)
@@ -891,20 +872,15 @@ CONTAINS
          !
          ! prepare for allocation
          natom = SIZE(particle_set,1)
-         ALLOCATE (first_sgf(natom),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE (last_sgf(natom),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE (first_sgf(natom))
+         ALLOCATE (last_sgf(natom))
          CALL get_particle_set(particle_set, qs_kind_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf)
-         ALLOCATE (row_blk_sizes(natom), STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE (row_blk_sizes(natom))
          CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-         DEALLOCATE (first_sgf,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE (last_sgf,STAT=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE (first_sgf)
+         DEALLOCATE (last_sgf)
          !
          !
          CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3)
@@ -1001,10 +977,8 @@ CONTAINS
         END IF
       END DO  ! iat
 
-      ALLOCATE(xas_env%my_gto_basis(nk),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(xas_env%stogto_overlap(nk),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(xas_env%my_gto_basis(nk))
+      ALLOCATE(xas_env%stogto_overlap(nk))
       DO ik = 1,nk
         NULLIFY(xas_env%my_gto_basis(ik)%gto_basis_set,sto_basis_set)
         ne = 0
@@ -1033,8 +1007,7 @@ CONTAINS
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_gto)
         CALL get_gto_basis_set(gto_basis_set=xas_env%my_gto_basis(ik)%gto_basis_set,nsgf=nsgf_sto)
-        ALLOCATE(xas_env%stogto_overlap(ik)%array(nsgf_sto,nsgf_gto),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(xas_env%stogto_overlap(ik)%array(nsgf_sto,nsgf_gto))
 
         CALL calc_stogto_overlap(xas_env%my_gto_basis(ik)%gto_basis_set,orb_basis_set,&
              xas_env%stogto_overlap(ik)%array)
@@ -1101,8 +1074,7 @@ CONTAINS
     NULLIFY(fm_work,ostrength_sm,op_sm, dip_fm_set)
     NULLIFY(all_evals,all_vectors,excvec_coeff)
     NULLIFY(mos,particle_set,sp_em,sp_ab)
-    ALLOCATE (op_sm(3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (op_sm(3))
 
     CALL get_qs_env(qs_env=qs_env, &
          mos=mos,particle_set=particle_set)
@@ -1113,10 +1085,8 @@ CONTAINS
          fm_work=fm_work, ostrength_sm=ostrength_sm,nvirtual=nvirtual)
 
     nabs = nvirtual -lfomo + 1
-    ALLOCATE (sp_em(6,homo),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (sp_ab(6,nabs),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (sp_em(6,homo))
+    ALLOCATE (sp_ab(6,nabs))
     CPASSERT(ASSOCIATED(excvec_coeff))
 
     IF(.NOT. failure) THEN
@@ -1167,8 +1137,7 @@ CONTAINS
 
     END IF  ! failure
 
-    DEALLOCATE (op_sm,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (op_sm)
 
   END SUBROUTINE cls_calculate_spectrum
 
@@ -1286,8 +1255,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_mittle, my_pos
-    INTEGER                                  :: homo, istat, istate0, nspins, &
-                                                nstates
+    INTEGER                                  :: homo, istate0, nspins, nstates
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(section_vals_type), POINTER         :: print_key
@@ -1302,8 +1270,7 @@ CONTAINS
     IF(xas_control%do_centers) THEN
     ! one might like to calculate the centers of the xas orbital (without localizing them)
     ELSE
-      ALLOCATE(centers(6,nstates),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(centers(6,nstates))
       centers = 0.0_dp
     END IF
 
@@ -1318,8 +1285,7 @@ CONTAINS
     CALL qs_print_cubes(qs_env,all_vectors,nstates,xas_control%list_cubes,&
          centers,print_key,my_mittle,state0=istate0,file_position=my_pos)
 
-    DEALLOCATE(centers,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(centers)
 
   END SUBROUTINE xas_print_cubes
 
@@ -1539,8 +1505,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iset, istat, jset, ldsab, maxcoa, maxcob, maxl, maxla, maxlb, &
-      na, nb, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
+    INTEGER                                  :: iset, jset, ldsab, maxcoa, &
+                                                maxcob, maxl, maxla, maxlb, &
+                                                na, nb, nseta, nsetb, nsgfa, &
+                                                nsgfb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, &
                                                 nsgfa_set, nsgfb_set
@@ -1574,10 +1542,8 @@ CONTAINS
     ldsab = MAX(maxcoa,maxcob,nsgfa,nsgfb)
     maxl = MAX(maxla,maxlb)
 
-    ALLOCATE(sab(ldsab,ldsab),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(work(ldsab,ldsab),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(sab(ldsab,ldsab))
+    ALLOCATE(work(ldsab,ldsab))
 
     DO iset=1,nseta
 
@@ -1599,8 +1565,7 @@ CONTAINS
        END DO  ! jset
     END DO  ! iset
 
-    DEALLOCATE(sab,work,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(sab,work)
 
   END SUBROUTINE calc_stogto_overlap
 
@@ -1634,8 +1599,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: homo, i, iat, iatom, ikind, isgf, istat, istate, j, my_kind, &
-      nao, natom, nexc_atoms, nexc_search, output_unit
+    INTEGER :: homo, i, iat, iatom, ikind, isgf, istate, j, my_kind, nao, &
+      natom, nexc_atoms, nexc_search, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(3)                    :: perd0
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
@@ -1688,20 +1653,15 @@ CONTAINS
          stogto_overlap=stogto_overlap,nexc_atoms=nexc_atoms, nexc_search=nexc_search)
 
     ! scratch array for the state
-    ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuffer(1,nao))
     natom = SIZE(particle_set)
 
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
-    ALLOCATE (sto_state_overlap(nexc_search),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (max_overlap(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (sto_state_overlap(nexc_search))
+    ALLOCATE (max_overlap(natom))
     max_overlap = 0.0_dp
-    ALLOCATE (state_of_mytype(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (state_of_mytype(natom))
     state_of_mytype = 0
     atom_of_state = 0
 
@@ -1777,16 +1737,11 @@ CONTAINS
     ! Set back the correct periodicity
     cell%perd(1:3) =  perd0(1:3)
 
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (sto_state_overlap,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (max_overlap,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (state_of_mytype,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(vecbuffer)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (sto_state_overlap)
+    DEALLOCATE (max_overlap)
+    DEALLOCATE (state_of_mytype)
 
   END SUBROUTINE cls_assign_core_states
 

@@ -540,7 +540,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: atmname, mm_atom_kind
     INTEGER                                  :: i, icount, ikind, ikindr, &
                                                 my_type, n_rep_val, nkind, &
-                                                size_mm_system, stat
+                                                size_mm_system
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: explicit, failure, is_mm, &
                                                 is_qm
@@ -681,8 +681,7 @@ CONTAINS
     END DO
     CPASSERT(icount==size_mm_system)
     IF (ASSOCIATED(mm_link_atoms)) THEN
-       DEALLOCATE(mm_link_atoms, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(mm_link_atoms)
     END IF
 
     ! Build image charge atom list + set up variables
@@ -943,14 +942,11 @@ CONTAINS
        END DO
     END IF
     IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) &
-         ALLOCATE(mm_link_scale_factor(link_involv_mm), stat=stat)
-    CPASSERT(stat==0)
+         ALLOCATE(mm_link_scale_factor(link_involv_mm))
     IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) &
-         ALLOCATE(fist_scale_charge_link(link_involv_mm), stat=stat)
-    CPASSERT(stat==0)
+         ALLOCATE(fist_scale_charge_link(link_involv_mm))
     IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0)) &
-         ALLOCATE(mm_link_atoms(link_involv_mm),stat=stat)
-    CPASSERT(stat==0)
+         ALLOCATE(mm_link_atoms(link_involv_mm))
     IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot),stat=stat)
     CPASSERT(stat==0)
     IF (PRESENT(qm_atom_type))    ALLOCATE(qm_atom_type(num_qm_atom_tot),stat=stat)
@@ -1034,7 +1030,7 @@ CONTAINS
     INTEGER                                  :: ikind, link_type, mm_index, &
                                                 n_gho, n_imomm, n_pseudo, &
                                                 n_rep_val, n_tot, nlinks, &
-                                                qm_index, stat
+                                                qm_index
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, my_radius
@@ -1056,20 +1052,16 @@ CONTAINS
     END DO
     n_tot = n_imomm + n_gho + n_pseudo
     CPASSERT(n_tot /= 0)
-    ALLOCATE(qmmm_links, stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(qmmm_links)
     NULLIFY(qmmm_links%imomm,&
             qmmm_links%pseudo)
     ! IMOMM
     IF ( n_imomm /= 0 ) THEN
-       ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
-       CPASSERT(stat == 0)
-       ALLOCATE(wrk_tmp(n_imomm), stat=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(qmmm_links%imomm(n_imomm))
+       ALLOCATE(wrk_tmp(n_imomm))
        DO ikind = 1, n_imomm
           NULLIFY(qmmm_links%imomm(ikind)%link)
-          ALLOCATE(qmmm_links%imomm(ikind)%link,stat=stat)
-          CPASSERT(stat == 0)
+          ALLOCATE(qmmm_links%imomm(ikind)%link)
        END DO
        n_imomm = 0
        DO ikind = 1, nlinks
@@ -1106,17 +1098,14 @@ CONTAINS
              CPASSERT(.FALSE.)
           END IF
        END DO
-       DEALLOCATE(wrk_tmp, stat=stat)
-       CPASSERT(stat == 0)
+       DEALLOCATE(wrk_tmp)
     END IF
     ! PSEUDO
     IF ( n_pseudo /= 0 ) THEN
-       ALLOCATE(qmmm_links%pseudo(n_pseudo), stat=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(qmmm_links%pseudo(n_pseudo))
        DO ikind = 1, n_pseudo
           NULLIFY(qmmm_links%pseudo(ikind)%link)
-          ALLOCATE(qmmm_links%pseudo(ikind)%link,stat=stat)
-          CPASSERT(stat == 0)
+          ALLOCATE(qmmm_links%pseudo(ikind)%link)
        END DO
        n_pseudo = 0
        DO ikind = 1, nlinks
@@ -1399,7 +1388,7 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, i, j, k, &
                                                 max_index, n_var, &
                                                 num_const_atom, &
-                                                num_image_mm_atom, stat
+                                                num_image_mm_atom
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
     LOGICAL                                  :: failure, fix_xyz, &
                                                 imageind_in_range
@@ -1420,8 +1409,7 @@ CONTAINS
        num_image_mm_atom = num_image_mm_atom + SIZE(mm_indexes)
     END DO
 
-    ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom))
 
     qmmm_env%image_charge_pot%image_mm_list=0
     num_image_mm_atom=1

@@ -68,14 +68,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(md_ener))
-    ALLOCATE(md_ener,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(md_ener)
     last_md_ener_id=last_md_ener_id+1
     md_ener%id_nr=last_md_ener_id
 
@@ -124,7 +122,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_md_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -134,32 +131,25 @@ CONTAINS
        md_ener%ref_count=md_ener%ref_count-1
        IF (md_ener%ref_count==0) THEN
           IF(ASSOCIATED(md_ener%temp_kind))THEN
-             DEALLOCATE(md_ener%temp_kind,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(md_ener%temp_kind)
           END IF
           IF(ASSOCIATED(md_ener%ekin_kind))THEN
-             DEALLOCATE(md_ener%ekin_kind,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(md_ener%ekin_kind)
           END IF
           IF(ASSOCIATED(md_ener%nfree_kind))THEN
-             DEALLOCATE(md_ener%nfree_kind,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(md_ener%nfree_kind)
           END IF
           IF(ASSOCIATED(md_ener%temp_shell_kind))THEN
-             DEALLOCATE(md_ener%temp_shell_kind,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(md_ener%temp_shell_kind)
           END IF
           IF(ASSOCIATED(md_ener%ekin_shell_kind))THEN
-             DEALLOCATE(md_ener%ekin_shell_kind,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(md_ener%ekin_shell_kind)
           END IF
           IF(ASSOCIATED(md_ener%nfree_shell_kind))THEN
-             DEALLOCATE(md_ener%nfree_shell_kind,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(md_ener%nfree_shell_kind)
           END IF
 
-          DEALLOCATE(md_ener,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(md_ener)
        END IF
     END IF
   END SUBROUTINE release_md_ener

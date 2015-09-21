@@ -415,20 +415,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, lnset, stat
+    INTEGER                                  :: i, lnset
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(potparm))
-    ALLOCATE(potparm, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(potparm)
     lnset = 1
     IF (PRESENT(nset)) lnset = nset
     ! Standard allocation to size 1
-    ALLOCATE(potparm%type(lnset), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(potparm%set(lnset), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(potparm%type(lnset))
+    ALLOCATE(potparm%set(lnset))
     NULLIFY( potparm%spl_f,&
              potparm%pair_spline_data)
     DO i = 1, lnset
@@ -699,7 +696,7 @@ CONTAINS
       routineN = 'pair_potential_single_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -721,12 +718,9 @@ CONTAINS
        CALL pair_potential_tersoff_release  ( potparm%set(i)%tersoff)
        CALL pair_potential_siepmann_release ( potparm%set(i)%siepmann)
     END DO
-    DEALLOCATE(potparm%type, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(potparm%set, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(potparm, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(potparm%type)
+    DEALLOCATE(potparm%set)
+    DEALLOCATE(potparm)
     NULLIFY ( potparm )
   END SUBROUTINE pair_potential_single_release
 
@@ -743,15 +737,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_pp_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(potparm))
-    ALLOCATE ( potparm, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE ( potparm%pot( nkinds, nkinds ), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( potparm)
+    ALLOCATE ( potparm%pot( nkinds, nkinds ))
     DO i = 1, nkinds
        DO j = 1, nkinds
           NULLIFY ( potparm%pot(i,j)%pot )
@@ -780,7 +772,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_pp_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -792,11 +784,9 @@ CONTAINS
                 NULLIFY(potparm%pot( j, i )%pot)
              END DO
           END DO
-          DEALLOCATE(potparm%pot, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(potparm%pot)
        END IF
-       DEALLOCATE ( potparm, stat = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( potparm)
     END IF
     NULLIFY ( potparm )
   END SUBROUTINE pair_potential_pp_release
@@ -816,26 +806,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_p_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, loc_lb, loc_ub, stat
+    INTEGER                                  :: i, loc_lb, loc_ub
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(potparm))
-    ALLOCATE ( potparm, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( potparm)
     IF (PRESENT(ndim)) THEN
        loc_lb = 1
        loc_ub = ndim
-       ALLOCATE ( potparm%pot( loc_lb : loc_ub ), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE ( potparm%pot( loc_lb : loc_ub ))
        IF (PRESENT(lb).OR.PRESENT(ub)) THEN
           CPASSERT(.FALSE.)
        END IF
     ELSE IF (PRESENT(lb).AND.PRESENT(ub)) THEN
        loc_lb = lb
        loc_ub = ub
-       ALLOCATE ( potparm%pot( loc_lb : loc_ub ), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE ( potparm%pot( loc_lb : loc_ub ))
        IF (PRESENT(ndim)) THEN
           CPASSERT(.FALSE.)
        END IF
@@ -862,7 +849,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_p_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -872,11 +859,9 @@ CONTAINS
           DO i = 1, SIZE ( potparm%pot )
              CALL pair_potential_single_release(potparm%pot( i )%pot)
           END DO
-          DEALLOCATE(potparm%pot, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(potparm%pot)
        END IF
-       DEALLOCATE ( potparm, stat = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( potparm)
     END IF
     NULLIFY ( potparm )
   END SUBROUTINE pair_potential_p_release
@@ -1129,13 +1114,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(gp))
-    ALLOCATE(gp, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(gp)
     NULLIFY (gp%parameters)
     NULLIFY (gp%values)
     CALL pair_potential_gp_clean(gp)
@@ -1153,7 +1136,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idim, stat
+    INTEGER                                  :: idim
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1165,14 +1148,12 @@ CONTAINS
     gp_dest%variables = gp_source%variables
     IF (ASSOCIATED(gp_source%parameters)) THEN
        idim = SIZE(gp_source%parameters)
-       ALLOCATE(gp_dest%parameters(idim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(gp_dest%parameters(idim))
        gp_dest%parameters = gp_source%parameters
     END IF
     IF (ASSOCIATED(gp_source%values)) THEN
        idim = SIZE(gp_source%values)
-       ALLOCATE(gp_dest%values(idim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(gp_dest%values(idim))
        gp_dest%values = gp_source%values
     END IF
   END SUBROUTINE pair_potential_gp_copy
@@ -1188,7 +1169,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_clean', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1197,12 +1177,10 @@ CONTAINS
     gp%potential = ""
     gp%variables = ""
     IF (ASSOCIATED(gp%values)) THEN
-       DEALLOCATE(gp%values,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(gp%values)
     END IF
     IF (ASSOCIATED(gp%parameters)) THEN
-       DEALLOCATE(gp%parameters,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(gp%parameters)
     END IF
   END SUBROUTINE pair_potential_gp_clean
 
@@ -1217,21 +1195,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(gp)) THEN
        IF (ASSOCIATED(gp%parameters)) THEN
-          DEALLOCATE(gp%parameters, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(gp%parameters)
        END IF
        IF (ASSOCIATED(gp%values)) THEN
-          DEALLOCATE(gp%values, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(gp%values)
        END IF
-       DEALLOCATE(gp, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(gp)
     END IF
     NULLIFY(gp)
   END SUBROUTINE pair_potential_gp_release
@@ -1247,13 +1221,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(lj))
-    ALLOCATE(lj, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(lj)
     CALL pair_potential_lj_clean(lj)
   END SUBROUTINE pair_potential_lj_create
 
@@ -1311,13 +1283,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(lj)) THEN
-       DEALLOCATE(lj, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lj)
     END IF
     NULLIFY(lj)
   END SUBROUTINE pair_potential_lj_release
@@ -1334,13 +1304,11 @@ CONTAINS
       routineN = 'pair_potential_williams_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(willis))
-    ALLOCATE(willis, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(willis)
     CALL pair_potential_williams_clean(willis)
   END SUBROUTINE pair_potential_williams_create
 
@@ -1400,13 +1368,11 @@ CONTAINS
       routineN = 'pair_potential_williams_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(willis)) THEN
-       DEALLOCATE(willis, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(willis)
     END IF
     NULLIFY(willis)
   END SUBROUTINE pair_potential_williams_release
@@ -1423,13 +1389,11 @@ CONTAINS
       routineN = 'pair_potential_goodwin_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(goodwin))
-    ALLOCATE(goodwin, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(goodwin)
     CALL pair_potential_goodwin_clean(goodwin)
   END SUBROUTINE pair_potential_goodwin_create
 
@@ -1492,13 +1456,11 @@ CONTAINS
       routineN = 'pair_potential_goodwin_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(goodwin)) THEN
-       DEALLOCATE(goodwin, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(goodwin)
     END IF
     NULLIFY(goodwin)
   END SUBROUTINE pair_potential_goodwin_release
@@ -1514,13 +1476,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(eam))
-    ALLOCATE(eam, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(eam)
     NULLIFY(eam%rho, eam%phi, eam%frho, eam%rhoval, eam%rval,&
             eam%rhop, eam%phip, eam%frhop)
     CALL pair_potential_eam_clean(eam)
@@ -1609,45 +1569,35 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(eam)) THEN
        IF (ASSOCIATED(eam%rho)) THEN
-          DEALLOCATE(eam%rho, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%rho)
        END IF
        IF (ASSOCIATED(eam%rhop)) THEN
-          DEALLOCATE(eam%rhop, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%rhop)
        END IF
        IF (ASSOCIATED(eam%phi)) THEN
-          DEALLOCATE(eam%phi, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%phi)
        END IF
        IF (ASSOCIATED(eam%phip)) THEN
-          DEALLOCATE(eam%phip, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%phip)
        END IF
        IF (ASSOCIATED(eam%frho)) THEN
-          DEALLOCATE(eam%frho, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%frho)
        END IF
        IF (ASSOCIATED(eam%frhop)) THEN
-          DEALLOCATE(eam%frhop, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%frhop)
        END IF
        IF (ASSOCIATED(eam%rval)) THEN
-          DEALLOCATE(eam%rval, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%rval)
        END IF
        IF (ASSOCIATED(eam%rhoval)) THEN
-          DEALLOCATE(eam%rhoval, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eam%rhoval)
        END IF
-       DEALLOCATE(eam, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(eam)
     END IF
   END SUBROUTINE pair_potential_eam_release
 
@@ -1662,13 +1612,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_quip_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(quip))
-    ALLOCATE(quip, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(quip)
     quip%quip_file_name=""
     quip%init_args=""
     quip%calc_args=""
@@ -1729,13 +1677,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_quip_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(quip)) THEN
-       DEALLOCATE(quip, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(quip)
     END IF
   END SUBROUTINE pair_potential_quip_release
 
@@ -1750,13 +1696,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ft))
-    ALLOCATE(ft, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ft)
     CALL pair_potential_bmhft_clean(ft)
   END SUBROUTINE pair_potential_bmhft_create
 
@@ -1816,13 +1760,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(ft)) THEN
-       DEALLOCATE(ft, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ft)
     END IF
     NULLIFY(ft)
   END SUBROUTINE pair_potential_bmhft_release
@@ -1838,13 +1780,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhftd_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ftd))
-    ALLOCATE(ftd, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ftd)
     CALL pair_potential_bmhftd_clean(ftd)
   END SUBROUTINE pair_potential_bmhftd_create
 
@@ -1907,13 +1847,11 @@ CONTAINS
       routineN = 'pair_potential_bmhftd_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(ftd)) THEN
-       DEALLOCATE(ftd, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ftd)
     END IF
     NULLIFY(ftd)
   END SUBROUTINE pair_potential_bmhftd_release
@@ -1929,13 +1867,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ipbv))
-    ALLOCATE(ipbv, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ipbv)
     CALL pair_potential_ipbv_clean(ipbv)
   END SUBROUTINE pair_potential_ipbv_create
 
@@ -1995,13 +1931,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(ipbv)) THEN
-       DEALLOCATE(ipbv, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ipbv)
     END IF
     NULLIFY(ipbv)
   END SUBROUTINE pair_potential_ipbv_release
@@ -2017,13 +1951,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(buck4r))
-    ALLOCATE(buck4r, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buck4r)
     CALL pair_potential_buck4r_clean(buck4r)
   END SUBROUTINE pair_potential_buck4r_create
 
@@ -2096,13 +2028,11 @@ CONTAINS
       routineN = 'pair_potential_buck4r_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(buck4r)) THEN
-       DEALLOCATE(buck4r, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(buck4r)
     END IF
     NULLIFY(buck4r)
   END SUBROUTINE pair_potential_buck4r_release
@@ -2118,13 +2048,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(buckmo))
-    ALLOCATE(buckmo, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buckmo)
     CALL pair_potential_buckmo_clean(buckmo)
   END SUBROUTINE pair_potential_buckmo_create
 
@@ -2195,13 +2123,11 @@ CONTAINS
       routineN = 'pair_potential_buckmo_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(buckmo)) THEN
-       DEALLOCATE(buckmo, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(buckmo)
     END IF
     NULLIFY(buckmo)
   END SUBROUTINE pair_potential_buckmo_release
@@ -2218,13 +2144,11 @@ CONTAINS
       routineN = 'pair_potential_tersoff_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(tersoff))
-    ALLOCATE(tersoff, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tersoff)
     CALL pair_potential_tersoff_clean(tersoff)
   END SUBROUTINE pair_potential_tersoff_create
 
@@ -2305,13 +2229,11 @@ CONTAINS
       routineN = 'pair_potential_tersoff_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(tersoff)) THEN
-       DEALLOCATE(tersoff, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tersoff)
     END IF
     NULLIFY(tersoff)
   END SUBROUTINE pair_potential_tersoff_release
@@ -2328,13 +2250,11 @@ CONTAINS
       routineN = 'pair_potential_siepmann_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(siepmann))
-    ALLOCATE(siepmann, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(siepmann)
     CALL pair_potential_siepmann_clean(siepmann)
   END SUBROUTINE pair_potential_siepmann_create
 ! *****************************************************************************
@@ -2401,13 +2321,11 @@ CONTAINS
       routineN = 'pair_potential_siepmann_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(siepmann)) THEN
-       DEALLOCATE(siepmann, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(siepmann)
     END IF
     NULLIFY(siepmann)
   END SUBROUTINE pair_potential_siepmann_release

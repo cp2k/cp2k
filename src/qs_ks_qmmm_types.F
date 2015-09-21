@@ -80,7 +80,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     TYPE(pw_pool_type), POINTER              :: pool
 
@@ -98,14 +98,12 @@ CONTAINS
              DO i=1,SIZE(ks_qmmm_env%cube_info)
                 CALL destroy_cube_info(ks_qmmm_env%cube_info(i))
              END DO
-             DEALLOCATE(ks_qmmm_env%cube_info, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(ks_qmmm_env%cube_info)
           END IF
           IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
              CALL cp_dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h)
           END IF
-          DEALLOCATE(ks_qmmm_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ks_qmmm_env)
        END IF
     END IF
     NULLIFY(ks_qmmm_env)

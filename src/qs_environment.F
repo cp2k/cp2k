@@ -432,8 +432,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, &
-      maxlgto_lri, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, &
+    INTEGER :: handle, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, &
+      maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, &
       n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
@@ -840,8 +840,7 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
         dft_control%qs_control%method_id == do_method_lrigpw .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
-      ALLOCATE(dispersion_env,STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(dispersion_env)
       NULLIFY(xc_section)
       xc_section => section_vals_get_subs_vals(dft_section,"XC")
       CALL qs_dispersion_env_set(dispersion_env,xc_section)
@@ -856,8 +855,7 @@ CONTAINS
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN
-      ALLOCATE(dispersion_env,STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(dispersion_env)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -885,8 +883,7 @@ CONTAINS
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF (dft_control%qs_control%method_id == do_method_dftb) THEN
-      ALLOCATE(dispersion_env,STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(dispersion_env)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -914,8 +911,7 @@ CONTAINS
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
-      ALLOCATE(dispersion_env,STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(dispersion_env)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -1135,8 +1131,7 @@ CONTAINS
         dft_control%qs_control%do_almo_scf) THEN
       NULLIFY(mos)
     ELSE
-      ALLOCATE (mos(dft_control%nspins),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (mos(dft_control%nspins))
       DO ispin=1,dft_control%nspins
          NULLIFY (mos(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
@@ -1155,8 +1150,7 @@ CONTAINS
     IF( dft_control%do_admm ) THEN
       CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
                            basis_type="AUX_FIT")
-      ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (mos_aux_fit(dft_control%nspins))
 
       DO ispin=1,dft_control%nspins
          NULLIFY (mos_aux_fit(ispin)%mo_set)

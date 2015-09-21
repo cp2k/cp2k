@@ -105,13 +105,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'duplicate_mo_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, nmo
+    INTEGER                                  :: nmo
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    ALLOCATE (mo_set_new,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mo_set_new)
 
     mo_set_new%maxocc = mo_set_old%maxocc
     mo_set_new%nelectron = mo_set_old%nelectron
@@ -138,12 +137,10 @@ CONTAINS
     ENDIF
     mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
-    ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)
-    CPASSERT(istat == 0)
+    ALLOCATE (mo_set_new%eigenvalues(nmo))
     mo_set_new%eigenvalues = mo_set_old%eigenvalues
 
-    ALLOCATE (mo_set_new%occupation_numbers(nmo),STAT=istat)
-    CPASSERT(istat == 0)
+    ALLOCATE (mo_set_new%occupation_numbers(nmo))
     mo_set_new%occupation_numbers = mo_set_old%occupation_numbers
 
   END SUBROUTINE duplicate_mo_set
@@ -175,15 +172,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
-    ALLOCATE (mo_set,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mo_set)
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
@@ -225,7 +220,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_mo_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, nao, nmo, nomo
+    INTEGER                                  :: nao, nmo, nomo
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -241,12 +236,10 @@ CONTAINS
     CPASSERT(nao >= mo_set%nao)
     CPASSERT(nmo >= mo_set%nmo)
 
-    ALLOCATE (mo_set%eigenvalues(nmo),STAT=istat)
-    CPASSERT(istat == 0)
+    ALLOCATE (mo_set%eigenvalues(nmo))
     mo_set%eigenvalues(:) = 0.0_dp
 
-    ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
-    CPASSERT(istat == 0)
+    ALLOCATE (mo_set%occupation_numbers(nmo))
     ! Initialize MO occupations
     mo_set%occupation_numbers(:) =  0.0_dp
     ! Quick return, if no electrons are available
@@ -357,24 +350,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF (ASSOCIATED(mo_set)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
-        DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (mo_set%eigenvalues)
       END IF
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
-        DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (mo_set%occupation_numbers)
       END IF
       CALL cp_fm_release(mo_set%mo_coeff)
       IF(ASSOCIATED(mo_set%mo_coeff_b)) CALL cp_dbcsr_release_p(mo_set%mo_coeff_b)
-      DEALLOCATE (mo_set,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE (mo_set)
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -478,8 +467,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
     IF (PRESENT(homo)) mo_set%homo = homo
     IF (PRESENT(lfomo)) mo_set%lfomo = lfomo
@@ -489,15 +476,13 @@ CONTAINS
     IF (PRESENT(nmo)) mo_set%nmo = nmo
     IF (PRESENT(eigenvalues)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
-        DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(mo_set%eigenvalues)
       END IF
       mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
-        DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(mo_set%occupation_numbers)
       END IF
       mo_set%occupation_numbers => occupation_numbers
     END IF

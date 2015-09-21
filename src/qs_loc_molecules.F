@@ -75,7 +75,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
     INTEGER :: akind, counter, first_atom, i, iatom, ikind, imol, imol_now, &
       istate, j, local_location, natom, natom_loc, natom_max, nkind, nmol, &
-      nstate, output_unit, reference, stat
+      nstate, output_unit, reference
     INTEGER, POINTER                         :: wfc_to_atom_map( : )
     LOGICAL                                  :: do_berry, failure, ghost
     REAL(KIND=dp)                            :: charge_tot, dipole(3), dr(3), &
@@ -119,8 +119,7 @@ CONTAINS
     para_env     => qs_loc_env%para_env
     local_molecules => qs_loc_env%local_molecules
     nstate = SIZE ( center, 2 )
-    ALLOCATE(wfc_to_atom_map(nstate),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wfc_to_atom_map(nstate))
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     nkind = SIZE (local_molecules%n_el)
@@ -134,14 +133,12 @@ CONTAINS
           CALL get_molecule_kind(molecule_kind=molecule_kind,natom=natom)
           natom_max = natom_max + natom
           IF (.NOT.ASSOCIATED(molecule_set(i)%lmi)) THEN
-             ALLOCATE(molecule_set(i)%lmi,STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(molecule_set(i)%lmi)
              NULLIFY(molecule_set(i)%lmi%states)
           ENDIF
           molecule_set(i)%lmi%nstates=0
           IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
-             DEALLOCATE(molecule_set(i)%lmi%states,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(molecule_set(i)%lmi%states)
           END IF
        END DO
     END DO
@@ -150,11 +147,9 @@ CONTAINS
 
     CALL mp_max(natom_max,para_env%group)
 
-    ALLOCATE(r(3,natom_max),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(r(3,natom_max))
 
-    ALLOCATE(distance(natom_max),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(distance(natom_max))
 
     !Zero all the stuff
     r(:,:) = 0.0_dp
@@ -367,13 +362,10 @@ CONTAINS
     ! end of molecular dipole calculation
     !---------------------------------------------------------------------------
 
-    DEALLOCATE(distance,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(distance)
+    DEALLOCATE(r)
 
-    DEALLOCATE(wfc_to_atom_map,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wfc_to_atom_map)
 
   END SUBROUTINE wfc_to_molecule
   !------------------------------------------------------------------------------

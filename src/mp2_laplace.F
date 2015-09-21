@@ -91,7 +91,7 @@ MODULE mp2_laplace
 
     INTEGER :: avirt, handle, i_global, ierr, iiB, iocc, j_global, jjB, &
       jquad, my_num_dgemm_call, ncol_local, nrow_local, number_of_rec, &
-      number_of_rec_beta, number_of_send, number_of_send_beta, stat
+      number_of_rec_beta, number_of_send, number_of_send_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_rec_size, &
                                                 map_rec_size_beta, &
                                                 map_send_size, &
@@ -123,8 +123,7 @@ MODULE mp2_laplace
        PRESENT(fm_mat_Q_beta)) my_open_shell=.TRUE.
 
     ! Calculate weights and exponents with minimax approximation
-    ALLOCATE(awj(2*num_integ_points),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(awj(2*num_integ_points))
     awj=0.0_dp
 
     Emin=2.0_dp*(Eigenval(homo+1)-Eigenval(homo))
@@ -143,11 +142,9 @@ MODULE mp2_laplace
     ierr=0
     CALL get_minimax_coeff(num_integ_points,E_Range,awj,ierr)
 
-    ALLOCATE(aj(num_integ_points),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(aj(num_integ_points))
     aj=0.0_dp
-    ALLOCATE(wj(num_integ_points),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wj(num_integ_points))
     wj=0.0_dp
 
     DO jquad=1, num_integ_points

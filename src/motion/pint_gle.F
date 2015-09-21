@@ -89,7 +89,7 @@ MODULE pint_gle
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iadd, ib, ideg, idim, &
-                                                imap, istat, ndim, num
+                                                imap, ndim, num
     REAL(dp)                                 :: alpha, beta, mf, rr
     REAL(dp), DIMENSION(:, :), POINTER       :: a_mat, e_tmp, h_tmp, s_tmp
     TYPE(gle_type), POINTER                  :: gle
@@ -101,13 +101,10 @@ MODULE pint_gle
     NULLIFY( rng_stream)
     ndim = gle%ndim
 
-    ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPASSERT(istat==0)
+    ALLOCATE (s_tmp(ndim,gle%loc_num_gle))
     s_tmp = 0.0_dp
-    ALLOCATE (e_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPASSERT(istat==0)
-    ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPASSERT(istat==0)
+    ALLOCATE (e_tmp(ndim,gle%loc_num_gle))
+    ALLOCATE (h_tmp(ndim,gle%loc_num_gle))
 
     DO ideg = 1,gle%loc_num_gle
        imap = gle%map_info%index(ideg)
@@ -154,8 +151,7 @@ MODULE pint_gle
                -0.5_dp*pint_env%mass_fict(ib,idim)*gle%nvt(ideg)%s(1)**2
     END DO
        pint_env%e_kin_t=0.0_dp
-    DEALLOCATE(e_tmp,s_tmp,h_tmp,STAT=istat)
-       CPASSERT(istat==0)
+    DEALLOCATE(e_tmp,s_tmp,h_tmp)
     CALL timestop(handle)
   END SUBROUTINE
 END MODULE

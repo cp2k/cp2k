@@ -127,7 +127,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, &
       jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, &
-      nspins, stat
+      nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
@@ -208,8 +208,7 @@ CONTAINS
        natom = SIZE (particle_set)
        delta = se_control%delta
        ! Allocate atom index for kind
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
@@ -230,8 +229,7 @@ CONTAINS
 
     ecore2   = 0.0_dp
     itype    = get_se_type(dft_control%qs_control%method_id)
-    ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind))
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
@@ -455,8 +453,7 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE(se_kind_list,se_defined,se_natorb,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(se_kind_list,se_defined,se_natorb)
 
     DO ispin = 1, nspins
        CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix)
@@ -468,8 +465,7 @@ CONTAINS
     CALL cp_dbcsr_deallocate_matrix_set ( diagmat_ks)
 
     IF (calculate_forces) THEN
-       DEALLOCATE(atom_of_kind,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_of_kind)
     END IF
 
     ! Two-centers one-electron terms
@@ -508,7 +504,7 @@ CONTAINS
 
     INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, &
       ilist, indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
-      nlocal_particles, node, nparticle_local, nspins, size_1c_int, stat
+      nlocal_particles, node, nparticle_local, nspins, size_1c_int
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
                                                 failure, found, use_virial
@@ -709,15 +705,12 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env, force=force)
 
        ! Allocate atom index for kind
-       ALLOCATE (atom_of_kind(natoms),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natoms))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
        ! Allocate and zeroing arrays
-       ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( forces_r(3, natoms), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( forces_g(3, forces_g_size))
+       ALLOCATE ( forces_r(3, natoms))
        forces_g = 0.0_dp
        forces_r = 0.0_dp
        CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
@@ -841,12 +834,9 @@ CONTAINS
 
     ! Set the Fock matrix contribution to SCP
     IF (calculate_forces) THEN
-       DEALLOCATE(atom_of_kind,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(forces_g,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(forces_r,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_of_kind)
+       DEALLOCATE(forces_g)
+       DEALLOCATE(forces_r)
     END IF
 
 
@@ -894,7 +884,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, itype, jatom, &
       jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins, &
-      size1, size2, stat
+      size1, size2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
@@ -968,25 +958,21 @@ CONTAINS
        natom = SIZE (particle_set)
        delta = se_control%delta
        ! Allocate atom index for kind
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
     ! Allocate arrays for storing partial information on potential, field, field gradient
     size1 = SIZE(se_nddo_mpole%efield0)
-    ALLOCATE (efield0(size1), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (efield0(size1))
     efield0 = 0.0_dp
     size1 = SIZE(se_nddo_mpole%efield1,1)
     size2 = SIZE(se_nddo_mpole%efield1,2)
-    ALLOCATE (efield1(size1,size2), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (efield1(size1,size2))
     efield1 = 0.0_dp
     size1 = SIZE(se_nddo_mpole%efield2,1)
     size2 = SIZE(se_nddo_mpole%efield2,2)
-    ALLOCATE (efield2(size1,size2), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (efield2(size1,size2))
     efield2 = 0.0_dp
 
     ! Initialize if virial is requested
@@ -1001,8 +987,7 @@ CONTAINS
     enuclear = 0.0_dp
     itype    = get_se_type(dft_control%qs_control%method_id)
 
-    ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind))
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
@@ -1210,8 +1195,7 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE(se_kind_list,se_defined,se_natorb,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(se_kind_list,se_defined,se_natorb)
 
     ! Sum-up Virial constribution (long-range correction)
     IF (use_virial) THEN
@@ -1227,8 +1211,7 @@ CONTAINS
     END IF
 
     IF (calculate_forces) THEN
-       DEALLOCATE(atom_of_kind,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_of_kind)
     END IF
 
     ! collect information on potential, field, field gradient
@@ -1239,12 +1222,9 @@ CONTAINS
     se_nddo_mpole%efield1 = se_nddo_mpole%efield1 - efield1
     se_nddo_mpole%efield2 = se_nddo_mpole%efield2 - efield2
     ! deallocate working arrays
-    DEALLOCATE (efield0, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (efield1, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (efield2, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (efield0)
+    DEALLOCATE (efield1)
+    DEALLOCATE (efield2)
 
     ! Corrections for two-centers one-electron terms + nuclear terms
     CALL mp_sum(enuclear,para_env%group)
@@ -1279,7 +1259,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, ikind, inode, &
       ispin, itype, jatom, jkind, natoms, natorb_a, natorb_a2, natorb_b, &
-      natorb_b2, nkind, nlocal_particles, nspins, stat
+      natorb_b2, nkind, nlocal_particles, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
@@ -1381,16 +1361,14 @@ CONTAINS
     ! Possibly compute forces
     IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,force=force)
-       ALLOCATE (atom_of_kind(natoms),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natoms))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     itype = get_se_type(dft_control%qs_control%method_id)
 
     ecore2   = 0.0_dp
     ! Real space part of the 1/R^3 sum
-    ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind))
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
@@ -1573,8 +1551,7 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE(se_kind_list,se_defined,se_natorb,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(se_kind_list,se_defined,se_natorb)
 
     DO ispin = 1, nspins
        CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix)
@@ -1586,8 +1563,7 @@ CONTAINS
     CALL cp_dbcsr_deallocate_matrix_set ( diagmat_ks)
 
     IF (calculate_forces) THEN
-       DEALLOCATE(atom_of_kind,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_of_kind)
     END IF
 
     ! Two-centers one-electron terms

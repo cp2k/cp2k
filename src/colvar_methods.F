@@ -507,8 +507,7 @@ CONTAINS
                colvar%reaction_path_param%n_components)
           CALL section_vals_val_get(path_section,"SUBSET_TYPE",i_val=colvar%reaction_path_param%subset)
           IF (colvar%reaction_path_param%subset==rmsd_all) THEN
-             ALLOCATE(colvar%reaction_path_param%i_rmsd(colvar%reaction_path_param%n_components),STAT=stat)
-             CPASSERT(stat == 0)
+             ALLOCATE(colvar%reaction_path_param%i_rmsd(colvar%reaction_path_param%n_components))
              DO i = 1, colvar%reaction_path_param%n_components
                 colvar%reaction_path_param%i_rmsd(i) = i
              END DO
@@ -536,8 +535,7 @@ CONTAINS
        ELSE
           colvar_subsection => section_vals_get_subs_vals(path_section,"COLVAR")
           CALL section_vals_get(colvar_subsection,n_repetition=ncol)
-          ALLOCATE(colvar%reaction_path_param%colvar_p(ncol),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(colvar%reaction_path_param%colvar_p(ncol))
           IF (ncol>0) THEN
              DO i= 1, ncol
                 NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
@@ -557,8 +555,7 @@ CONTAINS
           colvar%reaction_path_param%function_bounds(1)=istart
           colvar%reaction_path_param%function_bounds(2)=iend
           colvar%reaction_path_param%nr_frames= 2 !iend - istart + 1
-          ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
-          CPASSERT(stat == 0)
+          ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend))
           CALL section_vals_val_get(path_section,"VARIABLE",c_vals=my_par,i_rep_val=1)
           CALL section_vals_val_get(path_section,"FUNCTION",n_rep_val=ncol)
           check = (ncol==SIZE(colvar%reaction_path_param%colvar_p))
@@ -579,46 +576,34 @@ CONTAINS
                "MAP",middle_name=fmid,extension=".dat",file_status="REPLACE")
           IF(iw1>0)THEN
              CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",n_rep_val=ncol)
-             ALLOCATE(grid_sp(ncol),stat=stat)
-             CPASSERT(stat == 0)
+             ALLOCATE(grid_sp(ncol))
              DO i=1,ncol
                 CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",r_val=grid_sp(i))
              END DO
              CALL section_vals_val_get(path_section,"MAP%RANGE",n_rep_val=ncol)
              CPASSERT(ncol ==SIZE(grid_sp))
-             ALLOCATE(p_range(2,ncol),stat=stat)
-             CPASSERT(stat == 0)
-             ALLOCATE(p_bounds(2,ncol),stat=stat)
-             CPASSERT(stat == 0)
+             ALLOCATE(p_range(2,ncol))
+             ALLOCATE(p_bounds(2,ncol))
              DO i=1,ncol
                 CALL section_vals_val_get(path_section,"MAP%RANGE",r_vals=g_range)
                 p_range(:,i)=g_range(:)
                 p_bounds(2,i)=CEILING( MAX(p_range(1,i),p_range(2,i))/grid_sp(i))
                 p_bounds(1,i)=FLOOR(MIN(p_range(1,i) , p_range(2,i))/grid_sp(i))
              END DO
-             ALLOCATE(s1v(2,istart:iend),stat=stat)
-             CPASSERT(stat == 0)
-             ALLOCATE(s1(2),stat=stat)
-             CPASSERT(stat == 0)
-             ALLOCATE(grid_point(ncol),stat=stat)
-             CPASSERT(stat == 0)
+             ALLOCATE(s1v(2,istart:iend))
+             ALLOCATE(s1(2))
+             ALLOCATE(grid_point(ncol))
              v_count=0
              kk=rec_eval_grid(iw1,ncol,colvar%reaction_path_param%f_vals,v_count,&
                   grid_point,grid_sp,colvar%reaction_path_param%step_size,istart,&
                   iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda,ifunc=ifunc,&
                   nconf=colvar%reaction_path_param%nr_frames)
-             DEALLOCATE(grid_sp,stat=stat)
-             CPASSERT(stat == 0)
-             DEALLOCATE(p_range,stat=stat)
-             CPASSERT(stat == 0)
-             DEALLOCATE(p_bounds,stat=stat)
-             CPASSERT(stat == 0)
-             DEALLOCATE(s1v,stat=stat)
-             CPASSERT(stat == 0)
-             DEALLOCATE(s1,stat=stat)
-             CPASSERT(stat == 0)
-             DEALLOCATE(grid_point,stat=stat)
-             CPASSERT(stat == 0)
+             DEALLOCATE(grid_sp)
+             DEALLOCATE(p_range)
+             DEALLOCATE(p_bounds)
+             DEALLOCATE(s1v)
+             DEALLOCATE(s1)
+             DEALLOCATE(grid_point)
           END IF
           CALL cp_print_key_finished_output(iw1,logger,path_section,&
                "MAP")
@@ -630,8 +615,7 @@ CONTAINS
        colvar%use_points=.FALSE.
        colvar_subsection => section_vals_get_subs_vals(combine_section,"COLVAR")
        CALL section_vals_get(colvar_subsection,n_repetition=ncol)
-       ALLOCATE(colvar%combine_cvs_param%colvar_p(ncol),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%combine_cvs_param%colvar_p(ncol))
        ! In case we need to print some information..
        iw = cp_print_key_unit_nr(logger,colvar_section,&
             "PRINT%PROGRAM_RUN_INFO",extension=".colvarLog")
@@ -653,8 +637,7 @@ CONTAINS
        CALL compress(colvar%combine_cvs_param%function, full=.TRUE.)
        ! Variables
        CALL section_vals_val_get(combine_section,"VARIABLES",c_vals=my_par)
-       ALLOCATE(colvar%combine_cvs_param%variables(SIZE(my_par)),stat=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(colvar%combine_cvs_param%variables(SIZE(my_par)))
        colvar%combine_cvs_param%variables = my_par
        ! Check that the number of COLVAR provided is equal to the number of variables..
        CALL cp_assert(SIZE(my_par)==ncol,cp_fatal_level,cp_assertion_failed,routineP,&
@@ -663,8 +646,7 @@ CONTAINS
             "and avoid their usage in the combininig function!"//&
 CPSourceFileRef)
        ! Parameters
-       ALLOCATE(colvar%combine_cvs_param%c_parameters(0),stat=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(colvar%combine_cvs_param%c_parameters(0))
        CALL section_vals_val_get(combine_section,"PARAMETERS",n_rep_val=ncol)
        DO i = 1,ncol
           isize = SIZE(colvar%combine_cvs_param%c_parameters)
@@ -672,8 +654,7 @@ CPSourceFileRef)
           CALL reallocate(colvar%combine_cvs_param%c_parameters,1,isize+SIZE(my_par))
           colvar%combine_cvs_param%c_parameters(isize+1:isize+SIZE(my_par)) = my_par
        END DO
-       ALLOCATE(colvar%combine_cvs_param%v_parameters(0),stat=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(colvar%combine_cvs_param%v_parameters(0))
        CALL section_vals_val_get(combine_section,"VALUES",n_rep_val=ncol)
        DO i = 1,ncol
           isize = SIZE(colvar%combine_cvs_param%v_parameters)
@@ -849,14 +830,12 @@ CPSourceFileRef)
        CALL read_frames(frame_section,para_env,nr_frame,colvar%rmsd_param%r_ref,&
               colvar%rmsd_param%n_atoms)
 
-       ALLOCATE(colvar%rmsd_param%weights(colvar%rmsd_param%n_atoms), STAT=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(colvar%rmsd_param%weights(colvar%rmsd_param%n_atoms))
        colvar%rmsd_param%weights = 0.0_dp
 
        CALL section_vals_val_get(rmsd_section,"SUBSET_TYPE",i_val=colvar%rmsd_param%subset)
        IF (colvar%rmsd_param%subset==rmsd_all) THEN
-          ALLOCATE(colvar%rmsd_param%i_rmsd(colvar%rmsd_param%n_atoms),STAT=stat)
-          CPASSERT(stat == 0)
+          ALLOCATE(colvar%rmsd_param%i_rmsd(colvar%rmsd_param%n_atoms))
           DO i = 1, colvar%rmsd_param%n_atoms
              colvar%rmsd_param%i_rmsd(i) = i
           END DO
@@ -912,8 +891,7 @@ CPSourceFileRef)
                 ii = colvar%rmsd_param%i_rmsd(i)
                 colvar%rmsd_param%weights(ii) = weights(i)
              END DO
-             DEALLOCATE (weights, STAT=stat)
-             CPASSERT(stat == 0)
+             DEALLOCATE (weights)
           ELSE
              CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
                   "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. "//&
@@ -976,10 +954,8 @@ CPSourceFileRef)
        colvar%HBP%rcut = cp_unit_to_cp2k(my_val(1),"angstrom")
        CALL section_vals_val_get(wrk_section,"RCUT",r_val=colvar%HBP%shift)
 
-       ALLOCATE(colvar%HBP%ids(colvar%HBP%nPoints,3),STAT=stat)
-       CPASSERT(stat == 0)
-       ALLOCATE(colvar%HBP%ewc(colvar%HBP%nPoints),STAT=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(colvar%HBP%ids(colvar%HBP%nPoints,3))
+       ALLOCATE(colvar%HBP%ewc(colvar%HBP%nPoints))
        DO i = 1, colvar%HBP%nPoints
         CALL section_vals_val_get(wrk_section,"ATOMS",i_rep_val=i,i_vals=iatms)
         colvar%HBP%ids(i,:) = iatms
@@ -989,8 +965,7 @@ CPSourceFileRef)
        CALL colvar_create(colvar,ring_puckering_colvar_id)
        CALL section_vals_val_get(ring_puckering_section,"ATOMS",i_vals=iatms)
        colvar%ring_puckering_param%nring = SIZE(iatms)
-       ALLOCATE(colvar%ring_puckering_param%atoms(SIZE(iatms)),stat=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE(colvar%ring_puckering_param%atoms(SIZE(iatms)))
        colvar%ring_puckering_param%atoms = iatms
        CALL section_vals_val_get(ring_puckering_section,"COORDINATE",&
             i_val=colvar%ring_puckering_param%iq)
@@ -1385,7 +1360,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, irep, natoms, npoints, &
-                                                nrep, nweights, stat
+                                                nrep, nweights
     INTEGER, DIMENSION(:), POINTER           :: atoms
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
@@ -1401,8 +1376,7 @@ CPSourceFileRef)
     IF (explicit) THEN
        colvar%use_points = .TRUE.
        CALL section_vals_get(point_sections,n_repetition=npoints)
-       ALLOCATE(colvar%points(npoints),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(colvar%points(npoints))
        ! Read points definition
        DO i = 1, npoints
           natoms = 0
@@ -1418,8 +1392,7 @@ CPSourceFileRef)
                CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms)
                natoms = natoms + SIZE(atoms)
              END DO
-             ALLOCATE(colvar%points(i)%atoms(natoms),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(colvar%points(i)%atoms(natoms))
              natoms = 0
              DO irep=1,nrep
                CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms)
@@ -1427,8 +1400,7 @@ CPSourceFileRef)
                natoms = natoms + SIZE(atoms)
              END DO
              ! Define weights of the list
-             ALLOCATE(colvar%points(i)%weights(natoms),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(colvar%points(i)%weights(natoms))
              colvar%points(i)%weights = 1.0_dp/REAL(natoms,KIND=dp)
              CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,n_rep_val=nrep)
              IF (nrep/=0) THEN
@@ -1991,8 +1963,7 @@ CPSourceFileRef)
       DIMENSION(:), POINTER                  :: parameters
     INTEGER                                  :: iatom, iforce_eval, &
                                                 iparticle, jparticle, natom, &
-                                                natom_iforce, nforce_eval, &
-                                                stat
+                                                natom_iforce, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dedf, dx, err, fi(3), lerr, &
@@ -2042,15 +2013,11 @@ CPSourceFileRef)
           mapping_section => section_vals_get_subs_vals(force_env_section,"MIXED%MAPPING")
           NULLIFY(values, parameters, subsystems, particles, global_forces, map_index, glob_natoms)
           nforce_eval = SIZE(force_env%sub_force_env)
-          ALLOCATE(glob_natoms(nforce_eval), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(subsystems(nforce_eval), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(particles(nforce_eval), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(glob_natoms(nforce_eval))
+          ALLOCATE(subsystems(nforce_eval))
+          ALLOCATE(particles(nforce_eval))
           ! Local Info to sync
-          ALLOCATE(global_forces(nforce_eval), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(global_forces(nforce_eval))
 
           glob_natoms=0
           DO iforce_eval = 1, nforce_eval
@@ -2079,8 +2046,7 @@ CPSourceFileRef)
 
           ! Transfer forces
           DO iforce_eval = 1, nforce_eval
-             ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)))
              global_forces(iforce_eval)%forces = 0.0_dp
              IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
                 IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
@@ -2132,27 +2098,19 @@ CPSourceFileRef)
              END DO
              ! Deallocate map_index array
              IF (ASSOCIATED(map_index)) THEN
-                DEALLOCATE(map_index, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(map_index)
              END IF
           END DO
           CALL finalizef()
           DO iforce_eval = 1, nforce_eval
-             DEALLOCATE(global_forces(iforce_eval)%forces,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(global_forces(iforce_eval)%forces)
           END DO
-          DEALLOCATE(glob_natoms, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(values, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(parameters, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(global_forces, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(subsystems, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(particles, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(glob_natoms)
+          DEALLOCATE(values)
+          DEALLOCATE(parameters)
+          DEALLOCATE(global_forces)
+          DEALLOCATE(subsystems)
+          DEALLOCATE(particles)
        END IF
     ELSE
         CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -3154,7 +3112,7 @@ CPSourceFileRef)
 
     INTEGER                                  :: i, ii, jj, n_hydrogens, &
                                                 n_oxygens, p, pnh, pno, q, &
-                                                qnh, qno, stat
+                                                qnh, qno
     LOGICAL                                  :: failure
     REAL(dp)                                 :: fscalar, invden, lambda, nh, &
                                                 num, qtot, r12, r_OH, r_OO, &
@@ -3194,22 +3152,15 @@ CPSourceFileRef)
        my_particles => particles_i%els
     END IF
 
-    ALLOCATE ( dfunc_nh ( 3, n_oxygens, n_hydrogens ), stat=stat )
-    CPASSERT(stat == 0)
-    ALLOCATE ( nhcoord  ( n_oxygens), stat=stat )
-    CPASSERT(stat == 0)
-    ALLOCATE ( M (  n_oxygens ), stat=stat )
-    CPASSERT(stat == 0)
-    ALLOCATE ( dM ( 3, n_oxygens,n_hydrogens ), stat=stat )
-    CPASSERT(stat == 0)
+    ALLOCATE ( dfunc_nh ( 3, n_oxygens, n_hydrogens ))
+    ALLOCATE ( nhcoord  ( n_oxygens))
+    ALLOCATE ( M (  n_oxygens ))
+    ALLOCATE ( dM ( 3, n_oxygens,n_hydrogens ))
 
-    ALLOCATE ( dfunc_no ( 3, n_oxygens, n_oxygens ), stat=stat )
-    CPASSERT(stat == 0)
-    ALLOCATE ( no       (  n_oxygens), stat=stat )
-    CPASSERT(stat == 0)
+    ALLOCATE ( dfunc_no ( 3, n_oxygens, n_oxygens ))
+    ALLOCATE ( no       (  n_oxygens))
 
-    ALLOCATE ( qloc (  n_oxygens), stat=stat )
-    CPASSERT(stat == 0)
+    ALLOCATE ( qloc (  n_oxygens))
 
     ! Zero Arrays:
     dfunc_nh = 0._dp
@@ -3321,20 +3272,13 @@ CPSourceFileRef)
     END DO
 
     colvar%ss=LOG(qtot)/lambda
-    DEALLOCATE ( dfunc_nh, stat=stat )
-    CPASSERT(stat == 0)
-    DEALLOCATE ( nhcoord, stat=stat )
-    CPASSERT(stat == 0)
-    DEALLOCATE ( M, stat=stat )
-    CPASSERT(stat == 0)
-    DEALLOCATE ( dM, stat=stat )
-    CPASSERT(stat == 0)
-    DEALLOCATE ( dfunc_no, stat=stat )
-    CPASSERT(stat == 0)
-    DEALLOCATE ( no, stat=stat )
-    CPASSERT(stat == 0)
-    DEALLOCATE ( qloc, stat=stat )
-    CPASSERT(stat == 0)
+    DEALLOCATE ( dfunc_nh)
+    DEALLOCATE ( nhcoord)
+    DEALLOCATE ( M)
+    DEALLOCATE ( dM)
+    DEALLOCATE ( dfunc_no)
+    DEALLOCATE ( no)
+    DEALLOCATE ( qloc)
   END SUBROUTINE hydronium_colvar
 
 ! *****************************************************************************
@@ -3494,8 +3438,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, j, jj, n_coord_from, &
-                                                n_coord_to, n_dist_from, p, &
-                                                q, stat
+                                                n_coord_to, n_dist_from, p, q
     LOGICAL                                  :: failure
     REAL(dp) :: den_n, den_Q, fscalar, ftemp_i(3), inv_den_n, inv_den_Q, &
       lambda, num_n, num_Q, Qfunc, r12, r_cut, rfact, rij(3), rpi(3), rpj(3)
@@ -3529,18 +3472,12 @@ CPSourceFileRef)
 
 
     NULLIFY(nLcoord,dnLcoord,dqfunc_dr,dqfunc_dnL,expnL,sum_rij)
-    ALLOCATE (nLcoord(n_coord_from),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE (dnLcoord(3,n_coord_from,n_coord_to),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE (expnL(n_coord_from),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE (sum_rij(n_coord_from),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE (dqfunc_dr(3,n_dist_from,n_coord_from),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE (dqfunc_dnL(n_coord_from),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE (nLcoord(n_coord_from))
+    ALLOCATE (dnLcoord(3,n_coord_from,n_coord_to))
+    ALLOCATE (expnL(n_coord_from))
+    ALLOCATE (sum_rij(n_coord_from))
+    ALLOCATE (dqfunc_dr(3,n_dist_from,n_coord_from))
+    ALLOCATE (dqfunc_dnL(n_coord_from))
 
     ! coordination numbers
     nLcoord = 0.0_dp
@@ -3648,18 +3585,12 @@ CPSourceFileRef)
 
 
 
-    DEALLOCATE(nLcoord,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(dnLcoord,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE (expnL,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE (dqfunc_dr,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE (sum_rij,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE (dqfunc_dnL,stat=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(nLcoord)
+    DEALLOCATE(dnLcoord)
+    DEALLOCATE (expnL)
+    DEALLOCATE (dqfunc_dr)
+    DEALLOCATE (sum_rij)
+    DEALLOCATE (dqfunc_dnL)
 
   END SUBROUTINE mindist_colvar
 
@@ -3684,7 +3615,7 @@ CPSourceFileRef)
     CHARACTER(LEN=default_string_length)     :: def_error, this_error
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: my_par
-    INTEGER                                  :: i, ii, j, ncolv, ndim, stat
+    INTEGER                                  :: i, ii, j, ncolv, ndim
     LOGICAL                                  :: failure
     REAL(dp)                                 :: err
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dss_vals, my_val, ss_vals
@@ -3704,10 +3635,8 @@ CPSourceFileRef)
     END IF
 
     ncolv=SIZE(colvar%combine_cvs_param%colvar_p)
-    ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(dss_vals(ncolv),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(ss_vals(ncolv))
+    ALLOCATE(dss_vals(ncolv))
 
     ! Evaluate the individual COLVARs
     DO i=1,ncolv
@@ -3719,12 +3648,10 @@ CPSourceFileRef)
     CALL initf(1)
     ndim = SIZE(colvar%combine_cvs_param%c_parameters)+&
            SIZE(colvar%combine_cvs_param%variables)
-    ALLOCATE(my_par(ndim),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(my_par(ndim))
     my_par(1:SIZE(colvar%combine_cvs_param%variables)) =colvar%combine_cvs_param%variables
     my_par(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%c_parameters
-    ALLOCATE(my_val(ndim),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(my_val(ndim))
     my_val(1:SIZE(colvar%combine_cvs_param%variables)) =ss_vals
     my_val(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%v_parameters
     CALL parsef(1,TRIM(colvar%combine_cvs_param%function),my_par)
@@ -3744,15 +3671,12 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
        END IF
     END DO
-    DEALLOCATE(my_val,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(my_par,stat=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(my_val)
+    DEALLOCATE(my_par)
     CALL finalizef()
 
     ! Evaluate forces
-    ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,colvar%n_atom_s))
     ii=0
     DO i=1,ncolv
        DO j=1,colvar%combine_cvs_param%colvar_p(i)%colvar%n_atom_s
@@ -3765,12 +3689,9 @@ CPSourceFileRef,&
        CALL put_derivative(colvar,i,fi(:,i))
     END DO
 
-    DEALLOCATE(fi,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ss_vals,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(dss_vals,stat=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(ss_vals)
+    DEALLOCATE(dss_vals)
   END SUBROUTINE combine_colvar
 
 ! *****************************************************************************
@@ -3842,7 +3763,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iend, ii, istart, j, k, &
-                                                ncolv, nconf, stat
+                                                ncolv, nconf
     REAL(dp)                                 :: lambda, step_size
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s1, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, f_vals, fi, s1v
@@ -3856,26 +3777,20 @@ CPSourceFileRef,&
     step_size=colvar%reaction_path_param%step_size
     ncolv=colvar%reaction_path_param%n_components
     lambda=colvar%reaction_path_param%lambda
-    ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(f_vals(ncolv,istart:iend))
     f_vals(:,:)=colvar%reaction_path_param%f_vals
-    ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(ss_vals(ncolv))
 
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles)
        ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
     ENDDO
 
-    ALLOCATE(s1v(2,istart:iend),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1v(ncolv,2,istart:iend),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(s1v(2,istart:iend))
+    ALLOCATE(ds1v(ncolv,2,istart:iend))
 
-    ALLOCATE(s1(2),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1(ncolv,2),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(s1(2))
+    ALLOCATE(ds1(ncolv,2))
 
     DO k=istart,iend
        s1v(1,k)=REAL(k,kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
@@ -3894,8 +3809,7 @@ CPSourceFileRef,&
 
     colvar%ss=s1(1)/s1(2)/REAL(nconf-1,dp)
 
-    ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,colvar%n_atom_s))
 
     ii=0
     DO i=1,ncolv
@@ -3910,20 +3824,13 @@ CPSourceFileRef,&
        CALL put_derivative(colvar,i,fi(:,i))
     END DO
 
-    DEALLOCATE(fi,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(f_vals,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ss_vals,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1v,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1v,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1,stat=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(f_vals)
+    DEALLOCATE(ss_vals)
+    DEALLOCATE(s1v)
+    DEALLOCATE(ds1v)
+    DEALLOCATE(s1)
+    DEALLOCATE(ds1)
 
   END SUBROUTINE rpath_colvar
 
@@ -3945,7 +3852,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
-                                                rmsd_atom, stat
+                                                rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1(2), &
@@ -3968,22 +3875,14 @@ CPSourceFileRef,&
 
     natom = SIZE(particles)
 
-    ALLOCATE(r0(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(r(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(vec_dif(rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(dvec_dif(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(s1v(2,nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1v(3,rmsd_atom,2,nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1(3,rmsd_atom,2),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(r0(3*natom))
+    ALLOCATE(r(3*natom))
+    ALLOCATE(riat(3,rmsd_atom))
+    ALLOCATE(vec_dif(rmsd_atom))
+    ALLOCATE(dvec_dif(3,rmsd_atom))
+    ALLOCATE(s1v(2,nconf))
+    ALLOCATE(ds1v(3,rmsd_atom,2,nconf))
+    ALLOCATE(ds1(3,rmsd_atom,2))
     DO i = 1,natom
       ii = (i-1)*3
       r0(ii+1) = particles(i)%r(1)
@@ -4041,8 +3940,7 @@ CPSourceFileRef,&
 
     colvar%ss = s1(1)/s1(2)/REAL(nconf-1,dp)
 
-    ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,rmsd_atom))
 
     DO iat = 1,rmsd_atom
       fi(1,iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
@@ -4051,24 +3949,15 @@ CPSourceFileRef,&
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
 
-    DEALLOCATE(fi,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r0,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(riat,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(vec_dif,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(dvec_dif,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1,STAT=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(r0)
+    DEALLOCATE(r)
+    DEALLOCATE(riat)
+    DEALLOCATE(vec_dif)
+    DEALLOCATE(dvec_dif)
+    DEALLOCATE(s1v)
+    DEALLOCATE(ds1v)
+    DEALLOCATE(ds1)
 
   END SUBROUTINE rpath_dist_rmsd
 
@@ -4087,7 +3976,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
-                                                rmsd_atom, stat
+                                                rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1(2)
@@ -4112,23 +4001,15 @@ CPSourceFileRef,&
 
     natom = SIZE(particles)
 
-    ALLOCATE(r0(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(r(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(s1v(2,nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1v(3,rmsd_atom,2,nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1(3,rmsd_atom,2),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(drmsd(3,natom),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(r0(3*natom))
+    ALLOCATE(r(3*natom))
+    ALLOCATE(riat(3,rmsd_atom))
+    ALLOCATE(s1v(2,nconf))
+    ALLOCATE(ds1v(3,rmsd_atom,2,nconf))
+    ALLOCATE(ds1(3,rmsd_atom,2))
+    ALLOCATE(drmsd(3,natom))
     drmsd = 0.0_dp
-    ALLOCATE (weight(natom),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE (weight(natom))
 
     DO i = 1,natom
       ii = (i-1)*3
@@ -4186,8 +4067,7 @@ CPSourceFileRef,&
 
    colvar%ss = s1(1)/s1(2)/REAL(nconf-1,dp)
 
-    ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,rmsd_atom))
 
     DO iat = 1,rmsd_atom
       fi(1,iat) = -lambda/s1(2)/REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
@@ -4196,24 +4076,15 @@ CPSourceFileRef,&
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
 
-    DEALLOCATE(fi,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r0,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(riat,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(drmsd,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(weight,STAT=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(r0)
+    DEALLOCATE(r)
+    DEALLOCATE(riat)
+    DEALLOCATE(s1v)
+    DEALLOCATE(ds1v)
+    DEALLOCATE(ds1)
+    DEALLOCATE(drmsd)
+    DEALLOCATE(weight)
 
   END SUBROUTINE  rpath_rmsd
 
@@ -4283,7 +4154,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iend, ii, istart, j, k, &
-                                                ncolv, stat
+                                                ncolv
     REAL(dp)                                 :: lambda, s1
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ds1, s1v, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1v, f_vals, fi
@@ -4293,23 +4164,18 @@ CPSourceFileRef,&
 
     ncolv=colvar%reaction_path_param%n_components
     lambda=colvar%reaction_path_param%lambda
-    ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(f_vals(ncolv,istart:iend))
     f_vals(:,:)=colvar%reaction_path_param%f_vals
-    ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(ss_vals(ncolv))
 
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles)
        ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
     ENDDO
 
-    ALLOCATE(s1v(istart:iend),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1v(ncolv,istart:iend),stat=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1(ncolv),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(s1v(istart:iend))
+    ALLOCATE(ds1v(ncolv,istart:iend))
+    ALLOCATE(ds1(ncolv))
 
     DO k=istart,iend
        s1v(k)=EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
@@ -4324,8 +4190,7 @@ CPSourceFileRef,&
     END DO
     colvar%ss=-1.0_dp/lambda*LOG(s1)
 
-    ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,colvar%n_atom_s))
 
     ii=0
     DO i=1,ncolv
@@ -4340,18 +4205,12 @@ CPSourceFileRef,&
        CALL put_derivative(colvar,i,fi(:,i))
     END DO
 
-    DEALLOCATE(fi,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(f_vals,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ss_vals,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1v,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1v,stat=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1,stat=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(f_vals)
+    DEALLOCATE(ss_vals)
+    DEALLOCATE(s1v)
+    DEALLOCATE(ds1v)
+    DEALLOCATE(ds1)
 
   END SUBROUTINE dpath_colvar
 
@@ -4374,7 +4233,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
-                                                rmsd_atom, stat
+                                                rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, s1, sum_exp
@@ -4394,22 +4253,14 @@ CPSourceFileRef,&
 
     natom = SIZE(particles)
 
-    ALLOCATE(r0(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(r(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(vec_dif(rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(dvec_dif(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(s1v(nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1v(3,rmsd_atom,nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(r0(3*natom))
+    ALLOCATE(r(3*natom))
+    ALLOCATE(riat(3,rmsd_atom))
+    ALLOCATE(vec_dif(rmsd_atom))
+    ALLOCATE(dvec_dif(3,rmsd_atom))
+    ALLOCATE(s1v(nconf))
+    ALLOCATE(ds1v(3,rmsd_atom,nconf))
+    ALLOCATE(ds1(3,rmsd_atom))
     DO i = 1,natom
       ii = (i-1)*3
       r0(ii+1) = particles(i)%r(1)
@@ -4458,32 +4309,22 @@ CPSourceFileRef,&
     END DO
     colvar%ss=-1.0_dp/lambda*LOG(s1)
 
-    ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,rmsd_atom))
 
     DO iat = 1,rmsd_atom
       fi(:,iat) = 2.0_dp*(riat(:,iat)-ds1(:,iat)/s1)
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
 
-    DEALLOCATE(fi,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r0,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(riat,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(vec_dif,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(dvec_dif,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1,STAT=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(r0)
+    DEALLOCATE(r)
+    DEALLOCATE(riat)
+    DEALLOCATE(vec_dif)
+    DEALLOCATE(dvec_dif)
+    DEALLOCATE(s1v)
+    DEALLOCATE(ds1v)
+    DEALLOCATE(ds1)
   END SUBROUTINE  dpath_dist_rmsd
 
 ! *****************************************************************************
@@ -4501,7 +4342,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
-                                                rmsd_atom, stat
+                                                rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1
@@ -4524,23 +4365,15 @@ CPSourceFileRef,&
 
     natom = SIZE(particles)
 
-    ALLOCATE(r0(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(r(3*natom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(s1v(nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1v(3,rmsd_atom,nconf),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(ds1(3,rmsd_atom),STAT=stat)
-    CPASSERT(stat == 0)
-    ALLOCATE(drmsd(3,natom),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(r0(3*natom))
+    ALLOCATE(r(3*natom))
+    ALLOCATE(riat(3,rmsd_atom))
+    ALLOCATE(s1v(nconf))
+    ALLOCATE(ds1v(3,rmsd_atom,nconf))
+    ALLOCATE(ds1(3,rmsd_atom))
+    ALLOCATE(drmsd(3,natom))
     drmsd = 0.0_dp
-    ALLOCATE (weight(natom),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE (weight(natom))
 
 
     DO i = 1,natom
@@ -4590,32 +4423,22 @@ CPSourceFileRef,&
     END DO
     colvar%ss=-1.0_dp/lambda*LOG(s1)
 
-    ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(fi(3,rmsd_atom))
 
     DO iat = 1,rmsd_atom
       fi(:,iat) = ds1(:,iat)/s1
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
 
-    DEALLOCATE(fi,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r0,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(r,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(riat,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(s1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1v,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(ds1,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(drmsd,STAT=stat)
-    CPASSERT(stat == 0)
-    DEALLOCATE(weight,STAT=stat)
-    CPASSERT(stat == 0)
+    DEALLOCATE(fi)
+    DEALLOCATE(r0)
+    DEALLOCATE(r)
+    DEALLOCATE(riat)
+    DEALLOCATE(s1v)
+    DEALLOCATE(ds1v)
+    DEALLOCATE(ds1)
+    DEALLOCATE(drmsd)
+    DEALLOCATE(weight)
 
   END SUBROUTINE dpath_rmsd
 
@@ -4862,7 +4685,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_colvar_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, natom, nframes, stat
+    INTEGER                                  :: i, ii, natom, nframes
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: cv_val, f1, ftmp(3)
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: der, r, rmsd
@@ -4889,18 +4712,13 @@ CPSourceFileRef,&
 
     natom = SIZE(my_particles)
     nframes=colvar%rmsd_param%nr_frames
-    ALLOCATE (drmsd(3,natom,nframes),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (drmsd(3,natom,nframes))
     drmsd = 0.0_dp
 
-    ALLOCATE (r0(3*natom,nframes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (rmsd(nframes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (der(nframes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (r(3*natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (r0(3*natom,nframes))
+    ALLOCATE (rmsd(nframes))
+    ALLOCATE (der(nframes))
+    ALLOCATE (r(3*natom))
 
     weights => colvar%rmsd_param%weights
     DO i = 1,natom
@@ -4955,16 +4773,11 @@ CPSourceFileRef,&
     END IF
     colvar%ss=cv_val
 
-    DEALLOCATE(der,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r0,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(drmsd,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(rmsd,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(der)
+    DEALLOCATE(r0)
+    DEALLOCATE(r)
+    DEALLOCATE(drmsd)
+    DEALLOCATE(rmsd)
 
   END SUBROUTINE rmsd_colvar_low
 
@@ -4988,7 +4801,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'ring_puckering_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, istat, j, jj, m, nring
+    INTEGER                                  :: i, ii, j, jj, m, nring
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, at, b, da, db, ds, kr, &
                                                 rpxpp, svar
@@ -5015,10 +4828,8 @@ CPSourceFileRef,&
     END IF
 
     nring = colvar%ring_puckering_param%nring 
-    ALLOCATE (r(3,nring),z(nring),cosj(nring),sinj(nring),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (nforce(3,3,nring),zforce(nring,nring,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (r(3,nring),z(nring),cosj(nring),sinj(nring))
+    ALLOCATE (nforce(3,3,nring),zforce(nring,nring,3))
     DO ii = 1,nring
        i=colvar%ring_puckering_param%atoms(ii)
        CALL get_coordinates(colvar, i, r(:,ii), my_particles)
@@ -5163,8 +4974,7 @@ CPSourceFileRef,&
 
     colvar%ss=svar
 
-    DEALLOCATE (r,z,cosj,sinj,nforce,zforce,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (r,z,cosj,sinj,nforce,zforce)
 
   END SUBROUTINE  ring_puckering_colvar
 
@@ -5255,7 +5065,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: dummy_char
-    INTEGER                                  :: i, j, natom, stat
+    INTEGER                                  :: i, j, natom
     LOGICAL                                  :: explicit, failure, my_end
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rptr
     TYPE(cp_parser_type), POINTER            :: parser
@@ -5272,8 +5082,7 @@ CPSourceFileRef,&
           CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
                 n_rep_val=natom)
           IF(i==1) THEN
-            ALLOCATE(r_ref(3*natom,nr_frames), STAT=stat)
-            CPASSERT(stat == 0)
+            ALLOCATE(r_ref(3*natom,nr_frames))
             n_atoms = natom
           ELSE
            CPASSERT(3*natom==SIZE(r_ref,1))
@@ -5294,8 +5103,7 @@ CPSourceFileRef,&
           CALL parser_get_object(parser,natom)
           CALL parser_get_next_line(parser,1)
           IF(i==1) THEN
-             ALLOCATE(r_ref(3*natom,nr_frames), STAT=stat)
-             CPASSERT(stat == 0)
+             ALLOCATE(r_ref(3*natom,nr_frames))
              n_atoms = natom
           ELSE
            CPASSERT(3*natom==SIZE(r_ref,1))
@@ -5352,7 +5160,7 @@ CPSourceFileRef,&
       POINTER                                :: my_particles
     TYPE(wannier_centres_type), DIMENSION(:),POINTER :: wc
     INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
-    INTEGER                                  :: nwca,nwcd,ierror
+    INTEGER                                  :: nwca,nwcd
     REAL(dp)                                 :: rcut
 
     failure=.FALSE.
@@ -5374,10 +5182,8 @@ CPSourceFileRef,&
     CALL get_coordinates(colvar, Od, rOd, my_particles)
     CALL get_coordinates(colvar, H, rH, my_particles)
     CALL get_coordinates(colvar, Oa, rOa, my_particles)
-    ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPASSERT(ierror==0)
-    ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPASSERT(ierror==0)
+    ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)))
+    ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)))
     nwca=0
     nwcd=0
     DO j=1,SIZE(wc(1)%WannierHamDiag)
@@ -5420,10 +5226,8 @@ CPSourceFileRef,&
 
 !     write(*,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
     colvar%ss = wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
-    DEALLOCATE(wcai,stat=ierror)
-    CPASSERT(ierror==0)
-    DEALLOCATE(wcdi,stat=ierror)
-    CPASSERT(ierror==0)
+    DEALLOCATE(wcai)
+    DEALLOCATE(wcdi)
 
     CONTAINS
 ! *****************************************************************************
@@ -5473,7 +5277,7 @@ CPSourceFileRef,&
     TYPE(wannier_centres_type),&
                         DIMENSION(:),POINTER :: wc
     INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
-    INTEGER                                  :: nwca,nwcd,ierror
+    INTEGER                                  :: nwca,nwcd
     REAL(dp)                                 :: rcut
 !     real(dp)                                 :: zero(3)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -5495,10 +5299,8 @@ CPSourceFileRef,&
     END IF
     CALL get_qs_env(qs_env,WannierCentres=wc)
     rcut = colvar%HBP%rcut ! distances are in bohr as far as I remember
-    ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPASSERT(ierror==0)
-    ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPASSERT(ierror==0)
+    ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)))
+    ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)))
     colvar%ss=0.0_dp
     DO il=1,colvar%HBP%nPoints
       Od=colvar%HBP%ids(il,1)
@@ -5554,10 +5356,8 @@ CPSourceFileRef,&
        ENDDO
        WRITE(output_unit,'(a,1(f16.8,1x))')"HBP|\theta(x) = ",colvar%ss
     ENDIF
-    DEALLOCATE(wcai,stat=ierror)
-    CPASSERT(ierror==0)
-    DEALLOCATE(wcdi,stat=ierror)
-    CPASSERT(ierror==0)
+    DEALLOCATE(wcai)
+    DEALLOCATE(wcdi)
 
   CONTAINS
 ! *****************************************************************************

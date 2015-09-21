@@ -122,7 +122,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: img, ispin, istat, nimg, nspin
+    INTEGER                                  :: img, ispin, nimg, nspin
     LOGICAL                                  :: failure, has_unit_metric, &
                                                 molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -153,8 +153,7 @@ CONTAINS
        CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,nimg)
        DO ispin=1,nspin
           DO img=1,nimg
-             ALLOCATE(matrix_w(ispin,img)%matrix,STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(matrix_w(ispin,img)%matrix)
              CALL cp_dbcsr_init(matrix_w(ispin,img)%matrix)
              CALL cp_dbcsr_copy(matrix_w(ispin,img)%matrix,matrix,name="W MATRIX")
              CALL cp_dbcsr_set(matrix_w(ispin,img)%matrix,0.0_dp)
@@ -165,8 +164,7 @@ CONTAINS
           ! create the MP2 energy weighted density matrix
           CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins)
           DO ispin=1,nspin
-             ALLOCATE(matrix_w_mp2(ispin)%matrix,STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(matrix_w_mp2(ispin)%matrix)
              CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix)
              CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix,&
                   name="W MATRIX MP2")
@@ -365,8 +363,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_compute_matrix_w', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, is, ispin, istat, &
-                                                nao, nspin
+    INTEGER                                  :: handle, is, ispin, nao, nspin
     LOGICAL                                  :: do_kpoints, failure, &
                                                 has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -412,8 +409,7 @@ CONTAINS
           CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao,&
                                    template_fmstruct=mo_coeff%matrix_struct)
 
-          ALLOCATE(fmwork(2),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(fmwork(2))
           DO is=1,SIZE(fmwork)
              NULLIFY(fmwork(is)%matrix)
              CALL cp_fm_create(fmwork(is)%matrix,matrix_struct=ao_ao_fmstruct)
@@ -429,8 +425,7 @@ CONTAINS
           DO is=1,SIZE(fmwork)
              CALL cp_fm_release(fmwork(is)%matrix)
           END DO
-          DEALLOCATE(fmwork,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(fmwork)
 
        ELSE
 

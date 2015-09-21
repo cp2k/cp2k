@@ -72,9 +72,9 @@ CONTAINS
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
                                                 cob, ia, ib, idx, idy, idz, &
-                                                ipgf, istat, jpgf, la, lb, &
-                                                ldrr, lma, lmb, ma, mb, na, &
-                                                nb, ofa, ofb
+                                                ipgf, jpgf, la, lb, ldrr, &
+                                                lma, lmb, ma, mb, na, nb, &
+                                                ofa, ofb
     REAL(KIND=dp)                            :: a, b, dsx, dsy, dsz, dtx, &
                                                 dty, dtz, f0, rab2, tab, xhi, &
                                                 zet
@@ -102,8 +102,7 @@ CONTAINS
     ldrr = MAX(lma,lmb) + 1
 
     ! Allocate space for auxiliary integrals
-    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),tt(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),tt(0:ldrr-1,0:ldrr-1,3))
 
     ! Number of integrals, check size of arrays
     ofa = ncoset(la_min-1)
@@ -228,8 +227,7 @@ CONTAINS
        ma = ma + na
     END DO
 
-    DEALLOCATE(rr,tt,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rr,tt)
 
   END SUBROUTINE kinetic
 

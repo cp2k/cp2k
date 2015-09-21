@@ -153,8 +153,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, nao, nrow_block, nspin, &
-                                                stat
+    INTEGER                                  :: i, j, nao, nrow_block, nspin
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
@@ -174,8 +173,7 @@ CONTAINS
     rtp%linear_scaling=linear_scaling
 
     IF(rtp%linear_scaling) THEN
-       ALLOCATE(rtp%rho,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rtp%rho)
        NULLIFY(rtp%rho%old)
        CALL cp_dbcsr_allocate_matrix_set(rtp%rho%old,2*nspin)
        NULLIFY(rtp%rho%next)
@@ -201,18 +199,13 @@ CONTAINS
             nrow_block=nrow_block,ncol_block=nrow_block,&
             nrow_global=nao, ncol_global=nao,&
             template_fmstruct=ao_mo_fmstruct)
-       ALLOCATE(rtp%mos,stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(rtp%mos%old(2*nspin),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(rtp%mos%new(2*nspin),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(rtp%mos%next(2*nspin),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rtp%mos)
+       ALLOCATE(rtp%mos%old(2*nspin))
+       ALLOCATE(rtp%mos%new(2*nspin))
+       ALLOCATE(rtp%mos%next(2*nspin))
        NULLIFY(rtp%mos%admm)
        IF(dft_control%do_admm)THEN
-          ALLOCATE(rtp%mos%admm(2*nspin),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(rtp%mos%admm(2*nspin))
        END IF
        DO i=1,nspin
           DO j=1,2
@@ -258,18 +251,15 @@ CONTAINS
        CALL cp_dbcsr_create(rtp%propagator_matrix(i)%matrix,template=template,matrix_type="N")
     END DO
     NULLIFY(rtp%S_inv)
-    ALLOCATE(rtp%S_inv,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rtp%S_inv)
     CALL cp_dbcsr_init(rtp%S_inv)
     CALL cp_dbcsr_create(rtp%S_inv,template=template,matrix_type="S")
     NULLIFY(rtp%S_half)
-    ALLOCATE(rtp%S_half,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rtp%S_half)
     CALL cp_dbcsr_init(rtp%S_half)
     CALL cp_dbcsr_create(rtp%S_half,template=template,matrix_type="S")
     NULLIFY(rtp%S_minus_half)
-    ALLOCATE(rtp%S_minus_half,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rtp%S_minus_half)
     CALL cp_dbcsr_init(rtp%S_minus_half)
     CALL cp_dbcsr_create(rtp%S_minus_half,template=template,matrix_type="S")
     NULLIFY(rtp%B_mat)
@@ -278,8 +268,7 @@ CONTAINS
     NULLIFY(rtp%SinvH)
     NULLIFY(rtp%SinvB)
     IF(.NOT.rtp_control%fixed_ions)THEN
-       ALLOCATE(rtp%B_mat,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rtp%B_mat)
        CALL cp_dbcsr_init(rtp%B_mat)
        CALL cp_dbcsr_create(rtp%B_mat,template=template,matrix_type="N")
        CALL cp_dbcsr_allocate_matrix_set(rtp%C_mat,3)
@@ -301,8 +290,7 @@ CONTAINS
           CALL cp_dbcsr_create(rtp%S_der(i)%matrix,template=template,matrix_type="N")
        END DO
     END IF
-    ALLOCATE(rtp%orders(2,nspin),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rtp%orders(2,nspin))
     rtp_control%converged=.FALSE.
     rtp%matrix_update=.TRUE.
     rtp%narn_old=0
@@ -416,7 +404,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -433,8 +420,7 @@ CONTAINS
             CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%next)
        IF(ASSOCIATED(rtp%rho%new))&
             CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%new)
-       DEALLOCATE(rtp%rho,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(rtp%rho)
     ENDIF
     IF(ASSOCIATED(rtp%mos)) THEN
       IF(ASSOCIATED(rtp%mos%old))&
@@ -445,8 +431,7 @@ CONTAINS
          CALL cp_fm_vect_dealloc(rtp%mos%next)
       IF(ASSOCIATED(rtp%mos%admm))&
          CALL cp_fm_vect_dealloc(rtp%mos%admm)
-      DEALLOCATE(rtp%mos,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(rtp%mos)
     END IF
     CALL cp_dbcsr_deallocate_matrix(rtp%S_inv)
     CALL cp_dbcsr_deallocate_matrix(rtp%S_half)
@@ -463,8 +448,7 @@ CONTAINS
          CALL cp_dbcsr_deallocate_matrix_set(rtp%SinvB)
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp)
-    DEALLOCATE(rtp%orders,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rtp%orders)
     IF(.NOT.rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
   END SUBROUTINE rt_prop_release
 
@@ -480,15 +464,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, nmat, stat
+    INTEGER                                  :: i, j, nmat
     LOGICAL                                  :: failure
     TYPE(rtp_history_type), POINTER          :: history
 
     failure=.FALSE.
 
     NULLIFY(history)
-    ALLOCATE(rtp%history,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rtp%history)
     history=> rtp%history
 
     NULLIFY(history%rho_history,history%mo_history,history%s_history)
@@ -506,8 +489,7 @@ CONTAINS
           END DO
        ELSE
           nmat=SIZE(rtp%mos%old)
-          ALLOCATE(history%mo_history(nmat,aspc_order),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(history%mo_history(nmat,aspc_order))
           DO i=1,nmat
              DO j=1,aspc_order
                 NULLIFY(history%mo_history(i,j)%matrix)
@@ -516,8 +498,7 @@ CONTAINS
                      name="mo_hist"//TRIM(ADJUSTL(cp_to_string(i))))
              END DO
           END DO
-          ALLOCATE(history%s_history(aspc_order),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(history%s_history(aspc_order))
           DO i=1,aspc_order
              NULLIFY(history%s_history(i)%matrix)
           END DO
@@ -538,7 +519,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -553,19 +534,16 @@ CONTAINS
              CALL cp_fm_release(rtp%history%mo_history(i,j)%matrix)
           END DO
        END DO
-       DEALLOCATE(rtp%history%mo_history,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(rtp%history%mo_history)
     END IF
     IF (ASSOCIATED(rtp%history%s_history)) THEN
        DO i=1,SIZE(rtp%history%s_history)
           IF (ASSOCIATED(rtp%history%s_history(i)%matrix))&
              CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(i)%matrix)
           END DO
-          DEALLOCATE(rtp%history%s_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rtp%history%s_history)
     END IF 
-    DEALLOCATE(rtp%history,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rtp%history)
 
   END SUBROUTINE rtp_history_release
 

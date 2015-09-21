@@ -212,7 +212,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
       ijShift, iJump, ik, ikShift, ikShift2, ikstart, ikstart2, iend,iend2,&
       imax, imax1, imin, imin1, istart, istart2, j, jend, jJump, jmax, jmax1, jmin, &
       jmin1, jstart, k, kend, kend2, kgrad, kJump, kmax, kmax1, kmin, kmin1, &
-      kstart, kstart2, max_j, stat,size_jk,size_k,size_ijk,ig,ithread,nthread
+      kstart, kstart2, max_j, size_jk,size_k,size_ijk,ig,ithread,nthread
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: k_bounds
     INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, l_ub, &
                                                 ndim, period, shiftPos,ldim2
@@ -506,8 +506,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
 
     ! k bounds (cache a la cube_info?)
     has_overlap=.FALSE.
-    ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)))
     ! k_bounds=0
     istart=imin
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
@@ -590,15 +589,12 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     size_ijk=poly_size3(grad)*npoly
     ALLOCATE(poly_ijk(size_ijk),&
         poly_jk(size_jk),&
-        xi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+        xi(grad+1))
 
     IF(integrate) THEN
-        ALLOCATE(k_vals(0:grad),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(k_vals(0:grad))
     ELSE
-        ALLOCATE(poly_k(0:size_k-1),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(poly_k(0:size_k-1))
     ENDIF
 
     IF (integrate) THEN

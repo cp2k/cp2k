@@ -659,11 +659,9 @@ MODULE mp2_cphf
       CALL cp_dbcsr_release(mat_mu_nu(ispin)%matrix)
       DEALLOCATE(mat_mu_nu(ispin)%matrix,STAT=stat)
     END DO
-    DEALLOCATE(mat_mu_nu,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mat_mu_nu)
     CALL cp_dbcsr_release(P_mu_nu%matrix)
-    DEALLOCATE(P_mu_nu%matrix,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(P_mu_nu%matrix)
     ! release fm stuff
     CALL cp_fm_release(fm_G_mu_nu)
     CALL cp_fm_release(mo_coeff_o)
@@ -1449,8 +1447,8 @@ MODULE mp2_cphf
       routineP = moduleN//':'//routineN
 
     INTEGER :: cycle_counter, handle, i_global, iiB, iiter, j_global, jjB, &
-      max_num_iter, ncol_local, nrow_local, stat, transf_type_in, &
-      transf_type_out, virtual_beta
+      max_num_iter, ncol_local, nrow_local, transf_type_in, transf_type_out, &
+      virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: alpha_beta, converged, failure
     REAL(KIND=dp) :: alpha, beta, conv, eps_conv, factor, norm_b, &
@@ -1671,10 +1669,8 @@ MODULE mp2_cphf
       L_jb%local_data(:,:)=-L_jb%local_data(:,:)
 
       ! allocate stuff
-      ALLOCATE(xn(1:max_num_iter),STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(Ax(1:max_num_iter),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(xn(1:max_num_iter))
+      ALLOCATE(Ax(1:max_num_iter))
 
       ! create fm structure
       NULLIFY(fm_struct_tmp)
@@ -1713,12 +1709,9 @@ MODULE mp2_cphf
       CALL cp_fm_set_all(residual, 0.0_dp)
 
       ! allocate array containing the various scalar products
-      ALLOCATE(x_norm(1:max_num_iter),STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(xi_b(1:max_num_iter),STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(xi_Axi(1:max_num_iter,0:max_num_iter),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_norm(1:max_num_iter))
+      ALLOCATE(xi_b(1:max_num_iter))
+      ALLOCATE(xi_Axi(1:max_num_iter,0:max_num_iter))
       x_norm=0.0_dp
       xi_b=0.0_dp
       xi_Axi=0.0_dp
@@ -1736,8 +1729,7 @@ MODULE mp2_cphf
 
         ! first compute the projection of the actual b_i into all previous x_i
         ! already scaled with the norm of each x_i
-        ALLOCATE(proj_bi_xj(iiter-1),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(proj_bi_xj(iiter-1))
         DO iiB=1, iiter-1
           proj_bi_xj(iiB)=0.0_dp
           proj_bi_xj(iiB)=accurate_sum(b_i%local_data(1:nrow_local,1:ncol_local)*&
@@ -1752,8 +1744,7 @@ MODULE mp2_cphf
           xn(iiter)%matrix%local_data(:,:)=xn(iiter)%matrix%local_data(:,:)-&
                                            xn(iiB)%matrix%local_data(:,:)*proj_bi_xj(iiB)
         END DO
-        DEALLOCATE(proj_bi_xj,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(proj_bi_xj)
          
         ! create Ax(iiter) that will store the matrix vector product for this cycle
         NULLIFY(Ax(iiter)%matrix)
@@ -1773,8 +1764,7 @@ MODULE mp2_cphf
         ! 1:iiter -> <Ax_i|x_j>
         ! iiter+1 -> <x_i|b>
         ! iiter+2 -> <x_i|x_i>
-        ALLOCATE(temp_vals(iiter+2),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(temp_vals(iiter+2))
         temp_vals=0.0_dp
         ! <Ax_i|x_j>
         DO iiB=1, iiter
@@ -1794,16 +1784,13 @@ MODULE mp2_cphf
         xi_b(iiter)   = temp_vals(iiter+1)
         x_norm(iiter) = temp_vals(iiter+2)
         ! deallocate temp_vals
-        DEALLOCATE(temp_vals,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(temp_vals)
 
         ! solve reduced system 
         IF(ALLOCATED(A_small)) DEALLOCATE(A_small)
         IF(ALLOCATED(b_small)) DEALLOCATE(b_small)
-        ALLOCATE(A_small(iiter,iiter),STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(b_small(iiter,1),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(A_small(iiter,iiter))
+        ALLOCATE(b_small(iiter,1))
         A_small(1:iiter,1:iiter)=xi_Axi(1:iiter,1:iiter)
         b_small(1:iiter,1)=xi_b(1:iiter)
 
@@ -1845,12 +1832,9 @@ MODULE mp2_cphf
                         b_small(iiter,1)*xn(iiter)%matrix%local_data(1:nrow_local,1:ncol_local)
       END DO
 
-      DEALLOCATE(x_norm,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(xi_b,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(xi_Axi,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_norm)
+      DEALLOCATE(xi_b)
+      DEALLOCATE(xi_Axi)
 
       CALL cp_fm_release(precond)
       CALL cp_fm_release(b_i)
@@ -1862,10 +1846,8 @@ MODULE mp2_cphf
         CALL cp_fm_release(Ax(iiter)%matrix)
         CALL cp_fm_release(xn(iiter)%matrix)
       END DO
-      DEALLOCATE(xn,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(Ax,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(xn)
+      DEALLOCATE(Ax)
 
     END IF
 

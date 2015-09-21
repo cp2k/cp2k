@@ -349,14 +349,10 @@ CONTAINS
       ENDDO
 
 
-      DEALLOCATE ( empty_coordinates, STAT = isos )
-      CPASSERT(isos==0)
-      DEALLOCATE ( mc_par, STAT = isos )
-      CPASSERT(isos==0)
-      DEALLOCATE ( mc_env, STAT = isos )
-      CPASSERT(isos==0)
-      DEALLOCATE ( force_env, STAT = isos )
-      CPASSERT(isos==0)
+      DEALLOCATE ( empty_coordinates)
+      DEALLOCATE ( mc_par)
+      DEALLOCATE ( mc_env)
+      DEALLOCATE ( force_env)
 
 ! delete the random numbers
       CALL delete_rng_stream(rng_stream)

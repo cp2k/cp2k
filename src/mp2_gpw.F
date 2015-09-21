@@ -334,15 +334,11 @@ MODULE mp2_gpw
     NULLIFY(sab_orb_sub)
     CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells)
     nkind = SIZE(atomic_kind_set)
-    ALLOCATE (orb_present(nkind),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (orb_radius(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (orb_present(nkind))
+    ALLOCATE (orb_radius(nkind))
     orb_radius(:) = 0.0_dp
-    ALLOCATE (pair_radius(nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (atom2d(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (pair_radius(nkind,nkind))
+    ALLOCATE (atom2d(nkind))
 
     CALL atom2d_build(atom2d,orb_radius,orb_present,local_particles_sub,distribution_2d_sub,&
                       atomic_kind_set,qs_kind_set,molecule_set,molecule_only=.FALSE.,dftb=.FALSE.,&
@@ -351,23 +347,18 @@ MODULE mp2_gpw
     CALL build_neighbor_lists(sab_orb_sub,particle_set,atom2d,cell,pair_radius,&
                               mic=.FALSE.,subcells=subcells,molecular=.FALSE.,name="sab_orb_sub")
     CALL atom2d_cleanup(atom2d)
-    DEALLOCATE (atom2d,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(orb_present,orb_radius,pair_radius,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom2d)
+    DEALLOCATE(orb_present,orb_radius,pair_radius)
 
     ! a dbcsr_dist
-    ALLOCATE(dbcsr_dist_sub,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dbcsr_dist_sub)
     CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, unit_nr)
 
     ! build a dbcsr matrix the hard way
     natom = SIZE(particle_set)
-    ALLOCATE (row_blk_sizes(natom), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes)
-    ALLOCATE(mat_munu%matrix, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mat_munu%matrix)
     CALL cp_dbcsr_init(mat_munu%matrix)
     CALL cp_dbcsr_create(matrix=mat_munu%matrix,&
                name="(ai|munu)",&
@@ -383,12 +374,10 @@ MODULE mp2_gpw
     gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
 
     ! and the array of mos
-    ALLOCATE(Eigenval(dimen),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Eigenval(dimen))
     Eigenval(:)=mo_eigenvalues(:)
     IF (nspins==2) THEN
-       ALLOCATE(Eigenval_beta(dimen),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Eigenval_beta(dimen))
        Eigenval_beta(:)=mo_eigenvalues_beta(:)
     ENDIF
 
@@ -413,8 +402,7 @@ MODULE mp2_gpw
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
     progression_factor=dft_control%qs_control%progression_factor
     n_multigrid=SIZE(dft_control%qs_control%e_cutoff)
-    ALLOCATE(e_cutoff_old(n_multigrid), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(e_cutoff_old(n_multigrid))
     e_cutoff_old(:)=dft_control%qs_control%e_cutoff
     cutoff_old=dft_control%qs_control%cutoff
 
@@ -559,48 +547,39 @@ MODULE mp2_gpw
     END IF
 
     CALL cp_dbcsr_release(mo_coeff_o)
-    DEALLOCATE(mo_coeff_o, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mo_coeff_o)
     CALL cp_dbcsr_release(mo_coeff_v)
-    DEALLOCATE(mo_coeff_v, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mo_coeff_v)
     IF(my_do_gw) THEN
       CPASSERT(stat==0)
       CALL cp_dbcsr_release(mo_coeff_all)
-      DEALLOCATE(mo_coeff_all, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(mo_coeff_all)
     END IF
 
     IF(nspins==2) THEN
       CALL cp_dbcsr_release(mo_coeff_o_beta)
-      DEALLOCATE(mo_coeff_o_beta, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(mo_coeff_o_beta)
       CALL cp_dbcsr_release(mo_coeff_v_beta)
-      DEALLOCATE(mo_coeff_v_beta, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(mo_coeff_v_beta)
       IF(my_do_gw) THEN
         CPASSERT(stat==0)
         CALL cp_dbcsr_release(mo_coeff_all_beta)
-        DEALLOCATE(mo_coeff_all_beta, STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(mo_coeff_all_beta)
       END IF
     END IF
 
     IF(.NOT.calc_forces) THEN
       ! release stuff
       CALL cp_dbcsr_release(mat_munu%matrix)
-      DEALLOCATE(mat_munu%matrix, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(mat_munu%matrix)
 
       CALL cp_dbcsr_distribution_release(dbcsr_dist_sub)
-      DEALLOCATE(dbcsr_dist_sub,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(dbcsr_dist_sub)
 
       DO i=1,SIZE(sab_orb_sub)
          CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
       END DO
-      DEALLOCATE(sab_orb_sub,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(sab_orb_sub)
 
       CALL distribution_2d_release(distribution_2d_sub)
 
@@ -712,36 +691,29 @@ MODULE mp2_gpw
           CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw)
 
           CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_o)
-          DEALLOCATE(mp2_env%ri_grad%mo_coeff_o, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(mp2_env%ri_grad%mo_coeff_o)
 
           CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_v)
-          DEALLOCATE(mp2_env%ri_grad%mo_coeff_v, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(mp2_env%ri_grad%mo_coeff_v)
 
           IF (nspins == 2) THEN 
              CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_o_beta)
-             DEALLOCATE(mp2_env%ri_grad%mo_coeff_o_beta, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(mp2_env%ri_grad%mo_coeff_o_beta)
         
              CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_v_beta)
-             DEALLOCATE(mp2_env%ri_grad%mo_coeff_v_beta, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(mp2_env%ri_grad%mo_coeff_v_beta)
           ENDIF
 
           CALL cp_dbcsr_release(mat_munu%matrix)
-          DEALLOCATE(mat_munu%matrix, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(mat_munu%matrix)
 
           CALL cp_dbcsr_distribution_release(dbcsr_dist_sub)
-          DEALLOCATE(dbcsr_dist_sub,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dbcsr_dist_sub)
 
           DO i=1,SIZE(sab_orb_sub)
              CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
           END DO
-          DEALLOCATE(sab_orb_sub,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(sab_orb_sub)
 
           CALL distribution_2d_release(distribution_2d_sub)
 
@@ -773,12 +745,10 @@ MODULE mp2_gpw
     ! moved from above
     IF(my_do_gw) THEN
       CALL cp_dbcsr_release(mo_coeff_gw)
-      DEALLOCATE(mo_coeff_gw, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(mo_coeff_gw)
       IF(nspins==2) THEN
         CALL cp_dbcsr_release(mo_coeff_gw_beta)
-        DEALLOCATE(mo_coeff_gw_beta, STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(mo_coeff_gw_beta)
       END IF
     END IF
 
@@ -833,11 +803,9 @@ MODULE mp2_gpw
       ENDIF
     END IF   
 
-    DEALLOCATE(Eigenval,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Eigenval)
     IF(nspins==2) THEN
-      DEALLOCATE(Eigenval_beta,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(Eigenval_beta)
     END IF
 
     CALL timestop(handle)
@@ -935,8 +903,8 @@ MODULE mp2_gpw
       my_I_batch_size, my_I_occupied_end, my_I_occupied_start, my_q_position, &
       ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, one, p
     INTEGER :: p_best, proc_receive, proc_send, q, q_best, row, row_offset, &
-      row_size, size_EX, size_EX_send, size_of_exchange_group, stat, &
-      sub_sub_color, virtual, virtual_beta, wfn_calc, wfn_calc_best
+      row_size, size_EX, size_EX_send, size_of_exchange_group, sub_sub_color, &
+      virtual, virtual_beta, wfn_calc, wfn_calc_best
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, sub_proc_map, &
       vector_B_sizes, vector_batch_A_size_group, vector_batch_I_size_group
@@ -1009,8 +977,7 @@ MODULE mp2_gpw
       max_row_col_local=MAX(nrow_local,ncol_local)
       CALL mp_max(max_row_col_local,para_env_sub%group)
 
-      ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(local_col_row_info(0:max_row_col_local,2))
       local_col_row_info=0
       ! 0,1 nrows
       local_col_row_info(0,1)=nrow_local
@@ -1099,10 +1066,8 @@ MODULE mp2_gpw
             "MP2_GPW| max. batch size for the virtual states:",max_batch_size_A
     ENDIF
 
-    ALLOCATE(vector_batch_I_size_group(0:p_best-1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(vector_batch_A_size_group(0:q_best-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vector_batch_I_size_group(0:p_best-1))
+    ALLOCATE(vector_batch_A_size_group(0:q_best-1))
 
     vector_batch_I_size_group=max_batch_size_I
     IF(SUM(vector_batch_I_size_group)/=homo) THEN
@@ -1170,8 +1135,7 @@ MODULE mp2_gpw
     ! divide the b states in the sub_group in such a way to create
     ! b_start and b_end for each proc inside the sub_group
     max_b_size=(virtual+para_env_sub%num_pe-1)/para_env_sub%num_pe
-    ALLOCATE(vector_B_sizes(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vector_B_sizes(0:para_env_sub%num_pe-1))
     vector_B_sizes=max_b_size
     IF(SUM(vector_B_sizes)/=virtual) THEN
       one=1
@@ -1200,8 +1164,7 @@ MODULE mp2_gpw
     ! create an array containing a different "color" for each pair of
     ! A_start and B_start, communication will take place only among
     ! those proc that have the same A_start and B_start
-    ALLOCATE(color_array(0:para_env_sub%num_pe-1,0:q_best-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(color_array(0:para_env_sub%num_pe-1,0:q_best-1))
     color_array=0
     color_counter=0
     DO j=0, q_best-1
@@ -1252,8 +1215,7 @@ MODULE mp2_gpw
                             in_space=REALSPACE)
 
 
-    ALLOCATE(psi_i(my_I_occupied_start:my_I_occupied_end),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(psi_i(my_I_occupied_start:my_I_occupied_end))
     DO i=my_I_occupied_start, my_I_occupied_end
       NULLIFY(psi_i(i)%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool,psi_i(i)%pw,&
@@ -1269,8 +1231,7 @@ MODULE mp2_gpw
     Emp2_EX=0.0_dp
     IF(do_alpha_beta) Emp2_AB=0.0_dp
     IF(calc_ex) THEN
-      ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(BIb_C(my_B_size,homo,my_I_batch_size))
     END IF
 
     CALL timeset(routineN//"_loop",handle2)
@@ -1393,16 +1354,14 @@ MODULE mp2_gpw
           EX_end=exchange_group_sizes(proc_receive,2)
           size_EX=exchange_group_sizes(proc_receive,3)
 
-          ALLOCATE(BIb_EX(my_B_size,my_I_batch_size,size_EX),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(BIb_EX(my_B_size,my_I_batch_size,size_EX))
           BIb_EX=0.0_dp
 
           EX_start_send=exchange_group_sizes(proc_send,1)
           EX_end_send=exchange_group_sizes(proc_send,2)
           size_EX_send=exchange_group_sizes(proc_send,3)
 
-          ALLOCATE(BIb_send(my_B_size,size_EX_send,my_I_batch_size),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(BIb_send(my_B_size,size_EX_send,my_I_batch_size))
           BIb_send(1:my_B_size,1:size_EX_send,1:my_I_batch_size)=BIb_C(1:my_B_size,EX_start_send:EX_end_send,1:my_I_batch_size)
 
           ! send and receive the exchange array
@@ -1534,7 +1493,7 @@ MODULE mp2_gpw
     INTEGER                                  :: i_global, iiB, j_global, jjB, &
                                                 ncol_rec, nrow_rec, &
                                                 proc_receive, proc_send, &
-                                                proc_shift, stat
+                                                proc_shift
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices_rec, &
                                                 row_indices_rec
@@ -1543,20 +1502,17 @@ MODULE mp2_gpw
 
     failure=.FALSE.
 
-    ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 
     rec_col_row_info(:,:)=local_col_row_info
 
     nrow_rec=rec_col_row_info(0,1)
     ncol_rec=rec_col_row_info(0,2)
 
-    ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(row_indices_rec(nrow_rec))
     row_indices_rec=rec_col_row_info(1:nrow_rec,1)
 
-    ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(col_indices_rec(ncol_rec))
     col_indices_rec=rec_col_row_info(1:ncol_rec,2)
 
     ! accumulate data on BIb_jb buffer starting from myself
@@ -1587,16 +1543,13 @@ MODULE mp2_gpw
         nrow_rec=rec_col_row_info(0,1)
         ncol_rec=rec_col_row_info(0,2)
 
-        ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(row_indices_rec(nrow_rec))
         row_indices_rec=rec_col_row_info(1:nrow_rec,1)
 
-        ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(col_indices_rec(ncol_rec))
         col_indices_rec=rec_col_row_info(1:ncol_rec,2)
 
-        ALLOCATE(rec_BI(nrow_rec,ncol_rec),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(rec_BI(nrow_rec,ncol_rec))
         rec_BI=0.0_dp
 
         ! then send and receive the real data
@@ -1663,7 +1616,7 @@ MODULE mp2_gpw
       itmp(2), j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
       my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
       proc_receive_static, proc_send, proc_send_static, proc_shift, row, &
-      row_offset, row_size, stat, virtual
+      row_offset, row_size, virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
                                                 sizes_array, starts_array
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
@@ -1681,13 +1634,10 @@ MODULE mp2_gpw
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    ALLOCATE(sizes_array(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(starts_array(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes_array(0:para_env_sub%num_pe-1))
+    ALLOCATE(starts_array(0:para_env_sub%num_pe-1))
     starts_array=0
-    ALLOCATE(ends_array(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ends_array(0:para_env_sub%num_pe-1))
     ends_array=0
 
     DO iproc=0,para_env_sub%num_pe-1
@@ -1702,16 +1652,14 @@ MODULE mp2_gpw
     my_mu_end=ends_array(para_env_sub%mepos)
 
     ! local storage for the C matrix
-    ALLOCATE(C(my_mu_size,dimen),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(C(my_mu_size,dimen))
     C=0.0_dp
 
     ! proc_map, vector that replicate the processor numbers also
     ! for negative and positive number > num_pe
     ! needed to know which is the processor, to respect to another one,
     ! for a given shift
-    ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1))
     DO iiB=0,para_env%num_pe-1
       proc_map(iiB)=iiB
       proc_map(-iiB-1)=para_env%num_pe-iiB-1
@@ -1726,16 +1674,14 @@ MODULE mp2_gpw
                         col_indices=col_indices,&
                         local_data=local_C_internal)
 
-    ALLOCATE(local_C(nrow_local,ncol_local),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(local_C(nrow_local,ncol_local))
     local_C=local_C_internal(1:nrow_local,1:ncol_local)
     NULLIFY(local_C_internal) 
 
     max_row_col_local=MAX(nrow_local,ncol_local)
     CALL mp_max(max_row_col_local,para_env%group)
 
-    ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(local_col_row_info(0:max_row_col_local,2))
     local_col_row_info=0
     ! 0,1 nrows
     local_col_row_info(0,1)=nrow_local
@@ -1744,8 +1690,7 @@ MODULE mp2_gpw
     local_col_row_info(0,2)=ncol_local
     local_col_row_info(1:ncol_local,2)=col_indices(1:ncol_local)
 
-    ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 
     ! accumulate data on C buffer starting from myself
     DO iiB=1, nrow_local
@@ -1771,16 +1716,13 @@ MODULE mp2_gpw
       nrow_rec=rec_col_row_info(0,1)
       ncol_rec=rec_col_row_info(0,2)
 
-      ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(row_indices_rec(nrow_rec))
       row_indices_rec=rec_col_row_info(1:nrow_rec,1)
 
-      ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(col_indices_rec(ncol_rec))
       col_indices_rec=rec_col_row_info(1:ncol_rec,2)
 
-      ALLOCATE(rec_C(nrow_rec,ncol_rec),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(rec_C(nrow_rec,ncol_rec))
       rec_C=0.0_dp
 
       ! then send and receive the real data
@@ -1799,8 +1741,7 @@ MODULE mp2_gpw
 
       local_col_row_info(:,:)=rec_col_row_info
       DEALLOCATE(local_C)
-      ALLOCATE(local_C(nrow_rec,ncol_rec),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(local_C(nrow_rec,ncol_rec))
       local_C=rec_C
 
       DEALLOCATE(col_indices_rec)
@@ -1813,8 +1754,7 @@ MODULE mp2_gpw
     DEALLOCATE(proc_map)
 
     ! proc_map, for the sub_group
-    ALLOCATE(proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
     DO iiB=0,para_env_sub%num_pe-1
       proc_map(iiB)=iiB
       proc_map(-iiB-1)=para_env_sub%num_pe-iiB-1
@@ -1822,13 +1762,11 @@ MODULE mp2_gpw
     END DO
 
     ! split the C matrix into occupied and virtual
-    ALLOCATE(Cocc(my_mu_size,homo),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Cocc(my_mu_size,homo))
     Cocc(1:my_mu_size,1:homo)=C(1:my_mu_size,1:homo)
  
     virtual=dimen-homo
-    ALLOCATE(Cvirt(my_mu_size,virtual),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Cvirt(my_mu_size,virtual))
     Cvirt(1:my_mu_size,1:virtual)=C(1:my_mu_size,homo+1:dimen)
 
     ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
@@ -1848,8 +1786,7 @@ MODULE mp2_gpw
     IF (my_do_gw) THEN
 
       ! also cut levels homo-gw_corr_lev_occ+1, ..., lumo+gw_corr_lev_virt-1 of C
-      ALLOCATE(Cgw(my_mu_size,gw_corr_lev_occ+gw_corr_lev_virt),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(Cgw(my_mu_size,gw_corr_lev_occ+gw_corr_lev_virt))
       Cgw(1:my_mu_size,1:(gw_corr_lev_occ+gw_corr_lev_virt))=&
                              C(1:my_mu_size,homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt)
       CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_gw,Cgw,&
@@ -1914,7 +1851,7 @@ MODULE mp2_gpw
     INTEGER                                  :: blk, col, col_offset, &
                                                 col_size, handle, i, &
                                                 i_global, j, j_global, row, &
-                                                row_offset, row_size, stat
+                                                row_offset, row_size
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1922,12 +1859,10 @@ MODULE mp2_gpw
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    ALLOCATE(my_Cocc(dimen,my_I_batch_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(my_Cocc(dimen,my_I_batch_size))
     my_Cocc=0.0_dp
 
-    ALLOCATE(my_Cvirt(dimen,my_A_batch_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(my_Cvirt(dimen,my_A_batch_size))
     my_Cvirt=0.0_dp
 
     ! accumulate data from mo_coeff_o into Cocc
@@ -2023,8 +1958,10 @@ MODULE mp2_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, j, proc_receive, proc_send, proc_shift, rec_mu_end, &
-      rec_mu_size, rec_mu_start, stat
+    INTEGER                                  :: handle, i, j, proc_receive, &
+                                                proc_send, proc_shift, &
+                                                rec_mu_end, rec_mu_size, &
+                                                rec_mu_start
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rec_C
@@ -2067,8 +2004,7 @@ MODULE mp2_gpw
       rec_mu_end=ends_array(proc_receive)
       rec_mu_size=sizes_array(proc_receive)
 
-      ALLOCATE(rec_C(rec_mu_size,number_of_level),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(rec_C(rec_mu_size,number_of_level))
       rec_C=0.0_dp
 
       ! then send and receive the real data

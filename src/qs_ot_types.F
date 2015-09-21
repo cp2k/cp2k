@@ -307,9 +307,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, k, m_diis, &
-                                                my_ortho_k, n, ncoef, &
-                                                special_data_type
+    INTEGER                                  :: i, k, m_diis, my_ortho_k, n, &
+                                                ncoef, special_data_type
     LOGICAL                                  :: failure, mixed_precision
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -621,27 +620,21 @@ CONTAINS
 
     IF ( qs_ot_env % settings % do_ener ) THEN
        ncoef = k
-       ALLOCATE ( qs_ot_env % ener_x ( ncoef  ), STAT = istat )
-       CPASSERT(istat==0)
+       ALLOCATE ( qs_ot_env % ener_x ( ncoef  ))
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          ALLOCATE(qs_ot_env%ener_h_e( m_diis, ncoef ), STAT = istat )
-          CPASSERT(istat==0)
-          ALLOCATE(qs_ot_env%ener_h_x( m_diis, ncoef ), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE(qs_ot_env%ener_h_e( m_diis, ncoef ))
+          ALLOCATE(qs_ot_env%ener_h_x( m_diis, ncoef ))
        ENDIF
 
-       ALLOCATE ( qs_ot_env%ener_gx ( ncoef  ), STAT = istat )
-       CPASSERT(istat==0)
+       ALLOCATE ( qs_ot_env%ener_gx ( ncoef  ))
 
        IF (qs_ot_env%use_gx_old) THEN
-          ALLOCATE ( qs_ot_env%ener_gx_old ( ncoef  ), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE ( qs_ot_env%ener_gx_old ( ncoef  ))
        ENDIF
 
        IF (qs_ot_env%use_dx) THEN
-          ALLOCATE ( qs_ot_env%ener_dx ( ncoef ), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE ( qs_ot_env%ener_dx ( ncoef ))
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
     ENDIF
@@ -659,7 +652,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -736,23 +728,17 @@ CONTAINS
     ENDIF
 
     IF (qs_ot_env%settings%do_ener) THEN
-       DEALLOCATE ( qs_ot_env % ener_x, STAT=istat )
-       CPASSERT(istat==0)
-       DEALLOCATE ( qs_ot_env % ener_gx, STAT=istat )
-       CPASSERT(istat==0)
+       DEALLOCATE ( qs_ot_env % ener_x)
+       DEALLOCATE ( qs_ot_env % ener_gx)
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          DEALLOCATE (qs_ot_env % ener_h_x, STAT=istat )
-          CPASSERT(istat==0)
-          DEALLOCATE (qs_ot_env % ener_h_e, STAT=istat )
-          CPASSERT(istat==0)
+          DEALLOCATE (qs_ot_env % ener_h_x)
+          DEALLOCATE (qs_ot_env % ener_h_e)
        ENDIF
        IF (qs_ot_env%use_dx) THEN
-          DEALLOCATE ( qs_ot_env % ener_dx, STAT=istat )
-          CPASSERT(istat==0)
+          DEALLOCATE ( qs_ot_env % ener_dx)
        ENDIF
        IF (qs_ot_env%use_gx_old) THEN
-          DEALLOCATE ( qs_ot_env % ener_gx_old, STAT=istat )
-          CPASSERT(istat==0)
+          DEALLOCATE ( qs_ot_env % ener_gx_old)
        ENDIF
     END IF
 

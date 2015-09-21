@@ -93,7 +93,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
-      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, stat
+      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3
     LOGICAL                                  :: analyt, failure
     REAL(KIND=dp)                            :: alpha, eps, fac, fac3, fs, &
                                                 galpha, gsq, gsqi, ij_fac, &
@@ -132,8 +132,7 @@ CONTAINS
     rmax2  = CEILING(rcut/cell%hmat(2,2))
     rmax3  = CEILING(rcut/cell%hmat(3,3))
 
-    ALLOCATE(d_el(3,SIZE(particle_set)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(d_el(3,SIZE(particle_set)))
     d_el = 0.0_dp
     fac    = 1.e0_dp/cell%deth
     fac3   = fac/8.0_dp
@@ -228,8 +227,7 @@ CONTAINS
     M => qs_env%cp_ddapc_env%Md
     IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
     CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set)
-    DEALLOCATE(d_el, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(d_el)
     CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_force
 
@@ -259,7 +257,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, ikind, j, &
-                                                k, natom, stat
+                                                k, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv
@@ -279,18 +277,14 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     para_env=para_env,&
                     force=force)
-    ALLOCATE (atom_of_kind(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (kind_of(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (chf(3,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
+    ALLOCATE (kind_of(natom))
+    ALLOCATE (chf(3,natom))
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
-    ALLOCATE(uv(SIZE(M,1)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(uv(SIZE(M,1)))
     uv(:) = MATMUL(M,charges)
     DO k = 1, natom
        DO j = 1, 3
@@ -304,14 +298,10 @@ CONTAINS
        i = atom_of_kind(iatom)
        force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom) + d_el(1:3,iatom)
     END DO
-    DEALLOCATE(atom_of_kind, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kind_of, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(chf, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(uv, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_of_kind)
+    DEALLOCATE(kind_of)
+    DEALLOCATE(chf)
+    DEALLOCATE(uv)
     CALL timestop(handle)
   END SUBROUTINE cp_decpl_ddapc_forces
 
@@ -442,7 +432,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, ikind, j, &
-                                                k, natom, stat
+                                                k, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dum
@@ -463,18 +453,14 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     para_env=para_env,&
                     force=force)
-    ALLOCATE (atom_of_kind(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (kind_of(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (chf(3,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
+    ALLOCATE (kind_of(natom))
+    ALLOCATE (chf(3,natom))
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
-    ALLOCATE(uv(SIZE(dq,1)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(uv(SIZE(dq,1)))
     uv = 0.0_dp
     CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
          charges, dum)
@@ -490,14 +476,10 @@ CONTAINS
        i = atom_of_kind(iatom)
        force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom)
     END DO
-    DEALLOCATE(atom_of_kind, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kind_of, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(chf, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(uv, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_of_kind)
+    DEALLOCATE(kind_of)
+    DEALLOCATE(chf)
+    DEALLOCATE(uv)
     CALL timestop(handle)
 
   END SUBROUTINE restraint_functional_force
@@ -532,7 +514,7 @@ CONTAINS
 
     INTEGER                                  :: i, ip1, ip2, iparticle1, &
                                                 iparticle2, l, lmax, n_rep1, &
-                                                n_rep2, stat, weight
+                                                n_rep2, weight
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, fixed_center
     REAL(KIND=dp) :: center(3), dcos1(3), dcos2(3), dpos1(3), dpos2(3), &
@@ -558,8 +540,7 @@ CONTAINS
        IF (n_rep2/=0) THEN
           CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list)
           CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight)
-          ALLOCATE(R0(SIZE(list)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(R0(SIZE(list)))
           SELECT CASE(weight)
           CASE (weight_type_unit)
              R0 = 0.0_dp
@@ -577,18 +558,14 @@ CONTAINS
              R0 = R0 / mass
           END SELECT
           center = R0
-          DEALLOCATE(R0, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(R0)
        END IF
     END IF
     CPASSERT(n_rep1/=0.OR.n_rep2/=0)
     ! Potential calculation
-    ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(pos(SIZE(particle_set)),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(d_el(3,SIZE(particle_set)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(LocP(0:lmax,SIZE(particle_set)))
+    ALLOCATE(pos(SIZE(particle_set)))
+    ALLOCATE(d_el(3,SIZE(particle_set)))
     d_el = 0.0_dp
     ! Determining the single atomic contribution to the dielectric dipole
     DO i = 1, SIZE(particle_set)
@@ -643,14 +620,11 @@ CONTAINS
           d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + 0.5_dp * factor2
        END DO
     END DO
-    DEALLOCATE(pos,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(LocP,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pos)
+    DEALLOCATE(LocP)
     M => qs_env%cp_ddapc_env%Ms
     CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set)
-    DEALLOCATE(d_el, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(d_el)
   END SUBROUTINE solvation_ddapc_force
 
 END MODULE cp_ddapc_forces

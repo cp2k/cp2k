@@ -108,13 +108,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_scptb_parameter', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (ASSOCIATED(scptb_parameter)) &
             CALL deallocate_scptb_parameter(scptb_parameter)
 
-    ALLOCATE (scptb_parameter,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (scptb_parameter)
 
     scptb_parameter % key = ""
     scptb_parameter % parameterization = ""
@@ -149,11 +146,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_scptb_parameter', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     CPASSERT(ASSOCIATED(scptb_parameter))
-    DEALLOCATE (scptb_parameter,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (scptb_parameter)
 
   END SUBROUTINE deallocate_scptb_parameter
 
@@ -382,22 +376,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_vector_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, istat, tl
+    INTEGER                                  :: ikind, tl
 
     CALL scp_vector_release(scp_vec)
 
-    ALLOCATE(scp_vec,stat=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(scp_vec%vector(nkind),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(scp_vec)
+    ALLOCATE(scp_vec%vector(nkind))
 
     tl=0
     DO ikind=1,nkind
        scp_vec%vector(ikind)%natom = natoms(ikind)
        scp_vec%vector(ikind)%nbasis = nbasis(ikind)
        tl=tl+natoms(ikind)*nbasis(ikind)
-       ALLOCATE(scp_vec%vector(ikind)%vmat(nbasis(ikind),natoms(ikind)),stat=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(scp_vec%vector(ikind)%vmat(nbasis(ikind),natoms(ikind)))
        scp_vec%vector(ikind)%vmat=0._dp
     END DO
     scp_vec%total_length = tl
@@ -414,20 +405,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_vector_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, istat
+    INTEGER                                  :: ikind
 
     IF(ASSOCIATED(scp_vec)) THEN
       IF(ASSOCIATED(scp_vec%vector)) THEN
         DO ikind=1,SIZE(scp_vec%vector)
-           DEALLOCATE(scp_vec%vector(ikind)%vmat,stat=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(scp_vec%vector(ikind)%vmat)
         END DO
-        DEALLOCATE(scp_vec%vector,stat=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(scp_vec%vector)
         NULLIFY(scp_vec%vector)
       END IF
-      DEALLOCATE(scp_vec,stat=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(scp_vec)
     END IF
 
   END SUBROUTINE scp_vector_release

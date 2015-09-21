@@ -94,8 +94,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER :: aint_precond, handle, i, iat, iatom, ij, ikind, istat, j, &
-      max_iter, natom, natomkind, nkind, nspins, precond_kind, unit_nr
+    INTEGER :: aint_precond, handle, i, iat, iatom, ij, ikind, j, max_iter, &
+      natom, natomkind, nkind, nspins, precond_kind, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: efg_debug, efg_interpolation, &
                                                 gapw, paw_atom, smoothing, &
@@ -206,26 +206,20 @@ CONTAINS
     nspins = dft_control%nspins
 
     natom = SIZE(particle_set,1)
-    ALLOCATE (efg_tensor(3,3,natom),STAT=istat )
-    CPASSERT(istat==0)
+    ALLOCATE (efg_tensor(3,3,natom))
     efg_tensor = 0._dp
     IF ( efg_debug ) THEN
-      ALLOCATE (efg_pw(3,3,natom),STAT=istat )
-      CPASSERT(istat==0)
+      ALLOCATE (efg_pw(3,3,natom))
       efg_pw = 0._dp
     END IF
-    ALLOCATE (efg_diagval(3,natom),STAT=istat )
-    CPASSERT(istat==0)
+    ALLOCATE (efg_diagval(3,natom))
     efg_diagval = 0._dp
 
-    ALLOCATE (vh0(1:natom,-2:2),STAT=istat )
-    CPASSERT(istat==0)
+    ALLOCATE (vh0(1:natom,-2:2))
     vh0 = 0._dp
 
-    ALLOCATE (dvr2(6),STAT=istat )
-    CPASSERT(istat==0)
-    ALLOCATE (dvspl(6),STAT=istat )
-    CPASSERT(istat==0)
+    ALLOCATE (dvr2(6))
+    ALLOCATE (dvspl(6))
 
     !prepare calculation
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -409,20 +403,15 @@ CONTAINS
       END DO
     END IF
 
-    DEALLOCATE (efg_tensor,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (efg_tensor)
     IF ( efg_debug ) THEN
-      DEALLOCATE (efg_pw,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE (efg_pw)
     END IF
 
-    DEALLOCATE (vh0,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (vh0)
 
-    DEALLOCATE (dvr2,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (dvspl,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (dvr2)
+    DEALLOCATE (dvspl)
 
     CALL timestop(handle)
 
@@ -456,9 +445,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, iset1, iset2, iso, &
-      iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, l, &
-      l_iso, llmax, m1s, m2s, m_iso, max_iso_not0, max_iso_not0_local, &
-      max_s_harm, maxl, maxso, mepos, n1s, n2s, nset, num_pe, size1, size2
+      iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, l, l_iso, &
+      llmax, m1s, m2s, m_iso, max_iso_not0, max_iso_not0_local, max_s_harm, &
+      maxl, maxso, mepos, n1s, n2s, nset, num_pe, size1, size2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(2)                    :: bo
@@ -498,10 +487,8 @@ CONTAINS
 
     my_CG        => harmonics%my_CG
 
-    ALLOCATE(CPC_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(CPC_sphere(nsoset(maxl),nsoset(maxl)))
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm))
 
     m1s = 0
     DO iset1 = 1,nset
@@ -591,10 +578,8 @@ CONTAINS
 
     CALL mp_sum(vlimit,para_env%group)
 
-    DEALLOCATE(CPC_sphere,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(CPC_sphere)
+    DEALLOCATE(cg_list,cg_n_list)
 
   END SUBROUTINE vlimit_atom
 

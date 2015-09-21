@@ -94,10 +94,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, &
-      ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, katom, kbc, kkind, &
-      lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, &
-      n_cont_b, nat, natom, nimages, nkind, nsetc, nsgfa, nsgfb, nsoctot, &
-      nspins, num_pe
+      ispin, ja_kind, jatom, jkind, ka_kind, kac, katom, kbc, kkind, lC_int, &
+      ldCPC, lPC, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, n_cont_b, nat, &
+      natom, nimages, nkind, nsetc, nsgfa, nsgfb, nsoctot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
@@ -188,29 +187,22 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set,maxsgf=max_nsgf,maxgtops=max_gau)
 
     ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),coc(max_gau*max_gau),&
-              a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf),STAT=istat)
-    CPASSERT(istat==0)
+              a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf))
 
     lC_int = max_gau
-    ALLOCATE(mat_h(nspins),mat_p(nspins), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mat_h(nspins),mat_p(nspins))
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
     IF(forces) THEN
-      ALLOCATE (atom_of_kind(natom),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
-      ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(dCPC_h(max_gau,max_gau))
+      ALLOCATE(dCPC_s(max_gau,max_gau))
       ldCPC = max_gau
-      ALLOCATE(PC_h(max_nsgf,max_gau,nspins),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(PC_s(max_nsgf,max_gau,nspins),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(PC_h(max_nsgf,max_gau,nspins))
+      ALLOCATE(PC_s(max_nsgf,max_gau,nspins))
       lPC = max_nsgf
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
@@ -249,8 +241,7 @@ CONTAINS
        END IF
     END DO
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -414,16 +405,12 @@ CONTAINS
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
-    DEALLOCATE(basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,coc,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(basis_set_list)
+    DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,coc)
 
     IF(forces) THEN
-       DEALLOCATE (atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (atom_of_kind)
+       DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s)
     END IF
 
     CALL timestop(handle)

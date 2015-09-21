@@ -92,7 +92,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, &
       ilist, indexa, ipair, iparticle, iparticle_local, istart, iunique, &
       jkind, junique, mpair, nkinds, nloc_size, npairs, nparticle, &
-      nparticle_local, nr_oh, nunique, stat
+      nparticle_local, nr_oh, nunique
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_quip, any_siepmann, &
@@ -128,8 +128,7 @@ CONTAINS
          IF(pot%type(i) /= ea_type) CYCLE
          eam => pot%set(i)%eam
          nparticle = SIZE ( particle_set )
-         ALLOCATE(fembed(nparticle), stat=stat )
-         CPASSERT(stat==0)
+         ALLOCATE(fembed(nparticle))
          fembed(:) = 0._dp
          CPASSERT(ASSOCIATED(eam_data))
          ! computation of embedding function and energy
@@ -153,8 +152,7 @@ CONTAINS
             END IF
          END DO
 
-         DEALLOCATE ( fembed, stat=stat )
-         CPASSERT(stat==0)
+         DEALLOCATE ( fembed)
        END DO
     END DO
     ! Other manybody potential
@@ -197,8 +195,7 @@ CONTAINS
                 tersoff => pot%set(i)%tersoff
                 npairs  = iend-istart+1
                 IF (npairs /=0) THEN
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -245,8 +242,7 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop
@@ -279,8 +275,7 @@ CONTAINS
                 siepmann => pot%set(i)%siepmann
                 npairs  = iend-istart+1
                 IF (npairs /=0) THEN
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -328,8 +323,7 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop_2
@@ -371,7 +365,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, i, i_a, i_b, iend, ifirst, igrp, &
       ikind, ilast, ilist, ipair, istart, iunique, jkind, junique, kind_a, &
-      kind_b, mpair, nkinds, nloc_size, npairs, nunique, stat
+      kind_b, mpair, nkinds, nloc_size, npairs, nunique
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
@@ -411,8 +405,7 @@ CONTAINS
     END IF
 
     nkinds = SIZE(potparm%pot,1)
-    ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(eam_kinds_index(nkinds,nkinds))
     eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
@@ -500,8 +493,7 @@ CONTAINS
           END DO
        END DO Kind_Group_Loop1
     END DO
-    DEALLOCATE (eam_kinds_index, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (eam_kinds_index)
 
     ! Special way of handling the tersoff potential..
     IF (any_tersoff) THEN
@@ -528,8 +520,7 @@ CONTAINS
                 IF (pot%type(i)==tersoff_type) THEN
                    npairs = iend-istart+1
                    tersoff => pot%set(i)%tersoff
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -574,8 +565,7 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop2
@@ -607,8 +597,7 @@ CONTAINS
                 IF (pot%type(i)==siepmann_type) THEN
                    npairs = iend-istart+1
                    siepmann => pot%set(i)%siepmann
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -658,8 +647,7 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop3

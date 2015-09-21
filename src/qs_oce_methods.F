@@ -90,10 +90,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: first_col, ic, ico, ider, ig1, igau, ip, ipgf, is, isgfb, &
-      isgfb_cnt, iso, isp, istat, jc, jset, lds, lm, lpoint, lprj, lsgfb, &
-      lsgfb_cnt, lshell, lx, ly, lz, m, m1, maxcob, maxder, maxlb, maxlprj, &
-      maxnprja, maxsoa, msab, n, ncob, np_car, np_sph, nsatbas, nseta, nsetb, &
-      nsoatot, ntotsgfb, sgf_hard_only
+      isgfb_cnt, iso, isp, jc, jset, lds, lm, lpoint, lprj, lsgfb, lsgfb_cnt, &
+      lshell, lx, ly, lz, m, m1, maxcob, maxder, maxlb, maxlprj, maxnprja, &
+      maxsoa, msab, n, ncob, np_car, np_sph, nsatbas, nseta, nsetb, nsoatot, &
+      ntotsgfb, sgf_hard_only
     INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
                                                 lb_min, npgfb, nprjla, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
@@ -155,16 +155,11 @@ CONTAINS
     lds = ncoset(lm+nder+1)
     msab = MAX(maxnprja*ncoset(maxlprj),maxcob)
 
-    ALLOCATE(c2s(lds,lds),STAT= istat)
-    CPASSERT(istat==0)
-    ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
-    CPASSERT(istat==0)
-    ALLOCATE(spa_sb(np_car,ntotsgfb), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(spa_tmp(msab,msab*maxder),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(c2s(lds,lds))
+    ALLOCATE(s(lds,lds,ncoset(nder+1)))
+    ALLOCATE(spa_sb(np_car,ntotsgfb))
+    ALLOCATE(spa_tmp(msab,msab*maxder))
+    ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder))
 
     m1 = 0
     nsgf_cnt = 0
@@ -268,8 +263,7 @@ CONTAINS
     sgf_soft_only = .FALSE.
     IF(sgf_hard_only.EQ.0) sgf_soft_only = .TRUE.
 
-    DEALLOCATE(c2s,s,spa_sb,spa_tmp,ovs,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(c2s,s,spa_sb,spa_tmp,ovs)
 
   END SUBROUTINE build_oce_block
 
@@ -294,7 +288,7 @@ CONTAINS
 
     INTEGER                                  :: i, iset, isgfa, j, jc, lsgfa, &
                                                 maxlprj, maxsoa, n, nsatbas, &
-                                                nseta, nsgfa, stat
+                                                nseta, nsgfa
     INTEGER, DIMENSION(:), POINTER           :: n2oindex, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, paw_atom_a
@@ -321,8 +315,7 @@ CONTAINS
                           local_oce_sphi_h=local_oce_h, &
                           local_oce_sphi_s=local_oce_s)
 
-    ALLOCATE(prjloc_h(nseta*maxsoa,nsgfa),prjloc_s(nseta*maxsoa,nsgfa),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(prjloc_h(nseta*maxsoa,nsgfa),prjloc_s(nseta*maxsoa,nsgfa))
     prjloc_h = 0._dp
     prjloc_s = 0._dp
 
@@ -348,8 +341,7 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(prjloc_h,prjloc_s,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(prjloc_h,prjloc_s)
 
   END SUBROUTINE build_oce_block_local
 
@@ -389,7 +381,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, &
       jneighbor, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, &
       maxsgf, maxsoa, maxsob, mlprj, natom, ncoa_sum, nkind, nlist, &
-      nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot, stat
+      nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sgf_list
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: fp_car, fp_sph, la_max, &
@@ -442,15 +434,12 @@ CONTAINS
 
       ldsab = MAX(maxco,ncoset(maxlprj),maxsgf,maxprj)
       ldai = ncoset(maxl+nder+1)
-      ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder))
       sab=0.0_dp
-      ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)))
       ai_work=0.0_dp
 
-      ALLOCATE(oceh(maxder),oces(maxder),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(oceh(maxder),oces(maxder))
 
       DO i=1,nkind*nkind
         NULLIFY(intac(i)%alist,intac(i)%asort,intac(i)%aindex)
@@ -511,8 +500,7 @@ CONTAINS
             intac(iac)%a_kind = ikind
             intac(iac)%p_kind = jkind
             intac(iac)%nalist = nlist
-            ALLOCATE(intac(iac)%alist(nlist),STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(intac(iac)%alist(nlist))
             DO i=1,nlist
                NULLIFY(intac(iac)%alist(i)%clist)
                intac(iac)%alist(i)%aatom  = 0
@@ -522,8 +510,7 @@ CONTAINS
          IF(.NOT.ASSOCIATED(intac(iac)%alist(ilist)%clist)) THEN
             intac(iac)%alist(ilist)%aatom  = atom_a
             intac(iac)%alist(ilist)%nclist = nneighbor
-            ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor))
          END IF
 
          clist => intac(iac)%alist(ilist)%clist(jneighbor)
@@ -535,8 +522,7 @@ CONTAINS
          clist%maxach   = 0.0_dp
          NULLIFY(clist%acint,clist%achint,clist%sgf_list)
 
-         ALLOCATE(sgf_list(nsgfa),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(sgf_list(nsgfa))
 
          at_a => qs_kind_set(jkind)
          at_b => qs_kind_set(ikind)
@@ -545,8 +531,7 @@ CONTAINS
 
          IF( local ) THEN
             DO i=1,maxder
-               ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
-               CPASSERT(stat==0)
+               ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa))
                oceh(i)%block=0._dp
                oces(i)%block=0._dp
             END DO
@@ -554,14 +539,12 @@ CONTAINS
             clist%nsgf_cnt = nsgf_cnt
             clist%sgf_soft_only = .FALSE.
             IF(nsgf_cnt > 0) THEN
-               ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-               CPASSERT(stat==0)
+               ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt))
                clist%acint(:,:,:)=0._dp
                clist%sgf_list(:)=HUGE(0)
                CPASSERT(nsgf_cnt == nsgfa)
                ! *** Special case: A=B
-               ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
-               CPASSERT(stat==0)
+               ALLOCATE(clist%achint(nsgfa,nsobtot,maxder))
                clist%achint=0._dp
                clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
                clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
@@ -570,21 +553,18 @@ CONTAINS
                clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
             ENDIF
             DO i=1,maxder
-              DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(oceh(i)%block,oces(i)%block)
             END DO
          ELSE
             DO i=1,maxder
-               ALLOCATE(oces(i)%block(nsobtot,nsgfa),STAT=stat)
-               CPASSERT(stat==0)
+               ALLOCATE(oces(i)%block(nsobtot,nsgfa))
                oces(i)%block=0._dp
             END DO
             CALL build_oce_block(oces,at_a,at_b,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,eps_fit)
             clist%nsgf_cnt = nsgf_cnt
             clist%sgf_soft_only = sgf_soft_only
             IF(nsgf_cnt > 0) THEN
-               ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-               CPASSERT(stat==0)
+               ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt))
                clist%acint(:,:,:)=0._dp
                clist%sgf_list(:)=HUGE(0)
                DO i=1,maxder
@@ -595,21 +575,17 @@ CONTAINS
                clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
             ENDIF
             DO i=1,maxder
-              DEALLOCATE(oces(i)%block,STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(oces(i)%block)
             END DO
          END IF
 
-         DEALLOCATE(sgf_list,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(sgf_list)
 
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
-     DEALLOCATE(sab,work,ai_work,STAT=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE(oceh,oces,STAT=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(sab,work,ai_work)
+     DEALLOCATE(oceh,oces)
 
      ! set up sort index
      CALL sap_sort(intac)

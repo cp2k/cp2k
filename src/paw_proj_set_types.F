@@ -100,14 +100,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_paw_proj_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
 
-    ALLOCATE (paw_proj_set,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (paw_proj_set)
 
     NULLIFY (paw_proj_set%nprj)
     NULLIFY (paw_proj_set%lx)
@@ -152,66 +150,38 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_paw_proj_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    DEALLOCATE (paw_proj_set%zisomin,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%zprjisomin,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%nprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%lx,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%ly,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%lz,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%ll,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%m,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%first_prj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%last_prj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%first_prjs,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%zetprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%cprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%cprj_s,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%csprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%local_oce_cphi_h,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%local_oce_cphi_s,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%local_oce_sphi_h,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%local_oce_sphi_s,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%sphi_h,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%sphi_s,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%gccprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%isoprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%rzetprj,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%o2nindex,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (paw_proj_set%n2oindex,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (paw_proj_set%zisomin)
+    DEALLOCATE (paw_proj_set%zprjisomin)
+    DEALLOCATE (paw_proj_set%nprj)
+    DEALLOCATE (paw_proj_set%lx)
+    DEALLOCATE (paw_proj_set%ly)
+    DEALLOCATE (paw_proj_set%lz)
+    DEALLOCATE (paw_proj_set%ll)
+    DEALLOCATE (paw_proj_set%m)
+    DEALLOCATE (paw_proj_set%first_prj)
+    DEALLOCATE (paw_proj_set%last_prj)
+    DEALLOCATE (paw_proj_set%first_prjs)
+    DEALLOCATE (paw_proj_set%zetprj)
+    DEALLOCATE (paw_proj_set%cprj)
+    DEALLOCATE (paw_proj_set%cprj_s)
+    DEALLOCATE (paw_proj_set%csprj)
+    DEALLOCATE (paw_proj_set%local_oce_cphi_h)
+    DEALLOCATE (paw_proj_set%local_oce_cphi_s)
+    DEALLOCATE (paw_proj_set%local_oce_sphi_h)
+    DEALLOCATE (paw_proj_set%local_oce_sphi_s)
+    DEALLOCATE (paw_proj_set%sphi_h)
+    DEALLOCATE (paw_proj_set%sphi_s)
+    DEALLOCATE (paw_proj_set%gccprj)
+    DEALLOCATE (paw_proj_set%isoprj)
+    DEALLOCATE (paw_proj_set%rzetprj)
+    DEALLOCATE (paw_proj_set%o2nindex)
+    DEALLOCATE (paw_proj_set%n2oindex)
 
-    DEALLOCATE (paw_proj_set,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (paw_proj_set)
   END SUBROUTINE deallocate_paw_proj_set
 
 ! *****************************************************************************
@@ -284,8 +254,7 @@ CONTAINS
       ipgf, ipp, iprj, iprjfirst, iprjs, is, iset, isgf, isgfmax, isgfmin, &
       ishell, iso, iso_pgf, iso_set, isomin, jp, k, kp, lshell, lwork, lx, &
       ly, lz, maxco, maxl, maxnprj, maxpgf, maxso, mp, ms, n, ncgauprj, ncgf, &
-      nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsox, output_unit, &
-      stat
+      nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsox, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_cgf, first_sgf, l, &
@@ -329,14 +298,11 @@ CONTAINS
        CPASSERT(.NOT. ASSOCIATED(paw_proj%zprjisomin))
        CPASSERT(.NOT. ASSOCIATED(paw_proj%nprj))
 
-       ALLOCATE(paw_proj%zisomin(0:maxl),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%zisomin(0:maxl))
        paw_proj%zisomin(0:maxl) = 0.0_dp
-       ALLOCATE(paw_proj%zprjisomin(0:maxl),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%zprjisomin(0:maxl))
        paw_proj%zprjisomin(0:maxl) = 0.0_dp
-       ALLOCATE(paw_proj%nprj(0:maxl),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%nprj(0:maxl))
        paw_proj%nprj(0:maxl) = 0
 
        output_unit = cp_print_key_unit_nr(logger,force_env_section,&
@@ -347,8 +313,7 @@ CONTAINS
                "Projectors for the basis functions of "//TRIM(bsname)
        END IF
 
-       ALLOCATE(set_radius(nset),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(set_radius(nset))
        set_radius = 0.0_dp
        DO iset = 1,nset
           DO is = 1,nshell(iset)
@@ -357,8 +322,7 @@ CONTAINS
           END DO  ! is
        END DO  ! iset
 
-       ALLOCATE(set_radius2(maxpgf,0:maxl,nset),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(set_radius2(maxpgf,0:maxl,nset))
        set_radius2 = 0.0_dp
        DO iset = 1,nset
           DO lshell = lmin(iset),lmax(iset)
@@ -386,17 +350,13 @@ CONTAINS
        ENDDO                  ! lshell
 
        !   *** Allocate exponents and coefficients ***
-       ALLOCATE(paw_proj%zetprj(maxnprj,0:maxl),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%zetprj(maxnprj,0:maxl))
        paw_proj%zetprj(1:maxnprj,0:maxl)=0.0_dp
-       ALLOCATE(paw_proj%gccprj(maxnprj,maxpgf,0:maxl,nset),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%gccprj(maxnprj,maxpgf,0:maxl,nset))
        paw_proj%gccprj=0.0_dp
-       ALLOCATE(paw_proj%rzetprj(maxnprj,0:maxl),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%rzetprj(maxnprj,0:maxl))
        paw_proj%rzetprj(1:maxnprj,0:maxl)=0.0_dp
-       ALLOCATE(paw_proj%isoprj(maxnprj,0:maxl),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%isoprj(maxnprj,0:maxl))
        paw_proj%isoprj = .FALSE.
 
        mp = 0
@@ -410,12 +370,10 @@ CONTAINS
 
           np = paw_proj%nprj(lshell)
 
-          ALLOCATE(isoprj(np),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(isoprj(np))
           isoprj = .FALSE.
 
-          ALLOCATE(zet(np),zetp(np),gcc(np,np),smat(np,np),work(np,np),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(zet(np),zetp(np),gcc(np,np),smat(np,np),work(np,np))
 
           zet(:) = 0.0_dp
           zetp(:) = 0.0_dp
@@ -587,20 +545,16 @@ CONTAINS
           END IF
 
           !   *** Release the working storage for the current value lshell ***
-          DEALLOCATE(isoprj,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(gcc,zet,zetp,smat,work,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(isoprj)
+          DEALLOCATE(gcc,zet,zetp,smat,work)
 
        ENDDO                 ! lshell
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
             "DFT%PRINT%GAPW%PROJECTORS")
 
        !   *** Release the working storage for the current value lshell ***
-       DEALLOCATE(set_radius,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(set_radius2,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(set_radius)
+       DEALLOCATE(set_radius2)
 
        !   *** Count primitives basis functions for the projectors
        paw_proj%ncgauprj = 0
@@ -699,24 +653,18 @@ CONTAINS
 
        !   local coefficients for the one center expansions : oce
        !   the coefficients are calculated for the full and soft expansions
-       ALLOCATE(paw_proj%local_oce_cphi_h(maxco,ncgf),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%local_oce_cphi_h(maxco,ncgf))
        paw_proj%local_oce_cphi_h = 0.0_dp
-       ALLOCATE(paw_proj%local_oce_sphi_h(maxco,nsgf),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%local_oce_sphi_h(maxco,nsgf))
        paw_proj%local_oce_sphi_h = 0.0_dp
-       ALLOCATE(paw_proj%sphi_h(maxco,nsgf),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%sphi_h(maxco,nsgf))
        paw_proj%sphi_h = 0.0_dp
 
-       ALLOCATE(paw_proj%local_oce_cphi_s(maxco,ncgf),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%local_oce_cphi_s(maxco,ncgf))
        paw_proj%local_oce_cphi_s = 0.0_dp
-       ALLOCATE(paw_proj%local_oce_sphi_s(maxco,nsgf),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%local_oce_sphi_s(maxco,nsgf))
        paw_proj%local_oce_sphi_s = 0.0_dp
-       ALLOCATE(paw_proj%sphi_s(maxco,nsgf),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%sphi_s(maxco,nsgf))
        paw_proj%sphi_s = 0.0_dp
 
        !   *** Cartesian ***
@@ -807,10 +755,8 @@ CONTAINS
        END DO  ! iset
 
        !Index transformation OLD-NEW
-       ALLOCATE(paw_proj%o2nindex(maxso*nset),STAT=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(paw_proj%n2oindex(maxso*nset),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%o2nindex(maxso*nset))
+       ALLOCATE(paw_proj%n2oindex(maxso*nset))
        paw_proj%o2nindex = 0
        paw_proj%n2oindex = 0
        ico = 1
@@ -833,8 +779,7 @@ CONTAINS
        mp = ico-1
        paw_proj%nsatbas = mp
        paw_proj%nsotot = nset*maxso
-       ALLOCATE(paw_proj%csprj(nsgauprj,mp),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(paw_proj%csprj(nsgauprj,mp))
        paw_proj%csprj = 0._dp
        DO k=1,mp
          ico = paw_proj%n2oindex(k)

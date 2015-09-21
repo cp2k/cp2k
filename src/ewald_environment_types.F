@@ -258,13 +258,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE( ewald_env, stat=stat )
-    CPASSERT(stat==0)
+    ALLOCATE( ewald_env)
     ewald_env%ref_count=1
     last_ewald_env_id_nr=last_ewald_env_id_nr+1
     ewald_env%id_nr=last_ewald_env_id_nr
@@ -309,7 +307,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -321,11 +318,9 @@ CONTAINS
           CALL cp_para_env_release ( ewald_env%para_env)
           CALL section_vals_release(ewald_env%poisson_section)
           IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
-             DEALLOCATE(ewald_env%interaction_cutoffs, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(ewald_env%interaction_cutoffs)
           ENDIF
-          DEALLOCATE (  ewald_env, stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  ewald_env)
        ENDIF
     END IF
     NULLIFY(ewald_env)

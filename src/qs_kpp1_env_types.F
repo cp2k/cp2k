@@ -101,7 +101,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: ispin
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -114,8 +114,7 @@ CONTAINS
              DO ispin=1,SIZE(kpp1_env%v_rspace)
                 CALL pw_release(kpp1_env%v_rspace(ispin)%pw)
              END DO
-             DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%v_rspace)
           END IF
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
              DO ispin=1,SIZE(kpp1_env%v_ao)
@@ -123,12 +122,10 @@ CONTAINS
                    CALL cp_dbcsr_deallocate_matrix(kpp1_env%v_ao(ispin)%matrix)
                 END IF
              END DO
-             DEALLOCATE(kpp1_env%v_ao, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%v_ao)
           END IF
           IF (ASSOCIATED(kpp1_env%drho_r)) THEN
-             DEALLOCATE(kpp1_env%drho_r, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%drho_r)
           END IF
           IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
              CALL xc_dset_release(kpp1_env%deriv_set)
@@ -139,19 +136,15 @@ CONTAINS
              NULLIFY(kpp1_env%rho_set)
           END IF
           IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
-             DEALLOCATE(kpp1_env%spin_pot, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%spin_pot)
           END IF
           IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
-             DEALLOCATE(kpp1_env%grad_pot, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%grad_pot)
           END IF
           IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
-             DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(kpp1_env%ndiag_term)
           END IF
-          DEALLOCATE(kpp1_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kpp1_env)
        END IF
     END IF
     NULLIFY(kpp1_env)

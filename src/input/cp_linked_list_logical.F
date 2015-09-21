@@ -218,17 +218,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (.NOT.PRESENT(first_el)) THEN
        NULLIFY(sll)
        IF (PRESENT(rest)) sll => rest
     ELSE
-       ALLOCATE(sll, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(sll)
        sll%first_el = first_el
        NULLIFY(sll%rest)
        IF (PRESENT(rest)) sll%rest => rest
@@ -270,13 +264,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    INTEGER:: stat
-    failure=.FALSE.
-
-    DEALLOCATE(sll, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(sll)
   END SUBROUTINE cp_sll_logical_dealloc_node
 
 ! ============= get/set ============
@@ -300,10 +288,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        IF (PRESENT(first_el)) THEN
@@ -339,10 +323,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (.NOT.ASSOCIATED(sll)) THEN
        CPASSERT(.NOT.PRESENT(first_el))
        IF (PRESENT(rest)) NULLIFY(rest)
@@ -372,10 +352,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_get_first_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (cp_debug) THEN
        CPASSERT(ASSOCIATED(sll))
     END IF
@@ -404,9 +380,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        NULLIFY(res)
@@ -419,8 +392,7 @@ CONTAINS
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP, "tried to go past end in "// &
-                     CPSourceFileRef,&
-                     failure)
+                     CPSourceFileRef)
              END IF
           END DO
           IF (iter==-1) THEN
@@ -503,10 +475,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_get_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: pos
-
-    failure=.FALSE.
 
     IF (cp_debug) THEN
        CPASSERT(index>0.OR.index==-1)
@@ -541,10 +510,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_set_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: pos
-
-    failure=.FALSE.
 
     IF (index==-1) THEN
        pos => cp_sll_logical_get_rest(sll, iter=-1)
@@ -629,10 +595,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_rm_first_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: node_to_rm
 
-    failure=.FALSE.
     node_to_rm => sll
 
     IF (ASSOCIATED(sll)) THEN
@@ -641,8 +605,7 @@ CONTAINS
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
-            CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
   END SUBROUTINE cp_sll_logical_rm_first_el
 
@@ -666,10 +629,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_insert_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: pos
-
-    failure=.FALSE.
 
     IF (index==1) THEN
        CALL cp_sll_logical_insert_el(sll,el)
@@ -701,10 +661,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_rm_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: pos
-
-    failure=.FALSE.
 
     IF (cp_debug) THEN
        CPASSERT(index>0.OR.index==-1)
@@ -762,24 +719,18 @@ FUNCTION cp_sll_logical_to_array(sll) RESULT(res)
     TYPE(cp_sll_logical_type), POINTER       :: sll
     LOGICAL, DIMENSION(:), POINTER           :: res
 
-    INTEGER                                  :: i, len, stat
+    INTEGER                                  :: i, len
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_to_array', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: iter
 
-  failure=.FALSE.
-
   len=cp_sll_logical_get_length(sll)
-  ALLOCATE(res(len),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(res(len))
   iter => sll
   DO i=1,len
      res(i) = iter%first_el
-     IF (.NOT.(cp_sll_logical_next(iter).OR.i==len)) THEN
-        CPASSERT(.FALSE.)
-     END IF
+     CPASSERT(cp_sll_logical_next(iter).OR.i==len)
   END DO
 END FUNCTION cp_sll_logical_to_array
 
@@ -840,10 +791,9 @@ SUBROUTINE cp_sll_logical_insert_ordered(sll,el,insert_equals,&
       routineN = 'cp_sll_logical_insert_ordered', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, i_eq
+    LOGICAL                                  :: i_eq
     TYPE(cp_sll_logical_type), POINTER       :: iter
 
-  failure=.FALSE.
   i_eq=.FALSE.
 
   IF (PRESENT(did_insert)) did_insert=.FALSE.
@@ -921,10 +871,9 @@ SUBROUTINE cp_sll_logical_insert_ordered2(sll,el,compare_function,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: comp
-    LOGICAL                                  :: failure, i_eq
+    LOGICAL                                  :: i_eq
     TYPE(cp_sll_logical_type), POINTER       :: iter
 
-  failure=.FALSE.
   i_eq=.FALSE.
 
   IF (PRESENT(did_insert)) did_insert=.FALSE.

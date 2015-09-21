@@ -90,7 +90,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transport_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: input
     TYPE(transport_env_type), POINTER        :: transport_env
@@ -103,8 +103,7 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(transport_env))
 
-    ALLOCATE(transport_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(transport_env)
     CALL transport_init_read_input(input,transport_env)
     CALL cp_dbcsr_init(transport_env%template_matrix_sym)
     CALL cp_dbcsr_init(transport_env%template_matrix_nosym)

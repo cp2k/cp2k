@@ -115,8 +115,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iexp, ij, ipgf, istat, jpgf, &
-                                                mmax, nexp
+    INTEGER                                  :: iexp, ij, ipgf, jpgf, mmax, &
+                                                nexp
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho, sab, t, zetc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -135,8 +135,7 @@ CONTAINS
       mmax = la_max_set + lb_max_set
     END IF
 
-    ALLOCATE (auxint(0:mmax,npgfa*npgfb),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (auxint(0:mmax,npgfa*npgfb))
     auxint = 0._dp
 
     ! *** Calculate auxiliary integrals ***
@@ -169,8 +168,7 @@ CONTAINS
          lb_max_set,lb_min_set,npgfb,rpgfb,zetb,auxint,rpgfc,&
          rab,dab,rac,dac,rbc,dbc,vab,s,pab,force_a,force_b,fs)
 
-    DEALLOCATE (auxint,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (auxint)
 
   END SUBROUTINE ppl_integral
 ! *****************************************************************************

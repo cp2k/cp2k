@@ -88,13 +88,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(kg_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kg_env)
     CALL init_kg_env(kg_env, input)
   END SUBROUTINE kg_env_create
 
@@ -255,7 +253,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_build_neighborlist', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, nkind, stat
+    INTEGER                                  :: handle, ikind, nkind
     LOGICAL                                  :: failure, molecule_only
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, tpot_present
     REAL(dp)                                 :: subcells
@@ -297,16 +295,12 @@ CONTAINS
 
     ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
-    ALLOCATE (orb_radius(nkind),tpot_radius(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (orb_radius(nkind),tpot_radius(nkind))
     orb_radius(:) = 0.0_dp
     tpot_radius(:) = 0.0_dp
-    ALLOCATE (orb_present(nkind),tpot_present(nkind),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (pair_radius(nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (atom2d(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (orb_present(nkind),tpot_present(nkind))
+    ALLOCATE (pair_radius(nkind,nkind))
+    ALLOCATE (atom2d(nkind))
 
     CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells)
 
@@ -371,14 +365,10 @@ CONTAINS
 
     ! Release work storage
     CALL atom2d_cleanup(atom2d)
-    DEALLOCATE (atom2d,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (orb_present,tpot_present,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (orb_radius,tpot_radius,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (pair_radius,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom2d)
+    DEALLOCATE (orb_present,tpot_present)
+    DEALLOCATE (orb_radius,tpot_radius)
+    DEALLOCATE (pair_radius)
 
     CALL timestop(handle)
 

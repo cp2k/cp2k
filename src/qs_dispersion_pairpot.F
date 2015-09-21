@@ -119,8 +119,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: elem, handle, i, ikind, j, &
                                                 max_elem, maxc, n_rep, nkind, &
-                                                nl, stat, vdw_pp_type, &
-                                                vdw_type
+                                                nl, vdw_pp_type, vdw_type
     LOGICAL                                  :: at_end, failure, found, &
                                                 is_available
     REAL(KIND=dp)                            :: dum
@@ -149,18 +148,12 @@ CONTAINS
                 maxc     = 5
                 dispersion_env%max_elem = max_elem
                 dispersion_env%maxc     = maxc
-                ALLOCATE(dispersion_env%maxci(max_elem),STAT=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(dispersion_env%c6ab(max_elem,max_elem,maxc,maxc,3),STAT=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(dispersion_env%r0ab(max_elem,max_elem),STAT=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(dispersion_env%rcov(max_elem),STAT=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(dispersion_env%r2r4(max_elem),STAT=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(dispersion_env%cn(max_elem),STAT=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(dispersion_env%maxci(max_elem))
+                ALLOCATE(dispersion_env%c6ab(max_elem,max_elem,maxc,maxc,3))
+                ALLOCATE(dispersion_env%r0ab(max_elem,max_elem))
+                ALLOCATE(dispersion_env%rcov(max_elem))
+                ALLOCATE(dispersion_env%r2r4(max_elem))
+                ALLOCATE(dispersion_env%cn(max_elem))
 
                 ! get filename of parameter file
                 filename = dispersion_env%parameter_file_name
@@ -199,8 +192,7 @@ CONTAINS
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
        CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol,z=elem)
-       ALLOCATE(disp,STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(disp)
        SELECT CASE (vdw_type)
        CASE DEFAULT
           CPASSERT(.FALSE.)
@@ -277,8 +269,7 @@ CONTAINS
              IF (PRESENT(pp_section)) THEN
                 CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep)
                 IF (n_rep > 0) THEN
-                   ALLOCATE(dispersion_env%cnkind(n_rep),STAT=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(dispersion_env%cnkind(n_rep))
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
                         c_vals=tmpstringlist)
@@ -288,14 +279,12 @@ CONTAINS
                 END IF
                 CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep)
                 IF (n_rep > 0) THEN
-                   ALLOCATE(dispersion_env%cnlist(n_rep),STAT=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(dispersion_env%cnlist(n_rep))
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", i_rep_val=i,&
                         c_vals=tmpstringlist)
                       nl = SIZE(tmpstringlist)
-                      ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
-                      CPASSERT(stat==0)
+                      ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1))
                       dispersion_env%cnlist(i)%natom = nl-1
                       READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum
                       DO j=1,nl-1
@@ -856,9 +845,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, ia, &
-      iatom, icx, icy, icz, idmp, ikind, ilist, istat, jatom, jkind, katom, &
-      kkind, kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, &
-      nkind, unit_nr, za, zb, zc
+      iatom, icx, icy, icz, idmp, ikind, ilist, jatom, jkind, katom, kkind, &
+      kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, nkind, &
+      unit_nr, za, zb, zc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, atomnumber, &
                                                 kind_of
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
@@ -966,8 +955,7 @@ CONTAINS
        IF (calculate_forces .OR. debugall) THEN
           NULLIFY (force)
           CALL get_qs_env(qs_env=qs_env,force=force)
-          ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (atom_of_kind(natom),kind_of(natom))
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
           IF (use_virial .AND. debugall) THEN
@@ -975,13 +963,11 @@ CONTAINS
           END IF
        ELSE IF ( ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
                    dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc ) THEN
-          ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (atom_of_kind(natom),kind_of(natom))
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
        END IF
 
-       ALLOCATE (dodisp(nkind),ghost(nkind),atomnumber(nkind),c6d2(nkind),radd2(nkind),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (dodisp(nkind),ghost(nkind),atomnumber(nkind),c6d2(nkind),radd2(nkind))
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
           CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
@@ -991,8 +977,7 @@ CONTAINS
           c6d2(ikind)=disp_a%c6
           radd2(ikind)=disp_a%vdw_radii
        END DO
-       ALLOCATE (rcpbc(3,natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (rcpbc(3,natom))
        DO iatom=1,natom
          rcpbc(:,iatom) = pbc(particle_set(iatom)%r(:),cell)
        END DO
@@ -1050,16 +1035,13 @@ CONTAINS
           NULLIFY (particle_set)
           CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
           natom = SIZE (particle_set)
-          ALLOCATE (cnumbers(natom),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (cnumbers(natom))
           cnumbers = 0._dp
           IF(calculate_forces .OR. debugall) THEN
-            ALLOCATE (dcnum(natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE (dcnum(natom))
             dcnum(:)%neighbors=0
             DO iatom=1,natom
-              ALLOCATE (dcnum(iatom)%nlist(10),dcnum(iatom)%dvals(10),dcnum(iatom)%rik(3,10),STAT=istat)
-              CPASSERT(istat==0)
+              ALLOCATE (dcnum(iatom)%nlist(10),dcnum(iatom)%dvals(10),dcnum(iatom)%rik(3,10))
             END DO
           END IF
           sab_cn => dispersion_env%sab_cn
@@ -1138,8 +1120,7 @@ CONTAINS
           END IF
           IF (dispersion_env%c9cnst) THEN
             IF (unit_nr>0) WRITE(unit_nr,*) " Use reference coordination numbers for C9 term"
-            ALLOCATE (cnumfix(natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE (cnumfix(natom))
             cnumfix = 0._dp
             ! first use the default values
             DO iatom=1,natom
@@ -1600,8 +1581,7 @@ CONTAINS
             dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           ! Long range correction (atomic contributions not implemented)
           IF (dispersion_env%lrc) THEN
-             ALLOCATE (cnkind(nkind),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE (cnkind(nkind))
              cnkind = 0._dp
              ! first use the default values
              DO ikind=1,nkind
@@ -1650,26 +1630,21 @@ CONTAINS
                  virial%pv_virial(i,i) = virial%pv_virial(i,i) + (elrc6+elrc8+2._dp*elrc9)
                END DO
              END IF
-             DEALLOCATE (cnkind,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (cnkind)
           END IF
        END IF
 
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
             dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
-          DEALLOCATE (cnumbers,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (cnumbers)
           IF ( dispersion_env%doabc .AND. dispersion_env%c9cnst ) THEN
-            DEALLOCATE (cnumfix,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE (cnumfix)
           END IF
           IF(calculate_forces .OR. debugall) THEN
             DO iatom=1,natom
-              DEALLOCATE (dcnum(iatom)%nlist,dcnum(iatom)%dvals,dcnum(iatom)%rik,STAT=istat)
-              CPASSERT(istat==0)
+              DEALLOCATE (dcnum(iatom)%nlist,dcnum(iatom)%dvals,dcnum(iatom)%rik)
             END DO
-            DEALLOCATE (dcnum,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE (dcnum)
           END IF
        END IF
 
@@ -1740,12 +1715,10 @@ CONTAINS
        END IF
 
        IF(calculate_forces .OR. debugall .OR. dispersion_env%doabc) THEN
-          DEALLOCATE(atom_of_kind,kind_of,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(atom_of_kind,kind_of)
        END IF
 
-       DEALLOCATE (dodisp,ghost,atomnumber,rcpbc,radd2,c6d2,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (dodisp,ghost,atomnumber,rcpbc,radd2,c6d2)
 
        IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
           CALL cp_print_key_finished_output(unit_nr,logger,dispersion_env%dftd_section,&
@@ -1870,7 +1843,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: funit, iadr, iat, jadr, jat, &
-                                                kk, nl, nlines, nn, stat
+                                                kk, nl, nlines, nn
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pars
 
@@ -1882,8 +1855,7 @@ CONTAINS
     END IF
     CALL mp_bcast(nl,para_env%source,para_env%group)
     CALL mp_bcast(nlines,para_env%source,para_env%group)
-    ALLOCATE(pars(nl),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pars(nl))
     IF(para_env%source==para_env%mepos) THEN
       READ(funit,*) pars(1:nl)
       CALL close_file(unit_number=funit)
@@ -1910,8 +1882,7 @@ CONTAINS
        kk=(nn*5)+1
     ENDDO
 
-    DEALLOCATE(pars,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pars)
 
   END SUBROUTINE dftd3_c6_param
 
@@ -2966,8 +2937,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dcnum_distribute', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, i, ia, ipe, istat, jn, &
-                                                n, natom, ntmax, ntot
+    INTEGER                                  :: group, i, ia, ipe, jn, n, &
+                                                natom, ntmax, ntot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list, nloc
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dvals
@@ -2981,16 +2952,14 @@ CONTAINS
       group = para_env%group
       natom=SIZE(dcnum)
       !pack my dcnum data
-      ALLOCATE (nloc(natom),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (nloc(natom))
       DO ia=1,natom
         nloc(ia)=dcnum(ia)%neighbors
       END DO
       ntot = SUM(nloc)
       ntmax = ntot
       CALL mp_max(ntmax,group)
-      ALLOCATE (list(ntmax),dvals(ntmax),rik(3,ntmax),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (list(ntmax),dvals(ntmax),rik(3,ntmax))
       list=0
       dvals=0._dp
       rik=0._dp
@@ -3029,10 +2998,8 @@ CONTAINS
           dcnum(ia)%neighbors=dcnum(ia)%neighbors+nloc(ia)
         END DO
       END DO
-      DEALLOCATE (nloc,STAT=istat)
-      CPASSERT(istat==0)
-      DEALLOCATE (list,dvals,rik,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE (nloc)
+      DEALLOCATE (list,dvals,rik)
     END IF
 
   END SUBROUTINE dcnum_distribute

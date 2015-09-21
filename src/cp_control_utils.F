@@ -344,8 +344,7 @@ CPSourceFileRef,&
     tmp_section => section_vals_get_subs_vals(dft_section,"EFIELD")
     CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=is_present)
     IF (is_present) THEN
-       ALLOCATE(dft_control%efield_fields(nrep),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dft_control%efield_fields(nrep))
        DO i=1,nrep
           CALL read_efield_sections(dft_control,tmp_section)
        END DO
@@ -478,7 +477,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid_level, &
-                                                ngrid_level, stat
+                                                ngrid_level
     LOGICAL                                  :: explicit, failure, &
                                                 multigrid_set
     REAL(dp)                                 :: cutoff
@@ -523,8 +522,7 @@ CPSourceFileRef,&
        IF (.NOT.explicit) cutoff = 45.0_dp
     END IF
 
-    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qs_control%e_cutoff(ngrid_level))
     qs_control%cutoff = cutoff
 
     IF (multigrid_set) THEN
@@ -588,7 +586,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
     INTEGER                                  :: handle, itmp, j, jj, k, &
-                                                n_rep, n_var, nrep, stat
+                                                n_rep, n_var, nrep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: explicit, failure, was_present
     REAL(dp)                                 :: tmp, tmpsqrt, value
@@ -1009,8 +1007,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(dftb_parameter,"HB_SR_PARAM",&
             r_val=qs_control%dftb_control%hb_sr_para)
        CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var)
-       ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var))
        DO k = 1, n_var
           CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
                c_vals=clist)
@@ -1824,7 +1821,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_efield_sections', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals
     TYPE(efield_type), POINTER               :: efield
@@ -1834,8 +1831,7 @@ CPSourceFileRef,&
 
     DO i=1,SIZE(dft_control%efield_fields)
        NULLIFY(dft_control%efield_fields(i)%efield)
-       ALLOCATE(dft_control%efield_fields(i)%efield,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dft_control%efield_fields(i)%efield)
        efield => dft_control%efield_fields(i)%efield
        NULLIFY(efield%envelop_i_vars,efield%envelop_r_vars)
        CALL section_vals_val_get(efield_section,"INTENSITY",i_rep_section=i, &
@@ -1843,8 +1839,7 @@ CPSourceFileRef,&
 
        CALL section_vals_val_get(efield_section,"POLARISATION",i_rep_section=i, &
             r_vals=tmp_vals)
-       ALLOCATE(efield%polarisation(SIZE(tmp_vals)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(efield%polarisation(SIZE(tmp_vals)))
        efield%polarisation = tmp_vals
        CALL section_vals_val_get(efield_section,"PHASE",i_rep_section=i, &
             r_val=efield%phase_offset)
@@ -1853,8 +1848,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(efield_section,"WAVELENGTH",i_rep_section=i, &
             r_val=efield%wavelength)
        IF(efield%envelop_id==constant_env)THEN
-          ALLOCATE(efield%envelop_i_vars(2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(efield%envelop_i_vars(2))
           tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i)
           CALL section_vals_val_get(tmp_section,"START_STEP", &
                i_val=efield%envelop_i_vars(1))
@@ -1862,8 +1856,7 @@ CPSourceFileRef,&
                i_val=efield%envelop_i_vars(2))
        END IF
        IF(efield%envelop_id==gaussian_env)THEN
-          ALLOCATE(efield%envelop_r_vars(2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(efield%envelop_r_vars(2))
           tmp_section => section_vals_get_subs_vals(efield_section,"GAUSSIAN_ENV",i_rep_section=i)
           CALL section_vals_val_get(tmp_section,"T0", &
                r_val=efield%envelop_r_vars(1))
@@ -1871,8 +1864,7 @@ CPSourceFileRef,&
                r_val=efield%envelop_r_vars(2))
        END IF
        IF(efield%envelop_id==ramp_env)THEN
-          ALLOCATE(efield%envelop_i_vars(4),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(efield%envelop_i_vars(4))
           tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i)
           CALL section_vals_val_get(tmp_section,"START_STEP_IN", &
                i_val=efield%envelop_i_vars(1))
@@ -1900,13 +1892,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_rtp_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     INTEGER, DIMENSION(:), POINTER           :: tmp
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    ALLOCATE(dft_control%rtp_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dft_control%rtp_control)
     CALL section_vals_val_get(rtp_section,"MAX_ITER",&
       i_val=dft_control%rtp_control%max_iter)
     CALL section_vals_val_get(rtp_section,"MAT_EXP",&

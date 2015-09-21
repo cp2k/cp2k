@@ -373,7 +373,7 @@ CONTAINS
 #if defined (__LIBXC)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
-    INTEGER                                  :: func_id, handle, npoints, stat
+    INTEGER                                  :: func_id, handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure, has_laplace
     REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, sc
@@ -424,8 +424,7 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        IF (cp_debug) THEN
-          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
        ELSE
           dummy => rho
        END IF
@@ -600,8 +599,7 @@ CONTAINS
        !$omp end parallel
 
        IF (cp_debug) THEN
-          DEALLOCATE(dummy,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dummy)
        ELSE
           NULLIFY(dummy)
        END IF
@@ -643,7 +641,7 @@ CONTAINS
 #if defined (__LIBXC)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
-    INTEGER                                  :: func_id, handle, npoints, stat
+    INTEGER                                  :: func_id, handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure, has_laplace
     REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, sc
@@ -711,8 +709,7 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        IF (cp_debug) THEN
-          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
        ELSE
           dummy=> rhoa
        END IF
@@ -1165,8 +1162,7 @@ CONTAINS
        !$omp end parallel
 
        IF (cp_debug) THEN
-          DEALLOCATE(dummy,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dummy)
        ELSE
           NULLIFY(dummy)
        END IF

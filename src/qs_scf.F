@@ -516,7 +516,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nmo, &
-                                                number_of_OT_envs, stat
+                                                number_of_OT_envs
     LOGICAL                                  :: do_rotation, failure, &
                                                 has_unit_metric, is_full_all
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -643,8 +643,7 @@ CONTAINS
           number_of_OT_envs=dft_control%nspins
           IF (dft_control%restricted) number_of_OT_envs=1
 
-          ALLOCATE(scf_env%qs_ot_env(number_of_OT_envs),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(scf_env%qs_ot_env(number_of_OT_envs))
 
           ! XXX Joost XXX should disentangle reading input from this part
           CALL ot_scf_read_input(scf_env%qs_ot_env,scf_section)
@@ -757,7 +756,7 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, stat
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -819,20 +818,16 @@ CPSourceFileRef)
        END SELECT
 
        IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
-          DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(scf_env%outer_scf%variables)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
-          DEALLOCATE(scf_env%outer_scf%count,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(scf_env%outer_scf%count)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
-          DEALLOCATE(scf_env%outer_scf%gradient,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(scf_env%outer_scf%gradient)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
-          DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(scf_env%outer_scf%energy)
        ENDIF
 
     CALL timestop(handle)

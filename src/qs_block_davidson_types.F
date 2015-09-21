@@ -63,14 +63,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: ispin
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(bdav_env))
-    ALLOCATE(bdav_env(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bdav_env(nspins))
     DO ispin = 1,nspins
       NULLIFY(bdav_env(ispin)%H_block_mat)
       NULLIFY(bdav_env(ispin)%H_block_vec)
@@ -195,7 +194,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins, stat
+    INTEGER                                  :: ispin, nspins
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -215,8 +214,7 @@ CONTAINS
 !        CALL cp_fm_release(bdav_env(ispin)%H_block_vec)
 
       END DO
-      DEALLOCATE(bdav_env,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(bdav_env)
 
     END IF
 

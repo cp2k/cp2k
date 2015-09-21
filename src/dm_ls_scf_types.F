@@ -159,7 +159,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, istat, istore
+    INTEGER                                  :: handle, ispin, istore
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -167,8 +167,7 @@ CONTAINS
 
     CALL cp_para_env_release(ls_scf_env%para_env)
 
-    DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule)
 
     ! set up the buffer for the history of matrices
     DO istore=1,MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
@@ -176,20 +175,17 @@ CONTAINS
           CALL cp_dbcsr_release(ls_scf_env%scf_history%matrix(ispin,istore))
        ENDDO
     ENDDO
-    DEALLOCATE(ls_scf_env%scf_history%matrix,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(ls_scf_env%scf_history%matrix)
 
     IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_dos)) &
         CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos)
     IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_cube)) &
         CALL section_vals_release(ls_scf_env%chebyshev%print_key_cube)
     IF (ASSOCIATED(ls_scf_env%chebyshev%min_energy)) THEN
-       DEALLOCATE(ls_scf_env%chebyshev%min_energy,stat=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(ls_scf_env%chebyshev%min_energy)
     ENDIF
     IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
-       DEALLOCATE(ls_scf_env%chebyshev%max_energy,stat=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(ls_scf_env%chebyshev%max_energy)
     ENDIF
 
     IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
@@ -200,8 +196,7 @@ CONTAINS
        CALL lib_pexsi_finalize(ls_scf_env%pexsi)
     ENDIF
 
-    DEALLOCATE(ls_scf_env,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(ls_scf_env)
 
     CALL timestop(handle)
 

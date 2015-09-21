@@ -79,10 +79,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_lri_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
-   ALLOCATE(lri_opt,STAT=stat)
-   CPASSERT(stat==0)
+   ALLOCATE(lri_opt)
 
    NULLIFY(lri_opt%ri_gcc_orig)
    NULLIFY(lri_opt%subset)
@@ -111,7 +108,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
    failure=.FALSE.
@@ -119,30 +116,23 @@ CONTAINS
    IF(ASSOCIATED(lri_opt)) THEN
      IF(ASSOCIATED(lri_opt%subset)) THEN
        DO i=1,SIZE(lri_opt%subset) 
-         DEALLOCATE(lri_opt%subset(i)%ncont_l,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(lri_opt%subset(i)%ncont_l)
        ENDDO 
-       DEALLOCATE(lri_opt%subset,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lri_opt%subset)
      ENDIF
      IF(ASSOCIATED(lri_opt%x)) THEN
-       DEALLOCATE(lri_opt%x,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lri_opt%x)
      ENDIF
      IF(ASSOCIATED(lri_opt%zet_init)) THEN
-       DEALLOCATE(lri_opt%zet_init,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lri_opt%zet_init)
      ENDIF
      IF(ASSOCIATED(lri_opt%ri_gcc_orig)) THEN
        DO i=1,SIZE(lri_opt%ri_gcc_orig) 
-         DEALLOCATE(lri_opt%ri_gcc_orig(i)%gcc_orig,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(lri_opt%ri_gcc_orig(i)%gcc_orig)
        ENDDO
-       DEALLOCATE(lri_opt%ri_gcc_orig,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lri_opt%ri_gcc_orig)
      ENDIF
-     DEALLOCATE(lri_opt,STAT=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(lri_opt)
    ENDIF
  END SUBROUTINE deallocate_lri_opt
 
@@ -165,8 +155,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: il, ipgf, iset, ishell, l, &
-                                                maxpgf, maxshell, nl, nset, &
-                                                stat
+                                                maxpgf, maxshell, nl, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, ncont_l
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
@@ -176,8 +165,7 @@ CONTAINS
     maxshell = SIZE(gto_basis_set%gcc,2)
     nset     = SIZE(gto_basis_set%gcc,3)
 
-    ALLOCATE(gcc_orig(maxpgf,maxshell,nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(gcc_orig(maxpgf,maxshell,nset))
     gcc_orig = 0.0_dp
 
     DO iset=1,gto_basis_set%nset
@@ -197,14 +185,12 @@ CONTAINS
      ! **** get number of contractions per quantum number
      CALL get_gto_basis_set(gto_basis_set=gto_basis_set,&
                             lmax=lmax,lmin=lmin) 
-     ALLOCATE(lri_opt%subset(nset),STAT=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(lri_opt%subset(nset))
      DO iset=1,gto_basis_set%nset
         nl=lmax(iset)-lmin(iset)+1
         lri_opt%subset(iset)%nl=nl
         il=1
-        ALLOCATE(lri_opt%subset(iset)%ncont_l(nl),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(lri_opt%subset(iset)%ncont_l(nl))
         ncont_l => lri_opt%subset(iset)%ncont_l
         ncont_l=1
         DO ishell=2,gto_basis_set%nshell(iset)

@@ -98,19 +98,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    ALLOCATE(results, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(results)
     NULLIFY(results%result_value, results%result_label)
     results%ref_count=1
-    ALLOCATE(results%result_label(0), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(results%result_value(0), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(results%result_label(0))
+    ALLOCATE(results%result_value(0))
     CALL timestop(handle)
   END SUBROUTINE cp_result_create
 
@@ -128,7 +125,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -139,19 +136,16 @@ CONTAINS
        IF (results%ref_count==0) THEN
           ! Description
           IF(ASSOCIATED(results%result_label))THEN
-             DEALLOCATE(results%result_label,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(results%result_label)
           END IF
           ! Values
           IF(ASSOCIATED(results%result_value))THEN
              DO i = 1, SIZE(results%result_value)
                 CALL cp_result_value_release(results%result_value(i)%value)
              END DO
-             DEALLOCATE(results%result_value,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(results%result_value)
           END IF
-          DEALLOCATE(results,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(results)
        END IF
     END IF
     CALL timestop(handle)
@@ -168,7 +162,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_clean', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -176,16 +170,14 @@ CONTAINS
     IF(ASSOCIATED(results))THEN
        ! Description
        IF(ASSOCIATED(results%result_label))THEN
-          DEALLOCATE(results%result_label,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(results%result_label)
        END IF
        ! Values
        IF(ASSOCIATED(results%result_value))THEN
           DO i = 1, SIZE(results%result_value)
              CALL cp_result_value_release(results%result_value(i)%value)
           END DO
-          DEALLOCATE(results%result_value,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(results%result_value)
        END IF
     END IF
     CALL timestop(handle)
@@ -223,13 +215,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    ALLOCATE(value, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(value)
     value%type_in_use = -1
     NULLIFY(value%real_type)
     NULLIFY(value%logical_type)
@@ -251,7 +242,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -260,14 +251,11 @@ CONTAINS
     value%type_in_use = type_in_use
     SELECT CASE(value%type_in_use)
     CASE(result_type_real)
-       ALLOCATE(value%real_type(size_value),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(value%real_type(size_value))
     CASE(result_type_integer)
-       ALLOCATE(value%integer_type(size_value),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(value%integer_type(size_value))
     CASE(result_type_logical)
-       ALLOCATE(value%logical_type(size_value),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(value%logical_type(size_value))
     CASE DEFAULT
        ! Type not implemented in cp_result_type
        CPASSERT(.FALSE.)
@@ -286,7 +274,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -295,22 +283,19 @@ CONTAINS
        SELECT CASE(value%type_in_use)
        CASE(result_type_real)
           IF (ASSOCIATED(value%real_type)) THEN
-             DEALLOCATE(value%real_type,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(value%real_type)
           END IF
           CPASSERT(.NOT.ASSOCIATED(value%integer_type))
           CPASSERT(.NOT.ASSOCIATED(value%logical_type))
        CASE(result_type_integer)
           IF (ASSOCIATED(value%integer_type)) THEN
-             DEALLOCATE(value%integer_type,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(value%integer_type)
           END IF
           CPASSERT(.NOT.ASSOCIATED(value%real_type))
           CPASSERT(.NOT.ASSOCIATED(value%logical_type))
        CASE(result_type_logical)
           IF (ASSOCIATED(value%logical_type)) THEN
-             DEALLOCATE(value%logical_type,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(value%logical_type)
           END IF
           CPASSERT(.NOT.ASSOCIATED(value%integer_type))
           CPASSERT(.NOT.ASSOCIATED(value%real_type))
@@ -318,8 +303,7 @@ CONTAINS
           ! Type not implemented in cp_result_type
           CPASSERT(.FALSE.)
        END SELECT
-       DEALLOCATE(value,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(value)
     END IF
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_release
@@ -336,7 +320,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ndim, stat
+    INTEGER                                  :: handle, i, ndim
     LOGICAL                                  :: check, failure
 
     CALL timeset(routineN,handle)
@@ -348,10 +332,8 @@ CONTAINS
     check = SIZE(results_in%result_label)==SIZE(results_in%result_value)
     CPASSERT(check)
     ndim  = SIZE(results_in%result_value)
-    ALLOCATE(results_out%result_label(ndim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(results_out%result_value(ndim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(results_out%result_label(ndim))
+    ALLOCATE(results_out%result_value(ndim))
     DO i = 1, ndim
        results_out%result_label(i) = results_in%result_label(i)
        CALL cp_result_value_create(results_out%result_value(i)%value)
@@ -373,7 +355,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isize, stat
+    INTEGER                                  :: handle, isize
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -384,18 +366,15 @@ CONTAINS
     SELECT CASE(value_out%type_in_use)
     CASE(result_type_real)
        isize = SIZE(value_in%real_type)
-       ALLOCATE(value_out%real_type(isize),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(value_out%real_type(isize))
        value_out%real_type = value_in%real_type
     CASE(result_type_integer)
        isize = SIZE(value_in%integer_type)
-       ALLOCATE(value_out%integer_type(isize),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(value_out%integer_type(isize))
        value_out%integer_type = value_in%integer_type
     CASE(result_type_logical)
        isize = SIZE(value_in%logical_type)
-       ALLOCATE(value_out%logical_type(isize),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(value_out%logical_type(isize))
        value_out%logical_type = value_in%logical_type
     CASE DEFAULT
        ! Type not implemented in cp_result_type
@@ -419,8 +398,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_p_reallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lb_size, stat, &
-                                                ub_size
+    INTEGER                                  :: handle, i, lb_size, ub_size
     LOGICAL                                  :: failure
     TYPE(cp_result_value_p_type), &
       DIMENSION(:), POINTER                  :: tmp_value
@@ -434,8 +412,7 @@ CONTAINS
        lb_size = LBOUND(result_value,1)
     END IF
     ! Allocate and copy new values while releases old
-    ALLOCATE(tmp_value(istart:iend), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_value(istart:iend))
     DO i = istart, iend
        NULLIFY(tmp_value(i)%value)
        CALL cp_result_value_create(tmp_value(i)%value)
@@ -444,8 +421,7 @@ CONTAINS
           CALL cp_result_value_release(result_value(i)%value)
        END IF
     END DO
-    DEALLOCATE(result_value, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(result_value)
     result_value => tmp_value
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_p_reallocate

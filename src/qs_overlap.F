@@ -133,8 +133,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, inode, &
-      irow, iset, istat, jatom, jkind, jset, ldsab, maxder, maxs, n1, n2, &
-      natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb
+      irow, iset, jatom, jkind, jset, ldsab, maxder, maxs, n1, n2, natom, &
+      ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -202,8 +202,7 @@ CONTAINS
      nimg = dft_control%nimages
      nkind = SIZE(qs_kind_set)
 
-     ALLOCATE (atom_of_kind(natom),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (atom_of_kind(natom))
      CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
      IF (PRESENT(calculate_forces)) THEN
@@ -227,8 +226,7 @@ CONTAINS
      END IF
 
      ! set up basis set lists
-     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind))
      CALL basis_set_list_setup(basis_set_list_a,basis_type_a,qs_kind_set)
      CALL basis_set_list_setup(basis_set_list_b,basis_type_b,qs_kind_set)
 
@@ -257,15 +255,12 @@ CONTAINS
            CPASSERT(PRESENT(matrix_p))
         END IF
         nder = MAX(nder,1)
-        ALLOCATE (pmat(ldsab,ldsab),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE (pmat(ldsab,ldsab))
      END IF
      maxder = ncoset(nder)
-     ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab))
 
-     ALLOCATE (sint(maxs),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (sint(maxs))
      DO i=1,maxs
        NULLIFY (sint(i)%block)
      END DO
@@ -433,20 +428,15 @@ CONTAINS
      END IF
 
      ! *** Release work storage ***
-     DEALLOCATE (atom_of_kind,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (atom_of_kind)
      DO i=1,maxs
         NULLIFY (sint(i)%block)
      END DO
-     DEALLOCATE (sint,STAT=istat)
-     CPASSERT(istat==0)
-     DEALLOCATE (basis_set_list_a,basis_set_list_b,STAT=istat)
-     CPASSERT(istat==0)
-     DEALLOCATE (oint,owork,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (sint)
+     DEALLOCATE (basis_set_list_a,basis_set_list_b)
+     DEALLOCATE (oint,owork)
      IF(do_forces) THEN
-        DEALLOCATE (pmat,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (pmat)
      END IF
 
      CALL timestop(handle)
@@ -489,9 +479,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, istat, jatom, &
-      jkind, jset, last_jatom, ldsab, n1, n2, ncoa, ncob, nder, nkind, nseta, &
-      nsetb, sgfa, sgfb
+    INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, jatom, jkind, &
+      jset, last_jatom, ldsab, n1, n2, ncoa, ncob, nder, nkind, nseta, nsetb, &
+      sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -536,14 +526,11 @@ CONTAINS
 
      ! *** Allocate work storage ***
      ldsab = get_memory_usage(qs_kind_set,basis_type_a,basis_type_b)
-     ALLOCATE (sab(ldsab,ldsab),pab(ldsab,ldsab),STAT=istat)
-     CPASSERT(istat==0)
-     ALLOCATE (drab(ldsab,ldsab,3),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (sab(ldsab,ldsab),pab(ldsab,ldsab))
+     ALLOCATE (drab(ldsab,ldsab,3))
 
      ! set up basis sets
-     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind))
      CALL basis_set_list_setup(basis_set_list_a,basis_type_a,qs_kind_set)
      CALL basis_set_list_setup(basis_set_list_b,basis_type_b,qs_kind_set)
 
@@ -654,10 +641,8 @@ CONTAINS
      CALL neighbor_list_iterator_release(nl_iterator)
 
      ! *** Release work storage ***
-     DEALLOCATE (sab,pab,drab,STAT=istat)
-     CPASSERT(istat==0)
-     DEALLOCATE (basis_set_list_a,basis_set_list_b,STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (sab,pab,drab)
+     DEALLOCATE (basis_set_list_a,basis_set_list_b)
 
      CALL timestop(handle)
 
@@ -694,7 +679,7 @@ CONTAINS
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=32)                        :: symmetry_string
     CHARACTER(LEN=default_string_length)     :: mname, name
-    INTEGER                                  :: i, istat, maxs, natom
+    INTEGER                                  :: i, maxs, natom
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
     LOGICAL                                  :: failure
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -718,8 +703,7 @@ CONTAINS
 
      maxs = SIZE(matrix_s)
 
-     ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom))
 
      CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                            basis=basis_set_list_a)
@@ -753,8 +737,7 @@ CONTAINS
        END IF
        CALL compress(name)
        CALL uppercase(name)
-       ALLOCATE(matrix_s(i)%matrix, STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(matrix_s(i)%matrix)
        CALL cp_dbcsr_init(matrix_s(i)%matrix)
        CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
             name=TRIM(name), &
@@ -799,8 +782,7 @@ CONTAINS
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=32)                        :: symmetry_string
     CHARACTER(LEN=default_string_length)     :: mname, name
-    INTEGER                                  :: i1, i2, istat, maxs1, maxs2, &
-                                                natom
+    INTEGER                                  :: i1, i2, maxs1, maxs2, natom
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
     LOGICAL                                  :: failure
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -825,8 +807,7 @@ CONTAINS
     maxs1 = SIZE(matrix_s,1)
     maxs2 = SIZE(matrix_s,2)
 
-    ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom))
 
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                           basis=basis_set_list_a)
@@ -861,8 +842,7 @@ CONTAINS
           END IF
           CALL compress(name)
           CALL uppercase(name)
-          ALLOCATE(matrix_s(i1,i2)%matrix, STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(matrix_s(i1,i2)%matrix)
           CALL cp_dbcsr_init(matrix_s(i1,i2)%matrix)
           CALL cp_dbcsr_create(matrix=matrix_s(i1,i2)%matrix, &
                name=TRIM(name), &

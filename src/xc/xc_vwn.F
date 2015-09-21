@@ -150,7 +150,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'vwn_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho, sc
@@ -175,8 +175,7 @@ CONTAINS
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL vwn_init(epsilon_rho, vwn_params)
 
-    ALLOCATE ( x(npoints), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( x(npoints))
     CALL calc_srs_pw ( rho, x, npoints )
 
     IF (order>=1) THEN
@@ -221,8 +220,7 @@ CONTAINS
             error_level=cp_failure_level)
     END IF
 
-    DEALLOCATE(x,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(x)
     CALL timestop(handle)
 
   END SUBROUTINE vwn_lda_eval
@@ -528,7 +526,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'vwn_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat, TYPE
+    INTEGER                                  :: handle, npoints, TYPE
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho, sc
@@ -554,8 +552,7 @@ CONTAINS
     CALL vwn_init(epsilon_rho, vwn_params)
 
     IF (cp_debug) THEN
-      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
       dummy=> rhoa
     END IF
@@ -665,8 +662,7 @@ CONTAINS
     END SELECT
 
     IF (cp_debug) THEN
-      DEALLOCATE(dummy,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(dummy)
     ELSE
       NULLIFY(dummy)
     END IF

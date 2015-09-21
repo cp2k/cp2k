@@ -183,10 +183,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_scp_charge', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, i, iatom, &
-                                                ierr, ii, ikind, ithread, j, &
-                                                jj, l, lmaxscp, natom, ni, &
-                                                nj, npme, nthread
+    INTEGER                                  :: atom_a, handle, i, iatom, ii, &
+                                                ikind, ithread, j, jj, l, &
+                                                lmaxscp, natom, ni, nj, npme, &
+                                                nthread
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: defined, failure
@@ -238,14 +238,12 @@ CONTAINS
       IF (.NOT.defined) CYCLE
 
       ni = ncoset(lmaxscp)
-      ALLOCATE(pab(ni,1),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(pab(ni,1))
 
       nthread = 1
       ithread=0
 
-      ALLOCATE(cores(natom),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(cores(natom))
       cores = 0
       npme = 0
 
@@ -291,8 +289,7 @@ CONTAINS
 
       END DO
 
-      DEALLOCATE ( pab, cores, STAT=ierr )
-      CPASSERT(ierr==0)
+      DEALLOCATE ( pab, cores)
 
     END DO
 
@@ -315,7 +312,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, ierr, &
+    INTEGER                                  :: atom_a, handle, iatom, &
                                                 iexp_nlcc, ikind, ithread, j, &
                                                 n, natom, nc, nexp_nlcc, ni, &
                                                 npme, nthread
@@ -379,8 +376,7 @@ CONTAINS
          nc=nct_nlcc(iexp_nlcc)
 
          ni = ncoset(2*nc-2)
-         ALLOCATE(pab(ni,1),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE(pab(ni,1))
          pab = 0._dp
 
          nthread = 1
@@ -471,16 +467,14 @@ CONTAINS
 
          END DO
 
-         DEALLOCATE ( pab, STAT=ierr )
-         CPASSERT(ierr==0)
+         DEALLOCATE ( pab)
 
       END DO
 
     END DO
 
     IF (ASSOCIATED(cores)) THEN
-      DEALLOCATE (cores,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE (cores)
     END IF
 
     CALL rs_pw_transfer(rs_rho,rho_nlcc%pw,rs2pw)
@@ -503,9 +497,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ppl_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, ierr, &
-                                                ikind, ithread, j, lppl, n, &
-                                                natom, ni, npme, nthread
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                ithread, j, lppl, n, natom, &
+                                                ni, npme, nthread
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure
@@ -560,8 +554,7 @@ CONTAINS
       IF ( lppl <= 0 ) CYCLE
 
       ni = ncoset(2*lppl-2)
-      ALLOCATE(pab(ni,1),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(pab(ni,1))
       pab = 0._dp
 
       nthread = 1
@@ -653,14 +646,12 @@ CONTAINS
          END DO
       ENDIF
 
-      DEALLOCATE ( pab, STAT=ierr )
-      CPASSERT(ierr==0)
+      DEALLOCATE ( pab)
 
     END DO
 
     IF (ASSOCIATED(cores)) THEN
-      DEALLOCATE (cores,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE (cores)
     END IF
 
     CALL rs_pw_transfer(rs_rho,vppl%pw,rs2pw)
@@ -1650,7 +1641,7 @@ CONTAINS
       jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, &
       maxsgf, maxsgf_set, my_der_type, my_idir, n, na1, na2, natoms, nb1, &
       nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, &
-      nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub
+      nthread, nxy, nz, nzsize, sgfa, sgfb, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1844,8 +1835,7 @@ CONTAINS
     CALL cp_dbcsr_allocate_matrix_set(deltap,nimages)
     IF (distributed_rs_grids) THEN
        DO img=1,nimages
-          ALLOCATE(deltap(img)%matrix,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(deltap(img)%matrix)
           CALL cp_dbcsr_init(deltap(img)%matrix)
        END DO
        ! this matrix has no strict sparsity pattern in parallel
@@ -2148,12 +2138,10 @@ CONTAINS
        DO img=1,nimages
           NULLIFY(deltap(img)%matrix)
        END DO
-       DEALLOCATE (deltap,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (deltap)
     ENDIF
 
-    DEALLOCATE (pabt,workt,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (pabt,workt)
 
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace)
 
@@ -2195,7 +2183,7 @@ CONTAINS
       ikind, ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, &
       jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, &
       maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natoms, nb1, nb2, ncoa, &
-      ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
+      ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -2340,8 +2328,7 @@ CONTAINS
     !   *** Initialize working density matrix ***
     ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
-    ALLOCATE(deltap(nimages),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(deltap(nimages))
     IF (distributed_rs_grids) THEN
        DO img=1,nimages
           CALL cp_dbcsr_init(deltap(img)%matrix)
@@ -2554,12 +2541,10 @@ CONTAINS
        DO img=1,nimages
           NULLIFY(deltap(img)%matrix)
        END DO
-       DEALLOCATE (deltap,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (deltap)
     ENDIF
 
-    DEALLOCATE (pabt,workt,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (pabt,workt)
 
     CALL timestop(handle)
 

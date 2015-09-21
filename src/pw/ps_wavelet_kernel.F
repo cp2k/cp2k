@@ -100,8 +100,7 @@ CONTAINS
      CALL F_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,&
                            md1,md2,md3,nd1,nd2,nd3,nproc)
 
-     ALLOCATE(kernel(1),stat=i_all)
-     CPASSERT(i_all==0)
+     ALLOCATE(kernel(1))
      nlimd=n2
      nlimk=0
 
@@ -110,8 +109,7 @@ CONTAINS
       CALL S_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,&
                             md1,md2,md3,nd1,nd2,nd3,nproc)
 
-     ALLOCATE(kernel(nd1*nd2*nd3/nproc),stat=i_all)
-     CPASSERT(i_all==0)
+     ALLOCATE(kernel(nd1*nd2*nd3/nproc))
 
      !the kernel must be built and scattered to all the processes
 
@@ -631,8 +629,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
   !dimension needed for the correct calculation of the recursion
   nrec=2**n_iter*n
 
-  ALLOCATE(green(-nrec:nrec),stat=i_all)
-  CPASSERT(i_all==0)
+  ALLOCATE(green(-nrec:nrec))
 
   !initialization of the branching value
   ikern=0
@@ -711,8 +708,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      !print *,ikern,izero,n_scf,gltmp,grtmp,gleft,gright,x0,x1,green(ikern)
   END DO
   !now we must calculate the recursion
-  ALLOCATE(green1(-nrec:nrec),stat=i_all)
-  CPASSERT(i_all==0)
+  ALLOCATE(green1(-nrec:nrec))
 
   !Start the iteration to go from mu0 to mu
   CALL scf_recursion(itype_scf,n_iter,nrec,green(-nrec),green1(-nrec))
@@ -949,8 +945,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  END DO
 
  !this will be the array of the kernel in the real space
- ALLOCATE(kp(n1h+1,n3h+1,nker2/nproc),stat=i_all)
- CPASSERT(i_all==0)
+ ALLOCATE(kp(n1h+1,n3h+1,nker2/nproc))
 
  !defining proper extremes for the calculation of the
  !local part of the kernel
@@ -1080,8 +1075,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
       kp,karray,mpi_group)
 
  !De-allocations
- DEALLOCATE(kp,stat=i_all)
- CPASSERT(i_all==0)
+ DEALLOCATE(kp)
 
 END SUBROUTINE Free_Kernel
 

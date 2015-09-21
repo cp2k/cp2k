@@ -120,13 +120,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bend_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(bend_kind_set)
-    ALLOCATE (bend_kind_set(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bend_kind_set(nkind))
     DO ikind=1,nkind
        bend_kind_set(ikind)%id_type = do_ff_undef
        bend_kind_set(ikind)%k = 0.0_dp
@@ -155,13 +154,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bond_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(bond_kind_set)
-    ALLOCATE (bond_kind_set(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bond_kind_set(nkind))
     DO ikind=1,nkind
        bond_kind_set(ikind)%id_type = do_ff_undef
        bond_kind_set(ikind)%k(:) = 0.0_dp
@@ -185,13 +183,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_torsion_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(torsion_kind_set)
-    ALLOCATE (torsion_kind_set(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (torsion_kind_set(nkind))
 
     DO ikind=1,nkind
        torsion_kind_set(ikind)%id_type = do_ff_undef
@@ -217,13 +214,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_ub_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(ub_kind_set)
-    ALLOCATE (ub_kind_set(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ub_kind_set(nkind))
     DO ikind=1,nkind
       ub_kind_set(ikind)%id_type = do_ff_undef
       ub_kind_set(ikind)%k = 0.0_dp
@@ -246,13 +242,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_impr_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(impr_kind_set)
-    ALLOCATE (impr_kind_set(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (impr_kind_set(nkind))
     DO ikind=1,nkind
       impr_kind_set(ikind)%id_type = do_ff_undef
       impr_kind_set(ikind)%k = 0.0_dp
@@ -275,13 +270,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_opbend_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(opbend_kind_set)
-    ALLOCATE (opbend_kind_set(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (opbend_kind_set(nkind))
     DO ikind=1,nkind
       opbend_kind_set(ikind)%id_type = do_ff_undef
       opbend_kind_set(ikind)%k = 0.0_dp
@@ -302,12 +296,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    DEALLOCATE (bend_kind_set,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (bend_kind_set)
   END SUBROUTINE deallocate_bend_kind_set
 
 ! *****************************************************************************
@@ -322,12 +314,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bond_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    DEALLOCATE (bond_kind_set,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (bond_kind_set)
 
   END SUBROUTINE deallocate_bond_kind_set
 
@@ -342,22 +332,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF(ASSOCIATED(torsion_kind%k)) THEN
-       DEALLOCATE(torsion_kind%k,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(torsion_kind%k)
     END IF
     IF(ASSOCIATED(torsion_kind%m)) THEN
-       DEALLOCATE(torsion_kind%m,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(torsion_kind%m)
     END IF
     IF(ASSOCIATED(torsion_kind%phi0)) THEN
-       DEALLOCATE(torsion_kind%phi0,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(torsion_kind%phi0)
     END IF
 
   END SUBROUTINE torsion_kind_dealloc_ref
@@ -373,12 +359,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ub_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    DEALLOCATE(ub_kind_set, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ub_kind_set)
 
   END SUBROUTINE ub_kind_dealloc_ref
 

@@ -72,15 +72,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle, stat
+    INTEGER                                  :: iparticle
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
        CALL deallocate_particle_set(particle_set)
     END IF
-    ALLOCATE (particle_set(nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (particle_set(nparticle))
 
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
@@ -108,13 +107,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
-      DEALLOCATE (particle_set,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE (particle_set)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer particle_set is not associated and "//&

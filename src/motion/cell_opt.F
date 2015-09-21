@@ -58,7 +58,7 @@ MODULE cell_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cell_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat, step_start_val
+    INTEGER                                  :: handle, step_start_val
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_logger_type), POINTER            :: logger
@@ -91,8 +91,7 @@ MODULE cell_opt
 
     ! Reset counter for next iteration
     CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0)
-    DEALLOCATE(x0, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(x0)
     CALL gopt_f_release(gopt_env)
     CALL gopt_param_release(gopt_param)
     CALL timestop(handle)

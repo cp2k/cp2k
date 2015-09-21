@@ -71,7 +71,7 @@ CONTAINS
 
     INTEGER :: handle, i, ifixd, ii, ikind, iparticle, iparticle_local, &
       my_atm_fixed, natom, ncore, nfixed_atoms, nkind, nparticle, &
-      nparticle_local, nshell, shell_index, stat
+      nparticle_local, nshell, shell_index
     LOGICAL                                  :: failure, shell_present
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force
@@ -141,8 +141,7 @@ CONTAINS
     IF (my_atm_fixed /= 0) THEN
        IF (.NOT.PRESENT(w)) THEN
           ! Allocate scratch array
-          ALLOCATE (force(3,nparticle),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (force(3,nparticle))
           force(:,:) = 0.0_dp
           DO i=1,SIZE(local_particles%n_el)
              nparticle_local = local_particles%n_el(i)
@@ -252,8 +251,7 @@ CONTAINS
                 shell_particle_set(shell_index)%f(:) = force(:,natom+shell_index)
              END IF
           END DO
-          DEALLOCATE (force,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (force)
        END IF
     END IF
 
@@ -447,7 +445,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ikind, iparticle, iparticle_local, isize, jsize, &
-      ncnst, nparticle_local, nparticle_local_all, nsize, stat
+      ncnst, nparticle_local, nparticle_local_all, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: fixed_atom_all, &
                                                 kind_index_all, &
                                                 local_particle_all, work0, &
@@ -469,14 +467,10 @@ CONTAINS
        END IF
     END DO
     IF (nsize/=0) THEN
-       ALLOCATE(fixed_atom_all(nsize), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(work0(nsize), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(work1(nsize), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(kind_index_all(nsize), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(fixed_atom_all(nsize))
+       ALLOCATE(work0(nsize))
+       ALLOCATE(work1(nsize))
+       ALLOCATE(kind_index_all(nsize))
        nsize = 0
        DO ikind = 1, nkind
           molecule_kind => molecule_kind_set(ikind)
@@ -498,10 +492,8 @@ CONTAINS
        DO i = 1, SIZE(local_particles%n_el)
           nparticle_local_all   = nparticle_local_all + local_particles%n_el(i)
        END DO
-       ALLOCATE(local_particle_all(nparticle_local_all),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(work2(nparticle_local_all),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(local_particle_all(nparticle_local_all))
+       ALLOCATE(work2(nparticle_local_all))
        nparticle_local_all = 0
        DO i = 1, SIZE(local_particles%n_el)
           nparticle_local   = local_particles%n_el(i)
@@ -528,8 +520,7 @@ CONTAINS
        END DO Loop_count
 
        ! Allocate local fixed atom array
-       ALLOCATE(lfixd_list(ncnst),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(lfixd_list(ncnst))
 
        ! Fill array with constraints infos
        ncnst = 0
@@ -550,20 +541,14 @@ CONTAINS
        END DO Loop_fill
 
        ! Deallocate working arrays
-       DEALLOCATE(local_particle_all,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(work2,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(fixed_atom_all, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(work1, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(kind_index_all, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(local_particle_all)
+       DEALLOCATE(work2)
+       DEALLOCATE(fixed_atom_all)
+       DEALLOCATE(work1)
+       DEALLOCATE(kind_index_all)
     ELSE
        ! Allocate local fixed atom array with dimension 0
-       ALLOCATE(lfixd_list(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(lfixd_list(0))
     END IF
     CALL timestop(handle)
   END SUBROUTINE create_local_fixd_list
@@ -580,13 +565,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_local_fixd_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(lfixd_list))
-    DEALLOCATE(lfixd_list, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(lfixd_list)
   END SUBROUTINE release_local_fixd_list
 
 END MODULE constraint_fxd

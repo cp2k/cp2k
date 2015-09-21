@@ -92,7 +92,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: walkers_file_name
     INTEGER                                  :: handle, i, id_method, &
                                                 n_colvar, n_rep, &
-                                                number_allocated_colvars, stat
+                                                number_allocated_colvars
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     LOGICAL                                  :: check, explicit, failure
     REAL(kind=dp)                            :: dt
@@ -233,10 +233,8 @@ CPSourceFileRef,&
                i_val=meta_env%multiple_walkers%walkers_freq_comm)
 
           ! Handle status and file names
-          ALLOCATE(meta_env%multiple_walkers%walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(meta_env%multiple_walkers%walkers_file_name(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(meta_env%multiple_walkers%walkers_status(meta_env%multiple_walkers%walkers_tot_nr))
+          ALLOCATE(meta_env%multiple_walkers%walkers_file_name(meta_env%multiple_walkers%walkers_tot_nr))
           CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",explicit=explicit)
           IF (explicit) THEN
              CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",i_vals=walkers_status)
@@ -450,7 +448,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, n_walls, stat
+    INTEGER                                  :: handle, i, n_walls
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: wall_section, work_section
 
@@ -464,8 +462,7 @@ CPSourceFileRef,&
     CALL section_vals_get(wall_section,n_repetition=n_walls)
     IF (n_walls/=0) THEN
        metavar%do_wall = .TRUE.
-       ALLOCATE(metavar%walls(n_walls),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(metavar%walls(n_walls))
        DO i = 1, n_walls
           CALL section_vals_val_get(wall_section,"TYPE",i_rep_section=i,i_val=metavar%walls(i)%id_type)
           CALL section_vals_val_get(wall_section,"POSITION",i_rep_section=i,r_val=metavar%walls(i)%pos)
@@ -533,7 +530,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_path_length)       :: filename, tmpname
     INTEGER                                  :: delta_hills, handle, i, &
-                                                i_hills, ih, iw, stat, unit_nr
+                                                i_hills, ih, iw, unit_nr
     LOGICAL                                  :: exist, failure
     REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
@@ -570,12 +567,9 @@ CPSourceFileRef,&
 
     IF (MODULO(multiple_walkers%n_hills_local,multiple_walkers%walkers_freq_comm)==0) THEN
        ! Store colvars information
-       ALLOCATE(ss0_save(n_colvar),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(delta_s_save(n_colvar),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(delta_s_ss0_buf(2,0:n_colvar),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ss0_save(n_colvar))
+       ALLOCATE(delta_s_save(n_colvar))
+       ALLOCATE(delta_s_ss0_buf(2,0:n_colvar))
        delta_s_ss0_buf=0
        DO i = 1, n_colvar
           ss0_save(i)     = colvars(i)%ss0
@@ -655,10 +649,8 @@ CPSourceFileRef,&
           colvars(i)%ss0     = ss0_save(i)
           colvars(i)%delta_s = delta_s_save(i)
        END DO
-       DEALLOCATE(ss0_save,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(delta_s_save,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ss0_save)
+       DEALLOCATE(delta_s_save)
     END IF
 
     CALL timestop(handle)
@@ -687,7 +679,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'add_hill_single', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure, wtcontrol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tnp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
@@ -697,43 +689,35 @@ CPSourceFileRef,&
     failure = .FALSE.; wtcontrol=PRESENT(invdt)
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
-       ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp(n_colvar,n_hills+100))
        tmp(:,:n_hills)=hills_env%ss_history
        tmp(:,n_hills+1:)=0.0_dp
-       DEALLOCATE(hills_env%ss_history,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(hills_env%ss_history)
        hills_env%ss_history => tmp
        NULLIFY(tmp)
     ENDIF
     IF(SIZE(hills_env%delta_s_history,2)< n_hills+1)THEN
-       ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp(n_colvar,n_hills+100))
        tmp(:,:n_hills)=hills_env%delta_s_history
        tmp(:,n_hills+1:)=0.0_dp
-       DEALLOCATE(hills_env%delta_s_history,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(hills_env%delta_s_history)
        hills_env%delta_s_history => tmp
        NULLIFY(tmp)
     ENDIF
     IF(SIZE(hills_env%ww_history)< n_hills+1)THEN
-       ALLOCATE(tnp(n_hills+100), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tnp(n_hills+100))
        tnp(1:n_hills) = hills_env%ww_history
        tnp(n_hills+1:)= 0.0_dp
-       DEALLOCATE(hills_env%ww_history,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(hills_env%ww_history)
        hills_env%ww_history => tnp
        NULLIFY(tnp)
     ENDIF
     IF(wtcontrol)THEN
        IF(SIZE(hills_env%invdt_history)< n_hills+1)THEN
-          ALLOCATE(tnp(n_hills+100), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(tnp(n_hills+100))
           tnp(1:n_hills) = hills_env%invdt_history
           tnp(n_hills+1:)= 0.0_dp
-          DEALLOCATE(hills_env%invdt_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hills_env%invdt_history)
           hills_env%invdt_history => tnp
           NULLIFY(tnp)
        ENDIF
@@ -779,7 +763,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_hills', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, ndum, stat
+    INTEGER                                  :: handle, i, j, ndum
     LOGICAL                                  :: explicit, failure, wtcontrol
     REAL(KIND=dp)                            :: rval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
@@ -794,27 +778,19 @@ CPSourceFileRef,&
     IF (explicit) THEN
        CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum)
        ! ss_history, delta_s_history, ww_history, invdt_history : deallocate and reallocate with the proper size
-       DEALLOCATE(ss_history,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(delta_s_history,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(ww_history,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ss_history)
+       DEALLOCATE(delta_s_history)
+       DEALLOCATE(ww_history)
        IF (wtcontrol) THEN
-          DEALLOCATE(invdt_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(invdt_history)
        ENDIF
        !
        CPASSERT(n_hills==ndum)
-       ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(delta_s_history(n_colvar,n_hills), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(ww_history(n_hills), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ss_history(n_colvar,n_hills))
+       ALLOCATE(delta_s_history(n_colvar,n_hills))
+       ALLOCATE(ww_history(n_hills))
        IF (wtcontrol) THEN
-          ALLOCATE(invdt_history(n_hills), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(invdt_history(n_hills))
        ENDIF
        !
        DO i = 1, n_hills

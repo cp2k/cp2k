@@ -124,7 +124,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, j, natoms_local, &
-                                                stat, sum_of_thermostats
+                                                sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
     LOGICAL                                  :: failure
@@ -176,10 +176,8 @@ CONTAINS
           END DO
        END IF
 
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_atom_list)
     END SELECT
 
   END SUBROUTINE csvr_to_particle_mapping
@@ -277,7 +275,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, j, nshell_local, &
-                                                stat, sum_of_thermostats
+                                                sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
     LOGICAL                                  :: failure
@@ -320,10 +318,8 @@ CONTAINS
           csvr%nvt(i)%degrees_of_freedom = FLOOR(map_info%s_kin(imap))
        END DO
 
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_shell_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_shell_list)
     END SELECT
 
   END SUBROUTINE csvr_to_shell_mapping

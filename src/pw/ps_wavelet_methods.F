@@ -64,7 +64,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iproc, nproc, nx, ny, &
-                                                nz, stat
+                                                nz
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
@@ -75,8 +75,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    ALLOCATE(wavelet, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wavelet)
 
     nx = pw_grid % npts ( 1 )
     ny = pw_grid % npts ( 2 )
@@ -131,7 +130,7 @@ CONTAINS
     INTEGER                                  :: handle, iproc, m1, m2, m3, &
                                                 md1, md2, md3, n1, n2, n3, &
                                                 nd1, nd2, nd3, nproc, nx, ny, &
-                                                nz, stat, z_dim
+                                                nz, z_dim
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
@@ -163,8 +162,7 @@ CONTAINS
     wavelet%PS_grid(3)=md2
     z_dim=md2/nproc
     !!!!!!!!!      indicies y and z are interchanged    !!!!!!!
-    ALLOCATE(wavelet%rho_z_sliced(md1,md3,z_dim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wavelet%rho_z_sliced(md1,md3,z_dim))
 
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
                        pw_grid % para % rs_group)

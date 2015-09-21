@@ -80,7 +80,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istart, k, num_of_conf, &
-                                                Num_of_Frag, stat
+                                                Num_of_Frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf
     LOGICAL                                  :: explicit, failure, should_stop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
@@ -102,10 +102,8 @@ CONTAINS
     DO k = 1, Num_of_frag
       num_of_conf = num_of_conf + FACT(Num_of_frag) / (FACT(k)*FACT(Num_of_frag-k))
     END DO
-    ALLOCATE(conf(num_of_conf,Num_of_frag),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Em(num_of_conf), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(conf(num_of_conf,Num_of_frag))
+    ALLOCATE(Em(num_of_conf))
     CALL gen_Nbody_conf(Num_of_frag, conf)
 
     should_stop = .FALSE.
@@ -142,10 +140,8 @@ CONTAINS
     END DO
     IF (.NOT.should_stop) CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section)
     CALL cp_rm_iter_level(logger%iter_info,"BSSE")
-    DEALLOCATE(Em,   stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(conf, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Em)
+    DEALLOCATE(conf)
 
   END SUBROUTINE do_bsse_calculation
 
@@ -175,7 +171,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, Num_of_sub_conf, &
-                                                Num_of_sub_frag, stat
+                                                Num_of_sub_frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf_loc
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_energy
@@ -195,10 +191,8 @@ CONTAINS
           Num_of_sub_conf = Num_of_sub_conf + &
                             FACT(Num_of_sub_frag) / (FACT(k)*FACT(Num_of_sub_frag-k))
        END DO
-       ALLOCATE(conf_loc(Num_of_sub_conf,Num_of_sub_frag), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(Em_loc(Num_of_sub_conf), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(conf_loc(Num_of_sub_conf,Num_of_sub_frag))
+       ALLOCATE(Em_loc(Num_of_sub_conf))
        Em_loc = 0.0_dp
        CALL gen_Nbody_conf(Num_of_sub_frag, conf_loc)
        CALL make_plan_conf(conf, conf_loc)
@@ -215,10 +209,8 @@ CONTAINS
           my_energy = my_energy + (-1.0_dp)**(k+j) * Em_loc(i)
        END DO
        Em = my_energy
-       DEALLOCATE(Em_loc, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(conf_loc, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Em_loc)
+       DEALLOCATE(conf_loc)
     END IF
 
   END SUBROUTINE eval_bsse_energy
@@ -252,7 +244,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER :: i, ir, isize, j, k, method_name_id, my_targ, n_rep, &
-      num_of_frag, old_size, present_charge, present_multpl, stat
+      num_of_frag, old_size, present_charge, present_multpl
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, tmplist
     LOGICAL                                  :: failure
@@ -277,15 +269,13 @@ CONTAINS
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
     dft_section    => section_vals_get_subs_vals(force_env_section,"DFT")
 
-    ALLOCATE(my_conf(SIZE(conf)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(my_conf(SIZE(conf)))
     my_conf = conf
     CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env,&
          cell=cell)
     CALL cp_subsys_get(subsys, particles=particles)
     isize = 0
-    ALLOCATE(atom_index(isize),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_index(isize))
     DO i = 1, num_of_frag
        IF (conf(i) == 1) THEN
           !
@@ -310,8 +300,7 @@ CONTAINS
     !
     ! Get names and modify the ghost ones
     !
-    ALLOCATE(atom_type(isize), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_type(isize))
     DO j = 1, isize
        my_targ = atom_index(j)
        DO k = 1, SIZE(particles%els)
@@ -355,12 +344,9 @@ CONTAINS
     ELSE
        CPASSERT(.FALSE.)
     END IF
-    DEALLOCATE(atom_index, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atom_type, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(my_conf, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_index)
+    DEALLOCATE(atom_type)
+    DEALLOCATE(my_conf)
 
   END SUBROUTINE eval_bsse_energy_low
 

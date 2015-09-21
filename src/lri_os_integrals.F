@@ -68,7 +68,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iset, jset, lds, m1, m2, maxco, maxcoa, maxcob, &
-      maxl, maxla, maxlb, ncoa, ncob, nseta, nsetb, sgfa, sgfb, stat
+      maxl, maxla, maxlb, ncoa, ncob, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -121,16 +121,13 @@ CONTAINS
      maxl = MAX(maxla,maxlb)
     ENDIF
     lds = ncoset(maxl)
-    ALLOCATE(sint(maxco,maxco),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sint(maxco,maxco))
     IF(calculate_forces) THEN
      !derivatives will be stored in devab(:,:,2:4)
-     ALLOCATE(swork(lds,lds,4),devab(maxco,maxco,4),STAT=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(swork(lds,lds,4),devab(maxco,maxco,4))
      devab = 0._dp
     ELSE
-     ALLOCATE(swork(lds,lds,1),STAT=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(swork(lds,lds,1))
     ENDIF
     sint  = 0._dp
     swork = 0._dp
@@ -184,12 +181,10 @@ CONTAINS
     END DO
 
     IF(calculate_forces) THEN
-     DEALLOCATE(devab,STAT=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(devab)
     ENDIF
 
-    DEALLOCATE(sint,swork,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(sint,swork)
 
     CALL timestop(handle)
 
@@ -227,7 +222,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iset, jset, kaset, &
                                                 m1, m2, m3, ncoa, ncob, ncoc, &
                                                 nseta, nsetb, nsetca, sgfa, &
-                                                sgfb, sgfc, stat
+                                                sgfb, sgfc
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, lca_max, lca_min, &
                                                 npgfa, npgfb, npgfca, nsgfa, &
@@ -320,17 +315,13 @@ CONTAINS
              sgfc = first_sgfca(1,kaset)
              m3=sgfc+nsgfca(kaset)-1
              IF(ncoa*ncob*ncoc > 0) THEN
-                ALLOCATE(saba(ncoa,ncob,ncoc),STAT=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(saba(ncoa,ncob,ncoc))
                 saba(:,:,:)    = 0._dp
                 ! integrals
                 IF(calculate_forces) THEN
-                   ALLOCATE(sdaba(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPASSERT(stat==0)
-                   ALLOCATE(sabda(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPASSERT(stat==0)
-                   ALLOCATE(sdabda(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(sdaba(ncoa,ncob,ncoc,3))
+                   ALLOCATE(sabda(ncoa,ncob,ncoc,3))
+                   ALLOCATE(sdabda(ncoa,ncob,ncoc,3))
                    sdaba(:,:,:,:) = 0._dp
                    sabda(:,:,:,:) = 0._dp
                    sdabda(:,:,:,:) = 0._dp
@@ -347,8 +338,7 @@ CONTAINS
                          ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset))
                    ENDDO
 
-                   DEALLOCATE(sdaba,sabda,sdabda,STAT=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(sdaba,sabda,sdabda)
                 ELSE
                    CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                  lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -365,8 +355,7 @@ CONTAINS
                 CALL abc_contract(abaint(sgfa:m1,sgfb:m2,sgfc:m3),saba,& 
                      sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_ca(:,sgfc:),&
                      ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset))
-                DEALLOCATE(saba,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(saba)
              END IF
           END DO
        END DO
@@ -408,7 +397,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iset, jset, kbset, &
                                                 m1, m2, m3, ncoa, ncob, ncoc, &
                                                 nseta, nsetb, nsetcb, sgfa, &
-                                                sgfb, sgfc, stat
+                                                sgfb, sgfc
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, lcb_max, lcb_min, &
                                                 npgfa, npgfb, npgfcb, nsgfa, &
@@ -501,12 +490,10 @@ CONTAINS
              sgfc = first_sgfcb(1,kbset)
              m3=sgfc+nsgfcb(kbset)-1
              IF(ncoa*ncob*ncoc > 0) THEN
-                ALLOCATE(sabb(ncoa,ncob,ncoc),STAT=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(sabb(ncoa,ncob,ncoc))
                 sabb(:,:,:) = 0._dp
                 IF(calculate_forces) THEN
-                   ALLOCATE(sdabb(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(sdabb(ncoa,ncob,ncoc,3))
                    sdabb(:,:,:,:) = 0._dp
                    CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -517,8 +504,7 @@ CONTAINS
                          sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
                          ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset))
                    ENDDO
-                   DEALLOCATE(sdabb,STAT=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(sdabb)
                 ELSE
                    CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -535,8 +521,7 @@ CONTAINS
                 CALL abc_contract(abbint(sgfa:m1,sgfb:m2,sgfc:m3),sabb,&
                      sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
                      ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset))
-                DEALLOCATE(sabb,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(sabb)
              ENDIF
           END DO
 
@@ -572,8 +557,7 @@ CONTAINS
 
     INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lds, lset, &
       lsgfb2, m1, m2, m3, m4, maxco, maxcoa, maxcob, maxl, maxla, maxlb, &
-      ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, sgfa1, sgfa2, sgfb1, sgfb2, &
-      stat
+      ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, sgfa1, sgfa2, sgfb1, sgfb2
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -625,10 +609,8 @@ CONTAINS
     maxlb = 2*maxlb
     maxl = MAX(maxla,maxlb)
     lds = ncoset(maxl)
-    ALLOCATE(sint(maxco,maxco,maxco,maxco),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(swork(lds,lds),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sint(maxco,maxco,maxco,maxco))
+    ALLOCATE(swork(lds,lds))
     sint  = 0._dp
     swork = 0._dp
 
@@ -700,8 +682,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(sint,swork,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(sint,swork)
 
     CALL timestop(handle)
 
@@ -729,8 +710,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ab_contract', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: m1, m2, msphia, msphib, nn, &
-                                                stat
+    INTEGER                                  :: m1, m2, msphia, msphib, nn
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cpp
 
@@ -742,15 +722,13 @@ CONTAINS
 
     nn = SIZE(abint,1)
 
-    ALLOCATE(cpp(nsgfa,m2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cpp(nsgfa,m2))
 
     CALL dgemm("T","N",nsgfa,m2,ncoa,1._dp,sphi_a,msphia,sab,m1,0.0_dp,cpp,nsgfa)
     CALL dgemm("N","N",nsgfa,nsgfb,ncob,1._dp,cpp,nsgfa,sphi_b,msphib,0.0_dp,&
                abint,nn)
 
-    DEALLOCATE(cpp,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cpp)
 
   END SUBROUTINE ab_contract
 
@@ -781,7 +759,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isgfc, m1, m2, m3, &
-                                                msphia, msphib, msphic, stat
+                                                msphia, msphib, msphic
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: temp_ccc, work_cpc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -797,12 +775,10 @@ CONTAINS
     m2 = SIZE(sabc,2)
     m3 = SIZE(sabc,3)
 
-    ALLOCATE(cpp(nsgfa,m2,m3),cpc(nsgfa,m2,nsgfc),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cpp(nsgfa,m2,m3),cpc(nsgfa,m2,nsgfc))
     cpp = 0._dp
     cpc = 0._dp
-    ALLOCATE(work_cpc(nsgfa,m2),temp_ccc(nsgfa,nsgfb),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work_cpc(nsgfa,m2),temp_ccc(nsgfa,nsgfb))
     work_cpc(:,:) = 0._dp
     temp_ccc(:,:) = 0._dp
 
@@ -817,8 +793,7 @@ CONTAINS
      abcint(:,:,isgfc)=temp_ccc(:,:)
     END DO
 
-    DEALLOCATE(cpp,cpc,work_cpc,temp_ccc,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cpp,cpc,work_cpc,temp_ccc)
 
     CALL timestop(handle)
 
@@ -859,7 +834,7 @@ CONTAINS
 
     INTEGER                                  :: handle, isgfc, isgfd, m1, m2, &
                                                 m3, m4, msphia, msphib, &
-                                                msphic, msphid, stat
+                                                msphic, msphid
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: temp_cccc, work_cpcc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -880,16 +855,13 @@ CONTAINS
     m4 = SIZE(sabcd,4)
 
     ALLOCATE(cppp(nsgfa,m2,m3,m4),cppc(nsgfa,m2,m3,nsgfd),&
-             cpcc(nsgfa,m2,nsgfc,nsgfd),STAT=stat)
-    CPASSERT(stat==0)
+             cpcc(nsgfa,m2,nsgfc,nsgfd))
 
-    ALLOCATE(work_cppc(nsgfa,m2,m3),temp_cpcc(nsgfa,m2,nsgfc),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work_cppc(nsgfa,m2,m3),temp_cpcc(nsgfa,m2,nsgfc))
     work_cppc = 0._dp
     temp_cpcc = 0._dp
 
-    ALLOCATE(work_cpcc(nsgfa,m2),temp_cccc(nsgfa,nsgfb),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work_cpcc(nsgfa,m2),temp_cccc(nsgfa,nsgfb))
     work_cpcc = 0._dp
     temp_cccc = 0._dp
 
@@ -911,10 +883,8 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(cpcc,cppc,cppp,stat=STAT)
-    CPASSERT(stat==0)
-    DEALLOCATE(work_cpcc,work_cppc,temp_cpcc,temp_cccc,stat=STAT)
-    CPASSERT(stat==0)
+    DEALLOCATE(cpcc,cppc,cppp)
+    DEALLOCATE(work_cpcc,work_cppc,temp_cpcc,temp_cccc)
 
     CALL timestop(handle)
 

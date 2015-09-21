@@ -52,8 +52,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, irk, Nlist, &
-                                                nloop, stat
+    INTEGER                                  :: handle, ik, irk, Nlist, nloop
     LOGICAL                                  :: check, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -87,8 +86,7 @@ CONTAINS
        Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nloop
-       ALLOCATE(vel(3),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(vel(3))
        ! Always stored in A.U.
        IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)*conv_factor
        IF(PRESENT(velocity))  vel = velocity(1:3,irk)*conv_factor

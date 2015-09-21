@@ -212,7 +212,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -222,12 +221,10 @@ CONTAINS
        IF (com_tasks%obj%ref_count == 0) THEN
           com_tasks%obj%ref_count = 1
           IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-             DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(com_tasks%obj%tasks)
           END IF
           com_tasks%obj%ref_count = 0
-          DEALLOCATE(com_tasks%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(com_tasks%obj)
        END IF
     ELSE
        NULLIFY(com_tasks%obj)
@@ -249,7 +246,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -259,12 +255,10 @@ CONTAINS
        IF (atom_pairs%obj%ref_count == 0) THEN
           atom_pairs%obj%ref_count = 1
           IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-             DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(atom_pairs%obj%pairs)
           END IF
           atom_pairs%obj%ref_count = 0
-          DEALLOCATE(atom_pairs%obj, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atom_pairs%obj)
        END IF
     ELSE
        NULLIFY(atom_pairs%obj)
@@ -391,13 +385,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(com_tasks%obj))
-    ALLOCATE(com_tasks%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(com_tasks%obj)
     com_tasks%obj%task_dim = TASK_N_RECORDS
     com_tasks%obj%ntasks = 0
     com_tasks%obj%nencode = 0
@@ -421,13 +413,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atom_pairs%obj))
-    ALLOCATE(atom_pairs%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_pairs%obj)
     atom_pairs%obj%npairs = 0
     atom_pairs%obj%natoms_encode = 0
     NULLIFY(atom_pairs%obj%pairs)
@@ -449,14 +439,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-       DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(com_tasks%obj%tasks)
        NULLIFY(com_tasks%obj%tasks)
     END IF
     com_tasks%obj%task_dim = TASK_N_RECORDS
@@ -478,14 +466,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-       DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_pairs%obj%pairs)
        NULLIFY(atom_pairs%obj%pairs)
     END IF
     atom_pairs%obj%npairs = 0
@@ -587,7 +573,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -597,8 +582,7 @@ CONTAINS
     IF (PRESENT(nencode)) com_tasks%obj%nencode = nencode
     IF (PRESENT(tasks)) THEN
        IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-          DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(com_tasks%obj%tasks)
        END IF
        com_tasks%obj%tasks => tasks
     END IF
@@ -629,7 +613,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -638,8 +621,7 @@ CONTAINS
     IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
     IF (PRESENT(pairs)) THEN
        IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-          DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atom_pairs%obj%pairs)
        END IF
        atom_pairs%obj%pairs => pairs
     END IF
@@ -678,7 +660,7 @@ CONTAINS
     INTEGER                                  :: handle, ii, ind, ipe, itask, &
                                                 jj, nencode, ntasks_in, &
                                                 ntasks_out, rank, rank_pos, &
-                                                stat, task_dim
+                                                task_dim
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_in, tasks_out
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_buf, recv_disps, &
@@ -709,19 +691,13 @@ CONTAINS
     END IF
 
     ! allocate local arrays
-    ALLOCATE(send_sizes(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_disps(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_buf(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_sizes(para_env%num_pe))
+    ALLOCATE(send_disps(para_env%num_pe))
+    ALLOCATE(send_buf(para_env%num_pe))
 
-    ALLOCATE(recv_sizes(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_disps(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_buf(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_sizes(para_env%num_pe))
+    ALLOCATE(recv_disps(para_env%num_pe))
+    ALLOCATE(recv_buf(para_env%num_pe))
 
     ! first count how many local recv/send tasks need to be sent to
     ! other processes, and share this information with the other
@@ -758,14 +734,10 @@ CONTAINS
 
     ! reallocate send and recv buffers to the correct sizes for
     ! transferring the actual tasks
-    DEALLOCATE(send_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(send_buf)
+    DEALLOCATE(recv_buf)
+    ALLOCATE(send_buf(SUM(send_sizes)))
+    ALLOCATE(recv_buf(SUM(recv_sizes)))
 
     ! now that the send buffer is of correct size, do packing
     ! send_buf and recv_buf may be zero sized
@@ -786,18 +758,14 @@ CONTAINS
                      para_env%group)
 
     ! deallocate send buffers
-    DEALLOCATE(send_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(send_buf)
+    DEALLOCATE(send_sizes)
+    DEALLOCATE(send_disps)
 
     ! allocate the output task list
     ntasks_out = SUM(recv_sizes) / task_dim
     ! this will not be deallocated in this subroutine
-    ALLOCATE(tasks_out(task_dim,ntasks_out), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tasks_out(task_dim,ntasks_out))
 
     ! do unpacking
     itask = 0
@@ -827,12 +795,9 @@ CONTAINS
     END IF
 
     ! deallocate recv buffers
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(recv_buf)
+    DEALLOCATE(recv_sizes)
+    DEALLOCATE(recv_disps)
 
     CALL timestop(handle)
 
@@ -876,7 +841,7 @@ CONTAINS
 
     INTEGER                                  :: acol, arow, handle, iatom, &
                                                 ii, itask, jatom, npairs, &
-                                                ntasks, rank, rank_pos, stat
+                                                ntasks, rank, rank_pos
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs
@@ -914,8 +879,7 @@ CONTAINS
                           ntasks=ntasks, &
                           tasks=tasks)
 
-    ALLOCATE(pairs(ntasks), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pairs(ntasks))
     ! we can have cases where ntasks == 0
     IF (SIZE(pairs) > 0) pairs = 0
     npairs = ntasks
@@ -946,12 +910,10 @@ CONTAINS
     ! receive same information to the same destination or source more
     ! than once)
     IF (npairs > 0) THEN
-       ALLOCATE(tmp_index(npairs), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_index(npairs))
        ! only sort the actual pairs recorded in the send list
        CALL sort(pairs, npairs, tmp_index)
-       DEALLOCATE(tmp_index, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_index)
     END IF
 
     ! remove duplicates
@@ -1227,7 +1189,7 @@ CONTAINS
 
     INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, ncols_blk, &
       ncols_blk_max, npairs_recv, npairs_send, nrows_blk, nrows_blk_max, &
-      numprocs, pe, recv_encode, send_encode, stat
+      numprocs, pe, recv_encode, send_encode
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -1270,14 +1232,10 @@ CONTAINS
     col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
 
     ! allocate temporary arrays for send
-    ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_sizes(numprocs))
+    ALLOCATE(send_disps(numprocs))
+    ALLOCATE(send_pair_count(numprocs))
+    ALLOCATE(send_pair_disps(numprocs))
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -1290,18 +1248,13 @@ CONTAINS
                                              send_pair_disps)
 
     ! allocate send buffer
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_buf(SUM(send_sizes)))
 
     ! allocate temporary arrays for recv
-    ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_sizes(numprocs))
+    ALLOCATE(recv_disps(numprocs))
+    ALLOCATE(recv_pair_count(numprocs))
+    ALLOCATE(recv_pair_disps(numprocs))
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -1314,8 +1267,7 @@ CONTAINS
                                              recv_pair_disps)
 
     ! allocate recv buffer
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_buf(SUM(recv_sizes)))
 
     ! do packing
     DO ipe = 1, numprocs
@@ -1351,23 +1303,17 @@ CONTAINS
                      para_env%group)
 
     ! cleanup temporary arrays no longer needed
-    DEALLOCATE(send_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(send_buf)
+    DEALLOCATE(send_sizes)
+    DEALLOCATE(send_disps)
+    DEALLOCATE(send_pair_count)
+    DEALLOCATE(send_pair_disps)
 
     ! unpack into matrix_data object
     NULLIFY(mat_block)
     nrows_blk_max = MAXVAL(row_block_size_data)
     ncols_blk_max = MAXVAL(col_block_size_data)
-    ALLOCATE(mat_block(nrows_blk_max,ncols_blk_max), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mat_block(nrows_blk_max,ncols_blk_max))
     DO ipe = 1, numprocs
        recv_sizes(ipe) = 0
        DO ipair = 1, recv_pair_count(ipe)
@@ -1393,20 +1339,14 @@ CONTAINS
           ! CPPostcondition(stat==0, cp_failure_level, routineP,failure)
        END DO ! ipair
     END DO ! ipe
-    DEALLOCATE(mat_block, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mat_block)
 
     ! cleanup rest of the temporary arrays
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(recv_buf)
+    DEALLOCATE(recv_sizes)
+    DEALLOCATE(recv_disps)
+    DEALLOCATE(recv_pair_count)
+    DEALLOCATE(recv_pair_disps)
 
     CALL timestop(handle)
 
@@ -1446,7 +1386,7 @@ CONTAINS
 
     INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, ncols_blk, &
       npairs_recv, npairs_send, nrows_blk, numprocs, pe, recv_encode, &
-      send_encode, stat
+      send_encode
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -1489,14 +1429,10 @@ CONTAINS
     col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
 
     ! allocate temporary arrays for send
-    ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_sizes(numprocs))
+    ALLOCATE(send_disps(numprocs))
+    ALLOCATE(send_pair_count(numprocs))
+    ALLOCATE(send_pair_disps(numprocs))
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -1509,18 +1445,13 @@ CONTAINS
                                              send_pair_disps)
 
     ! allocate send buffer
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_buf(SUM(send_sizes)))
 
     ! allocate temporary arrays for recv
-    ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_sizes(numprocs))
+    ALLOCATE(recv_disps(numprocs))
+    ALLOCATE(recv_pair_count(numprocs))
+    ALLOCATE(recv_pair_disps(numprocs))
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -1533,8 +1464,7 @@ CONTAINS
                                              recv_pair_disps)
 
     ! allocate recv buffer
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_buf(SUM(recv_sizes)))
 
     ! do packing
     DO ipe = 1, numprocs
@@ -1569,16 +1499,11 @@ CONTAINS
                      para_env%group)
 
     ! cleanup temporary arrays no longer needed
-    DEALLOCATE(send_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(send_buf)
+    DEALLOCATE(send_sizes)
+    DEALLOCATE(send_disps)
+    DEALLOCATE(send_pair_count)
+    DEALLOCATE(send_pair_disps)
 
     ! unpack into DBCSR matrix
     DO ipe = 1, numprocs
@@ -1597,16 +1522,11 @@ CONTAINS
     END DO ! ipe
 
     ! cleanup rest of the temporary arrays
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(recv_buf)
+    DEALLOCATE(recv_sizes)
+    DEALLOCATE(recv_disps)
+    DEALLOCATE(recv_pair_count)
+    DEALLOCATE(recv_pair_disps)
 
     ! dbcsr matrix is not finalised in this subroutine
 

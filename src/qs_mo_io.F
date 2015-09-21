@@ -383,8 +383,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, ikind, imat, iset, ishell, ispin, istat, lmax, &
-      lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin
+    INTEGER :: handle, iatom, ikind, imat, iset, ishell, ispin, lmax, lshell, &
+      max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
@@ -427,16 +427,13 @@ CPSourceFileRef,&
           END IF
        END DO
 
-       ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (nso_info(nshell_max,nset_max,natom))
        nso_info(:,:,:) = 0
 
-       ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (nshell_info(nset_max,natom))
        nshell_info(:,:) = 0
 
-       ALLOCATE (nset_info(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (nset_info(natom))
        nset_info(:) = 0
 
        DO iatom=1,natom
@@ -478,14 +475,11 @@ CPSourceFileRef,&
        WRITE (ires) nshell_info
        WRITE (ires) nso_info
 
-       DEALLOCATE (nset_info,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (nset_info)
 
-       DEALLOCATE (nshell_info,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (nshell_info)
 
-       DEALLOCATE (nso_info,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (nso_info)
     END IF
 
     ! use the scalapack block size as a default for buffering columns
@@ -908,9 +902,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: group, homo, homo_read, i, iatom, ikind, imat, irow, iset, &
-      iset_read, ishell, ishell_read, iso, ispin, istat, lfomo_read, lmax, &
-      lshell, my_mult, nao, nao_read, natom_read, nelectron, nelectron_read, &
-      nmo, nmo_read, nnshell, nset, nset_max, nshell_max, nspin, nspin_read, &
+      iset_read, ishell, ishell_read, iso, ispin, lfomo_read, lmax, lshell, &
+      my_mult, nao, nao_read, natom_read, nelectron, nelectron_read, nmo, &
+      nmo_read, nnshell, nset, nset_max, nshell_max, nspin, nspin_read, &
       offset_read, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
@@ -960,14 +954,10 @@ CPSourceFileRef,&
       IF (natom_match) THEN ! actually do the read read
 
          ! Let's make it possible to change the basis set
-         ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE (nset_info(natom_read),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE (nso_info(nshell_max,nset_max,natom_read))
+         ALLOCATE (nshell_info(nset_max,natom_read))
+         ALLOCATE (nset_info(natom_read))
+         ALLOCATE (offset_info(nshell_max,nset_max,natom_read))
 
          IF (nao_read /= nao) THEN
             WRITE(cp_logger_get_default_unit_nr(logger),*) &
@@ -993,8 +983,7 @@ CPSourceFileRef,&
             END DO
          END DO
 
-         ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(vecbuffer_read(1,nao_read))
 
       END IF ! natom_match
    END IF ! ionode
@@ -1018,8 +1007,7 @@ CPSourceFileRef,&
 
    CALL mp_bcast(nspin_read,source,group)
 
-   ALLOCATE (vecbuffer(1,nao),STAT=istat)
-   CPASSERT(istat==0)
+   ALLOCATE (vecbuffer(1,nao))
 
    DO ispin=1,nspin
 
@@ -1031,8 +1019,7 @@ CPSourceFileRef,&
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
          READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
-         ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(eig_read(nmo_read), occ_read(nmo_read))
          eig_read = 0.0_dp
          occ_read = 0.0_dp
 
@@ -1051,8 +1038,7 @@ CPSourceFileRef,&
         READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
         mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
-        DEALLOCATE(eig_read, occ_read, STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(eig_read, occ_read)
 
         mos(ispin)%mo_set%homo = homo_read
         mos(ispin)%mo_set%lfomo = lfomo_read
@@ -1216,20 +1202,14 @@ CPSourceFileRef,&
     END IF
  END DO   ! ispin
 
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(vecbuffer)
 
     IF (para_env%ionode) THEN
-       DEALLOCATE(vecbuffer_read,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(offset_info,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(nso_info,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(nshell_info,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(nset_info,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(vecbuffer_read)
+       DEALLOCATE(offset_info)
+       DEALLOCATE(nso_info)
+       DEALLOCATE(nshell_info)
+       DEALLOCATE(nset_info)
     END IF
 
   END SUBROUTINE read_mos_restart_low
@@ -1314,8 +1294,8 @@ CPSourceFileRef,&
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
     INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, ikind, imo, &
-      irow, iset, isgf, ishell, iso, istat, iw, jcol, last_mo, left, lmax, &
-      lshell, natom, ncgf, ncol, ncol_global, nrow_global, nset, nsgf, right, &
+      irow, iset, isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, &
+      natom, ncgf, ncol, ncol_global, nrow_global, nset, nsgf, right, &
       scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: mo_index_range, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
@@ -1361,12 +1341,10 @@ CPSourceFileRef,&
        CALL cp_fm_get_info(mo_set%mo_coeff,&
             nrow_global=nrow_global,&
             ncol_global=ncol_global)
-       ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(smatrix(nrow_global,ncol_global))
        CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
        IF (.NOT.ionode) THEN
-          DEALLOCATE(smatrix,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(smatrix)
        END IF
     END IF
 
@@ -1416,8 +1394,7 @@ CPSourceFileRef,&
                      "CARTESIAN MO EIGENVECTORS AFTER SCF STEP",scf_step
              END IF
 
-             ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(cmatrix(ncgf,ncgf))
 
              cmatrix = 0.0_dp
 
@@ -1638,11 +1615,9 @@ CPSourceFileRef,&
 
           ! Release work storage
 
-          DEALLOCATE (smatrix,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (smatrix)
           IF (p_cart) THEN
-             DEALLOCATE (cmatrix,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (cmatrix)
           END IF
 
        ELSE IF (p_occ.OR.p_eval) THEN

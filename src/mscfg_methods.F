@@ -246,8 +246,7 @@ CONTAINS
        !
        ! Get atom type names
        !
-       ALLOCATE(atom_type(isize), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(atom_type(isize))
        DO j = 1, isize
           my_targ = atom_index(j)
           DO k = 1, SIZE(particles%els)
@@ -304,10 +303,8 @@ CONTAINS
        !
        NULLIFY(qs_energy)
        CALL qs_env_release(qs_env_loc)
-       DEALLOCATE(atom_index, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(atom_type, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_index)
+       DEALLOCATE(atom_type)
 
     END DO
 

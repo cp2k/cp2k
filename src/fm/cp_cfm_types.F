@@ -89,7 +89,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncol_local, npcol, nprow, &
-                                                nrow_local, stat
+                                                nrow_local
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -102,8 +102,7 @@ CPSourceFileRef)
 #endif
 
     CPASSERT(ASSOCIATED(matrix_struct))
-    ALLOCATE(matrix,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix)
     context => matrix_struct%context
     matrix%matrix_struct => matrix_struct
     CALL cp_fm_struct_retain(matrix%matrix_struct)
@@ -118,8 +117,7 @@ CPSourceFileRef)
 
     nrow_local=matrix_struct%local_leading_dimension
     ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
-    ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix%local_data(nrow_local,ncol_local))
 
     CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
 ! matrix%local_data(:,:) = 0.0_dp
@@ -160,7 +158,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -170,13 +167,11 @@ CPSourceFileRef)
        matrix%ref_count=matrix%ref_count-1
        IF (matrix%ref_count<1) THEN
           IF (ASSOCIATED(matrix%local_data)) THEN
-             DEALLOCATE(matrix%local_data,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(matrix%local_data)
           END IF
           matrix%name=""
           CALL cp_fm_struct_release(matrix%matrix_struct)
-          DEALLOCATE(matrix,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(matrix)
        END IF
     END IF
     NULLIFY(matrix)
@@ -351,7 +346,7 @@ CPSourceFileRef)
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_get_info',&
          routineP=moduleN//':'//routineN
-    INTEGER i,nprow,npcol,myprow,mypcol, stat
+    INTEGER i,nprow,npcol,myprow,mypcol
     TYPE(cp_blacs_env_type), POINTER :: ctxt
     LOGICAL :: failure
 #if defined(__SCALAPACK)
@@ -386,8 +381,7 @@ CPSourceFileRef)
        row_indices => matrix%matrix_struct%row_indices
        IF (.NOT.ASSOCIATED(row_indices)) THEN
           ALLOCATE(matrix%matrix_struct%row_indices &
-               (matrix%matrix_struct%nrow_locals(myprow)),stat=stat)
-          CPASSERT(stat==0)
+               (matrix%matrix_struct%nrow_locals(myprow)))
           row_indices => matrix%matrix_struct%row_indices
 #ifdef __SCALAPACK
           DO i=1,SIZE(row_indices)
@@ -407,8 +401,7 @@ CPSourceFileRef)
        col_indices => matrix%matrix_struct%col_indices
        IF (.NOT.ASSOCIATED(col_indices)) THEN
           ALLOCATE(matrix%matrix_struct%col_indices &
-               (matrix%matrix_struct%ncol_locals(mypcol)),stat=stat)
-          CPASSERT(stat==0)
+               (matrix%matrix_struct%ncol_locals(mypcol)))
           col_indices => matrix%matrix_struct%col_indices
 #ifdef __SCALAPACK
           DO i=1,SIZE(col_indices)

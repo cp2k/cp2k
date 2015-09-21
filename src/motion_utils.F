@@ -89,7 +89,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iparticle, iseq, &
-                                                iw, j, k, lrot(3), stat
+                                                iw, j, k, lrot(3)
     LOGICAL                                  :: failure, present_mat
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
@@ -157,8 +157,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO/COORDINATES")
     END IF
     ! Build up the Translational vectors
-    ALLOCATE(Tr(natoms*3,3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Tr(natoms*3,3))
     Tr   = 0.0_dp
     DO k = 1, 3
        iseq = 0
@@ -178,8 +177,7 @@ CONTAINS
     END DO
     dof = 3
     ! Build up the Rotational vectors
-    ALLOCATE(Rot(natoms*3,3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Rot(natoms*3,3))
     lrot = 0
     IF (.NOT.keep_rotations) THEN
        DO iparticle = 1, natoms
@@ -231,8 +229,7 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO")
     IF (present_mat) THEN
        ! Give back the vectors generating the rototranslating Frame
-       ALLOCATE(mat(natoms*3,dof),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(mat(natoms*3,dof))
        iseq = 0
        DO i = 1, 3
           mat(:,i)=Tr(:,i)
@@ -242,10 +239,8 @@ CONTAINS
           END IF
        END DO
     END IF
-    DEALLOCATE(Tr,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Rot,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Tr)
+    DEALLOCATE(Rot)
     CALL timestop(handle)
   END SUBROUTINE rot_ana
 
@@ -288,8 +283,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: id_label, id_wpc, my_act, my_ext, &
       my_form, my_middle, my_pk_name, my_pos, remark1, remark2, section_ref, &
       title, unit_str
-    INTEGER                                  :: handle, i, ii, iskip, istat, &
-                                                nat, outformat, traj_unit
+    INTEGER                                  :: handle, i, ii, iskip, nat, &
+                                                outformat, traj_unit
     INTEGER, POINTER                         :: force_mixing_indices(:), &
                                                 force_mixing_labels(:)
     LOGICAL :: charge_beta, charge_extended, charge_occup, explicit, failure, &
@@ -430,8 +425,7 @@ CPSourceFileRef,&
           CPASSERT(.FALSE.)
        END SELECT
        IF (TRIM(my_pk_name) == "FORCE_MIXING_LABELS") THEN
-          ALLOCATE (fml_array(3*SIZE(particle_set)),STAT=istat)
-          CPASSERT(istat == 0)
+          ALLOCATE (fml_array(3*SIZE(particle_set)))
           fml_array = 0.0_dp
           CALL force_env_get(force_env, force_env_section=force_env_section)
           force_mixing_restart_section => section_vals_get_subs_vals(force_env_section, &
@@ -451,8 +445,7 @@ CPSourceFileRef,&
           ENDIF
           CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
                                           array=fml_array)
-          DEALLOCATE (fml_array,STAT=istat)
-          CPASSERT(istat == 0)
+          DEALLOCATE (fml_array)
        ELSE
           CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
                                           unit_conv=unit_conv,&

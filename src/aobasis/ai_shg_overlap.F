@@ -139,7 +139,7 @@ CONTAINS
     INTEGER                                  :: handle, ids, il, ipgfa, &
                                                 jpgfb, kpgfx, laa_max, &
                                                 lbb_max, lmax, n, ndev, nds, &
-                                                nl, stat
+                                                nl
     REAL(KIND=dp)                            :: a, b, exp_rab2, k, pfac, &
                                                 prefac, rab2, sqrt_pi3, &
                                                 sqrt_zet, sr_int, temp, x, &
@@ -165,8 +165,7 @@ CONTAINS
       lmax = la_max + lbb_max
     ENDIF
 
-    ALLOCATE(dtemp(nl+1), dsr_int(nl+1),stat=STAT)
-    CPASSERT(stat==0)
+    ALLOCATE(dtemp(nl+1), dsr_int(nl+1))
 
     sqrt_pi3 = SQRT(pi**3)
 
@@ -335,8 +334,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(dtemp, dsr_int, stat=STAT)
-    CPASSERT(stat==0)
+    DEALLOCATE(dtemp, dsr_int)
 
     CALL timestop(handle)
 
@@ -589,7 +587,7 @@ CONTAINS
     INTEGER                                  :: handle, ia, iam, ib, ibm, j, &
                                                 jmax, la, labm, labmin, lamb, &
                                                 lb, ma, mb, nla, nlam, nlb, &
-                                                nlbm, stat
+                                                nlbm
     REAL(KIND=dp)                            :: bma, bma_m, bma_p, bmb, &
                                                 bmb_m, bmb_p, dAa, dAa_m, &
                                                 dAa_p, dAb, dAb_m, dAb_p
@@ -600,10 +598,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     jmax = MIN(MAXVAL(lamax),lbmax)
-    ALLOCATE(Wam(0:jmax,4),Wamm(0:jmax,4),Wamp(0:jmax,4),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Wbm(0:jmax,4),Wbmm(0:jmax,4),Wbmp(0:jmax,4),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Wam(0:jmax,4),Wamm(0:jmax,4),Wamp(0:jmax,4))
+    ALLOCATE(Wbm(0:jmax,4),Wbmm(0:jmax,4),Wbmp(0:jmax,4))
 
     DO lb = 0,lbmax
        nlb = nsoset_pm(lb-1)
@@ -740,10 +736,8 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DEALLOCATE(Wam,Wamm,Wamp,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Wbm,Wbmm,Wbmp,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Wam,Wamm,Wamp)
+    DEALLOCATE(Wbm,Wbmm,Wbmp)
 
     CALL timestop(handle)
 

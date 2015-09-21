@@ -101,8 +101,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nkind, nmol_local, &
-                                                nsize, number_of_thermostats, &
-                                                stat
+                                                nsize, number_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
     INTEGER, DIMENSION(:, :), POINTER        :: point
     LOGICAL                                  :: failure
@@ -126,22 +125,15 @@ CONTAINS
     CASE DEFAULT
        ! STOP PROGRAM
     END SELECT
-    ALLOCATE (map_info%s_kin(nsize),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%v_scale(nsize),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (map_info%s_kin(nsize))
+    ALLOCATE (map_info%v_scale(nsize))
+    ALLOCATE (map_info%p_kin(3,natoms_local))
+    ALLOCATE (map_info%p_scale(3,natoms_local))
 ! nullify thermostat pointers
     ! Allocate index array to 1
-    ALLOCATE ( map_info%index(1), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE ( map_info%map_index(1), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (deg_of_freedom(1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( map_info%index(1))
+    ALLOCATE ( map_info%map_index(1))
+    ALLOCATE (deg_of_freedom(1))
 
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
          local_molecules, para_env, massive_atom_list, region, shell)
@@ -157,12 +149,9 @@ CONTAINS
 
 !    check = (number==number_of_thermostats)
 !    CPPrecondition(check,cp_fatal_level,routineP,failure)
-    DEALLOCATE (const_mol,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (tot_const,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (point, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE (const_mol)
+    DEALLOCATE (tot_const)
+    DEALLOCATE (point)
 
     CALL timestop(handle)
 
@@ -428,7 +417,7 @@ CONTAINS
 
     INTEGER :: atm_offset, first_atom, handle, icount, ikind, ilist, imol, &
       imol_local, katom, last_atom, natom, nc, nfixd, nkind, nmol_per_kind, &
-      nmolecule, nshell, stat
+      nmolecule, nshell
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -460,12 +449,9 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(tot_const))
     CPASSERT(.NOT.ASSOCIATED(point))
     IF ( dis_type == do_thermo_no_communication ) THEN
-       ALLOCATE ( const_mol (nmol_local), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( tot_const (nmol_local), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( point (2, nmol_local), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( const_mol (nmol_local))
+       ALLOCATE ( tot_const (nmol_local))
+       ALLOCATE ( point (2, nmol_local))
 
        point (:,:)= 0
        atm_offset = 0
@@ -511,12 +497,9 @@ CONTAINS
           END DO
        END DO
     ELSE IF ( dis_type == do_thermo_communication ) THEN
-       ALLOCATE ( const_mol ( nkind ), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( tot_const ( nkind ), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( point ( 2, nkind ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( const_mol ( nkind ))
+       ALLOCATE ( tot_const ( nkind ))
+       ALLOCATE ( point ( 2, nkind ))
        point ( :, : ) = 0
        atm_offset     = 0
        ! nc keeps track of all constraints but not fixed ones..
@@ -588,8 +571,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nkind, nmol_local, &
-                                                nsize, number_of_thermostats, &
-                                                stat
+                                                nsize, number_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
     INTEGER, DIMENSION(:, :), POINTER        :: point
     LOGICAL                                  :: check, failure
@@ -613,21 +595,14 @@ CONTAINS
     CASE(do_region_defined)
        nsize = sum_of_thermostats
     END SELECT
-    ALLOCATE (map_info%s_kin(nsize),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%v_scale(nsize),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (map_info%s_kin(nsize))
+    ALLOCATE (map_info%v_scale(nsize))
+    ALLOCATE (map_info%p_kin(3,natoms_local))
+    ALLOCATE (map_info%p_scale(3,natoms_local))
     ! Allocate index array
-    ALLOCATE ( map_info%index(number), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE ( map_info%map_index(number), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (deg_of_freedom(number),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( map_info%index(number))
+    ALLOCATE ( map_info%map_index(number))
+    ALLOCATE (deg_of_freedom(number))
 
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
          local_molecules, para_env, massive_atom_list, region, shell)
@@ -639,12 +614,9 @@ CONTAINS
 
     check = (number==number_of_thermostats)
     CPASSERT(check)
-    DEALLOCATE (const_mol,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (tot_const,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (point, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE (const_mol)
+    DEALLOCATE (tot_const)
+    DEALLOCATE (point)
 
     CALL timestop(handle)
 
@@ -692,7 +664,7 @@ CONTAINS
 
     INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, &
       ikind, imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, &
-      last_shell, nglob_cns, nmol_local, stat
+      last_shell, nglob_cns, nmol_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp, wrk
     LOGICAL                                  :: check, failure, &
                                                 global_constraints
@@ -730,10 +702,8 @@ CONTAINS
        CPASSERT(check)
        ! Lets' identify the matching of the local thermostat w.r.t. the global one
        itmp = SIZE(map_loc_thermo_gen)
-       ALLOCATE(tmp(itmp),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(wrk(itmp),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp(itmp))
+       ALLOCATE(wrk(itmp))
        tmp(:) = map_loc_thermo_gen
        CALL sort(tmp, itmp, wrk)
        number = 1
@@ -748,10 +718,8 @@ CONTAINS
              deg_of_freedom(number) = tot_const(tmp(i))
           END IF
        END DO
-       DEALLOCATE(tmp,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(wrk,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp)
+       DEALLOCATE(wrk)
        DO jj = 1, SIZE(map_loc_thermo_gen)
           DO ii = 1, 3
              imap = map_loc_thermo_gen(jj)
@@ -893,7 +861,7 @@ CONTAINS
 
     INTEGER :: atm_offset, first_atom, handle, i, iatm, icount, id_region, &
       ikind, ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, &
-      nfixd, nkind, nmol_per_kind, nmolecule, nshell, stat
+      nfixd, nkind, nmol_per_kind, nmolecule, nshell
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
     TYPE(fixd_constraint_type), &
@@ -931,12 +899,9 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(tot_const))
     CPASSERT(.NOT.ASSOCIATED(point))
     IF ( dis_type == do_thermo_no_communication ) THEN
-       ALLOCATE ( const_mol (nmol_local), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( tot_const (nmol_local), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE ( point (2, nmol_local), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( const_mol (nmol_local))
+       ALLOCATE ( tot_const (nmol_local))
+       ALLOCATE ( point (2, nmol_local))
 
        point (:,:)= 0
        atm_offset = 0
@@ -984,12 +949,9 @@ CONTAINS
     ELSE IF ( dis_type == do_thermo_communication ) THEN
        IF (region==do_region_defined) THEN
           ! Setup of the arbitrary region
-          ALLOCATE ( tot_const (sum_of_thermostats), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE ( point (2, 0), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE ( const_mol (0), STAT = stat )
-          CPASSERT(stat==0)
+          ALLOCATE ( tot_const (sum_of_thermostats))
+          ALLOCATE ( point (2, 0))
+          ALLOCATE ( const_mol (0))
           atm_offset = 0
           tot_const  = 0
           const_mol  = 0
@@ -1116,12 +1078,9 @@ CONTAINS
           END DO
           CALL mp_sum(tot_const, para_env%group)
        ELSE
-          ALLOCATE ( const_mol ( nkind ), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE ( tot_const ( nkind ), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE ( point ( 2, nkind ), STAT = stat )
-          CPASSERT(stat==0)
+          ALLOCATE ( const_mol ( nkind ))
+          ALLOCATE ( tot_const ( nkind ))
+          ALLOCATE ( point ( 2, nkind ))
           point ( :, : ) = 0
           atm_offset     = 0
           ! nc keeps track of all constraints but not fixed ones..
@@ -1217,19 +1176,16 @@ CONTAINS
        END DO
     END DO
 
-    ALLOCATE(array_num_massive_atm(para_env%num_pe), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE(array_num_massive_atm(para_env%num_pe))
     CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,para_env%group)
 
     num_massive_atm = SUM(array_num_massive_atm)
-    ALLOCATE(massive_atom_list(num_massive_atm), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE(massive_atom_list(num_massive_atm))
 
     offset = 0
     DO iproc=1,para_env%num_pe
        ncount = array_num_massive_atm(iproc)
-       ALLOCATE(work(ncount), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE(work(ncount))
        IF(para_env%mepos == (iproc-1)) THEN
           DO i=1,ncount
              work(i) = local_atm_list(i)
@@ -1241,8 +1197,7 @@ CONTAINS
        DO i=1,ncount
           massive_atom_list(offset+i) = work(i)
        END DO
-       DEALLOCATE(work, STAT = stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(work)
        offset = offset + array_num_massive_atm(iproc)
     END DO
 
@@ -1254,10 +1209,8 @@ CONTAINS
     DEALLOCATE (work,STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
-    DEALLOCATE(local_atm_list, STAT = stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(array_num_massive_atm, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE(local_atm_list)
+    DEALLOCATE(array_num_massive_atm)
 
     CALL timestop(handle)
 
@@ -1278,23 +1231,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_baro_map_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
 
     CALL timeset(routineN,handle)
 
-    ALLOCATE (map_info%s_kin(num_thermo),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%v_scale(num_thermo),stat=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%p_kin(1,ndeg),stat=stat )
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%p_scale(1,ndeg),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (map_info%s_kin(num_thermo))
+    ALLOCATE (map_info%v_scale(num_thermo))
+    ALLOCATE (map_info%p_kin(1,ndeg))
+    ALLOCATE (map_info%p_scale(1,ndeg))
     ! Allocate the index array
-    ALLOCATE (map_info%index(1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (map_info%map_index(1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (map_info%index(1))
+    ALLOCATE (map_info%map_index(1))
 
     ! Begin the mapping loop
     DO i = 1, ndeg

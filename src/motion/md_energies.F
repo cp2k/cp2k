@@ -111,7 +111,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_md_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, nkind
+    INTEGER                                  :: nkind
     LOGICAL                                  :: failure, shell_adiabatic
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -143,21 +143,15 @@ CONTAINS
     END IF
 
     IF(simpar%temperature_per_kind) THEN
-      ALLOCATE(md_ener%temp_kind(nkind), STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(md_ener%ekin_kind(nkind), STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(md_ener%nfree_kind(nkind),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(md_ener%temp_kind(nkind))
+      ALLOCATE(md_ener%ekin_kind(nkind))
+      ALLOCATE(md_ener%nfree_kind(nkind))
       md_ener%nfree_kind = 0
 
       IF(shell_adiabatic) THEN
-        ALLOCATE(md_ener%temp_shell_kind(nkind), STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(md_ener%ekin_shell_kind(nkind), STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(md_ener%nfree_shell_kind(nkind), STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(md_ener%temp_shell_kind(nkind))
+        ALLOCATE(md_ener%ekin_shell_kind(nkind))
+        ALLOCATE(md_ener%nfree_shell_kind(nkind))
         md_ener%nfree_shell_kind = 0
       END IF
 

@@ -211,15 +211,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, lenwa, n, stat
+    INTEGER                                  :: handle, lenwa, n
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
-    ALLOCATE(optimizer,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(optimizer)
     NULLIFY(optimizer%kind_of_bound,&
             optimizer%i_work_array,&
             optimizer%isave,&
@@ -255,12 +254,10 @@ CONTAINS
        !MK This has to be adapted for a new L-BFGS version possibly
        lenwa = 2*optimizer%m*n + 5*n + 11*optimizer%m*optimizer%m + 8*optimizer%m
        ALLOCATE (optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
-                 optimizer%isave(44), STAT=stat)
-       CPASSERT(stat==0)
+                 optimizer%isave(44))
        ALLOCATE (optimizer%x(n), optimizer%lower_bound(n), &
                  optimizer%upper_bound(n), optimizer%gradient(n), &
-                 optimizer%dsave(29), optimizer%work_array(lenwa), STAT=stat)
-       CPASSERT(stat==0)
+                 optimizer%dsave(29), optimizer%work_array(lenwa))
        optimizer%x=x0
        optimizer%task='START'
        optimizer%wanted_relative_f_delta=wanted_relative_f_delta
@@ -284,11 +281,9 @@ CONTAINS
             optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
             optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
             optimizer%dsave, optimizer%work_array)
-       ALLOCATE (optimizer%x(n),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (optimizer%x(n))
        optimizer%x(:) = 0.0_dp
-       ALLOCATE (optimizer%gradient(n),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (optimizer%gradient(n))
        optimizer%gradient(:) = 0.0_dp
     END IF
     CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
@@ -335,7 +330,7 @@ SUBROUTINE cp_opt_gopt_release(optimizer)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
@@ -347,46 +342,36 @@ SUBROUTINE cp_opt_gopt_release(optimizer)
      IF (optimizer%ref_count==0) THEN
         optimizer%status=6
         IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
-           DEALLOCATE(optimizer%kind_of_bound, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%kind_of_bound)
         END IF
         IF (ASSOCIATED(optimizer%i_work_array)) THEN
-           DEALLOCATE(optimizer%i_work_array, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%i_work_array)
         END IF
         IF (ASSOCIATED(optimizer%isave)) THEN
-           DEALLOCATE(optimizer%isave, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%isave)
         END IF
         IF (ASSOCIATED(optimizer%x)) THEN
-           DEALLOCATE(optimizer%x, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%x)
         END IF
         IF (ASSOCIATED(optimizer%lower_bound)) THEN
-           DEALLOCATE(optimizer%lower_bound, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%lower_bound)
         END IF
         IF (ASSOCIATED(optimizer%upper_bound)) THEN
-           DEALLOCATE(optimizer%upper_bound, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%upper_bound)
         END IF
         IF (ASSOCIATED(optimizer%gradient)) THEN
-           DEALLOCATE(optimizer%gradient, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%gradient)
         END IF
         IF (ASSOCIATED(optimizer%dsave)) THEN
-           DEALLOCATE(optimizer%dsave, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%dsave)
         END IF
         IF (ASSOCIATED(optimizer%work_array)) THEN
-           DEALLOCATE(optimizer%work_array, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(optimizer%work_array)
         END IF
         CALL cp_para_env_release(optimizer%para_env)
         CALL gopt_f_release(optimizer%obj_funct)
         NULLIFY(optimizer%obj_funct)
-        DEALLOCATE(optimizer, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(optimizer)
      END IF
   END IF
   NULLIFY(optimizer)
@@ -536,7 +521,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: wildcard
-    INTEGER                                  :: dataunit, handle, its, stat
+    INTEGER                                  :: dataunit, handle, its
     LOGICAL                                  :: conv, failure, is_master, &
                                                 justEntred
     REAL(KIND=dp)                            :: t_diff, t_now, t_old
@@ -550,8 +535,7 @@ CPSourceFileRef,&
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
-    ALLOCATE(xold(SIZE(optimizer%x)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xold(SIZE(optimizer%x)))
     xold = optimizer%x
     t_old = m_walltime()
 
@@ -744,8 +728,7 @@ CPSourceFileRef,&
          f=optimizer%f, last_f=optimizer%last_f,&
          projected_gradient=optimizer%projected_gradient)
 
-    DEALLOCATE(xold,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xold)
     IF (PRESENT(f)) f=optimizer%f
     IF (PRESENT(last_f)) last_f=optimizer%last_f
     IF (PRESENT(projected_gradient)) &

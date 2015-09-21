@@ -59,7 +59,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
     INTEGER                                  :: a_var, handle, i, iatom, j, &
-                                                k, n_var, natom, rep, stat
+                                                k, n_var, natom, rep
     INTEGER, DIMENSION(:), POINTER           :: iatms, nparticle
     LOGICAL                                  :: failure, useall
     REAL(KIND=dp)                            :: dedf, dx, energy, err, lerr
@@ -129,13 +129,10 @@ CONTAINS
           END DO
        END DO
        CALL force_env_set(force_env, additional_potential=energy)
-       DEALLOCATE(my_par,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(my_val,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_par)
+       DEALLOCATE(my_val)
        IF (a_var/=0) THEN
-          DEALLOCATE (nparticle,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (nparticle)
        END IF
        CALL finalizef()
     END DO

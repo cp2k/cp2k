@@ -184,8 +184,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: ext, filename, my_pos
-    INTEGER :: handle, idir, iiB, iiiB, ispin, istat, istate, j, jstate, nao, &
-      natom, nmo, nspins, nstates(2), output_unit, unit_nr
+    INTEGER :: handle, idir, iiB, iiiB, ispin, istate, j, jstate, nao, natom, &
+      nmo, nspins, nstates(2), output_unit, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: append_cube, failure, gapw
@@ -273,8 +273,7 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! allocate temporary arrays
-    ALLOCATE(psi1(nspins),p_psi1(nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(psi1(nspins),p_psi1(nspins))
     DO ispin = 1,nspins
        CALL cp_fm_create(  psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct)
        CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct)
@@ -289,20 +288,15 @@ CONTAINS
     CALL cp_dbcsr_allocate_matrix_set(density_matrix_iii,nspins)
     !
     ! prepare for allocation
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
     !
     !
     DO ispin = 1,nspins
@@ -364,8 +358,7 @@ CONTAINS
                                   ncol=nmo,alpha=maxocc)
           !
           ! Allocate buffer vectors
-          ALLOCATE(ddk(3,nmo),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(ddk(3,nmo))
           !
           ! Construct the 3 density matrices for the field in direction iB
           !
@@ -459,8 +452,7 @@ CONTAINS
           ENDDO ! idir
           !
           ! Deallocate buffer vectors
-          DEALLOCATE(ddk,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(ddk)
           !
        ENDDO ! ispin
 
@@ -545,8 +537,7 @@ CONTAINS
           CALL cp_fm_release(  psi1(ispin)%matrix)
           CALL cp_fm_release(p_psi1(ispin)%matrix)
        ENDDO
-       DEALLOCATE(psi1,p_psi1,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(psi1,p_psi1)
 
        CALL cp_dbcsr_deallocate_matrix_set(density_matrix0)
        CALL cp_dbcsr_deallocate_matrix_set(density_matrix_a)
@@ -835,8 +826,7 @@ CONTAINS
        IF(do_igaim) deltajp_d(1)%matrix => mat_d !mat_d0
     ENDIF
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
@@ -932,8 +922,7 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (basis_set_list)
 
     IF (distributed_rs_grids) THEN
        CALL cp_dbcsr_finalize(deltajp_a(1)%matrix)
@@ -1289,16 +1278,13 @@ CONTAINS
     DEALLOCATE(deltajp_a,deltajp_b,deltajp_c,deltajp_d)
 
     IF ( nthread > 1 ) THEN
-       DEALLOCATE (lgrid%r,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (lgrid%r)
     END IF
 
-    DEALLOCATE (jpabt_a,jpabt_b,jpabt_c,jpabt_d,workt,tasks,dist_ab,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (jpabt_a,jpabt_b,jpabt_c,jpabt_d,workt,tasks,dist_ab)
 
     IF (distributed_rs_grids) THEN
-       DEALLOCATE(atom_pair_send,atom_pair_recv,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(atom_pair_send,atom_pair_recv)
     ENDIF
 
     CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs)
@@ -1310,8 +1296,7 @@ CONTAINS
     END IF
 
     ! Free the array of grids (grids themselves are released in density_rs2pw)
-    DEALLOCATE (rs_current,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (rs_current)
 
     CALL timestop(handle)
 
@@ -1333,7 +1318,7 @@ CONTAINS
 
     REAL(dp)                                 :: dbox(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: box_data
-    INTEGER                                  :: handle, igrid_level, nbox(3), gauge, istat
+    INTEGER                                  :: handle, igrid_level, nbox(3), gauge
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: box_ptr
     TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
       POINTER                                :: rs_descs
@@ -1366,12 +1351,9 @@ CONTAINS
        ENDIF
        !
        ! allocate and build the gauge
-       ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels))
+       ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels))
+       ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels))
        DO igrid_level = pw_env%gridlevel_info%ngrid_levels,1,-1
 
           CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
@@ -1393,8 +1375,7 @@ CONTAINS
        ENDDO
        !
        ! allocate the buf
-       ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels))
        DO igrid_level = 1,pw_env%gridlevel_info%ngrid_levels
          CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
        END DO
@@ -2191,8 +2172,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
-      istat, istate, j, jstate, max_states, nao, natom, nbr_center(2), nmo, &
-      nspins, nstate_loc, nstates(2), output_unit
+      istate, j, jstate, max_states, nao, natom, nbr_center(2), nmo, nspins, &
+      nstate_loc, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: chi_pbc, failure, gapw
@@ -2284,20 +2265,15 @@ CONTAINS
     !
     ! prepare for allocation
     natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
@@ -2363,8 +2339,7 @@ CONTAINS
     CALL cp_fm_create(psi_p2,tmp_fm_struct)
     CALL cp_fm_struct_release(tmp_fm_struct)
     !
-    ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3))
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                              ncol_global=max_states,para_env=para_env,&
                              context=mo_coeff%matrix_struct%context)
@@ -2619,8 +2594,7 @@ CONTAINS
           CALL cp_fm_release(rr_p2(idir2,idir)%matrix)
        ENDDO
     ENDDO
-    DEALLOCATE(p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2)
 
     CALL timestop(handle)
 
@@ -2642,8 +2616,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, istat, jdir, jjdir, &
-      kdir, max_states, nao, natom, nbr_center(2), nmo, nspins, nstates(2), &
+    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, &
+      max_states, nao, natom, nbr_center(2), nmo, nspins, nstates(2), &
       output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
@@ -2724,20 +2698,15 @@ CONTAINS
     !
     ! prepare for allocation
     natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)

@@ -729,7 +729,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: col_group, handle, i, icol_local, idim, info, j, l, mydim, &
-      nao, narnoldi, ncol_local, newdim, nmo, npade, pade_step, stat
+      nao, narnoldi, ncol_local, newdim, nmo, npade, pade_step
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(:), POINTER           :: col_indices, col_procs
     LOGICAL                                  :: convergence, double_col, &
@@ -753,18 +753,12 @@ CONTAINS
                         nrow_global=nao,ncol_global=nmo,matrix_struct=mo_struct)
     narnoldi=MIN(18,nao)
 
-    ALLOCATE(results(ncol_local),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(norm1(ncol_local),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(V_mats(narnoldi+1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(last_norm(ncol_local),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(H_approx(narnoldi,narnoldi,ncol_local),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(H_approx_save(narnoldi,narnoldi,ncol_local),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(results(ncol_local))
+    ALLOCATE(norm1(ncol_local))
+    ALLOCATE(V_mats(narnoldi+1))
+    ALLOCATE(last_norm(ncol_local))
+    ALLOCATE(H_approx(narnoldi,narnoldi,ncol_local))
+    ALLOCATE(H_approx_save(narnoldi,narnoldi,ncol_local))
     col_procs=>mo_struct%context%blacs2mpi(:,mo_struct%context%mepos(2))
     CALL mp_reordering(para_env%group,col_group,col_procs)
     
@@ -868,18 +862,12 @@ CONTAINS
        IF(i.ge.narn_old)THEN
           npade=9
           mydim=MIN(i,narnoldi)
-          ALLOCATE(ipivot(mydim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(mat1(mydim,mydim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(mat2(mydim,mydim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(mat3(mydim,mydim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(N(mydim,mydim),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(D(mydim,mydim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(ipivot(mydim))
+          ALLOCATE(mat1(mydim,mydim))
+          ALLOCATE(mat2(mydim,mydim))
+          ALLOCATE(mat3(mydim,mydim))
+          ALLOCATE(N(mydim,mydim))
+          ALLOCATE(D(mydim,mydim))
           DO icol_local=1,ncol_local
              DO idim=1,mydim
                 DO j=1,mydim
@@ -985,18 +973,12 @@ CONTAINS
              END IF
           END IF
    
-          DEALLOCATE(ipivot,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mat1,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mat2,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mat3,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(N,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(D,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ipivot)
+          DEALLOCATE(mat1)
+          DEALLOCATE(mat2)
+          DEALLOCATE(mat3)
+          DEALLOCATE(N)
+          DEALLOCATE(D)
        END IF
        IF(convergence)EXIT
 
@@ -1013,18 +995,12 @@ CONTAINS
     CALL cp_fm_struct_release(newstruct)
     CALL mp_comm_free(col_group)
 
-    DEALLOCATE(V_mats,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(H_approx,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(H_approx_save,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(results,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(norm1,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(last_norm,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(V_mats)
+    DEALLOCATE(H_approx)
+    DEALLOCATE(H_approx_save)
+    DEALLOCATE(results)
+    DEALLOCATE(norm1)
+    DEALLOCATE(last_norm)
     CALL timestop(handle)
   END SUBROUTINE arnoldi
 

@@ -146,7 +146,7 @@ CONTAINS
                                                 name_atm_b, name_atm_b2
     INTEGER                                  :: atm_a, atm_b, counter, first, &
                                                 handle2, i, j, k, last, &
-                                                natom, nbond, stat
+                                                natom, nbond
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_bond_kind(:)
     LOGICAL                                  :: failure, found
@@ -168,8 +168,7 @@ CONTAINS
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nbond>0) THEN
-          ALLOCATE(map_bond_kind(nbond),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(map_bond_kind(nbond))
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nbond
@@ -218,8 +217,7 @@ CONTAINS
           END DO
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                bond_kind_set=bond_kind_set,bond_list=bond_list)
-          DEALLOCATE(map_bond_kind,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(map_bond_kind)
        END IF
     END DO
     CALL timestop(handle2)
@@ -252,7 +250,7 @@ CONTAINS
                                                 name_atm_c, name_atm_c2
     INTEGER                                  :: atm_a, atm_b, atm_c, counter, &
                                                 first, handle2, i, j, k, &
-                                                last, natom, nbend, stat
+                                                last, natom, nbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_bend_kind(:)
     LOGICAL                                  :: failure, found
@@ -275,8 +273,7 @@ CONTAINS
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nbend>0) THEN
-          ALLOCATE(map_bend_kind(nbend),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(map_bend_kind(nbend))
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nbend
@@ -335,8 +332,7 @@ CONTAINS
           END DO
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                bend_kind_set=bend_kind_set,bend_list=bend_list)
-          DEALLOCATE(map_bend_kind,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(map_bend_kind)
        END IF
     END DO
     CALL timestop(handle2)
@@ -367,7 +363,7 @@ CONTAINS
                                                 name_atm_c, name_atm_c2
     INTEGER                                  :: atm_a, atm_b, atm_c, counter, &
                                                 first, handle2, i, j, k, &
-                                                last, natom, nub, stat
+                                                last, natom, nub
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_ub_kind(:)
     LOGICAL                                  :: failure, found
@@ -390,8 +386,7 @@ CONTAINS
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nub>0) THEN
-          ALLOCATE(map_ub_kind(nub),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(map_ub_kind(nub))
           counter=0
           DO j=1,nub
              atm_a = ub_list(j)%a
@@ -442,8 +437,7 @@ CONTAINS
           END DO
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                ub_kind_set=ub_kind_set,ub_list=ub_list)
-          DEALLOCATE(map_ub_kind,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(map_ub_kind)
        END IF
     END DO
     CALL timestop(handle2)
@@ -476,8 +470,7 @@ CONTAINS
       name_atm_d2
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, handle2, i, &
-                                                j, k, last, natom, ntorsion, &
-                                                stat
+                                                j, k, last, natom, ntorsion
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_torsion_kind(:)
     LOGICAL                                  :: failure, found
@@ -500,8 +493,7 @@ CONTAINS
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(ntorsion>0) THEN
-          ALLOCATE(map_torsion_kind(ntorsion),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(map_torsion_kind(ntorsion))
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,ntorsion
@@ -570,8 +562,7 @@ CONTAINS
           END DO
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                torsion_kind_set=torsion_kind_set,torsion_list=torsion_list)
-          DEALLOCATE(map_torsion_kind,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(map_torsion_kind)
        END IF
     END DO
     CALL timestop(handle2)
@@ -604,7 +595,7 @@ CONTAINS
       name_atm_d2
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, handle2, i, &
-                                                j, k, last, natom, nimpr, stat
+                                                j, k, last, natom, nimpr
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_impr_kind(:)
     LOGICAL                                  :: failure, found
@@ -627,8 +618,7 @@ CONTAINS
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nimpr>0) THEN
-          ALLOCATE(map_impr_kind(nimpr),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(map_impr_kind(nimpr))
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nimpr
@@ -697,8 +687,7 @@ CONTAINS
           END DO
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                impr_kind_set=impr_kind_set,impr_list=impr_list)
-          DEALLOCATE(map_impr_kind,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(map_impr_kind)
        END IF
     END DO
     CALL timestop(handle2)
@@ -733,8 +722,7 @@ CONTAINS
       name_atm_d2
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, handle2, i, &
-                                                j, k, last, natom, nopbend, &
-                                                stat
+                                                j, k, last, natom, nopbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_opbend_kind(:)
     LOGICAL                                  :: failure, found
@@ -757,8 +745,7 @@ CONTAINS
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nopbend>0) THEN
-          ALLOCATE(map_opbend_kind(nopbend),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(map_opbend_kind(nopbend))
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nopbend
@@ -827,8 +814,7 @@ CONTAINS
          END DO
          CALL set_molecule_kind(molecule_kind=molecule_kind,&
               opbend_kind_set=opbend_kind_set,opbend_list=opbend_list)
-         DEALLOCATE(map_opbend_kind,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(map_opbend_kind)
        END IF
     END DO
     CALL timestop(handle2)
@@ -1942,8 +1928,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname
-    INTEGER                                  :: handle, iatom, ilink, j, &
-                                                nval, stat
+    INTEGER                                  :: handle, iatom, ilink, j, nval
     LOGICAL                                  :: failure, found_p, &
                                                 is_link_atom, is_ok, &
                                                 only_manybody, only_qm
@@ -1969,8 +1954,7 @@ CONTAINS
 
     ! Allocate array to particle_set size
     CPASSERT(.NOT.(ASSOCIATED(charges)))
-    ALLOCATE(charges(SIZE(particle_set)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(charges(SIZE(particle_set)))
 
     ! Fill with input values
     CALL section_vals_val_get(charges_section,"_DEFAULT_KEYWORD_",n_rep_val=nval)
@@ -2473,7 +2457,7 @@ CPSourceFileRef,&
     INTEGER                                  :: counter, first, first_shell, &
                                                 handle2, i, j, last, &
                                                 last_shell, n, natom, nmol, &
-                                                nshell_tot, stat
+                                                nshell_tot
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, shell_list_tmp
     LOGICAL :: core_coord_read, failure, found_shell, is_a_shell, &
       is_link_atom, null_massfrac, only_qm, save_mem, shell_adiabatic, &
@@ -2607,8 +2591,7 @@ CPSourceFileRef,&
                                  natom=natom, nmolecule=nmol)
           molecule=>molecule_set(molecule_list(1))
           CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-          ALLOCATE (shell_list_tmp(natom),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (shell_list_tmp(natom))
           counter = 0
           DO j = first, last
              atomic_kind => particle_set(j)%atomic_kind
@@ -2631,11 +2614,9 @@ CPSourceFileRef,&
              ! Setup of shell_list
              CALL get_molecule_kind(molecule_kind=molecule_kind,shell_list=shell_list)
              IF (ASSOCIATED(shell_list)) THEN
-                DEALLOCATE(shell_list,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(shell_list)
              END IF
-             ALLOCATE (shell_list(counter), STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE (shell_list(counter))
              DO j=1,counter
                 shell_list(j)%a = shell_list_tmp(j)
                 atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
@@ -2646,8 +2627,7 @@ CPSourceFileRef,&
              END DO
              CALL set_molecule_kind(molecule_kind=molecule_kind, nshell=counter,shell_list=shell_list)
           END IF
-          DEALLOCATE (shell_list_tmp,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (shell_list_tmp)
           n = n + nmol*counter
        END DO ! i molecule kind
     END IF
@@ -3373,7 +3353,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, handle, i1, i2, &
-                                                nkinds, stat
+                                                nkinds
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, beta, mm_radius1, &
                                                 mm_radius2, rcut2, &
@@ -3389,8 +3369,7 @@ CPSourceFileRef,&
     nkinds = SIZE(atomic_kind_set)
     ! allocate the array with interaction cutoffs for the electrostatics, used
     ! to make the electrostatic interaction continuous at ewald_env%rcut
-    ALLOCATE(interaction_cutoffs(3,nkinds,nkinds), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(interaction_cutoffs(3,nkinds,nkinds))
     interaction_cutoffs = 0.0_dp
 
     ! compute the interaction cutoff if SHIFT_CUTOFF is active

@@ -48,7 +48,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_efield_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: field_energy
     REAL(KIND=dp), DIMENSION(3)              :: polarisation
@@ -65,8 +64,7 @@ CONTAINS
        polarisation = 0.0_dp
     END IF
 
-    ALLOCATE(efield,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(efield)
     NULLIFY(efield%cosmat)
     NULLIFY(efield%sinmat)
     NULLIFY(efield%dipmat)
@@ -108,7 +106,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_berry_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -120,8 +117,7 @@ CONTAINS
        IF(ASSOCIATED(efield%dipmat))THEN
           CALL cp_dbcsr_deallocate_matrix_set ( efield%dipmat)
        END IF
-       DEALLOCATE(efield,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(efield)
     END IF
   END SUBROUTINE efield_berry_release
 

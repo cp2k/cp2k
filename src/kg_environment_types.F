@@ -81,7 +81,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iab, isub, stat
+    INTEGER                                  :: handle, iab, isub
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -96,15 +96,13 @@ CONTAINS
        DO iab=1,SIZE(kg_env%sab_orb_full)
          CALL deallocate_neighbor_list_set(kg_env%sab_orb_full(iab)%neighbor_list_set)
        END DO
-       DEALLOCATE(kg_env%sab_orb_full,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(kg_env%sab_orb_full)
     ENDIF
     IF (ASSOCIATED(kg_env%sac_kin)) THEN
        DO iab=1,SIZE(kg_env%sac_kin)
          CALL deallocate_neighbor_list_set(kg_env%sac_kin(iab)%neighbor_list_set)
        END DO
-       DEALLOCATE(kg_env%sac_kin,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(kg_env%sac_kin)
     END IF
 
     IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
@@ -115,8 +113,7 @@ CONTAINS
        DO iab=1,SIZE(kg_env%subset(isub)%sab_orb)
           CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
        END DO
-       DEALLOCATE(kg_env%subset(isub)%sab_orb,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(kg_env%subset(isub)%sab_orb)
        CALL deallocate_task_list(kg_env%subset(isub)%task_list)
     END DO
 
@@ -127,8 +124,7 @@ CONTAINS
 
     IF (ASSOCIATED(kg_env%tnadd_mat)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
 
-    DEALLOCATE(kg_env,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(kg_env)
 
     CALL timestop(handle)
 

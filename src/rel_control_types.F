@@ -79,13 +79,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    ALLOCATE (rel_control,STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE (rel_control)
 
 
     ! Load the default values
@@ -144,7 +142,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -153,8 +150,7 @@ CONTAINS
       CPASSERT(rel_control%ref_count>0)
       rel_control%ref_count = rel_control%ref_count - 1
       IF (rel_control%ref_count < 1) THEN
-        DEALLOCATE(rel_control,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(rel_control)
       END IF
     END IF
 

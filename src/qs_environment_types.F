@@ -1257,13 +1257,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(qs_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qs_env)
     CALL init_qs_env(qs_env, globenv=globenv)
   END SUBROUTINE qs_env_create
 
@@ -1302,7 +1300,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1316,47 +1314,41 @@ CONTAINS
              DO i=1,SIZE(qs_env%mos)
                 CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
              END DO
-             DEALLOCATE(qs_env%mos, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qs_env%mos)
           END IF
           IF (ASSOCIATED(qs_env%mos_aux_fit)) THEN
              DO i=1,SIZE(qs_env%mos_aux_fit)
                 CALL deallocate_mo_set(qs_env%mos_aux_fit(i)%mo_set)
              END DO
-             DEALLOCATE(qs_env%mos_aux_fit, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qs_env%mos_aux_fit)
           END IF
 
           IF (ASSOCIATED(qs_env%mo_derivs)) THEN
              DO I=1,SIZE(qs_env%mo_derivs)
                 CALL cp_dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
              ENDDO
-             DEALLOCATE(qs_env%mo_derivs, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qs_env%mo_derivs)
           ENDIF
 
           IF (ASSOCIATED(qs_env%mo_derivs_aux_fit)) THEN
              DO I=1,SIZE(qs_env%mo_derivs_aux_fit)
                 CALL cp_fm_release(qs_env%mo_derivs_aux_fit(I)%matrix)
              ENDDO
-             DEALLOCATE(qs_env%mo_derivs_aux_fit, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qs_env%mo_derivs_aux_fit)
           ENDIF
 
           IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
              DO I=1,SIZE(qs_env%mo_loc_history)
                 CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
              ENDDO
-             DEALLOCATE(qs_env%mo_loc_history, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qs_env%mo_loc_history)
           ENDIF
           IF (ASSOCIATED(qs_env%rtp))THEN
              CALL rt_prop_release(qs_env%rtp)
              DEALLOCATE (qs_env%rtp)
           END IF
           IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
-             DEALLOCATE(qs_env%outer_scf_history,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qs_env%outer_scf_history)
              qs_env%outer_scf_ihistory=0
           ENDIF
           IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
@@ -1463,17 +1455,13 @@ CONTAINS
 
           IF( ASSOCIATED(qs_env%WannierCentres)) THEN
             DO i=1,SIZE(qs_env%WannierCentres)
-              DEALLOCATE(qs_env%WannierCentres(i)%WannierHamDiag, stat=stat)
-              CPASSERT(stat==0)
-              DEALLOCATE(qs_env%WannierCentres(i)%centres, stat=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(qs_env%WannierCentres(i)%WannierHamDiag)
+              DEALLOCATE(qs_env%WannierCentres(i)%centres)
             ENDDO
-            DEALLOCATE(qs_env%WannierCentres, stat=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(qs_env%WannierCentres)
           ENDIF
           ! now we are ready to deallocate the full structure
-          DEALLOCATE(qs_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(qs_env)
        END IF
     END IF
     NULLIFY(qs_env)

@@ -229,13 +229,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ig, ncol, stat
+    INTEGER                                  :: ig, ncol
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CALL section_vals_get(colvar_section,n_repetition=ncol)
-    ALLOCATE(subsys%colvar_p(ncol),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(subsys%colvar_p(ncol))
     DO ig= 1, ncol
        NULLIFY(subsys%colvar_p(ig)%colvar)
        CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env)
@@ -281,7 +280,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: my_element, strtmp1
-    INTEGER                                  :: iat, id_, nat, stat
+    INTEGER                                  :: iat, id_, nat
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -335,8 +334,7 @@ CONTAINS
     ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%id_atmname(nat),&
          topology%atom_info%id_molname(nat),topology%atom_info%id_resname(nat),&
          topology%atom_info%id_element(nat), topology%atom_info%atm_mass(nat),&
-         topology%atom_info%atm_charge(nat),stat=stat)
-    CPASSERT(stat==0)
+         topology%atom_info%atm_charge(nat))
 
     CALL cp_subsys_get(big_subsys, particles=particles)
     DO iat=1,nat

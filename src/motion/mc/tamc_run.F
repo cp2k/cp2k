@@ -338,8 +338,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 !!!!! this shoudl go in a routine hmc_read
 
       NULLIFY(mc_section)
-      ALLOCATE(mc_par, stat=isos) ! do not forget to clean this mess
-      CPASSERT(isos==0)
+      ALLOCATE(mc_par)
 
       mc_section => section_vals_get_subs_vals(force_env%root_section,&
          "MOTION%MC")
@@ -518,24 +517,19 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
          constraint_section,"LAGRANGE_MULTIPLIERS")
       CALL init_mc_moves(moves)
       CALL init_mc_moves(gmoves)
-      ALLOCATE (r(1:3,SIZE(particles%els)),STAT=isos)
-      CPASSERT(isos==0)
+      ALLOCATE (r(1:3,SIZE(particles%els)))
 !       ALLOCATE (r_old(1:3,size(particles%els)),STAT=isos)
 !       CPPostcondition(isos==0,cp_failure_level,routineP,failure)
       CALL mc_averages_create(MCaverages)
     !!!!! some more buffers
  ! Allocate random number for Langevin Thermostat acting on COLVARS
-      ALLOCATE (xieta(2*force_env%meta_env%n_colvar),STAT=isos)
-      CPASSERT(isos==0)
+      ALLOCATE (xieta(2*force_env%meta_env%n_colvar))
       xieta(:) = 0.0_dp
-      ALLOCATE (An(force_env%meta_env%n_colvar),STAT=isos)
-      CPASSERT(isos==0)
+      ALLOCATE (An(force_env%meta_env%n_colvar))
       An(:) = 0.0_dp
-      ALLOCATE (fz(force_env%meta_env%n_colvar),STAT=isos)
-      CPASSERT(isos==0)
+      ALLOCATE (fz(force_env%meta_env%n_colvar))
       fz(:) = 0.0_dp
-      ALLOCATE (zbuff(2*force_env%meta_env%n_colvar),STAT=isos)
-      CPASSERT(isos==0)
+      ALLOCATE (zbuff(2*force_env%meta_env%n_colvar))
       zbuff(:) = 0.0_dp
 
     IF (output_unit>0)THEN
@@ -683,22 +677,16 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       CALL delete_rng_stream(rng_stream_mc)
 !     ENDIF
     CALL MC_ENV_RELEASE(mc_env)
-    DEALLOCATE(mc_par, stat=isos) ! do not forget to clean this mess
-    CPASSERT(isos==0)
+    DEALLOCATE(mc_par)
     CALL MC_MOVES_RELEASE(moves)
     CALL MC_MOVES_RELEASE(gmoves)
-    DEALLOCATE(r,STAT=isos)
-    CPASSERT(isos==0)
+    DEALLOCATE(r)
 !     DEALLOCATE(r_old,STAT=isos)
 !     CPPostcondition(isos==0,cp_failure_level,routineP,failure)
-    DEALLOCATE(xieta,STAT=isos)
-    CPASSERT(isos==0)
-    DEALLOCATE(An,STAT=isos)
-    CPASSERT(isos==0)
-    DEALLOCATE(fz,STAT=isos)
-    CPASSERT(isos==0)
-    DEALLOCATE(zbuff,STAT=isos)
-    CPASSERT(isos==0)
+    DEALLOCATE(xieta)
+    DEALLOCATE(An)
+    DEALLOCATE(fz)
+    DEALLOCATE(zbuff)
     CALL mc_averages_release(MCaverages)
     CALL timestop(handle)
 
@@ -1219,8 +1207,8 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_hmc_move', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, iatom, istat, &
-                                                j, nAtoms, source
+    INTEGER                                  :: group, handle, iatom, j, &
+                                                nAtoms, source
     LOGICAL                                  :: failure, ionode, localise
     REAL(KIND=dp)                            :: BETA, energy_term, &
                                                 exp_max_val, exp_min_val, &
@@ -1257,8 +1245,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 ! do some allocation
 
 
-      ALLOCATE (hmc_ekin,STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (hmc_ekin)
 
 ! record the attempt
       moves%hmc%attempts=moves%hmc%attempts+1
@@ -1335,8 +1322,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 
       ENDIF
 
-      DEALLOCATE(hmc_ekin,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(hmc_ekin)
 
 ! end the timing
       CALL timestop(handle)

@@ -148,7 +148,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, natom, stat
+    INTEGER                                  :: handle, natom
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -197,8 +197,7 @@ CONTAINS
 
     natom = SIZE(particle_set)
 
-    ALLOCATE(eip_env%eip_forces(3,natom), stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(eip_env%eip_forces(3,natom))
 
     eip_env%eip_forces(:,:) = 0.0_dp
 

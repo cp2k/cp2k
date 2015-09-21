@@ -212,17 +212,13 @@ CONTAINS
     [type1in], OPTIONAL :: first_el
     TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: rest
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_create'
-    INTEGER :: stat
-    failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
        NULLIFY(sll)
        IF (PRESENT(rest)) sll => rest
     ELSE
-       ALLOCATE(sll, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(sll)
        sll%first_el [=] first_el
        NULLIFY(sll%rest)
        IF (PRESENT(rest)) sll%rest => rest
@@ -261,13 +257,9 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_dealloc_node'
-    INTEGER:: stat
-    failure=.FALSE.
 
-    DEALLOCATE(sll, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(sll)
   END SUBROUTINE cp_sll_[nametype1]_dealloc_node
 
 ! ============= get/set ============
@@ -289,9 +281,7 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: rest
 
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_set_sll_[nametype1]'
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        IF (PRESENT(first_el)) THEN
@@ -323,9 +313,7 @@ CONTAINS
     LOGICAL, OPTIONAL, INTENT(out) :: empty
     INTEGER, INTENT(out), OPTIONAL :: length
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_get'
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        CPASSERT(.NOT.PRESENT(first_el))
@@ -353,9 +341,7 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1] :: res
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_get_first'
-    failure=.FALSE.
 
     IF (cp_debug) THEN
        CPASSERT(ASSOCIATED(sll))
@@ -382,10 +368,8 @@ CONTAINS
 
     TYPE(cp_sll_[nametype1]_type), POINTER :: res
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]:cp_sll_[nametype1]_get_first'
     INTEGER :: i
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        NULLIFY(res)
@@ -398,8 +382,7 @@ CONTAINS
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP, "tried to go past end in "// &
-                     CPSourceFileRef,&
-                     failure)
+                     CPSourceFileRef)
              END IF
           END DO
           IF (iter==-1) THEN
@@ -476,10 +459,8 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_get_el_at'
     TYPE(cp_sll_[nametype1]_type), POINTER :: pos
-    failure=.FALSE.
 
     IF (cp_debug) THEN
        CPASSERT(index>0.OR.index==-1)
@@ -511,10 +492,8 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_set_el_at'
     TYPE(cp_sll_[nametype1]_type), POINTER :: pos
-    failure=.FALSE.
 
     IF (index==-1) THEN
        pos => cp_sll_[nametype1]_get_rest(sll, iter=-1)
@@ -593,10 +572,8 @@ CONTAINS
   SUBROUTINE cp_sll_[nametype1]_rm_first_el(sll)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_rm_first_el'
     TYPE(cp_sll_[nametype1]_type), POINTER :: node_to_rm
-    failure=.FALSE.
     node_to_rm => sll
 
     IF (ASSOCIATED(sll)) THEN
@@ -605,8 +582,7 @@ CONTAINS
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
-            CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
   END SUBROUTINE cp_sll_[nametype1]_rm_first_el
 
@@ -627,10 +603,8 @@ CONTAINS
     INTEGER, INTENT(in) :: index
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_insert_el_at'
     TYPE(cp_sll_[nametype1]_type), POINTER :: pos
-    failure=.FALSE.
 
     IF (index==1) THEN
        CALL cp_sll_[nametype1]_insert_el(sll,el)
@@ -659,10 +633,8 @@ CONTAINS
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, INTENT(in)::index
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_[nametype1]/cp_sll_[nametype1]_remove_el_at'
     TYPE(cp_sll_[nametype1]_type), POINTER :: pos
-    failure=.FALSE.
 
     IF (cp_debug) THEN
        CPASSERT(index>0.OR.index==-1)
@@ -718,22 +690,17 @@ FUNCTION cp_sll_[nametype1]_to_array(sll) RESULT(res)
   TYPE(cp_sll_[nametype1]_type), POINTER :: sll
   [type1arrayEl], DIMENSION(:), POINTER :: res
 
-  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_[nametype1]_to_array',&
         routineP=moduleN//':'//routineN
-  INTEGER :: len,stat,i
+  INTEGER :: len,i
   TYPE(cp_sll_[nametype1]_type), POINTER :: iter
-  failure=.FALSE.
 
   len=cp_sll_[nametype1]_get_length(sll)
-  ALLOCATE(res(len),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(res(len))
   iter => sll
   DO i=1,len
      res(i)[arrayEl] [array=] iter%first_el
-     IF (.NOT.(cp_sll_[nametype1]_next(iter).OR.i==len)) THEN
-        CPASSERT(.FALSE.)
-     END IF
+     CPASSERT(cp_sll_[nametype1]_next(iter).OR.i==len)
   END DO
 END FUNCTION cp_sll_[nametype1]_to_array
 
@@ -788,11 +755,10 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered(sll,el,insert_equals,&
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: pos
 
-  LOGICAL :: failure,i_eq
+  LOGICAL :: i_eq
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_[nametype1]_insert_ordered',&
         routineP=moduleN//':'//routineN
   TYPE(cp_sll_[nametype1]_type), POINTER :: iter
-  failure=.FALSE.
   i_eq=.FALSE.
 
   IF (PRESENT(did_insert)) did_insert=.FALSE.
@@ -864,12 +830,11 @@ SUBROUTINE cp_sll_[nametype1]_insert_ordered2(sll,el,compare_function,&
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
   TYPE(cp_sll_[nametype1]_type), POINTER, OPTIONAL :: pos
 
-  LOGICAL :: failure,i_eq
+  LOGICAL :: i_eq
   CHARACTER(len=*), PARAMETER :: routineN='cp_sll_[nametype1]_insert_ordered2',&
         routineP=moduleN//':'//routineN
   INTEGER :: comp
   TYPE(cp_sll_[nametype1]_type), POINTER :: iter
-  failure=.FALSE.
   i_eq=.FALSE.
 
   IF (PRESENT(did_insert)) did_insert=.FALSE.

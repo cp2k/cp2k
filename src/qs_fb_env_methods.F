@@ -147,7 +147,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: name
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
       lfomo_filtered, my_nmo, ndep, nelectron, nmo, nmo_filtered, nspin, &
-      original_nfullrowsORcols_total, stat
+      original_nfullrowsORcols_total
     INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
                                                 original_rowORcol_block_sizes
     LOGICAL                                  :: collective_com, failure
@@ -362,8 +362,7 @@ CONTAINS
     ! filter diagonalisation works on a smaller basis set, and thus
     ! requires a new mo_set (molecular orbitals | eigenvectors) and
     ! the corresponding matrix pools for the eigenvector coefficients
-    ALLOCATE(mos_filtered(nspin), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mos_filtered(nspin))
     DO ispin = 1, nspin
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                        maxocc=maxocc, &
@@ -509,8 +508,7 @@ CONTAINS
     ! get the filtered density matrix and then convert back to the
     ! full basis version in scf_env ready to be used outside this
     ! subroutine
-    ALLOCATE(matrix_filtered_p, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix_filtered_p)
     CALL cp_dbcsr_init(matrix_filtered_p)
     ! the filtered density matrix should have the same sparse
     ! structure as the original density matrix, we must copy the
@@ -553,8 +551,7 @@ CONTAINS
     ! release temporary matrices
     CALL cp_dbcsr_release(matrix_tmp)
     CALL cp_dbcsr_release(matrix_filtered_p)
-    DEALLOCATE(matrix_filtered_p, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(matrix_filtered_p)
 
     ! ----------------------------------------------------------------------
     ! Update MOs
@@ -642,8 +639,7 @@ CONTAINS
     DO ispin = 1, nspin
        CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set)
     END DO
-    DEALLOCATE(mos_filtered, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mos_filtered)
     CALL cp_dbcsr_deallocate_matrix_set(matrix_filter)
 
     CALL timestop(handle)
@@ -815,7 +811,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_rcut_auto', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, nkinds, stat
+    INTEGER                                  :: handle, ikind, nkinds
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: auto_cutoff_scale, kind_radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
@@ -839,8 +835,7 @@ CONTAINS
                     auto_cutoff_scale=auto_cutoff_scale)
 
     nkinds = SIZE(qs_kind_set)
-    ALLOCATE(rcut(nkinds), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rcut(nkinds))
 
     ! reading from the other parts of the code, it seemed that
     ! aux_fit_basis_set is only used when do_admm is TRUE. This can be
@@ -849,8 +844,7 @@ CONTAINS
     ! basis_type is only set as input parameter for do_admm
     ! calculations, and if not set, the task list is generated using
     ! the default basis_set="ORB".
-    ALLOCATE(basis_set_list(nkinds), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(basis_set_list(nkinds))
     IF (dft_control%do_admm) THEN
        CALL basis_set_list_setup(basis_set_list, "AUX_FIT", qs_kind_set)
     ELSE
@@ -867,8 +861,7 @@ CONTAINS
                     rcut=rcut)
 
     ! cleanup
-    DEALLOCATE(basis_set_list, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(basis_set_list)
 
     CALL timestop(handle)
 
@@ -894,8 +887,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iatom, ihalo, max_natoms_local, natoms_global, &
-      natoms_local, nelectrons, nhalo_atoms, nkinds_global, owner_id_in_halo, &
-      stat
+      natoms_local, nelectrons, nhalo_atoms, nkinds_global, owner_id_in_halo
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cost
@@ -945,8 +937,7 @@ CONTAINS
     CALL mp_max(max_natoms_local, para_env%group)
 
     ! create the halos, one for each local atom
-    ALLOCATE(halos(natoms_local), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(halos(natoms_local))
     DO ihalo = 1, natoms_local
        CALL fb_atomic_halo_nullify(halos(ihalo))
        CALL fb_atomic_halo_create(halos(ihalo))
@@ -955,8 +946,7 @@ CONTAINS
                                  nhalos=natoms_local, &
                                  max_nhalos=max_natoms_local)
     ! build halos
-    ALLOCATE(pair_radii(nkinds_global,nkinds_global), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pair_radii(nkinds_global,nkinds_global))
     CALL fb_build_pair_radii(rcut, nkinds_global, pair_radii)
     ihalo = 0
     DO iatom = 1, natoms_local
@@ -988,8 +978,7 @@ CONTAINS
        ! sort atomic halo
        CALL fb_atomic_halo_sort(halos(ihalo))
     END DO ! iatom
-    DEALLOCATE(pair_radii, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pair_radii)
 
     ! finalise
     CALL fb_atomic_halo_list_set(atomic_halos=atomic_halos, &
@@ -1027,7 +1016,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, icgf, ico, ikind, iset, ishell, itrial, &
-      lshell, max_n_trial, nkinds, nset, old_lshell, stat
+      lshell, max_n_trial, nkinds, nset, old_lshell
     INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: functions
     LOGICAL                                  :: failure
@@ -1063,16 +1052,14 @@ CONTAINS
     ! basis_type is only set as input parameter for do_admm
     ! calculations, and if not set, the task list is generated using
     ! the default basis_set="ORB".
-    ALLOCATE(basis_set_list(nkinds), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(basis_set_list(nkinds))
     IF (dft_control%do_admm) THEN
        CALL basis_set_list_setup(basis_set_list, "AUX_FIT", qs_kind_set)
     ELSE
        CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
     END IF
 
-    ALLOCATE(nfunctions(nkinds), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(nfunctions(nkinds))
     nfunctions = 0
 
     DO ikind = 1, nkinds
@@ -1115,8 +1102,7 @@ CONTAINS
     ! now that we have the number of trial functions get the trial
     ! functions
     max_n_trial = MAXVAL(nfunctions)
-    ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(functions(max_n_trial,nkinds))
     functions(:,:) = 0
     ! redo the loops to get the trial function indices within the basis set
     DO ikind = 1, nkinds
@@ -1169,8 +1155,7 @@ CONTAINS
     CALL fb_trial_fns_release(trial_fns)
 
     ! cleanup
-    DEALLOCATE(basis_set_list, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(basis_set_list)
 
     CALL timestop(handle)
 
@@ -1197,7 +1182,7 @@ CONTAINS
 
     INTEGER                                  :: iatom, iblk, jatom, &
                                                 nblkcols_total, &
-                                                nblkrows_total, nblks, stat
+                                                nblkrows_total, nblks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: mat_block
@@ -1210,10 +1195,8 @@ CONTAINS
                            nblkcols_total=nblkcols_total)
 
     nblks = nblkrows_total * nblkcols_total
-    ALLOCATE(rows(nblks), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(cols(nblks), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rows(nblks))
+    ALLOCATE(cols(nblks))
     rows(:) = 0
     cols(:) = 0
     iblk = 0
@@ -1230,10 +1213,8 @@ CONTAINS
     CALL cp_dbcsr_finalize(matrix_out)
 
     ! cleanup
-    DEALLOCATE(rows, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(cols, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rows)
+    DEALLOCATE(cols)
 
   END SUBROUTINE fb_dbcsr_copy_sparse_struct
 

@@ -468,14 +468,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(mulliken_restraint_control))
-    ALLOCATE(mulliken_restraint_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mulliken_restraint_control)
 
     mulliken_restraint_control%ref_count=1
     mulliken_restraint_control%strength=0.1_dp
@@ -545,14 +543,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ddapc_restraint_control))
-    ALLOCATE(ddapc_restraint_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ddapc_restraint_control)
 
     ddapc_restraint_control%density_type=do_full_density
     ddapc_restraint_control%ref_count=1
@@ -629,14 +625,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(becke_control))
-    ALLOCATE(becke_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(becke_control)
 
 
     becke_control%ref_count=1
@@ -713,14 +707,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(s2_restraint_control))
-    ALLOCATE(s2_restraint_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(s2_restraint_control)
 
     s2_restraint_control%ref_count=1
     s2_restraint_control%strength=0.1_dp
@@ -787,14 +779,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(dft_control))
-    ALLOCATE (dft_control,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (dft_control)
     dft_control%ref_count=1
     last_dft_control_id=last_dft_control_id+1
     dft_control%id_nr=last_dft_control_id
@@ -844,7 +834,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -860,17 +849,13 @@ CONTAINS
           CALL efield_fields_release(dft_control%efield_fields)
           CALL sccs_control_release(dft_control%sccs_control)
           IF (ASSOCIATED(dft_control%period_efield))THEN
-             DEALLOCATE(dft_control%period_efield%polarisation,stat=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(dft_control%period_efield,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dft_control%period_efield%polarisation)
+             DEALLOCATE(dft_control%period_efield)
           END IF
           IF (ASSOCIATED(dft_control%rtp_control)) THEN
-             DEALLOCATE(dft_control%rtp_control,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dft_control%rtp_control)
           END IF
-          DEALLOCATE(dft_control, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dft_control)
        END IF
     END IF
 
@@ -886,13 +871,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gapw_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(gapw_control))
-    ALLOCATE (gapw_control,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gapw_control)
   END SUBROUTINE gapw_control_create
 
 ! *****************************************************************************
@@ -905,13 +888,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(qs_control))
-    ALLOCATE (qs_control,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (qs_control)
 
     NULLIFY(qs_control%e_cutoff)
     NULLIFY(qs_control%gapw_control)
@@ -943,7 +924,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -956,12 +937,10 @@ CONTAINS
        CALL becke_control_release(qs_control%becke_control)
 
        IF (ASSOCIATED(qs_control%e_cutoff)) THEN
-          DEALLOCATE(qs_control%e_cutoff,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(qs_control%e_cutoff)
        END IF
        IF (ASSOCIATED(qs_control%gapw_control))THEN
-          DEALLOCATE(qs_control%gapw_control,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(qs_control%gapw_control)
        END IF
        IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
           DO i = 1 , SIZE(qs_control%ddapc_restraint_control)
@@ -969,8 +948,7 @@ CONTAINS
           END DO
           DEALLOCATE(qs_control%ddapc_restraint_control)
        END IF
-       DEALLOCATE(qs_control,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(qs_control)
     END IF
   END SUBROUTINE qs_control_release
 
@@ -984,13 +962,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(tddfpt_control))
-    ALLOCATE (tddfpt_control,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (tddfpt_control)
     NULLIFY(tddfpt_control%lumos)
     NULLIFY(tddfpt_control%lumos_eigenvalues)
 
@@ -1006,7 +982,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: ispin
     LOGICAL                                  :: dummy, failure
 
     failure = .FALSE.
@@ -1020,15 +996,12 @@ CONTAINS
              !MK compiler bug and thus the line might become obsolete
              dummy = ASSOCIATED(tddfpt_control%lumos(ispin)%matrix)
           END DO
-          DEALLOCATE(tddfpt_control%lumos,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(tddfpt_control%lumos)
        END IF
        IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
-          DEALLOCATE(tddfpt_control%lumos_eigenvalues,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(tddfpt_control%lumos_eigenvalues)
        END IF
-       DEALLOCATE(tddfpt_control,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tddfpt_control)
     END IF
   END SUBROUTINE tddfpt_control_release
 
@@ -1044,7 +1017,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_fields_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1052,23 +1025,18 @@ CONTAINS
        DO i=1,SIZE(efield_fields)
           IF(ASSOCIATED(efield_fields(i)%efield))THEN
              IF(ASSOCIATED(efield_fields(i)%efield%envelop_r_vars))THEN
-                DEALLOCATE(efield_fields(i)%efield%envelop_r_vars,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(efield_fields(i)%efield%envelop_r_vars)
              END IF
              IF(ASSOCIATED(efield_fields(i)%efield%envelop_i_vars))THEN
-                DEALLOCATE(efield_fields(i)%efield%envelop_i_vars,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(efield_fields(i)%efield%envelop_i_vars)
              END IF
              IF(ASSOCIATED(efield_fields(i)%efield%polarisation))THEN
-                DEALLOCATE(efield_fields(i)%efield%polarisation,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(efield_fields(i)%efield%polarisation)
              END IF
-             DEALLOCATE(efield_fields(i)%efield,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(efield_fields(i)%efield)
           END IF
        END DO
-       DEALLOCATE(efield_fields,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(efield_fields)
     END IF
   END SUBROUTINE efield_fields_release
 
@@ -1082,14 +1050,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(dftb_control))
-    ALLOCATE(dftb_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dftb_control)
 
     NULLIFY(dftb_control%sk_pair_list)
   END SUBROUTINE dftb_control_create
@@ -1104,18 +1070,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(dftb_control)) THEN
        IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
-          DEALLOCATE(dftb_control%sk_pair_list,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dftb_control%sk_pair_list)
        END IF
-       DEALLOCATE(dftb_control,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dftb_control)
     END IF
   END SUBROUTINE dftb_control_release
 
@@ -1129,14 +1092,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(scptb_control))
-    ALLOCATE(scptb_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(scptb_control)
 
   END SUBROUTINE scptb_control_create
 
@@ -1150,14 +1111,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(scptb_control)) THEN
-       DEALLOCATE(scptb_control,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(scptb_control)
     END IF
   END SUBROUTINE scptb_control_release
 
@@ -1172,14 +1131,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(se_control))
-    ALLOCATE(se_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(se_control)
   END SUBROUTINE se_control_create
 
 ! *****************************************************************************
@@ -1193,14 +1150,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(se_control)) THEN
-       DEALLOCATE(se_control,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(se_control)
     END IF
   END SUBROUTINE se_control_release
 
@@ -1214,14 +1169,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'admm_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(admm_control))
-    ALLOCATE(admm_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(admm_control)
 
   END SUBROUTINE admm_control_create
 
@@ -1235,14 +1188,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'admm_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(admm_control)) THEN
-       DEALLOCATE(admm_control,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(admm_control)
     END IF
   END SUBROUTINE admm_control_release
 
@@ -1260,14 +1211,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(sccs_control))
-    ALLOCATE (sccs_control,STAT=istat)
-    CPASSERT(istat == 0)
+    ALLOCATE (sccs_control)
 
     sccs_control%ref_count = 1
     sccs_control%derivative_method = 0
@@ -1303,7 +1252,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1312,8 +1260,7 @@ CONTAINS
        CPASSERT(sccs_control%ref_count > 0)
        sccs_control%ref_count = sccs_control%ref_count - 1
        IF (sccs_control%ref_count == 0) THEN
-          DEALLOCATE (sccs_control,STAT=istat)
-          CPASSERT(istat == 0)
+          DEALLOCATE (sccs_control)
        END IF
     END IF
 

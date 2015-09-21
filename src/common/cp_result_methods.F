@@ -404,7 +404,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: entry_deleted, i, k, &
-                                                new_size, nlist, nrep, stat
+                                                new_size, nlist, nrep
     LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: clean_results
 
@@ -439,10 +439,8 @@ CPSourceFileRef,&
           NULLIFY(clean_results)
           CALL cp_result_create(clean_results)
           CALL cp_result_clean(clean_results)
-          ALLOCATE(clean_results%result_label(new_size), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(clean_results%result_value(new_size), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(clean_results%result_label(new_size))
+          ALLOCATE(clean_results%result_value(new_size))
           DO i = 1, new_size
              NULLIFY(clean_results%result_value(i)%value)
              CALL cp_result_value_create(clean_results%result_value(i)%value)
@@ -461,10 +459,8 @@ CPSourceFileRef,&
        END IF
     ELSE
        CALL cp_result_clean(results)
-       ALLOCATE(results%result_label(new_size), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(results%result_value(new_size), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(results%result_label(new_size))
+       ALLOCATE(results%result_value(new_size))
     END IF
   END SUBROUTINE cp_results_erase
 
@@ -483,7 +479,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_results_mp_bcast', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, nlist, stat
+    INTEGER                                  :: i, nlist
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: size_value, type_in_use
     LOGICAL                                  :: failure
 
@@ -493,10 +489,8 @@ CPSourceFileRef,&
     IF (para_env%mepos==source) nlist = SIZE(results%result_value)
     CALL mp_bcast(nlist, source, para_env%group)
 
-    ALLOCATE(size_value(nlist), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(type_in_use(nlist), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(size_value(nlist))
+    ALLOCATE(type_in_use(nlist))
     IF (para_env%mepos==source) THEN
        DO i = 1, nlist
           CALL get_nreps(results,description=results%result_label(i),&
@@ -508,10 +502,8 @@ CPSourceFileRef,&
 
     IF (para_env%mepos/=source) THEN
        CALL cp_result_clean(results)
-       ALLOCATE(results%result_value(nlist),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(results%result_label(nlist),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(results%result_value(nlist))
+       ALLOCATE(results%result_label(nlist))
        DO i = 1, nlist
           results%result_label(i) = ""
           NULLIFY(results%result_value(i)%value)
@@ -534,10 +526,8 @@ CPSourceFileRef,&
           CPASSERT(.FALSE.)
        END SELECT
     END DO
-    DEALLOCATE(type_in_use, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(size_value, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(type_in_use)
+    DEALLOCATE(size_value)
   END SUBROUTINE cp_results_mp_bcast
 
 END MODULE cp_result_methods

@@ -70,14 +70,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
-    ALLOCATE (harmonics,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (harmonics)
 
     harmonics%max_s_harm=0
     harmonics%llmax=0
@@ -111,64 +109,52 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(harmonics)) THEN
 
        IF(ASSOCIATED(harmonics%slm)) THEN
-          DEALLOCATE (harmonics%slm,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%slm)
        ENDIF
 
        IF(ASSOCIATED(harmonics%dmslm)) THEN
-          DEALLOCATE (harmonics%dmslm,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%dmslm)
        ENDIF
 
        IF(ASSOCIATED(harmonics%dslm)) THEN
-          DEALLOCATE (harmonics%dslm,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%dslm)
        ENDIF
 
        IF(ASSOCIATED(harmonics%dslm_dxyz)) THEN
-          DEALLOCATE (harmonics%dslm_dxyz,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%dslm_dxyz)
        ENDIF
 
        IF(ASSOCIATED(harmonics%slm_int)) THEN
-          DEALLOCATE (harmonics%slm_int,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%slm_int)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_CG)) THEN
-          DEALLOCATE (harmonics%my_CG,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%my_CG)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_dCG)) THEN
-          DEALLOCATE (harmonics%my_dCG,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%my_dCG)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_CG_dxyz)) THEN
-          DEALLOCATE (harmonics%my_CG_dxyz,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%my_CG_dxyz)
        ENDIF
 
        IF(ASSOCIATED(harmonics%my_CG_dxyz_asym)) THEN
-          DEALLOCATE (harmonics%my_CG_dxyz_asym,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%my_CG_dxyz_asym)
        ENDIF
 
        IF(ASSOCIATED(harmonics%a)) THEN
-          DEALLOCATE (harmonics%a,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (harmonics%a)
        ENDIF
 
-       DEALLOCATE (harmonics,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (harmonics)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer harmonics is not associated and "//&

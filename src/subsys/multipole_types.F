@@ -75,15 +75,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind2, iparticle, j, n_rep, &
-                                                nparticles, stat
+                                                nparticles
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    ALLOCATE(multipoles, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(multipoles)
 
     last_multipole_id_nr=last_multipole_id_nr+1
     multipoles%id_nr=last_multipole_id_nr
@@ -107,10 +106,8 @@ CONTAINS
     END SELECT
     nparticles = SIZE(particle_set)
     IF (multipoles%task(1)) THEN
-       ALLOCATE(multipoles%charges(nparticles),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(multipoles%radii(nparticles),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(multipoles%charges(nparticles))
+       ALLOCATE(multipoles%radii(nparticles))
        ! Fill in charge array
        DO iparticle = 1, nparticles
           !atomic_kind =>
@@ -121,8 +118,7 @@ CONTAINS
        END DO
     END IF
     IF (multipoles%task(2)) THEN
-       ALLOCATE(multipoles%dipoles(3,nparticles),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(multipoles%dipoles(3,nparticles))
        ! Fill in dipole array (if specified)
        work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%DIPOLES")
        CALL section_vals_get(work_section, explicit=explicit)
@@ -138,8 +134,7 @@ CONTAINS
        END IF
     END IF
     IF (multipoles%task(3)) THEN
-       ALLOCATE(multipoles%quadrupoles(3,3,nparticles),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(multipoles%quadrupoles(3,3,nparticles))
        ! Fill in quadrupole array (if specified)
        work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%QUADRUPOLES")
        CALL section_vals_get(work_section, explicit=explicit)
@@ -174,7 +169,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_multipole_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -183,23 +177,18 @@ CONTAINS
        multipoles%ref_count=multipoles%ref_count-1
        IF (multipoles%ref_count==0) THEN
           IF (ASSOCIATED(multipoles%charges)) THEN
-             DEALLOCATE(multipoles%charges, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(multipoles%charges)
           END IF
           IF (ASSOCIATED(multipoles%radii)) THEN
-             DEALLOCATE(multipoles%radii, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(multipoles%radii)
           END IF
           IF (ASSOCIATED(multipoles%dipoles)) THEN
-             DEALLOCATE(multipoles%dipoles, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(multipoles%dipoles)
           END IF
           IF (ASSOCIATED(multipoles%quadrupoles)) THEN
-             DEALLOCATE(multipoles%quadrupoles, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(multipoles%quadrupoles)
           END IF
-          DEALLOCATE(multipoles, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(multipoles)
        END IF
     END IF
   END SUBROUTINE release_multipole_type

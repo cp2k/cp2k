@@ -124,7 +124,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
@@ -132,8 +131,7 @@ CONTAINS
     NULLIFY(pw_grid)
     CPASSERT(.not.ASSOCIATED(derivative_set))
 
-    ALLOCATE(derivative_set, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(derivative_set)
 
     NULLIFY(derivative_set%derivs)
     derivative_set%ref_count  = 1
@@ -170,7 +168,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
@@ -190,8 +187,7 @@ CONTAINS
        CALL cp_sll_xc_deriv_dealloc(derivative_set%derivs)
        CALL pw_pool_release(derivative_set%pw_pool)
 
-       DEALLOCATE(derivative_set, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(derivative_set)
     END IF
     NULLIFY(derivative_set)
 

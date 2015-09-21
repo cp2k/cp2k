@@ -115,7 +115,7 @@ CONTAINS
       cobmy, cobmz, cobpx, cobpy, cobpz, da, da_max, dax, day, daz, db, &
       db_max, dbx, dby, dbz, i, ia, iap, iax, iay, iaz, ib, ibm, ibx, iby, &
       ibz, ii(3), iim(3), ij, ipgf, ir, ir1, ir2, irm(3), irr(3), irx, iry, &
-      irz, istat, ix, ixx(1), j, jj(3), jjp(3), jpgf, la, la_max, la_min, lb, &
+      irz, ix, ixx(1), j, jj(3), jjp(3), jpgf, la, la_max, la_min, lb, &
       lb_max, lb_min, llr, m, ma, mb, mmax, na, nb
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iiap
     LOGICAL                                  :: calculate_force_a, &
@@ -166,8 +166,7 @@ CONTAINS
     mmax = la_max + lb_max
 
     ! precalculate indices for horizontal recursion
-    ALLOCATE (iiap(ncoset(mmax),3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (iiap(ncoset(mmax),3))
     DO ma=0,mmax
        DO iax=0,ma
           DO iay=0,ma-iax
@@ -540,8 +539,7 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE (iiap,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (iiap)
 
   END SUBROUTINE os_3center
 ! *****************************************************************************

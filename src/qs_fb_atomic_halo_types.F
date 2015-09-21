@@ -171,7 +171,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -185,12 +184,10 @@ CONTAINS
              ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
              ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
              ! after the following DEALLOCATE
-             DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(atomic_halo%obj%halo_atoms)
           END IF
           atomic_halo%obj%ref_count = 0
-          DEALLOCATE(atomic_halo%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atomic_halo%obj)
        END IF
     ELSE
        NULLIFY(atomic_halo%obj)
@@ -263,13 +260,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atomic_halo%obj))
-    ALLOCATE(atomic_halo%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_halo%obj)
     atomic_halo%obj%owner_atom = 0
     atomic_halo%obj%owner_id_in_halo = 0
     atomic_halo%obj%natoms = 0
@@ -295,15 +290,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-       DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atomic_halo%obj%halo_atoms)
        NULLIFY(atomic_halo%obj%halo_atoms)
     END IF
     atomic_halo%obj%owner_atom = 0
@@ -399,7 +392,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -410,8 +402,7 @@ CONTAINS
     IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
     IF (PRESENT(halo_atoms)) THEN
        IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-          DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atomic_halo%obj%halo_atoms)
        END IF
        atomic_halo%obj%halo_atoms => halo_atoms
     END IF
@@ -433,17 +424,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(SIZE(atomic_halo%obj%halo_atoms) > 0)
-    ALLOCATE(tmp_index(atomic_halo%obj%natoms), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_index(atomic_halo%obj%natoms))
     CALL sort(atomic_halo%obj%halo_atoms, atomic_halo%obj%natoms, tmp_index)
-    DEALLOCATE(tmp_index, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmp_index)
     atomic_halo%obj%sorted = .TRUE.
   END SUBROUTINE fb_atomic_halo_sort
 
@@ -610,7 +598,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ikind, jatom, jkind, &
-                                                natoms_global, stat
+                                                natoms_global
     LOGICAL                                  :: check_ok, failure
     REAL(KIND=dp)                            :: rij
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
@@ -627,8 +615,7 @@ CONTAINS
     CALL get_atomic_kind(atomic_kind=atomic_kind, &
                          kind_number=ikind)
     natoms_global = SIZE(particle_set)
-    ALLOCATE(halo_atoms(natoms_global), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(halo_atoms(natoms_global))
     owner_id_in_halo = 0
     nhalo_atoms = 0
     DO jatom = 1, natoms_global
@@ -691,7 +678,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, stat
+    INTEGER                                  :: ii
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -704,12 +691,10 @@ CONTAINS
              DO ii = 1, SIZE(atomic_halos%obj%halos)
                 CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
              END DO
-             DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(atomic_halos%obj%halos)
           END IF
           atomic_halos%obj%ref_count = 0
-          DEALLOCATE(atomic_halos%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atomic_halos%obj)
        END IF
     ELSE
        NULLIFY(atomic_halos%obj)
@@ -788,13 +773,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atomic_halos%obj))
-    ALLOCATE(atomic_halos%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_halos%obj)
     atomic_halos%obj%nhalos = 0
     atomic_halos%obj%max_nhalos = 0
     NULLIFY(atomic_halos%obj%halos)
@@ -817,7 +800,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, stat
+    INTEGER                                  :: ii
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -827,8 +810,7 @@ CONTAINS
        DO ii = 1, SIZE(atomic_halos%obj%halos)
           CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
        END DO
-       DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atomic_halos%obj%halos)
        NULLIFY(atomic_halos%obj%halos)
     END IF
     atomic_halos%obj%nhalos = 0
@@ -889,7 +871,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ihalo, stat
+    INTEGER                                  :: ihalo
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -901,8 +883,7 @@ CONTAINS
           DO ihalo = 1, SIZE(atomic_halos%obj%halos)
              CALL fb_atomic_halo_release(atomic_halos%obj%halos(ihalo))
           END DO
-          DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atomic_halos%obj%halos)
        END IF
        atomic_halos%obj%halos => halos
     END IF

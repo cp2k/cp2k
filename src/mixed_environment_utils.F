@@ -79,7 +79,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: iparticle, jparticle, natom, &
-                                                nres, stat
+                                                nres
     LOGICAL                                  :: dip_exists, failure
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix, dip_tmp
 
@@ -108,8 +108,7 @@ CONTAINS
     END IF
     ! Deallocate map_index array
     IF (ASSOCIATED(map_index)) THEN
-       DEALLOCATE(map_index, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(map_index)
     END IF
 
     ! Collect Requested Results info
@@ -153,7 +152,7 @@ CONTAINS
 
     INTEGER                                  :: i, iatom, ival, j, jval, k, &
                                                 n_rep, n_rep_loc, n_rep_map, &
-                                                n_rep_sys, stat, tmp
+                                                n_rep_sys, tmp
     INTEGER, DIMENSION(:), POINTER           :: index_glo, index_loc, list
     LOGICAL                                  :: check, explicit, failure
     TYPE(section_vals_type), POINTER         :: fragments_loc, fragments_sys, &
@@ -161,8 +160,7 @@ CONTAINS
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(map_index))
-    ALLOCATE(map_index(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_index(natom))
     CALL section_vals_get(mapping_section, explicit=explicit)
     IF (.NOT.explicit) THEN
        ! Standard Mapping.. subsys are assumed to have the same structure

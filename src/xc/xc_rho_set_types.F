@@ -130,14 +130,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(rho_set))
-    ALLOCATE(rho_set, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_set)
     rho_set%ref_count=1
     last_rho_set_id=last_rho_set_id+1
     rho_set%id_nr=last_rho_set_id
@@ -195,7 +194,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -217,103 +216,83 @@ CONTAINS
           rho_set%local_bounds(1,:)=-HUGE(0) ! we want to crash...
           rho_set%local_bounds(1,:)=HUGE(0)
           IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
-             DEALLOCATE(rho_set%rho, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rho_set%rho)
           END IF
           IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa)) THEN
-                DEALLOCATE(rho_set%rhoa, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%rhoa)
              END IF
              IF (ASSOCIATED(rho_set%rhob)) THEN
-                DEALLOCATE(rho_set%rhob, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%rhob)
              END IF
           END IF
           IF (rho_set%owns%rho_1_3.AND.ASSOCIATED(rho_set%rho_1_3)) THEN
-             DEALLOCATE(rho_set%rho_1_3, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rho_set%rho_1_3)
           END IF
           IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
-                DEALLOCATE(rho_set%rhoa_1_3, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%rhoa_1_3)
              END IF
              IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
-                DEALLOCATE(rho_set%rhob_1_3, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%rhob_1_3)
              END IF
           END IF
           IF (rho_set%owns%drho) THEN
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
-                   DEALLOCATE(rho_set%drho(i)%array, stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(rho_set%drho(i)%array)
                 END IF
              END DO
           END IF
           IF (rho_set%owns%drho_spin) THEN
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
-                   DEALLOCATE(rho_set%drhoa(i)%array, stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(rho_set%drhoa(i)%array)
                 END IF
                 IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
-                   DEALLOCATE(rho_set%drhob(i)%array, stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(rho_set%drhob(i)%array)
                 END IF
              END DO
           END IF
           IF (rho_set%owns%laplace_rho.AND.ASSOCIATED(rho_set%laplace_rho)) THEN
-             DEALLOCATE(rho_set%laplace_rho, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rho_set%laplace_rho)
           END IF
 
           IF (rho_set%owns%norm_drho.AND.ASSOCIATED(rho_set%norm_drho)) THEN
-             DEALLOCATE(rho_set%norm_drho, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rho_set%norm_drho)
           END IF
           IF (rho_set%owns%laplace_rho_spin) THEN
              IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
-                DEALLOCATE(rho_set%laplace_rhoa, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%laplace_rhoa)
              END IF
              IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
-                DEALLOCATE(rho_set%laplace_rhob, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%laplace_rhob)
              END IF
           END IF
 
           IF (rho_set%owns%norm_drho_spin) THEN
              IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
-                DEALLOCATE(rho_set%norm_drhoa, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%norm_drhoa)
              END IF
              IF (ASSOCIATED(rho_set%norm_drhob)) THEN
-                DEALLOCATE(rho_set%norm_drhob, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%norm_drhob)
              END IF
           END IF
           IF (rho_set%owns%drhoa_drhob.AND.ASSOCIATED(rho_set%drhoa_drhob)) THEN
-             DEALLOCATE(rho_set%drhoa_drhob, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rho_set%drhoa_drhob)
           END IF
           IF (rho_set%owns%tau.AND.ASSOCIATED(rho_set%tau)) THEN
-             DEALLOCATE(rho_set%tau, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rho_set%tau)
           END IF
           IF (rho_set%owns%tau_spin) THEN
              IF (ASSOCIATED(rho_set%tau_a)) THEN
-                DEALLOCATE(rho_set%tau_a, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%tau_a)
              END IF
              IF (ASSOCIATED(rho_set%tau_b)) THEN
-                DEALLOCATE(rho_set%tau_b, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rho_set%tau_b)
              END IF
           END IF
-          DEALLOCATE(rho_set, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rho_set)
        END IF
     END IF
     NULLIFY(rho_set)

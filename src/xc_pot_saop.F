@@ -132,7 +132,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: dft_method_id, homo, i, ispin, j, k, nspins, orb, output_unit, &
-      stat, xc_deriv_method_id, xc_rho_smooth_id
+      xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: compute_virial, failure, &
@@ -218,8 +218,7 @@ CONTAINS
        nspins=1
     END IF
 
-    ALLOCATE(rho_r(nspins), single_mo_coeff(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_r(nspins), single_mo_coeff(nspins))
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
     CALL qs_rho_get(rho_struct, rho_r=rho_struct_r, rho_ao=rho_struct_ao)
     DO ispin=1,nspins
@@ -392,8 +391,7 @@ CONTAINS
     !---------------!
     ! Assemble SAOP !
     !---------------!
-    ALLOCATE(vxc_SAOP(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vxc_SAOP(nspins))
 
     DO ispin=1, nspins
 
@@ -493,11 +491,9 @@ CONTAINS
        CALL pw_release(vxc_LB(ispin)%pw)
        CALL pw_release(vxc_tmp(ispin)%pw)
     END DO
-    DEALLOCATE(vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix, single_mo_coeff, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix, single_mo_coeff)
 
-    DEALLOCATE(rho_r, vxc_SAOP, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rho_r, vxc_SAOP)
 
     CALL section_vals_release(xc_fun_section_tmp)
     CALL section_vals_release(xc_section_tmp)
@@ -695,20 +691,13 @@ CONTAINS
        CALL xc_rho_set_atom_update(orb_rho_set_h, needs, nspins, bounds)
        CALL xc_rho_set_atom_update(orb_rho_set_s, needs, nspins, bounds)
 
-       ALLOCATE(rho_h(1:na,1:nspins), rho_s(1:na,1:nspins), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(weight(1:na,1:nr), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(vxc_LB_h(1:na,1:nr,1:nspins), vxc_LB_s(1:na,1:nr,1:nspins), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(vxc_GLLB_h(1:na,1:nr,1:nspins), vxc_GLLB_s(1:na,1:nr,1:nspins), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(vxc_tmp_h(1:na,1:nr,1:nspins), vxc_tmp_s(1:na,1:nr,1:nspins), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(vxc_SAOP_h(1:na,1:nr,1:nspins), vxc_SAOP_s(1:na,1:nr,1:nspins), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho_s(1:4,1:na,1:nr,1:nspins), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rho_h(1:na,1:nspins), rho_s(1:na,1:nspins))
+       ALLOCATE(weight(1:na,1:nr))
+       ALLOCATE(vxc_LB_h(1:na,1:nr,1:nspins), vxc_LB_s(1:na,1:nr,1:nspins))
+       ALLOCATE(vxc_GLLB_h(1:na,1:nr,1:nspins), vxc_GLLB_s(1:na,1:nr,1:nspins))
+       ALLOCATE(vxc_tmp_h(1:na,1:nr,1:nspins), vxc_tmp_s(1:na,1:nr,1:nspins))
+       ALLOCATE(vxc_SAOP_h(1:na,1:nr,1:nspins), vxc_SAOP_s(1:na,1:nr,1:nspins))
+       ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho_s(1:4,1:na,1:nr,1:nspins))
 
 !      Distribute the atoms of this kind
        num_pe = para_env%num_pe
@@ -829,8 +818,7 @@ CONTAINS
 
              DO orb=1, homo(ispin)-1
 
-                ALLOCATE(coeff_col(nrow(ispin),1), stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(coeff_col(nrow(ispin),1))
 
                 efac = K_rho * SQRT(mo_eigenvalues(ispin)%array(homo(ispin)) - &
                                     mo_eigenvalues(ispin)%array(orb))
@@ -848,8 +836,7 @@ CONTAINS
                                         ncol=ncol(ispin), &
                                         alpha=1.0_dp)
 
-                DEALLOCATE(coeff_col, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(coeff_col)
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -926,8 +913,7 @@ CONTAINS
 
              DO orb=1, homo(ispin)
 
-                ALLOCATE(coeff_col(nrow(ispin),1), stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(coeff_col(nrow(ispin),1))
 
                 we_LB   = EXP(-2.0_dp*(mo_eigenvalues(ispin)%array(homo(ispin)) - &
                                        mo_eigenvalues(ispin)%array(orb))**2)
@@ -954,8 +940,7 @@ CONTAINS
                                         ncol=ncol(ispin), &
                                         alpha=1.0_dp)
 
-                DEALLOCATE(coeff_col, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(coeff_col)
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -1052,18 +1037,12 @@ CONTAINS
 
        END DO
 
-       DEALLOCATE(rho_h, rho_s, weight, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(vxc_LB_h, vxc_LB_s, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(vxc_GLLB_h, vxc_GLLB_s, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(vxc_tmp_h, vxc_tmp_s, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(vxc_SAOP_h, vxc_SAOP_s, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(drho_h, drho_s, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(rho_h, rho_s, weight)
+       DEALLOCATE(vxc_LB_h, vxc_LB_s)
+       DEALLOCATE(vxc_GLLB_h, vxc_GLLB_s)
+       DEALLOCATE(vxc_tmp_h, vxc_tmp_s)
+       DEALLOCATE(vxc_SAOP_h, vxc_SAOP_s)
+       DEALLOCATE(drho_h, drho_s)
 
        CALL xc_dset_release(deriv_set)
        CALL xc_rho_set_release(rho_set_h)
@@ -1092,8 +1071,7 @@ CONTAINS
     DO ispin=1, nspins
        CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
     END DO
-    DEALLOCATE(mo_coeff, single_mo_coeff, mo_eigenvalues, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mo_coeff, single_mo_coeff, mo_eigenvalues)
     CALL cp_dbcsr_deallocate_matrix_set(orbital_density_matrix)
 
   END SUBROUTINE gapw_add_atomic_saop_pot

@@ -212,7 +212,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, atom_b, group, &
                                                 handle, iatom, ikind, jatom, &
-                                                jkind, natom, nkind, stat
+                                                jkind, natom, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: atenergy, failure, &
@@ -274,15 +274,13 @@ CONTAINS
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
-    ALLOCATE (alpha(nkind),radius(nkind),zeff(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (alpha(nkind),radius(nkind),zeff(nkind))
     alpha(:) = 0.0_dp
     radius(:) = 0.0_dp
     zeff(:) = 0.0_dp
 
     IF (calculate_forces) THEN
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
@@ -338,11 +336,9 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (alpha,radius,zeff,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (alpha,radius,zeff)
     IF (calculate_forces) THEN
-       DEALLOCATE (atom_of_kind,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (atom_of_kind)
     END IF
 
     CALL mp_sum(ecore_overlap,group)

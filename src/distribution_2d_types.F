@@ -126,8 +126,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
    CPASSERT(ASSOCIATED(blacs_env))
    CPASSERT(.NOT.ASSOCIATED(distribution_2d))
 
-   ALLOCATE(distribution_2d,stat=stat)
-   CPASSERT(stat==0)
+   ALLOCATE(distribution_2d)
    distribution_2d%ref_count = 1
    last_distribution_2d_id=last_distribution_2d_id+1
    distribution_2d%id_nr=last_distribution_2d_id
@@ -171,8 +170,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
         distribution_2d%local_rows => local_rows_ptr
    IF (.NOT.ASSOCIATED(distribution_2d%local_rows)) THEN
       CPASSERT(PRESENT(n_local_rows))
-      ALLOCATE(distribution_2d%local_rows(SIZE(n_local_rows)),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(distribution_2d%local_rows(SIZE(n_local_rows)))
       DO i=1,SIZE(distribution_2d%local_rows)
          ALLOCATE(distribution_2d%local_rows(i)%array(n_local_rows(i)),&
               stat=stat)
@@ -203,8 +201,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
         distribution_2d%local_cols => local_cols_ptr
    IF (.NOT.ASSOCIATED(distribution_2d%local_cols)) THEN
       CPASSERT(PRESENT(n_local_cols))
-      ALLOCATE(distribution_2d%local_cols(SIZE(n_local_cols)),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(distribution_2d%local_cols(SIZE(n_local_cols)))
       DO i=1,SIZE(distribution_2d%local_cols)
          ALLOCATE(distribution_2d%local_cols(i)%array(n_local_cols(i)),&
               stat=stat)
@@ -265,7 +262,7 @@ SUBROUTINE distribution_2d_release(distribution_2d)
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
    failure=.FALSE.
@@ -275,43 +272,32 @@ SUBROUTINE distribution_2d_release(distribution_2d)
       IF (distribution_2d%ref_count == 0 ) THEN
          CALL cp_blacs_env_release(distribution_2d%blacs_env)
          IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
-            DEALLOCATE(distribution_2d%col_distribution,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%col_distribution)
          END IF
          IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
-            DEALLOCATE(distribution_2d%row_distribution,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%row_distribution)
          END IF
          DO i=1,SIZE(distribution_2d%local_rows)
-            DEALLOCATE(distribution_2d%local_rows(i)%array,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%local_rows(i)%array)
          END DO
-         DEALLOCATE(distribution_2d%local_rows,stat=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(distribution_2d%local_rows)
          DO i=1,SIZE(distribution_2d%local_cols)
-            DEALLOCATE(distribution_2d%local_cols(i)%array,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%local_cols(i)%array)
          END DO
-         DEALLOCATE(distribution_2d%local_cols,stat=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(distribution_2d%local_cols)
          IF (ASSOCIATED(distribution_2d%flat_local_rows)) THEN
-            DEALLOCATE(distribution_2d%flat_local_rows,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%flat_local_rows)
          END IF
          IF (ASSOCIATED(distribution_2d%flat_local_cols)) THEN
-            DEALLOCATE(distribution_2d%flat_local_cols,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%flat_local_cols)
          END IF
          IF (ASSOCIATED(distribution_2d%n_local_rows)) THEN
-            DEALLOCATE(distribution_2d%n_local_rows,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%n_local_rows)
          END IF
          IF (ASSOCIATED(distribution_2d%n_local_cols)) THEN
-            DEALLOCATE(distribution_2d%n_local_cols,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(distribution_2d%n_local_cols)
          END IF
-         DEALLOCATE(distribution_2d,stat=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(distribution_2d)
       ENDIF
    ENDIF
    NULLIFY(distribution_2d)
@@ -593,8 +579,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
                 distribution_2d%local_rows(ikind_min)%array(multiindex(ikind_min))
            multiindex(ikind_min)=multiindex(ikind_min)+1
         END DO
-        DEALLOCATE(multiindex, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(multiindex)
      END IF
      flat_local_rows => distribution_2d%flat_local_rows
   END IF
@@ -622,8 +607,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
                 distribution_2d%local_cols(ikind_min)%array(multiindex(ikind_min))
            multiindex(ikind_min)=multiindex(ikind_min)+1
         END DO
-        DEALLOCATE(multiindex, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(multiindex)
      END IF
      flat_local_cols => distribution_2d%flat_local_cols
   END IF

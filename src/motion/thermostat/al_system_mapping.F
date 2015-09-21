@@ -69,7 +69,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, j, natoms_local, &
-                                                stat, sum_of_thermostats
+                                                sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
     LOGICAL                                  :: failure
@@ -121,10 +121,8 @@ CONTAINS
           END DO
        END IF
 
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_atom_list)
     END SELECT
 
   END SUBROUTINE al_to_particle_mapping

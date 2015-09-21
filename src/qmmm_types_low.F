@@ -240,13 +240,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(qmmm_env))
-    ALLOCATE(qmmm_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qmmm_env)
     qmmm_env%ref_count=1
     last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
     qmmm_env%id_nr=last_qmmm_env_id_nr
@@ -259,8 +257,7 @@ CONTAINS
     qmmm_env%qmmm_coupl_type=do_qmmm_none
     qmmm_env%qmmm_link          = .FALSE.
     qmmm_env%use_qmmm_ff        = .FALSE.
-    ALLOCATE(qmmm_env%inp_info, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qmmm_env%inp_info)
     CALL init_inp_info(qmmm_env%inp_info)
   END SUBROUTINE qmmm_env_mm_create
 
@@ -296,7 +293,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -305,33 +301,26 @@ CONTAINS
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
           IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
-             DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%qm_atom_index)
           END IF
           IF (ASSOCIATED(qmmm_env%qm_molecule_index)) THEN
-             DEALLOCATE(qmmm_env%qm_molecule_index,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%qm_molecule_index)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
-             DEALLOCATE(qmmm_env%mm_link_atoms,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_link_atoms)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_scale_factor)) THEN
-             DEALLOCATE(qmmm_env%mm_link_scale_factor,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_link_scale_factor)
           END IF
           IF (ASSOCIATED(qmmm_env%fist_scale_charge_link)) THEN
-             DEALLOCATE(qmmm_env%fist_scale_charge_link,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%fist_scale_charge_link)
           END IF
           IF (ASSOCIATED(qmmm_env%inp_info)) THEN
              CALL deallocate_inp_info(qmmm_env%inp_info)
-             DEALLOCATE(qmmm_env%inp_info,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%inp_info)
           END IF
 
-          DEALLOCATE(qmmm_env,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(qmmm_env)
        END IF
     END IF
     NULLIFY(qmmm_env)
@@ -348,13 +337,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(qmmm_env))
-    ALLOCATE(qmmm_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qmmm_env)
     qmmm_env%ref_count=1
     last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
     qmmm_env%id_nr=last_qmmm_env_id_nr
@@ -419,7 +406,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -428,47 +414,37 @@ CONTAINS
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
           IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
-             DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%qm_atom_index)
           END IF
           IF (ASSOCIATED(qmmm_env%maxradius)) THEN
-             DEALLOCATE(qmmm_env%maxradius,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%maxradius)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_atom_index)) THEN
-             DEALLOCATE(qmmm_env%mm_atom_index,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_atom_index)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
-             DEALLOCATE(qmmm_env%mm_link_atoms,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_link_atoms)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_atom_chrg)) THEN
-             DEALLOCATE(qmmm_env%mm_atom_chrg,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_atom_chrg)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_el_pot_radius)) THEN
-             DEALLOCATE(qmmm_env%mm_el_pot_radius,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_el_pot_radius)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_el_pot_radius_corr)) THEN
-             DEALLOCATE(qmmm_env%mm_el_pot_radius_corr,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%mm_el_pot_radius_corr)
           END IF
           IF (ASSOCIATED(qmmm_env%pgfs)) THEN
              CALL pgfs_release(qmmm_env%pgfs)
-             DEALLOCATE(qmmm_env%pgfs,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%pgfs)
           END IF
           IF (ASSOCIATED(qmmm_env%Potentials)) THEN
              CALL qmmm_pot_type_dealloc(qmmm_env%Potentials)
-             DEALLOCATE(qmmm_env%Potentials,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%Potentials)
           END IF
           IF (ASSOCIATED(qmmm_env%Per_Potentials)) THEN
              CALL qmmm_per_pot_type_dealloc(qmmm_env%Per_Potentials)
-             DEALLOCATE(qmmm_env%Per_Potentials,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(qmmm_env%Per_Potentials)
           END IF
           IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
              CALL pw_pools_dealloc(qmmm_env%aug_pools)
@@ -488,8 +464,7 @@ CONTAINS
           IF (ASSOCIATED(qmmm_env%ewald_pw)) THEN
              CALL ewald_pw_release(qmmm_env%ewald_pw)
           END IF
-          DEALLOCATE(qmmm_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(qmmm_env)
        END IF
     END IF
     NULLIFY(qmmm_env)
@@ -507,26 +482,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, stat
+    INTEGER                                  :: I
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     DO I=1,SIZE(pgfs)
        IF (ASSOCIATED(pgfs(I)%pgf)) THEN
           IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
-             DEALLOCATE(pgfs(I)%pgf%Ak,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(pgfs(I)%pgf%Ak)
           END IF
           IF (ASSOCIATED(pgfs(I)%pgf%Gk)) THEN
-             DEALLOCATE(pgfs(I)%pgf%Gk,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(pgfs(I)%pgf%Gk)
           END IF
           IF (ASSOCIATED(pgfs(I)%pgf%grid_level)) THEN
-             DEALLOCATE(pgfs(I)%pgf%grid_level,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(pgfs(I)%pgf%grid_level)
           END IF
-          DEALLOCATE(pgfs(I)%pgf,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pgfs(I)%pgf)
        END IF
     END DO
   END SUBROUTINE pgfs_release
@@ -549,19 +520,16 @@ CONTAINS
           IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
           CPASSERT(stat==0)
        END DO
-       DEALLOCATE(qmmm_links%imomm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(qmmm_links%imomm)
     END IF
     IF (ASSOCIATED(qmmm_links%pseudo)) THEN
        DO i = 1, SIZE(qmmm_links%pseudo)
           IF (ASSOCIATED(qmmm_links%pseudo(i)%link)) DEALLOCATE(qmmm_links%pseudo(i)%link, stat=stat)
           CPASSERT(stat==0)
        END DO
-       DEALLOCATE(qmmm_links%pseudo, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(qmmm_links%pseudo)
     END IF
-    DEALLOCATE(qmmm_links, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(qmmm_links)
   END SUBROUTINE qmmm_links_dealloc
 
 ! ****************************************************************************
@@ -575,21 +543,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_image_charge_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(image_charge_pot)) THEN
          IF (ASSOCIATED(image_charge_pot%image_mm_list)) THEN
           IF(.NOT.image_charge_pot%all_mm) THEN
-            DEALLOCATE(image_charge_pot%image_mm_list, stat=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(image_charge_pot%image_mm_list)
           END IF
          END IF
          IF (ASSOCIATED(image_charge_pot%image_forcesMM)) THEN
-             DEALLOCATE(image_charge_pot%image_forcesMM, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(image_charge_pot%image_forcesMM)
          END IF
-      DEALLOCATE(image_charge_pot, stat=stat)
-        CPASSERT(stat==0)
+      DEALLOCATE(image_charge_pot)
     END IF
   END SUBROUTINE qmmm_image_charge_dealloc
 
@@ -606,20 +569,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, stat
+    INTEGER                                  :: I
 
     DO I = 1, SIZE(Potentials)
        IF (ASSOCIATED(Potentials(I)%Pot)) THEN
           IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN
-             DEALLOCATE(Potentials(I)%Pot%pot0_2,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Potentials(I)%Pot%pot0_2)
           END IF
           IF (ASSOCIATED(Potentials(I)%Pot%mm_atom_index)) THEN
-             DEALLOCATE(Potentials(I)%Pot%mm_atom_index,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Potentials(I)%Pot%mm_atom_index)
           END IF
-          DEALLOCATE(Potentials(I)%Pot,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(Potentials(I)%Pot)
        END IF
     END DO
 
@@ -638,29 +598,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, stat
+    INTEGER                                  :: I
 
     DO I = 1, SIZE(Per_Potentials)
        IF (ASSOCIATED(Per_Potentials(I)%Pot)) THEN
           IF (ASSOCIATED(Per_Potentials(I)%Pot%LG)) THEN
-             DEALLOCATE(Per_Potentials(I)%Pot%LG,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Per_Potentials(I)%Pot%LG)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%gx)) THEN
-             DEALLOCATE(Per_Potentials(I)%Pot%gx,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Per_Potentials(I)%Pot%gx)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%gy)) THEN
-             DEALLOCATE(Per_Potentials(I)%Pot%gy,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Per_Potentials(I)%Pot%gy)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%gz)) THEN
-             DEALLOCATE(Per_Potentials(I)%Pot%gz,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Per_Potentials(I)%Pot%gz)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%mm_atom_index)) THEN
-             DEALLOCATE(Per_Potentials(I)%Pot%mm_atom_index,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(Per_Potentials(I)%Pot%mm_atom_index)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%TabLR)) THEN
              CALL pw_pool_give_back_pw ( Per_Potentials(I)%Pot%pw_pool,  Per_Potentials(I)%Pot%TabLR)
@@ -673,8 +628,7 @@ CONTAINS
              CALL pw_grid_release ( Per_Potentials(I)%Pot%pw_grid)
              CPASSERT(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_grid))
           END IF
-          DEALLOCATE(Per_Potentials(I)%Pot,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(Per_Potentials(I)%Pot)
        END IF
     END DO
 
@@ -691,49 +645,38 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(added_charges)) THEN
        IF (ASSOCIATED(added_charges%add_env)) THEN
-          DEALLOCATE(added_charges%add_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%add_env)
        END IF
        IF (ASSOCIATED(added_charges%added_particles)) THEN
           CALL deallocate_particle_set(added_charges%added_particles)
        END IF
        IF (ASSOCIATED(added_charges%mm_atom_index)) THEN
-          DEALLOCATE(added_charges%mm_atom_index, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%mm_atom_index)
        END IF
        IF (ASSOCIATED(added_charges%mm_atom_chrg)) THEN
-          DEALLOCATE(added_charges%mm_atom_chrg, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%mm_atom_chrg)
        END IF
        IF (ASSOCIATED(added_charges%mm_el_pot_radius)) THEN
-          DEALLOCATE(added_charges%mm_el_pot_radius, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%mm_el_pot_radius)
        END IF
        IF (ASSOCIATED(added_charges%mm_el_pot_radius_corr)) THEN
-          DEALLOCATE(added_charges%mm_el_pot_radius_corr, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%mm_el_pot_radius_corr)
        END IF
        IF (ASSOCIATED(added_charges%Potentials)) THEN
           CALL qmmm_pot_type_dealloc(added_charges%Potentials)
-          DEALLOCATE(added_charges%Potentials,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%Potentials)
        END IF
        IF (ASSOCIATED(added_charges%Per_Potentials)) THEN
           CALL qmmm_per_pot_type_dealloc(added_charges%Per_Potentials)
-          DEALLOCATE(added_charges%Per_Potentials,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%Per_Potentials)
        END IF
        IF (ASSOCIATED(added_charges%pgfs)) THEN
           CALL pgfs_release(added_charges%pgfs)
-          DEALLOCATE(added_charges%pgfs,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(added_charges%pgfs)
        END IF
-       DEALLOCATE(added_charges, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(added_charges)
     END IF
   END SUBROUTINE add_set_release
 
@@ -750,13 +693,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges)
-    ALLOCATE(added_charges, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(added_charges)
 
     NULLIFY(added_charges%add_env,&
             added_charges%mm_atom_index,&
@@ -773,17 +714,12 @@ CONTAINS
     !
     ! Allocate leave out just potential and pgfs...
     !
-    ALLOCATE(added_charges%add_env(ndim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(added_charges%add_env(ndim))
     CALL allocate_particle_set(added_charges%added_particles,ndim)
-    ALLOCATE(added_charges%mm_atom_index(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(added_charges%mm_el_pot_radius(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(added_charges%mm_atom_index(ndim))
+    ALLOCATE(added_charges%mm_atom_chrg(ndim))
+    ALLOCATE(added_charges%mm_el_pot_radius(ndim))
+    ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim))
   END SUBROUTINE create_add_set_type
 
 ! *****************************************************************************
@@ -797,13 +733,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_image_charge_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(image_charge_pot)) CALL qmmm_image_charge_dealloc(image_charge_pot)
-    ALLOCATE(image_charge_pot, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(image_charge_pot)
 
     NULLIFY(image_charge_pot%image_mm_list,&
             image_charge_pot%particles_all,&

@@ -157,7 +157,7 @@ CONTAINS
 
     INTEGER :: handle, iatom, iatom_in_halo, ii, ind, ipair, ipe, jatom, &
       jatom_in_halo, jj, ncols_blk, npairs_recv, npairs_send, nrows_blk, &
-      numprocs, pe, recv_encode, send_encode, stat
+      numprocs, pe, recv_encode, send_encode
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -212,14 +212,10 @@ CONTAINS
     col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
 
     ! allocate temporary arrays for send
-    ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_sizes(numprocs))
+    ALLOCATE(send_disps(numprocs))
+    ALLOCATE(send_pair_count(numprocs))
+    ALLOCATE(send_pair_disps(numprocs))
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -231,18 +227,13 @@ CONTAINS
                                              send_pair_count, &
                                              send_pair_disps)
     ! allocate send buffer
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_buf(SUM(send_sizes)))
 
     ! allocate temporary arrays for recv
-    ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_sizes(numprocs))
+    ALLOCATE(recv_disps(numprocs))
+    ALLOCATE(recv_pair_count(numprocs))
+    ALLOCATE(recv_pair_disps(numprocs))
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -254,8 +245,7 @@ CONTAINS
                                              recv_pair_count, &
                                              recv_pair_disps)
     ! allocate recv buffer
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_buf(SUM(recv_sizes)))
     ! do packing
     DO ipe = 1, numprocs
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
@@ -290,16 +280,11 @@ CONTAINS
                      para_env%group)
 
     ! cleanup temporary arrays no longer needed
-    DEALLOCATE(send_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(send_buf)
+    DEALLOCATE(send_sizes)
+    DEALLOCATE(send_disps)
+    DEALLOCATE(send_pair_count)
+    DEALLOCATE(send_pair_disps)
 
     ! do unpacking
     DO ipe = 1, numprocs
@@ -338,16 +323,11 @@ CONTAINS
     END DO ! ipe
 
     ! cleanup rest of the temporary arrays
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(recv_buf)
+    DEALLOCATE(recv_sizes)
+    DEALLOCATE(recv_disps)
+    DEALLOCATE(recv_pair_count)
+    DEALLOCATE(recv_pair_disps)
     CALL fb_com_atom_pairs_release(atom_pairs_send)
     CALL fb_com_atom_pairs_release(atom_pairs_recv)
 
@@ -478,7 +458,7 @@ CONTAINS
 
     INTEGER :: counter, dest, handle, iatom, iatom_global, itask, jatom, &
       jatom_global, natoms_in_halo, nblkrows_total, nencode, ntasks_recv, &
-      ntasks_send, src, stat
+      ntasks_send, src
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
@@ -529,8 +509,7 @@ CONTAINS
     ! number of matrix blocks requred do not exceed natoms_in_halo**2
     ntasks_recv = natoms_in_halo*natoms_in_halo
 
-    ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv))
 
     ! now that tasks_recv has been allocated, generate the tasks
     itask = 1
@@ -680,7 +659,7 @@ CONTAINS
 
     INTEGER :: counter, dest, handle, iatom, iatom_global, ihalo, itask, &
       jatom, jatom_global, natoms_in_halo, nblkrows_total, nencode, nhalos, &
-      ntasks_recv, ntasks_send, src, stat
+      ntasks_recv, ntasks_send, src
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
@@ -727,8 +706,7 @@ CONTAINS
                                natoms=natoms_in_halo)
        ntasks_recv = ntasks_recv + natoms_in_halo*natoms_in_halo
     END DO
-    ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv))
 
     ! now that tasks_recv has been allocated, generate the tasks
 

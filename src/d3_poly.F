@@ -891,7 +891,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
     INTEGER :: grad, i, igrad, ii, ii1, ipoly, j, k, minResSize, monoDim1, &
       monoDim2, monoDimAtt, monoDimAtt2, monoFullDim1, monoFullDim2, &
       monoSize1, monoSize2, my_npoly, pcoeff, pIdx, pShift, rescoeff, &
-      resShift, rest_size_p, size_p, size_res, start_idx1, stat
+      resShift, rest_size_p, size_p, size_res, start_idx1
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
     REAL(dp), DIMENSION(4, 3)                :: basepoly
 
@@ -922,8 +922,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
     IF (size_p==1) RETURN
 
     ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
-        monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
-    CPASSERT(stat==0)
+        monoG2((grad+1)*(grad+2)/2*minResSize))
     !monoG1=0
     !monoG2=0
     ii1=1
@@ -1032,8 +1031,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
         ! monoDim1=monoDim2
         ! monoFullDim1=monoFullDim2
     END DO
-    DEALLOCATE(monoG1,monoG2,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(monoG1,monoG2)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1057,7 +1055,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
     INTEGER :: grad, i, igrad, ii, ii1, ipoly, j, k, minResSize, monoDim1, &
       monoDim2, monoDimAtt, monoDimAtt2, monoFullDim1, monoFullDim2, &
       monoSize1, monoSize2, my_npoly, pcoeff, pIdx, pShift, rescoeff, &
-      resShift, rest_size_p, size_p, size_res, start_idx1, stat
+      resShift, rest_size_p, size_p, size_res, start_idx1
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
     REAL(dp), DIMENSION(4, 3)                :: basepoly
 
@@ -1087,8 +1085,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
     IF (size_p==1) RETURN
 
     ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
-        monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
-    CPASSERT(stat==0)
+        monoG2((grad+1)*(grad+2)/2*minResSize))
     monoG1=0
     monoG2=0
     ii1=1
@@ -1198,8 +1195,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
         ! monoDim1=monoDim2
         ! monoFullDim1=monoFullDim2
     END DO
-    DEALLOCATE(monoG1,monoG2,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(monoG1,monoG2)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1219,7 +1215,7 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: grad, my_npoly, newSize, &
-                                                size_p, stat
+                                                size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
     IF (.not.module_initialized) STOP "module d3_poly not initialized"
@@ -1230,11 +1226,9 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly)
     newSize=SIZE(pRes)/my_npoly
     CPASSERT(newSize>=poly_size2(grad))
     pRes=0.0
-    ALLOCATE(xi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xi(grad+1))
     CALL poly_p_eval3b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
-    DEALLOCATE(xi,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xi)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1336,7 +1330,7 @@ SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: grad, my_npoly, newSize, &
-                                                size_p, stat
+                                                size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
     IF (.not.module_initialized) STOP "module d3_poly not initialized"
@@ -1347,11 +1341,9 @@ SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly)
     grad=grad_size2(newSize)
     CPASSERT(size_p>=poly_size3(grad))
     CPASSERT(newSize==poly_size2(grad))
-    ALLOCATE(xi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xi(grad+1))
     CALL poly_padd_uneval3b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
-    DEALLOCATE(xi,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xi)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1452,7 +1444,7 @@ SUBROUTINE poly_p_eval2(p,x,pRes,npoly)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: grad, my_npoly, newSize, &
-                                                size_p, stat
+                                                size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
     IF (.not.module_initialized) STOP "module d3_poly not initialized"
@@ -1463,11 +1455,9 @@ SUBROUTINE poly_p_eval2(p,x,pRes,npoly)
     newSize=SIZE(pRes)/my_npoly
     pRes=0.0_dp
     CPASSERT(newSize>=poly_size1(grad))
-    ALLOCATE(xi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xi(grad+1))
     CALL poly_p_eval2b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
-    DEALLOCATE(xi,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xi)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1563,7 +1553,7 @@ SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: grad, my_npoly, newSize, &
-                                                size_p, stat
+                                                size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
     IF (.not.module_initialized) STOP "module d3_poly not initialized"
@@ -1574,11 +1564,9 @@ SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly)
     grad=grad_size1(newSize)
     CPASSERT(size_p>=poly_size2(grad))
     CPASSERT(newSize==poly_size1(grad))
-    ALLOCATE(xi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xi(grad+1))
     CALL poly_padd_uneval2b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
-    DEALLOCATE(xi,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xi)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1712,7 +1700,7 @@ SUBROUTINE poly_eval2(p,x,y,pRes,npoly)
 
     INTEGER                                  :: grad, i, igrad, ii, ipoly, j, &
                                                 msize_p, my_npoly, pShift, &
-                                                size_p, stat
+                                                size_p
     REAL(dp)                                 :: v
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi, yi
 
@@ -1722,8 +1710,7 @@ SUBROUTINE poly_eval2(p,x,y,pRes,npoly)
     size_p=SIZE(p)/my_npoly
     grad=grad_size2(size_p)
     CPASSERT(SIZE(pRes)>=my_npoly)
-    ALLOCATE(xi(grad+1),yi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xi(grad+1),yi(grad+1))
     xi(1)=1.0_dp
     DO i=1,grad
         xi(i+1)=xi(i)*x
@@ -1784,7 +1771,7 @@ SUBROUTINE poly_eval3(p,x,y,z,pRes,npoly)
 
     INTEGER                                  :: grad, i, igrad, ii, ipoly, j, &
                                                 k, msize_p, my_npoly, pShift, &
-                                                size_p, stat
+                                                size_p
     REAL(dp)                                 :: v
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi, yi, zi
 
@@ -1794,8 +1781,7 @@ SUBROUTINE poly_eval3(p,x,y,z,pRes,npoly)
     size_p=SIZE(p)/my_npoly
     grad=grad_size3(size_p)
     CPASSERT(SIZE(pRes)>=my_npoly)
-    ALLOCATE(xi(grad+1),yi(grad+1),zi(grad+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(xi(grad+1),yi(grad+1),zi(grad+1))
     xi(1)=1.0_dp
     DO i=1,grad
         xi(i+1)=xi(i)*x

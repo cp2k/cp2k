@@ -150,9 +150,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, &
-      inode, irow, istat, iw, jatom, jkind, l1, l2, la, lb, llm, lmaxi, &
-      lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, nderivatives, &
-      ngrd, ngrdcut, nimg, nkind, nmat, spdim
+      inode, irow, iw, jatom, jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, &
+      n1, n2, n_urpoly, natom, natorb_a, natorb_b, nderivatives, ngrd, &
+      ngrdcut, nimg, nkind, nmat, spdim
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
@@ -282,8 +282,7 @@ CONTAINS
           END DO
        END IF
        natom = SIZE(particle_set)
-       ALLOCATE (atom_of_kind(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -415,8 +414,7 @@ CONTAINS
              f0=1.0_dp
              IF ( irow == iatom ) f0=-1.0_dp
 
-             ALLOCATE (dfblock(n1,n2),dsblock(n1,n2),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE (dfblock(n1,n2),dsblock(n1,n2))
 
              DO i=1,3 
                drij = rij 
@@ -457,8 +455,7 @@ CONTAINS
                   CALL virial_pair_force (atprop%atstress(:,:,jatom),-f1,force_w,rij)
                END IF
              END IF
-             DEALLOCATE (dfblock,dsblock,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (dfblock,dsblock)
            END IF
          END IF
 
@@ -602,8 +599,7 @@ CONTAINS
                   beta_scalar=-1.0_dp)
           END DO
        END IF
-       DEALLOCATE(atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(atom_of_kind)
      END IF
 
     CALL timestop(handle)
@@ -624,8 +620,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                img, ispin, istat, natom, &
-                                                nkind, nspins, output_unit
+                                                img, ispin, natom, nkind, &
+                                                nspins, output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pc_ener, qmmm_el, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
@@ -693,13 +689,11 @@ CONTAINS
            matrix_s_kp=matrix_s)
       CALL qs_rho_get(rho,rho_ao_kp=matrix_p)
       natom=SIZE(particle_set)
-      ALLOCATE(charges(natom,nspins),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(charges(natom,nspins))
       !
       CALL mulliken_charges(matrix_p,matrix_s,para_env,charges)
       !
-      ALLOCATE(mcharge(natom),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(mcharge(natom))
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
@@ -710,14 +704,12 @@ CONTAINS
            mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
          END DO
       END DO
-      DEALLOCATE(charges,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(charges)
 
       CALL build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
             calculate_forces,just_energy)
 
-      DEALLOCATE(mcharge,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(mcharge)
 
     END IF
 
@@ -794,9 +786,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, indder, inode, irow, istat, j, &
-      jatom, jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, natom, &
-      natorb_a, natorb_b, ngrd, ngrdcut, nkind
+    INTEGER :: handle, i, iatom, icol, ikind, indder, inode, irow, j, jatom, &
+      jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, natom, natorb_a, &
+      natorb_b, ngrd, ngrdcut, nkind
     LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: ddr, dgrd, dr, f0
     REAL(KIND=dp), DIMENSION(0:3)            :: skself
@@ -925,8 +917,7 @@ CONTAINS
                 n1 = SIZE(sblock,1); n2 = SIZE(sblock,2)
                 indder=1 ! used to put the 2nd derivatives in the correct matric (5=xx,8=yy,10=zz)
 
-                ALLOCATE (dsblock1(n1,n2,3),dsblock(n1,n2),dsblockm(n1,n2),STAT=istat)
-                CPASSERT(istat==0)
+                ALLOCATE (dsblock1(n1,n2,3),dsblock(n1,n2),dsblockm(n1,n2))
                 dsblock1=0.0_dp
                 DO i=1,3
                    dsblock=0._dp; dsblockm=0.0_dp
@@ -978,8 +969,7 @@ CONTAINS
                    END DO   
                 END IF
 
-                DEALLOCATE (dsblock1,dsblock,dsblockm,STAT=istat)
-                CPASSERT(istat==0)
+                DEALLOCATE (dsblock1,dsblock,dsblockm)
              END IF
           END IF
        END IF
@@ -1016,8 +1006,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, handle, i, iatom, ikind, &
-                                                istat, jatom, natom, natorb, &
-                                                nkind
+                                                jatom, natom, natorb, nkind
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, failure, found
     REAL(KIND=dp)                            :: pc_ener, zeff
@@ -1056,8 +1045,7 @@ CONTAINS
     NULLIFY(matrix_s)
     CALL build_dftb_overlap(qs_env,0,matrix_s)
 
-    ALLOCATE(qpot(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(qpot(natom))
     qpot = 0.0_dp
     pc_ener = 0.0_dp
 
@@ -1091,8 +1079,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc)
     matrix_h => ks_qmmm_env_loc%matrix_h
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
-    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(matrix_h(1)%matrix)
     CALL cp_dbcsr_init(matrix_h(1)%matrix)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX")
@@ -1112,8 +1099,7 @@ CONTAINS
     ks_qmmm_env_loc%matrix_h => matrix_h
     ks_qmmm_env_loc%pc_ener = pc_ener
 
-    DEALLOCATE(qpot,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(qpot)
 
     CALL cp_dbcsr_deallocate_matrix_set ( matrix_s)
 
@@ -1135,7 +1121,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_qmmm_matrix_zero', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
@@ -1153,8 +1139,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc)
     matrix_h => ks_qmmm_env_loc%matrix_h
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
-    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(matrix_h(1)%matrix)
     CALL cp_dbcsr_init(matrix_h(1)%matrix)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX")
@@ -1190,7 +1175,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, &
-      indmm, ipot, istat, jatom, natom, natorb, nkind, nmm
+      indmm, ipot, jatom, natom, natorb, nkind, nmm
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, do_multipoles, &
                                                 failure, found
@@ -1236,8 +1221,7 @@ CONTAINS
     NULLIFY(matrix_s)
     CALL build_dftb_overlap(qs_env,0,matrix_s)
 
-    ALLOCATE(qpot(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(qpot(natom))
     qpot = 0.0_dp
     pc_ener = 0.0_dp
 
@@ -1267,8 +1251,7 @@ CONTAINS
              ! get a 'clean' mm particle set
              NULLIFY(atoms_mm)
              CALL allocate_particle_set(atoms_mm,nmm)
-             ALLOCATE(charges_mm(nmm),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(charges_mm(nmm))
              DO Imp=1,nmm
                 Imm = Pot%mm_atom_index(Imp)
                 IndMM = qmmm_env%mm_atom_index(Imm)
@@ -1284,8 +1267,7 @@ CONTAINS
                 CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,particles_qm,qpot)
              END IF
              CALL deallocate_particle_set(atoms_mm)
-             DEALLOCATE(charges_mm,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(charges_mm)
           END DO
           IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
              DO ipot = 1,SIZE(qmmm_env%added_charges%Potentials)
@@ -1294,8 +1276,7 @@ CONTAINS
                 ! get a 'clean' mm particle set
                 NULLIFY(atoms_mm)
                 CALL allocate_particle_set(atoms_mm,nmm)
-                ALLOCATE(charges_mm(nmm),STAT=istat)
-                CPASSERT(istat==0)
+                ALLOCATE(charges_mm(nmm))
                 DO Imp=1,nmm
                    Imm = Pot%mm_atom_index(Imp)
                    IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
@@ -1311,8 +1292,7 @@ CONTAINS
                    CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,particles_qm,qpot)
                 END IF
                 CALL deallocate_particle_set(atoms_mm)
-                DEALLOCATE(charges_mm,STAT=istat)
-                CPASSERT(istat==0)
+                DEALLOCATE(charges_mm)
              END DO
           END IF
           CALL mp_sum(qpot,para_env%group)
@@ -1388,8 +1368,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc)
     matrix_h => ks_qmmm_env_loc%matrix_h 
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
-    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(matrix_h(1)%matrix)
     CALL cp_dbcsr_init(matrix_h(1)%matrix)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX")
@@ -1409,8 +1388,7 @@ CONTAINS
     ks_qmmm_env_loc%matrix_h => matrix_h
     ks_qmmm_env_loc%pc_ener = pc_ener
 
-    DEALLOCATE(qpot,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(qpot)
 
     ! Release Ewald environment
     CALL ewald_env_release(ewald_env)
@@ -1449,8 +1427,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_dftb_qmmm_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, blk, handle, i, iatom, ikind, iqm, istat, jatom, &
-      natom, natorb, nkind, nspins, number_qm_atoms
+    INTEGER                                  :: atom_a, blk, handle, i, &
+                                                iatom, ikind, iqm, jatom, &
+                                                natom, natorb, nkind, nspins, &
+                                                number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, failure, found
     REAL(KIND=dp)                            :: fi, gmij, zeff
@@ -1494,13 +1474,11 @@ CONTAINS
        nspins = dft_control%nspins
        nkind  = SIZE(atomic_kind_set)
        ! Mulliken charges
-       ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(charges(number_qm_atoms,nspins))
        !
        CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
        !
-       ALLOCATE(mcharge(number_qm_atoms),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(mcharge(number_qm_atoms))
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
           CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
@@ -1510,14 +1488,11 @@ CONTAINS
             mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
           END DO
        END DO
-       DEALLOCATE(charges,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(charges)
 
-       ALLOCATE(qpot(number_qm_atoms),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(qpot(number_qm_atoms))
        qpot = 0.0_dp
-       ALLOCATE(Forces_QM(3,number_qm_atoms),stat=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(Forces_QM(3,number_qm_atoms))
        Forces_QM= 0.0_dp
 
        ! calculate potential and forces from classical charges
@@ -1615,15 +1590,12 @@ CONTAINS
           END DO
        END DO
        !
-       DEALLOCATE(mcharge,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(mcharge)
        !
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
-       DEALLOCATE(Forces_QM,stat=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(qpot,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(Forces_QM)
+       DEALLOCATE(qpot)
 
        CALL cp_dbcsr_deallocate_matrix_set ( matrix_s)
 
@@ -1712,13 +1684,11 @@ CONTAINS
        nspins = dft_control%nspins
        nkind  = SIZE(atomic_kind_set)
       ! Mulliken charges
-       ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(charges(number_qm_atoms,nspins))
        !
        CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
        !
-       ALLOCATE(mcharge(number_qm_atoms),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(mcharge(number_qm_atoms))
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
           CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
@@ -1728,14 +1698,11 @@ CONTAINS
             mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
           END DO
        END DO
-       DEALLOCATE(charges,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(charges)
 
-       ALLOCATE(qpot(number_qm_atoms),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(qpot(number_qm_atoms))
        qpot = 0.0_dp
-       ALLOCATE(Forces_QM(3,number_qm_atoms),stat=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(Forces_QM(3,number_qm_atoms))
        Forces_QM= 0.0_dp
 
        ! Create Ewald environments
@@ -1764,8 +1731,7 @@ CONTAINS
                 ! get a 'clean' mm particle set
                 NULLIFY(atoms_mm)
                 CALL allocate_particle_set(atoms_mm,nmm)
-                ALLOCATE(charges_mm(nmm),STAT=istat)
-                CPASSERT(istat==0)
+                ALLOCATE(charges_mm(nmm))
                 DO Imp=1,nmm
                    Imm = Pot%mm_atom_index(Imp)
                    IndMM = qmmm_env%mm_atom_index(Imm)
@@ -1774,8 +1740,7 @@ CONTAINS
                    charges_mm(Imp) = qmmm_env%mm_atom_chrg(Imm)
                 END DO
                 ! force array for mm atoms
-                ALLOCATE(Forces_MM(3,nmm),stat=istat)
-                CPASSERT(istat==0)
+                ALLOCATE(Forces_MM(3,nmm))
                 Forces_MM= 0.0_dp
                 IF(ewald_type == do_ewald_ewald) THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -1792,16 +1757,14 @@ CONTAINS
                                     atoms_mm,charges_mm,Forces_MM)
                 END IF
                 CALL deallocate_particle_set(atoms_mm)
-                DEALLOCATE(charges_mm,STAT=istat)
-                CPASSERT(istat==0)
+                DEALLOCATE(charges_mm)
                 ! transfer MM forces
                 CALL mp_sum(Forces_MM,para_env%group)
                 DO Imp=1,nmm
                    Imm = Pot%mm_atom_index(Imp)
                    Forces(:,Imm) = Forces(:,Imm) - Forces_MM(:,Imp)
                 END DO
-                DEALLOCATE(Forces_MM,stat=istat)
-                CPASSERT(istat==0)
+                DEALLOCATE(Forces_MM)
              END DO
 
              IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -1811,8 +1774,7 @@ CONTAINS
                    ! get a 'clean' mm particle set
                    NULLIFY(atoms_mm)
                    CALL allocate_particle_set(atoms_mm,nmm)
-                   ALLOCATE(charges_mm(nmm),STAT=istat)
-                   CPASSERT(istat==0)
+                   ALLOCATE(charges_mm(nmm))
                    DO Imp=1,nmm
                       Imm = Pot%mm_atom_index(Imp)
                       IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
@@ -1821,8 +1783,7 @@ CONTAINS
                       charges_mm(Imp) = qmmm_env%added_charges%mm_atom_chrg(Imm)
                    END DO
                    ! force array for mm atoms
-                   ALLOCATE(Forces_MM(3,nmm),stat=istat)
-                   CPASSERT(istat==0)
+                   ALLOCATE(Forces_MM(3,nmm))
                    Forces_MM= 0.0_dp
                    IF(ewald_type == do_ewald_ewald) THEN
                       CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -1845,8 +1806,7 @@ CONTAINS
                       Imm = Pot%mm_atom_index(Imp)
                       Forces_added_charges(:,Imm) = Forces_added_charges(:,Imm) - Forces_MM(:,Imp)
                    END DO
-                   DEALLOCATE(Forces_MM,stat=istat)
-                   CPASSERT(istat==0)
+                   DEALLOCATE(Forces_MM)
                 END DO
              END IF
              CALL mp_sum(qpot,para_env%group)
@@ -2003,15 +1963,12 @@ CONTAINS
           END DO
        END DO
        !
-       DEALLOCATE(mcharge,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(mcharge)
        !
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
-       DEALLOCATE(Forces_QM,stat=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(qpot,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(Forces_QM)
+       DEALLOCATE(qpot)
 
        ! Release Ewald environment
        CALL ewald_env_release(ewald_env)
@@ -2272,9 +2229,8 @@ CONTAINS
 
     CHARACTER(1)                             :: symmetry_type
     CHARACTER(LEN=default_string_length)     :: matnames
-    INTEGER                                  :: i, istat, natom, &
-                                                neighbor_list_id, nkind, &
-                                                nmat, nsgf
+    INTEGER                                  :: i, natom, neighbor_list_id, &
+                                                nkind, nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2299,10 +2255,8 @@ CONTAINS
 
     CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
@@ -2314,8 +2268,7 @@ CONTAINS
     IF(nderivative==2)nmat=10
     CPASSERT(nmat>0)
 
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
 
     CALL cp_dbcsr_allocate_matrix_set(matrices,nmat)
@@ -2340,10 +2293,8 @@ CONTAINS
        CALL cp_dbcsr_alloc_block_from_nbl(matrices(i)%matrix,sab_nl)
     END DO
 
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
 
     DEALLOCATE(row_blk_sizes)
 
@@ -2373,7 +2324,7 @@ CONTAINS
 
     CHARACTER(1)                             :: symmetry_type
     CHARACTER(LEN=default_string_length)     :: matnames
-    INTEGER                                  :: i, img, istat, natom, &
+    INTEGER                                  :: i, img, natom, &
                                                 neighbor_list_id, nkind, &
                                                 nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
@@ -2400,10 +2351,8 @@ CONTAINS
 
     CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
@@ -2415,8 +2364,7 @@ CONTAINS
     IF(nderivative==2)nmat=10
     CPASSERT(nmat>0)
 
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
 
     CALL cp_dbcsr_allocate_matrix_set(matrices,nmat,nimg)
@@ -2443,10 +2391,8 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
 
     DEALLOCATE(row_blk_sizes)
 
@@ -2471,7 +2417,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_gamma', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, istat, natom, ncol, &
+    INTEGER                                  :: i, iatom, natom, ncol, &
                                                 neighbor_list_id, nrow
     INTEGER, DIMENSION(:), POINTER           :: felem, lelem, row_blk_sizes
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -2485,20 +2431,17 @@ CONTAINS
        natom = SIZE(particle_set)
        nrow = natom
        ncol = natom
-       ALLOCATE (felem(natom),lelem(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (felem(natom),lelem(natom))
        DO iatom = 1, natom
           felem(iatom) = iatom
           lelem(iatom) = iatom
        ENDDO
 
-       ALLOCATE (row_blk_sizes(natom), STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (row_blk_sizes(natom))
        CALL convert_offsets_to_sizes (felem, row_blk_sizes, lelem)
  
        CALL cp_dbcsr_allocate_matrix_set(gammat,nmat)
-       ALLOCATE(gammat(1)%matrix,STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(gammat(1)%matrix)
        CALL cp_dbcsr_init(gammat(1)%matrix)
  
        CALL cp_dbcsr_create(matrix=gammat(1)%matrix, &
@@ -2518,8 +2461,7 @@ CONTAINS
                nze=0, mutable_work=.TRUE.)
        END DO
  
-       DEALLOCATE (row_blk_sizes,felem,lelem,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (row_blk_sizes,felem,lelem)
 
        ! setup the matrices using the neighbor list
        DO i=1,nmat

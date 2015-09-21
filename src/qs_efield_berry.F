@@ -145,7 +145,7 @@ MODULE qs_efield_berry
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_integrals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(3)                   :: kvec
     TYPE(cell_type), POINTER                 :: cell
@@ -162,11 +162,9 @@ MODULE qs_efield_berry
     NULLIFY (matrix_s)
     CALL get_qs_env(qs_env=qs_env,efield=efield,cell=cell,matrix_s=matrix_s)
     CALL init_efield_matrices(efield)
-    ALLOCATE(cosmat(3),sinmat(3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cosmat(3),sinmat(3))
     DO i=1,3
-       ALLOCATE(cosmat(i)%matrix,sinmat(i)%matrix,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(cosmat(i)%matrix,sinmat(i)%matrix)
        CALL cp_dbcsr_init(cosmat(i)%matrix)
        CALL cp_dbcsr_init(sinmat(i)%matrix)
 
@@ -202,9 +200,9 @@ MODULE qs_efield_berry
 
     COMPLEX(dp)                              :: zdet, zdeta, zi(3)
     INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, &
-      inode, irow, iset, ispin, istat, j, jatom, jkind, jset, ldab, ldsa, &
-      ldsb, lsab, n1, n2, nao, natom, ncoa, ncob, nkind, nmo, nseta, nsetb, &
-      sgfa, sgfb, stat
+      inode, irow, iset, ispin, j, jatom, jkind, jset, ldab, ldsa, ldsb, &
+      lsab, n1, n2, nao, natom, ncoa, ncob, nkind, nmo, nseta, nsetb, sgfa, &
+      sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -291,8 +289,7 @@ MODULE qs_efield_berry
     natom = SIZE(particle_set)
     IF (calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
@@ -336,20 +333,13 @@ MODULE qs_efield_berry
     NULLIFY (mo_derivs)
     CALL get_qs_env(qs_env=qs_env,mo_derivs=mo_derivs)
     ! initialize all work matrices needed
-    ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( opvec( 2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( inv_mat( dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( inv_work(2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( mo_derivs_tmp(SIZE(mo_derivs)), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( mo_coeff_tmp(SIZE(mo_derivs)), STAT = istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( op_fm_set( 2, dft_control%nspins ))
+    ALLOCATE ( opvec( 2, dft_control%nspins ))
+    ALLOCATE ( eigrmat( dft_control%nspins ))
+    ALLOCATE ( inv_mat( dft_control%nspins ))
+    ALLOCATE ( inv_work(2, dft_control%nspins ))
+    ALLOCATE ( mo_derivs_tmp(SIZE(mo_derivs)))
+    ALLOCATE ( mo_coeff_tmp(SIZE(mo_derivs)))
 
     ! Allocate temp matrices for the wavefunction derivatives
     DO ispin = 1, dft_control%nspins
@@ -374,11 +364,9 @@ MODULE qs_efield_berry
     IF(calculate_forces)THEN
        NULLIFY (matrix_s)
        CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s)
-       ALLOCATE(tempmat(2,dft_control%nspins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tempmat(2,dft_control%nspins))
        DO ispin=1,dft_control%nspins
-          ALLOCATE(tempmat(1,ispin)%matrix,tempmat(2,ispin)%matrix,stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(tempmat(1,ispin)%matrix,tempmat(2,ispin)%matrix)
           CALL cp_dbcsr_init(tempmat(1,ispin)%matrix)
           CALL cp_dbcsr_init(tempmat(2,ispin)%matrix)
           CALL cp_dbcsr_copy(tempmat(1,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT')
@@ -388,16 +376,12 @@ MODULE qs_efield_berry
        END DO
        ! integration
        CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab)
-       ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab))
+       ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3))
        lsab = MAX(ldab,lsab)
        DO i=1,3
-          ALLOCATE(dcost(i,1)%block(lsab,lsab),dsint(i,1)%block(lsab,lsab),STAT=istat)
-          CPASSERT(istat==0)
-          ALLOCATE(dcost(i,2)%block(lsab,lsab),dsint(i,2)%block(lsab,lsab),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(dcost(i,1)%block(lsab,lsab),dsint(i,1)%block(lsab,lsab))
+          ALLOCATE(dcost(i,2)%block(lsab,lsab),dsint(i,2)%block(lsab,lsab))
        END DO
     END IF
 
@@ -474,8 +458,7 @@ MODULE qs_efield_berry
              END DO
 
              ! Calculation of derivative integrals (da|eikr|b) and (a|eikr|db)
-             ALLOCATE (basis_set_list(nkind),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE (basis_set_list(nkind))
              DO ikind=1,nkind
                 qs_kind => qs_kind_set(ikind)
                 CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -620,8 +603,7 @@ MODULE qs_efield_berry
 
              END DO
              CALL neighbor_list_iterator_release(nl_iterator)
-             DEALLOCATE (basis_set_list,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (basis_set_list)
 
           END IF
        END IF
@@ -690,24 +672,18 @@ MODULE qs_efield_berry
           CALL cp_fm_release(inv_work(i,ispin)%matrix)
        END DO
     END DO
-    DEALLOCATE(inv_mat,inv_work,op_fm_set,opvec,eigrmat,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(mo_coeff_tmp,mo_derivs_tmp,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(inv_mat,inv_work,op_fm_set,opvec,eigrmat)
+    DEALLOCATE(mo_coeff_tmp,mo_derivs_tmp)
 
     IF(calculate_forces)THEN
        DO ikind=1,SIZE(atomic_kind_set)
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
-       DEALLOCATE(atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(cosab,sinab,work,dcosab,dsinab,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(atom_of_kind)
+       DEALLOCATE(cosab,sinab,work,dcosab,dsinab)
        DO i=1,3
-          DEALLOCATE(dcost(i,1)%block,dsint(i,1)%block,STAT=istat)
-          CPASSERT(istat==0)
-          DEALLOCATE(dcost(i,2)%block,dsint(i,2)%block,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(dcost(i,1)%block,dsint(i,1)%block)
+          DEALLOCATE(dcost(i,2)%block,dsint(i,2)%block)
        END DO
        CALL cp_dbcsr_deallocate_matrix_set(tempmat)
     END IF
@@ -733,8 +709,8 @@ MODULE qs_efield_berry
 
     COMPLEX(dp)                              :: zdet, zdeta, zi(3)
     INTEGER :: handle, i, ia, iatom, icol, idir, ikind, inode, irow, iset, &
-      ispin, istat, jatom, jkind, jset, ldab, ldsa, ldsb, lsab, n1, n2, nao, &
-      natom, ncoa, ncob, nkind, nmo, nseta, nsetb, sgfa, sgfb, stat
+      ispin, jatom, jkind, jset, ldab, ldsa, ldsb, lsab, n1, n2, nao, natom, &
+      ncoa, ncob, nkind, nmo, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -821,11 +797,9 @@ MODULE qs_efield_berry
     natom = SIZE(particle_set)
     IF (calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
-       ALLOCATE (force_tmp(natom,3,3),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (force_tmp(natom,3,3))
        force_tmp = 0.0_dp
     END IF
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
@@ -865,20 +839,13 @@ MODULE qs_efield_berry
     ! initialize all work matrices needed
     NULLIFY (mo_derivs)
     CALL get_qs_env(qs_env=qs_env,mo_derivs=mo_derivs)
-    ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( opvec( 2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( inv_mat( dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( inv_work(2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( mo_derivs_tmp(3,SIZE(mo_derivs)), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( mo_coeff_tmp(SIZE(mo_derivs)), STAT = istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( op_fm_set( 2, dft_control%nspins ))
+    ALLOCATE ( opvec( 2, dft_control%nspins ))
+    ALLOCATE ( eigrmat( dft_control%nspins ))
+    ALLOCATE ( inv_mat( dft_control%nspins ))
+    ALLOCATE ( inv_work(2, dft_control%nspins ))
+    ALLOCATE ( mo_derivs_tmp(3,SIZE(mo_derivs)))
+    ALLOCATE ( mo_coeff_tmp(SIZE(mo_derivs)))
 
     ! Allocate temp matrices for the wavefunction derivatives
     DO ispin = 1, dft_control%nspins
@@ -905,11 +872,9 @@ MODULE qs_efield_berry
     IF(calculate_forces)THEN
        NULLIFY (matrix_s)
        CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s)
-       ALLOCATE(tempmat(2,dft_control%nspins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tempmat(2,dft_control%nspins))
        DO ispin=1,dft_control%nspins
-          ALLOCATE(tempmat(1,ispin)%matrix,tempmat(2,ispin)%matrix,stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(tempmat(1,ispin)%matrix,tempmat(2,ispin)%matrix)
           CALL cp_dbcsr_init(tempmat(1,ispin)%matrix)
           CALL cp_dbcsr_init(tempmat(2,ispin)%matrix)
           CALL cp_dbcsr_copy(tempmat(1,ispin)%matrix,matrix_s(1)%matrix,'TEMPMAT')
@@ -919,16 +884,12 @@ MODULE qs_efield_berry
        END DO
        ! integration
        CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab)
-       ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab))
+       ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3))
        lsab = MAX(lsab,ldab)
        DO i=1,3
-          ALLOCATE(dcost(i,1)%block(lsab,lsab),dsint(i,1)%block(lsab,lsab),STAT=istat)
-          CPASSERT(istat==0)
-          ALLOCATE(dcost(i,2)%block(lsab,lsab),dsint(i,2)%block(lsab,lsab),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(dcost(i,1)%block(lsab,lsab),dsint(i,1)%block(lsab,lsab))
+          ALLOCATE(dcost(i,2)%block(lsab,lsab),dsint(i,2)%block(lsab,lsab))
        END DO
     END IF
 
@@ -1005,8 +966,7 @@ MODULE qs_efield_berry
           END DO
 
           ! Calculation of derivative integrals (da|eikr|b) and (a|eikr|db)
-          ALLOCATE (basis_set_list(nkind),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (basis_set_list(nkind))
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
              CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -1144,8 +1104,7 @@ MODULE qs_efield_berry
              END DO
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)
-          DEALLOCATE (basis_set_list,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (basis_set_list)
        END IF
     END DO
 
@@ -1231,26 +1190,19 @@ MODULE qs_efield_berry
           CALL cp_fm_release(inv_work(i,ispin)%matrix)
        END DO
     END DO
-    DEALLOCATE(inv_mat,inv_work,op_fm_set,opvec,eigrmat,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(mo_coeff_tmp,mo_derivs_tmp,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(inv_mat,inv_work,op_fm_set,opvec,eigrmat)
+    DEALLOCATE(mo_coeff_tmp,mo_derivs_tmp)
 
     IF(calculate_forces)THEN
        DO ikind=1,SIZE(atomic_kind_set)
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
-       DEALLOCATE(atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE (force_tmp,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cosab,sinab,work,dcosab,dsinab,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(atom_of_kind)
+       DEALLOCATE (force_tmp)
+       DEALLOCATE(cosab,sinab,work,dcosab,dsinab)
        DO i=1,3
-          DEALLOCATE(dcost(i,1)%block,dsint(i,1)%block,STAT=istat)
-          CPASSERT(istat==0)
-          DEALLOCATE(dcost(i,2)%block,dsint(i,2)%block,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(dcost(i,1)%block,dsint(i,1)%block)
+          DEALLOCATE(dcost(i,2)%block,dsint(i,2)%block)
        END DO
        CALL cp_dbcsr_deallocate_matrix_set(tempmat)
     END IF

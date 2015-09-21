@@ -148,7 +148,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pz_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, stat, timer_handle
+    INTEGER                                  :: npoints, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff, sc
@@ -176,8 +176,7 @@ CONTAINS
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
        dummy=> rho
     END IF
@@ -216,8 +215,7 @@ CONTAINS
     CALL pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, sc)
 
     IF (cp_debug) THEN
-       DEALLOCATE(dummy,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dummy)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -304,7 +302,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     CHARACTER(len=*), PARAMETER :: routineN = 'pz_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, stat, timer_handle
+    INTEGER                                  :: npoints, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff, sc
@@ -333,8 +331,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
        dummy=> a
     END IF
@@ -389,8 +386,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
       ebbb, npoints, order, sc)
 
     IF (cp_debug) THEN
-       DEALLOCATE(dummy,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dummy)
     ELSE
        NULLIFY(dummy)
     END IF

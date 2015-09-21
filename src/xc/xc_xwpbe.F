@@ -150,7 +150,7 @@ MODULE xc_xwpbe
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
@@ -186,8 +186,7 @@ MODULE xc_xwpbe
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
       dummy=> rho
     END IF
@@ -242,8 +241,7 @@ MODULE xc_xwpbe
     !$omp end parallel
 
     IF (cp_debug) THEN
-      DEALLOCATE(dummy,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(dummy)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -5354,7 +5352,7 @@ MODULE xc_xwpbe
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
@@ -5389,8 +5387,7 @@ MODULE xc_xwpbe
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
       dummy=> rhoa
     END IF
@@ -5475,8 +5472,7 @@ MODULE xc_xwpbe
     !$omp end parallel
 
     IF (cp_debug) THEN
-      DEALLOCATE(dummy,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(dummy)
     ELSE
       NULLIFY(dummy)
     END IF

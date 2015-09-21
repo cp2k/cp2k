@@ -74,7 +74,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_shell_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iat, nshell, stat
+    INTEGER                                  :: handle, i, iat, nshell
     LOGICAL                                  :: do_update, explicit, failure, &
                                                 my_check, optimize
     REAL(dp), DIMENSION(:), POINTER          :: dvec_sc, dvec_sc_0
@@ -122,10 +122,8 @@ CONTAINS
     END IF
 
     nshell = SIZE(shell_particle_set)
-    ALLOCATE(dvec_sc(3*nshell), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(dvec_sc_0(3*nshell), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dvec_sc(3*nshell))
+    ALLOCATE(dvec_sc_0(3*nshell))
     DO i= 1,nshell
       dvec_sc(1+3*(i-1)) = core_particle_set(i)%r(1)-shell_particle_set(i)%r(1)
       dvec_sc(2+3*(i-1)) = core_particle_set(i)%r(2)-shell_particle_set(i)%r(2)
@@ -153,10 +151,8 @@ CONTAINS
 
     CALL gopt_f_release(gopt_env)
     CALL gopt_param_release(gopt_param)
-    DEALLOCATE(dvec_sc, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(dvec_sc_0, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(dvec_sc)
+    DEALLOCATE(dvec_sc_0)
 
     IF(PRESENT(tmp)) THEN
       DO i=1,nshell

@@ -138,7 +138,7 @@ END SUBROUTINE p_env_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip, stat
+    INTEGER                                  :: ip
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -171,19 +171,16 @@ END SUBROUTINE p_env_retain
             DO ip = 1,SIZE(p_env%ev_h0,1)
               NULLIFY(p_env%ev_h0(ip)%matrix)
             END DO
-            DEALLOCATE(p_env%ev_h0, STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(p_env%ev_h0)
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             DO ip=1,SIZE(p_env%preconditioner,1)
               CALL destroy_preconditioner(p_env%preconditioner(ip))
             END DO
-            DEALLOCATE(p_env%preconditioner,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(p_env%preconditioner)
           END IF
        END IF
-       DEALLOCATE(p_env,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(p_env)
     END IF
     NULLIFY(p_env)
   END SUBROUTINE p_env_release

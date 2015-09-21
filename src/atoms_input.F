@@ -291,8 +291,8 @@ CPSourceFileRef,&
     CHARACTER(len=default_string_length)     :: name_kind, unit_str
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: at_name, at_name_c
-    INTEGER                                  :: end_c, handle, ishell, istat, &
-                                                j, nshell, output_unit, &
+    INTEGER                                  :: end_c, handle, ishell, j, &
+                                                nshell, output_unit, &
                                                 sh_index, start_c, wrd
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
     LOGICAL :: core_scaled_coordinates, explicit, failure, is_ok, is_shell, &
@@ -336,8 +336,7 @@ CPSourceFileRef,&
 
     IF (ASSOCIATED(shell_particle_set)) THEN
       CPASSERT((SIZE(shell_particle_set,1) == nshell))
-      ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell))
       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
            "Overwriting shell coordinates. "//&
            "Active coordinates READ from &SHELL_COORD section. "//&
@@ -391,8 +390,7 @@ CPSourceFileRef,&
                n_rep_val=nshell)
 
           CPASSERT((SIZE(core_particle_set,1) == nshell))
-          ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell), STAT=istat)
-          CPASSERT(istat == 0)
+          ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell))
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Overwriting cores coordinates. "//&
                " Active coordinates READ from &CORE_COORD section. "//&
@@ -491,10 +489,8 @@ CPSourceFileRef,&
                  failure)
          END IF
       END DO
-      DEALLOCATE(r,at_index,at_name,STAT=istat)
-      CPASSERT(istat==0)
-      DEALLOCATE(rc,at_index_c,at_name_c,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(r,at_index,at_name)
+      DEALLOCATE(rc,at_index_c,at_name_c)
 
     END IF
 

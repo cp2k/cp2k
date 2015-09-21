@@ -535,7 +535,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -544,8 +543,7 @@ CONTAINS
 
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
-    ALLOCATE (rng_stream,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (rng_stream)
 
 
     rng_stream%name = name
@@ -616,7 +614,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -625,8 +622,7 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(rng_stream))
 
-    DEALLOCATE (rng_stream,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (rng_stream)
 
   END SUBROUTINE delete_rng_stream
 
@@ -1241,7 +1237,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -1250,8 +1245,7 @@ CONTAINS
 
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
-    ALLOCATE (rng_stream,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (rng_stream)
 
     READ (UNIT=rng_record,FMT=rng_record_format)&
       rng_stream%name,&

@@ -71,31 +71,27 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, n, stat
+    INTEGER                                  :: i, j, n
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(enum))
   CPASSERT(SIZE(c_vals)==SIZE(i_vals))
-  ALLOCATE(enum,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(enum)
   last_enumeration_id=last_enumeration_id+1
   enum%id_nr=last_enumeration_id
   enum%ref_count=1
-  ALLOCATE(enum%c_vals(SIZE(c_vals)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(enum%c_vals(SIZE(c_vals)))
   DO i=1,SIZE(enum%c_vals)
      enum%c_vals(i)=c_vals(i)
      CALL uppercase(enum%c_vals(i))
   END DO
-  ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(enum%i_vals(SIZE(i_vals)))
   enum%i_vals=i_vals
   enum%strict=.TRUE.
   IF (PRESENT(strict)) enum%strict=strict
-  ALLOCATE(enum%desc(SIZE(c_vals)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(enum%desc(SIZE(c_vals)))
   IF (PRESENT(desc)) THEN
      CPASSERT(SIZE(enum%desc)==SIZE(desc))
      DO i=1,SIZE(enum%desc)
@@ -143,7 +139,7 @@ SUBROUTINE enum_release(enum)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -151,17 +147,13 @@ SUBROUTINE enum_release(enum)
        CPASSERT(enum%ref_count>0)
        enum%ref_count=enum%ref_count-1
        IF (enum%ref_count==0) THEN
-          DEALLOCATE(enum%c_vals,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(enum%i_vals,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(enum%c_vals)
+          DEALLOCATE(enum%i_vals)
           DO i=1, SIZE(enum%desc)
              DEALLOCATE(enum%desc(i)%chars)
           END DO
-          DEALLOCATE(enum%desc,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(enum,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(enum%desc)
+          DEALLOCATE(enum)
        END IF
     END IF
     NULLIFY(enum)

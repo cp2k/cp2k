@@ -130,8 +130,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(parser)) THEN
        CPASSERT(parser%ref_count>0)
        parser%ref_count=parser%ref_count-1
@@ -145,11 +143,9 @@ CONTAINS
           CALL release_buffer_type(parser%buffer)
           CALL release_status_type(parser%status)
           IF (ASSOCIATED(parser%initial_variables)) THEN
-             DEALLOCATE(parser%initial_variables,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(parser%initial_variables)
           ENDIF
-          DEALLOCATE(parser,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(parser)
        END IF
     END IF
   END SUBROUTINE parser_release
@@ -193,13 +189,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(parser))
-    ALLOCATE(parser,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(parser)
     last_parser_id=last_parser_id+1
     parser%id_nr=last_parser_id
     parser%ref_count=1
@@ -260,8 +254,7 @@ CONTAINS
 
     IF (PRESENT(initial_variables)) THEN
        IF (SIZE(initial_variables,2)>0) THEN
-          ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)))
           parser%initial_variables=initial_variables
        ENDIF
     ENDIF

@@ -121,12 +121,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_map_info_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    ALLOCATE(map_info, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_info)
     NULLIFY(map_info%index, map_info%map_index)
     NULLIFY(map_info%v_scale)
     NULLIFY(map_info%p_scale)
@@ -146,39 +144,31 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_map_info_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF (ASSOCIATED(map_info)) THEN
        IF (ASSOCIATED (map_info%p_kin)) THEN
-          DEALLOCATE (map_info%p_kin, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (map_info%p_kin)
        END IF
        IF (ASSOCIATED (map_info%p_scale)) THEN
-          DEALLOCATE (map_info%p_scale, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (map_info%p_scale)
        END IF
        IF (ASSOCIATED (map_info%v_scale)) THEN
-          DEALLOCATE (map_info%v_scale, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (map_info%v_scale)
        END IF
        IF (ASSOCIATED (map_info%s_kin)) THEN
-          DEALLOCATE (map_info%s_kin, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (map_info%s_kin)
        END IF
        IF (ASSOCIATED (map_info%index)) THEN
-          DEALLOCATE (map_info%index, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (map_info%index)
        END IF
        IF (ASSOCIATED (map_info%map_index)) THEN
-          DEALLOCATE (map_info%map_index, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (map_info%map_index)
        END IF
 
-       DEALLOCATE (map_info, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (map_info)
     END IF
 
   END SUBROUTINE release_map_info_type
@@ -193,23 +183,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF (ASSOCIATED(lnhc)) THEN
        IF ( ASSOCIATED(lnhc%dt_yosh)) THEN
-          DEALLOCATE (lnhc%dt_yosh, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (lnhc%dt_yosh)
        END IF
        IF (ASSOCIATED (lnhc%nvt)) THEN
-          DEALLOCATE (lnhc%nvt, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (lnhc%nvt)
        ENDIF
        CALL release_map_info_type(lnhc%map_info)
-       DEALLOCATE (lnhc, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (lnhc)
     ENDIF
 
   END SUBROUTINE lnhc_dealloc

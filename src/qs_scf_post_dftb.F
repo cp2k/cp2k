@@ -94,8 +94,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: ana
     CHARACTER(LEN=default_string_length)     :: aname
     INTEGER                                  :: handle, iat, iatom, ikind, &
-                                                istat, nat, natom, nkind, &
-                                                nspins, unit_nr
+                                                nat, natom, nkind, nspins, &
+                                                unit_nr
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
@@ -128,8 +128,7 @@ CONTAINS
     nspins = dft_control%nspins
     CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
     ! Mulliken charges
-    ALLOCATE(charges(natom,nspins),mcharge(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(charges(natom,nspins),mcharge(natom))
     !
     CALL mulliken_charges(matrix_p,matrix_s,para_env,charges)
     !
@@ -221,8 +220,7 @@ CONTAINS
        CALL cp_print_key_finished_output(unit_nr,logger,print_key)
     END IF
 
-    DEALLOCATE(charges,mcharge,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(charges,mcharge)
 
     ! EPR Hyperfine Coupling
     print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR")

@@ -127,7 +127,7 @@ CONTAINS
     INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
       igrid_level_old, ikind, ilevel, img, img_old, inode, ipair, ipgf, iset, &
       itask, jatom, jatom_old, jkind, jpgf, jset, maxpgf, maxset, natoms, &
-      nimages, nkind, nseta, nsetb, stat
+      nimages, nkind, nseta, nsetb
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: blocks
@@ -315,22 +315,18 @@ CONTAINS
     ! data needed for the loops in integrate_v/calculate_rho
 
     IF (ASSOCIATED(task_list%taskstart)) THEN
-       DEALLOCATE (task_list%taskstart,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (task_list%taskstart)
     END IF
     IF (ASSOCIATED(task_list%taskstop)) THEN
-       DEALLOCATE (task_list%taskstop,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (task_list%taskstop)
     END IF
     IF (ASSOCIATED(task_list%npairs)) THEN
-       DEALLOCATE (task_list%npairs,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (task_list%npairs)
     END IF
 
     ! First, count the number of unique atom pairs per grid level
 
-    ALLOCATE (task_list%npairs(SIZE(rs_descs)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (task_list%npairs(SIZE(rs_descs)))
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
@@ -364,10 +360,8 @@ CONTAINS
     ! of the first and last task
 
     ! Array sized for worst case
-    ALLOCATE (task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_descs)))
+    ALLOCATE (task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_descs)))
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
@@ -413,8 +407,7 @@ CONTAINS
 
        DO igrid_level = 1, gridlevel_info%ngrid_levels
 
-          ALLOCATE (blocks(natoms,natoms,nimages),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (blocks(natoms,natoms,nimages))
           blocks = -1
           DO ipair = 1, task_list%npairs(igrid_level)
              itask = task_list%taskstart(ipair,igrid_level)
@@ -443,8 +436,7 @@ CONTAINS
 
              END DO
           END DO
-          DEALLOCATE (blocks,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (blocks)
 
        END DO
 
@@ -930,7 +922,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_distributed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     INTEGER, DIMENSION(:, :, :), POINTER     :: list
     LOGICAL                                  :: failure
 
@@ -953,8 +945,7 @@ CONTAINS
     CALL compute_load_list(list, rs_descs,grid_level, tasks, ntasks, nimages, natoms, maxset, maxpgf,&
                            create_list=.FALSE.)
 
-    DEALLOCATE (list,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (list)
 
     CALL timestop(handle)
 
@@ -1129,7 +1120,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icpu, idest, itmp, &
-                                                jcpu, maxdest, ncpu, stat
+                                                jcpu, maxdest, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: load_all, load_per_source
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: list_global
     LOGICAL                                  :: failure
@@ -1141,15 +1132,12 @@ CONTAINS
     ncpu=SIZE(list,3)
     maxdest=SIZE(list,2)
 
-    ALLOCATE (load_all(maxdest*ncpu),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (load_all(maxdest*ncpu))
     !
     ! XXXXX this allocation can cause an out-of-memory if the number of MPI tasks is sufficient
     !
-    ALLOCATE (load_per_source(maxdest*ncpu*ncpu),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (list_global(2,maxdest,ncpu),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (load_per_source(maxdest*ncpu*ncpu))
+    ALLOCATE (list_global(2,maxdest,ncpu))
 
     load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
 
@@ -1188,12 +1176,9 @@ CONTAINS
     CALL mp_scatter(load_per_source,load_all,0,group)
     list(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
 
-    DEALLOCATE (load_all,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (load_per_source,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (list_global,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (load_all)
+    DEALLOCATE (load_per_source)
+    DEALLOCATE (list_global)
 
     CALL timestop(handle)
 
@@ -1456,7 +1441,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icpu, j, maxcount, &
-                                                ncpu, stat, ultimate_max
+                                                ncpu, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
     LOGICAL                                  :: failure
 
@@ -1468,13 +1453,10 @@ CONTAINS
     ncpu=rs_descs(grid_level)%rs_desc%group_size
     ultimate_max=7
 
-    ALLOCATE (list(2,ultimate_max,0:ncpu-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (list(2,ultimate_max,0:ncpu-1))
 
-    ALLOCATE (INDEX(ultimate_max),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (sublist(ultimate_max),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (INDEX(ultimate_max))
+    ALLOCATE (sublist(ultimate_max))
     sublist=HUGE(sublist)
 
     maxcount=1
@@ -1541,7 +1523,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iatom, ilevel, &
                                                 img, ipgf, iset, jatom, jpgf, &
-                                                jset, stat
+                                                jset
     INTEGER(KIND=int_8)                      :: total_cost_local
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
@@ -1555,10 +1537,8 @@ CONTAINS
     desc => rs_descs(grid_level)%rs_desc
 
     ! allocate local arrays
-    ALLOCATE (send_buf_i(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (send_buf_i(desc%group_size))
+    ALLOCATE (recv_buf_i(desc%group_size))
 
     ! communication step 1 : compute the total local cost of the tasks
     !                        each proc needs to know the amount of work he will receive
@@ -1618,7 +1598,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, ilevel, img, ipgf, iset, j, jatom, jpgf, &
-      jset, no_overloaded, no_underloaded, proc_receiving, stat
+      jset, no_overloaded, no_underloaded, proc_receiving
     INTEGER(KIND=int_8)                      :: average_cost, cost_task_rep, &
                                                 count, offset, &
                                                 total_cost_global
@@ -1636,10 +1616,8 @@ CONTAINS
     desc=>rs_descs(1)%rs_desc
 
     ! allocate local arrays
-    ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (loads(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (recv_buf_i(desc%group_size))
+    ALLOCATE (loads(desc%group_size))
 
     recv_buf_i = 0
     DO i = 1, SIZE(rs_descs)
@@ -1657,10 +1635,8 @@ CONTAINS
 
     ! load imbalance measures the load of a given CPU relative 
     ! to the optimal load distribution (load=average)
-    ALLOCATE (load_imbalance(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (INDEX(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (load_imbalance(desc%group_size))
+    ALLOCATE (INDEX(desc%group_size))
 
     load_imbalance(:) = recv_buf_i - average_cost
     no_overloaded = 0
@@ -1751,10 +1727,8 @@ CONTAINS
        ENDDO
     ENDIF
 
-    DEALLOCATE (index,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (load_imbalance,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (index)
+    DEALLOCATE (load_imbalance)
 
     CALL timestop(handle)
 
@@ -1792,7 +1766,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, k, l, rank, &
-                                                stat, task_dim
+                                                task_dim
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
@@ -1808,18 +1782,12 @@ CONTAINS
     desc=>rs_descs(1)%rs_desc
 
     ! allocate local arrays
-    ALLOCATE (send_sizes(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (recv_sizes(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (send_disps(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (recv_disps(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (send_buf_i(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (send_sizes(desc%group_size))
+    ALLOCATE (recv_sizes(desc%group_size))
+    ALLOCATE (send_disps(desc%group_size))
+    ALLOCATE (recv_disps(desc%group_size))
+    ALLOCATE (send_buf_i(desc%group_size))
+    ALLOCATE (recv_buf_i(desc%group_size))
 
     ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
     send_buf_i=0
@@ -1849,16 +1817,12 @@ CONTAINS
     ENDDO
 
     ! deallocate old send/recv buffers
-    DEALLOCATE (send_buf_i,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (recv_buf_i,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (send_buf_i)
+    DEALLOCATE (recv_buf_i)
 
     ! allocate them with new sizes
-    ALLOCATE (send_buf_i(SUM(send_sizes)),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (recv_buf_i(SUM(recv_sizes)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (send_buf_i(SUM(send_sizes)))
+    ALLOCATE (recv_buf_i(SUM(recv_sizes)))
 
     ! do packing
     send_buf_i = 0
@@ -1874,12 +1838,10 @@ CONTAINS
     ! do communication
     CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, desc % group)
 
-    DEALLOCATE (send_buf_i,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (send_buf_i)
 
     ntasks_recv=SUM(recv_sizes)/task_dim
-    ALLOCATE (tasks_recv(task_dim,ntasks_recv),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (tasks_recv(task_dim,ntasks_recv))
 
     ! do unpacking
     l = 0
@@ -1892,8 +1854,7 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DEALLOCATE (recv_buf_i,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (recv_buf_i)
 
     ! send rvals (to be removed :-)
 
@@ -1904,10 +1865,8 @@ CONTAINS
     recv_disps(:) = (recv_disps(:)/task_dim)*SIZE(rval,1)
     task_dim=SIZE(rval,1)
 
-    ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (send_buf_r(SUM(send_sizes)))
+    ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
     !do packing
     send_sizes = 0
@@ -1923,10 +1882,8 @@ CONTAINS
     CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
          recv_buf_r, recv_sizes, recv_disps, desc % group)
 
-    DEALLOCATE (send_buf_r,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (rval_recv(task_dim,SUM(recv_sizes)/task_dim),STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (send_buf_r)
+    ALLOCATE (rval_recv(task_dim,SUM(recv_sizes)/task_dim))
 
     ! do unpacking
     l = 0
@@ -1939,16 +1896,11 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DEALLOCATE (recv_buf_r,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (send_sizes,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (recv_sizes,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (send_disps,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (recv_disps,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (recv_buf_r)
+    DEALLOCATE (send_sizes)
+    DEALLOCATE (recv_sizes)
+    DEALLOCATE (send_disps)
+    DEALLOCATE (recv_disps)
 
     CALL timestop(handle)
 
@@ -1994,7 +1946,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid_level, irank, &
-                                                k, ntasks_recv, stat
+                                                k, ntasks_recv
     INTEGER(KIND=int_8)                      :: load_gap, max_load, &
                                                 replicated_load
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -2025,10 +1977,8 @@ CONTAINS
 
     IF (distributed_grids) THEN
 
-       ALLOCATE (loads(0:desc%group_size-1,SIZE(rs_descs)),STAT=stat)
-       CPASSERT(stat==0)
-       ALLOCATE (total_loads(0:desc%group_size-1),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (loads(0:desc%group_size-1,SIZE(rs_descs)))
+       ALLOCATE (total_loads(0:desc%group_size-1))
 
        total_loads = 0
 
@@ -2075,8 +2025,7 @@ CONTAINS
                total_loads(:) = loads(:,igrid_level)
                fixed_first_grid = .TRUE.
              ELSE
-               ALLOCATE (trial_loads(0:desc%group_size-1),STAT=stat)
-               CPASSERT(stat==0)
+               ALLOCATE (trial_loads(0:desc%group_size-1))
 
                trial_loads(:) = total_loads + loads(:,igrid_level)
                max_load = MAXVAL(trial_loads)
@@ -2089,14 +2038,10 @@ CONTAINS
                ! then we will reorder this grid level
                IF (load_gap > replicated_load * 1.05_dp) THEN
 
-                 ALLOCATE (INDEX(0:desc%group_size-1),STAT=stat)
-                 CPASSERT(stat==0)
-                 ALLOCATE (total_index(0:desc%group_size-1),STAT=stat)
-                 CPASSERT(stat==0)
-                 ALLOCATE (total_loads_tmp(0:desc%group_size-1),STAT=stat)
-                 CPASSERT(stat==0)
-                 ALLOCATE (real2virtual(0:desc%group_size-1),STAT=stat)
-                 CPASSERT(stat==0)
+                 ALLOCATE (INDEX(0:desc%group_size-1))
+                 ALLOCATE (total_index(0:desc%group_size-1))
+                 ALLOCATE (total_loads_tmp(0:desc%group_size-1))
+                 ALLOCATE (real2virtual(0:desc%group_size-1))
 
                  total_loads_tmp(:) = total_loads
                  CALL sort(total_loads_tmp, desc%group_size, total_index)
@@ -2112,20 +2057,15 @@ CONTAINS
 
                  CALL rs_grid_reorder_ranks(rs_descs(igrid_level)%rs_desc, real2virtual)
 
-                 DEALLOCATE (index,STAT=stat)
-                 CPASSERT(stat==0)
-                 DEALLOCATE (total_index,STAT=stat)
-                 CPASSERT(stat==0)
-                 DEALLOCATE (total_loads_tmp,STAT=stat)
-                 CPASSERT(stat==0)
-                 DEALLOCATE (real2virtual,STAT=stat)
-                 CPASSERT(stat==0)
+                 DEALLOCATE (index)
+                 DEALLOCATE (total_index)
+                 DEALLOCATE (total_loads_tmp)
+                 DEALLOCATE (real2virtual)
                ELSE
                  total_loads(:) = trial_loads
                ENDIF
 
-               DEALLOCATE (trial_loads,STAT=stat)
-               CPASSERT(stat==0)
+               DEALLOCATE (trial_loads)
 
              ENDIF
            ENDIF
@@ -2157,8 +2097,7 @@ CONTAINS
        ! tasks list are complete, we can compute the list of atomic blocks (atom pairs)
        ! we will be sending. These lists are needed for redistribute_matrix.
        !
-       ALLOCATE (atom_pair_send(ntasks),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_pair_send(ntasks))
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, &
             nimages=nimages, rs_descs=rs_descs)
@@ -2170,21 +2109,16 @@ CONTAINS
        !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
        ! ENDIF
 
-       ALLOCATE (atom_pair_recv(ntasks_recv),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_pair_recv(ntasks_recv))
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send=.FALSE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, &
             nimages=nimages, rs_descs=rs_descs)
 
        ! cleanup, at this point we  don't need the original tasks & rvals anymore
-       DEALLOCATE (tasks,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (rval,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (loads,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (total_loads,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (tasks)
+       DEALLOCATE (rval)
+       DEALLOCATE (loads)
+       DEALLOCATE (total_loads)
 
     ELSE
 
@@ -2200,10 +2134,8 @@ CONTAINS
     !
     rval => rval_recv
 
-    ALLOCATE (taskid(ntasks_recv),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (INDEX(ntasks_recv),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (taskid(ntasks_recv))
+    ALLOCATE (INDEX(ntasks_recv))
 
     taskid(:)=tasks_recv(3,1:ntasks_recv)
     CALL sort(taskid,SIZE(taskid),index)
@@ -2216,10 +2148,8 @@ CONTAINS
        rval(k,1:ntasks_recv)=rval(k,index)
     ENDDO
 
-    DEALLOCATE (taskid,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (index,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (taskid)
+    DEALLOCATE (index)
 
     !
     ! final lists are ready
@@ -2262,7 +2192,7 @@ CONTAINS
 
     INTEGER                                  :: acol, arow, i, iatom, ilevel, &
                                                 img, ipgf, iset, j, jatom, &
-                                                jpgf, jset, stat
+                                                jpgf, jset
     INTEGER(KIND=int_8)                      :: natom8, nim8
     INTEGER, DIMENSION(:), POINTER           :: index
     LOGICAL                                  :: failure
@@ -2303,14 +2233,12 @@ CONTAINS
      ENDIF
   ENDDO
 
-  ALLOCATE (INDEX(SIZE(atom_pair)),STAT=stat)
-  CPASSERT(stat==0)
+  ALLOCATE (INDEX(SIZE(atom_pair)))
 
   ! find unique atom pairs that I'm sending/receiving
   CALL sort(atom_pair,SIZE(atom_pair),index)
 
-  DEALLOCATE (index,STAT=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE (index)
 
   IF (SIZE(atom_pair)>1) THEN
      j=1
@@ -2358,7 +2286,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
       routineP = moduleN//':'//routineN
 
     INTEGER :: acol, arow, handle, i, img, j, k, l, me, nblkcols_total, &
-      nblkrows_total, ncol, nrow, nthread, nthread_left, stat
+      nblkrows_total, ncol, nrow, nthread, nthread_left
     INTEGER(KIND=int_8)                      :: natom8, nim8, pair
     INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, &
       last_row, recv_disps, recv_pair_count, recv_pair_disps, recv_sizes, &
@@ -2382,30 +2310,21 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
   me = desc%my_pos+1
 
   ! allocate local arrays
-  ALLOCATE (send_sizes(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (recv_sizes(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (send_disps(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (recv_disps(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (send_pair_count(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (recv_pair_count(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (send_pair_disps(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
-  ALLOCATE (recv_pair_disps(desc%group_size),STAT=stat)
-  CPASSERT(stat==0)
+  ALLOCATE (send_sizes(desc%group_size))
+  ALLOCATE (recv_sizes(desc%group_size))
+  ALLOCATE (send_disps(desc%group_size))
+  ALLOCATE (recv_disps(desc%group_size))
+  ALLOCATE (send_pair_count(desc%group_size))
+  ALLOCATE (recv_pair_count(desc%group_size))
+  ALLOCATE (send_pair_disps(desc%group_size))
+  ALLOCATE (recv_pair_disps(desc%group_size))
 
   pmat => pmats(1)%matrix
   CALL cp_dbcsr_get_info (pmat, &
        nblkrows_total=nblkrows_total,&
        nblkcols_total=nblkcols_total)
   ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total),&
-            first_col(nblkcols_total), last_col(nblkcols_total),STAT=stat)
-  CPASSERT(stat==0)
+            first_col(nblkcols_total), last_col(nblkcols_total))
   CALL convert_sizes_to_offsets (cp_dbcsr_row_block_sizes(pmat), first_row, last_row)
   CALL convert_sizes_to_offsets (cp_dbcsr_col_block_sizes(pmat), first_col, last_col)
   ! set up send buffer sizes
@@ -2439,8 +2358,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      send_pair_disps(i) = send_pair_disps(i-1) + send_pair_count(i-1)
   ENDDO
 
-  ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
-  CPASSERT(stat==0)
+  ALLOCATE (send_buf_r(SUM(send_sizes)))
 
   ! set up recv buffer
 
@@ -2470,8 +2388,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
      recv_pair_disps(i) = recv_pair_disps(i-1) + recv_pair_count(i-1)
   ENDDO
-  ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-  CPASSERT(stat==0)
+  ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
 !$omp parallel default(none), &
 !$omp          shared(desc,send_pair_count,send_pair_disps,natom8,nim8,nimages),&
@@ -2481,8 +2398,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 !$omp          shared(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$omp          shared(recv_sizes,recv_disps,recv_pair_count,locks), &
 !$omp          private(i,img,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
-!$omp          private(nthread,h_block,nthread_left,hmat,pmat,failure),&
-!$omp          private(stat)
+!$omp          private(nthread,h_block,nthread_left,hmat,pmat,failure)
 
   nthread = 1
 !$ nthread = omp_get_num_threads()
@@ -2653,30 +2569,19 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
   END IF
 !$omp end parallel
 
-  DEALLOCATE (send_buf_r,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (recv_buf_r,STAT=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE (send_buf_r)
+  DEALLOCATE (recv_buf_r)
 
-  DEALLOCATE (send_sizes,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (recv_sizes,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (send_disps,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (recv_disps,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (send_pair_count,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (recv_pair_count,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (send_pair_disps,STAT=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE (recv_pair_disps,STAT=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE (send_sizes)
+  DEALLOCATE (recv_sizes)
+  DEALLOCATE (send_disps)
+  DEALLOCATE (recv_disps)
+  DEALLOCATE (send_pair_count)
+  DEALLOCATE (recv_pair_count)
+  DEALLOCATE (send_pair_disps)
+  DEALLOCATE (recv_pair_disps)
 
-  DEALLOCATE (first_row, last_row, first_col, last_col, STAT=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE (first_row, last_row, first_col, last_col)
 
   CALL timestop(handle)
 

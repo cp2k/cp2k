@@ -154,7 +154,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
@@ -166,8 +165,7 @@ CONTAINS
       eip_env%ref_count = eip_env%ref_count-1
       IF (eip_env%ref_count<1) THEN
         IF (ASSOCIATED(eip_env%eip_forces)) THEN
-          DEALLOCATE(eip_env%eip_forces, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(eip_env%eip_forces)
         END IF
         IF (ASSOCIATED(eip_env%subsys)) THEN
           CALL cp_subsys_release(eip_env%subsys)
@@ -184,8 +182,7 @@ CONTAINS
         IF (ASSOCIATED(eip_env%cell_ref)) THEN
           CALL cell_release(eip_env%cell_ref)
         END IF
-        DEALLOCATE(eip_env, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(eip_env)
       END IF
     END IF
     NULLIFY(eip_env)
@@ -525,13 +522,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    ALLOCATE(eip_env, stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(eip_env)
 
     NULLIFY(eip_env%eip_forces)
     NULLIFY(eip_env%subsys)

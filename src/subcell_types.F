@@ -60,7 +60,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_subcell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, na, nb, nc, stat
+    INTEGER                                  :: i, j, k, na, nb, nc
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
                                                 c_max, c_min, delta_a, &
@@ -71,8 +71,7 @@ CONTAINS
     nb = nsubcell(2)
     nc = nsubcell(3)
 
-    ALLOCATE (subcell(na,nb,nc),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (subcell(na,nb,nc))
 
     delta_a = 1.0_dp/REAL(na,dp)
     delta_b = 1.0_dp/REAL(nb,dp)
@@ -106,8 +105,7 @@ CONTAINS
              CALL scaled_to_real(subcell(i,j,k)%corners(:,8),(/a_max,b_max,c_max/),cell)
           END IF
           IF (PRESENT(maxatom)) THEN
-             ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE (subcell(i,j,k)%atom_list(maxatom))
           END IF
           a_min = a_max
         END DO
@@ -133,7 +131,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_subcell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, stat
+    INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -142,14 +140,12 @@ CONTAINS
        DO k=1,SIZE(subcell,3)
           DO j=1,SIZE(subcell,2)
              DO i=1,SIZE(subcell,1)
-                DEALLOCATE (subcell(i,j,k)%atom_list,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (subcell(i,j,k)%atom_list)
              END DO
           END DO
        END DO
 
-       DEALLOCATE (subcell,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (subcell)
     ELSE
        CPASSERT(.FALSE.)
     END IF

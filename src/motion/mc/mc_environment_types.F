@@ -55,10 +55,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
-    ALLOCATE ( mc_env, stat=istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( mc_env)
 
     last_mc_env_id=last_mc_env_id+1
     mc_env%id_nr=last_mc_env_id
@@ -152,7 +149,6 @@ SUBROUTINE mc_env_release(mc_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -165,8 +161,7 @@ SUBROUTINE mc_env_release(mc_env)
         NULLIFY ( mc_env % mc_par )
         NULLIFY ( mc_env % force_env)
         mc_env%ref_count=0
-        DEALLOCATE(mc_env,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(mc_env)
      END IF
   END IF
   NULLIFY(mc_env)

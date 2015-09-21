@@ -119,7 +119,7 @@ MODULE qs_efield_local
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_integrals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: dipmat, matrix_s
@@ -134,11 +134,9 @@ MODULE qs_efield_local
     NULLIFY (matrix_s)
     CALL get_qs_env(qs_env=qs_env,efield=efield,matrix_s=matrix_s)
     CALL init_efield_matrices(efield)
-    ALLOCATE(dipmat(3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dipmat(3))
     DO i=1,3
-       ALLOCATE(dipmat(i)%matrix,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dipmat(i)%matrix)
        CALL cp_dbcsr_init(dipmat(i)%matrix)
        CALL cp_dbcsr_copy(dipmat(i)%matrix,matrix_s(1)%matrix,'DIP MAT')
        CALL cp_dbcsr_set(dipmat(i)%matrix,0.0_dp)
@@ -166,8 +164,8 @@ MODULE qs_efield_local
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, &
-      inode, irow, iset, ispin, istat, jatom, jkind, jset, ldab, natom, ncoa, &
-      ncob, nkind, nseta, nsetb, sgfa, sgfb, stat
+      inode, irow, iset, ispin, jatom, jkind, jset, ldab, natom, ncoa, ncob, &
+      nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -225,8 +223,7 @@ MODULE qs_efield_local
     natom = SIZE(particle_set)
     IF (calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     ci = 0.0_dp
@@ -277,8 +274,7 @@ MODULE qs_efield_local
           nkind = SIZE(qs_kind_set)
           natom = SIZE(particle_set)
 
-          ALLOCATE (basis_set_list(nkind),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (basis_set_list(nkind))
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
              CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -362,8 +358,7 @@ MODULE qs_efield_local
                    sgfb = first_sgfb(1,jset)
                    ! Calculate the primitive integrals (da|O|b) and (a|O|db)
                    ldab = MAX(ncoa,ncob)
-                   ALLOCATE (work(ldab,ldab),pmat(ncoa,ncob),STAT=istat)
-                   CPASSERT(istat==0)
+                   ALLOCATE (work(ldab,ldab),pmat(ncoa,ncob))
                    ! Decontract P matrix block
                    pmat = 0.0_dp
                    DO i=1,SIZE(matrix_p)
@@ -393,8 +388,7 @@ MODULE qs_efield_local
                                      lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                                      1,rac,rbc,pmat,forcea,forceb)
 
-                   DEALLOCATE (work,pmat,STAT=istat)
-                   CPASSERT(istat==0)
+                   DEALLOCATE (work,pmat)
                 END DO
              END DO
 
@@ -407,8 +401,7 @@ MODULE qs_efield_local
 
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)
-          DEALLOCATE (basis_set_list,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (basis_set_list)
        END IF
 
     END IF
@@ -417,8 +410,7 @@ MODULE qs_efield_local
        DO ikind=1,SIZE(atomic_kind_set)
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
-       DEALLOCATE (atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (atom_of_kind)
     END IF
 
     CALL timestop(handle)

@@ -471,7 +471,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, max_kind, max_pos, stat
+    INTEGER                                  :: i, j, max_kind, max_pos
     LOGICAL                                  :: failure, repeat
 
     failure=.FALSE.
@@ -479,8 +479,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(unit))
     CPASSERT(SIZE(kind_id)<=cp_unit_max_kinds)
     CPASSERT(SIZE(unit_id)<=cp_unit_max_kinds)
-    ALLOCATE(unit,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(unit)
     unit%ref_count=1
     last_unit_id=last_unit_id+1
     unit%id_nr=last_unit_id
@@ -594,7 +593,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -603,8 +601,7 @@ CONTAINS
        CPASSERT(unit%ref_count>0)
        unit%ref_count=unit%ref_count-1
        IF (unit%ref_count==0) THEN
-          DEALLOCATE(unit,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(unit)
        END IF
     END IF
   END SUBROUTINE cp_unit_release
@@ -1436,13 +1433,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: my_name
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(unit_set))
-    ALLOCATE(unit_set,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(unit_set)
     unit_set%ref_count=1
     last_unit_set_id=last_unit_set_id+1
     unit_set%id_nr=last_unit_set_id
@@ -1538,7 +1534,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1550,8 +1546,7 @@ CONTAINS
           DO i = 1, SIZE(unit_set%units)
              CALL cp_unit_release(unit_set%units(i)%unit)
           END DO
-          DEALLOCATE(unit_set,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(unit_set)
        END IF
     END IF
   END SUBROUTINE cp_unit_set_release

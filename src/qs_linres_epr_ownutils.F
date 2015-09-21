@@ -295,7 +295,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: aint_precond, ia, iat, iatom, idir1, idir2, idir3, ikind, ir, &
-      ispin, istat, max_iter, natom, nkind, nspins, output_unit, precond_kind
+      ispin, max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gapw, paw_atom, &
@@ -391,8 +391,7 @@ CONTAINS
     IF (gapw) THEN
 
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-       ALLOCATE(vks_pw_spline(3,nspins),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(vks_pw_spline(3,nspins))
 
        interp_section =>  section_vals_get_subs_vals(lr_section,&
                            "EPR%INTERPOLATOR")
@@ -544,8 +543,7 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE(vks_pw_spline,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(vks_pw_spline)
 
     END IF ! gapw
 
@@ -577,7 +575,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: aint_precond, ia, iat, iatom, idir1, ikind, ir, iso, ispin, &
-      istat, max_iter, natom, nkind, nspins, output_unit, precond_kind
+      max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gapw, paw_atom, &
@@ -678,8 +676,7 @@ CONTAINS
     IF (gapw .AND. soo_rho_hard) THEN
 
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-       ALLOCATE(bind_pw_spline(3,3),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(bind_pw_spline(3,3))
 
        interp_section =>  section_vals_get_subs_vals(lr_section,&
                            "EPR%INTERPOLATOR")
@@ -786,8 +783,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,bind_pw_spline(idir1,iB)%pw)
        END DO
 
-       DEALLOCATE(bind_pw_spline,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(bind_pw_spline)
 
     END IF ! gapw
 
@@ -816,8 +812,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idir, idir2, idir3, &
-                                                iiB, iiiB, ispin, istat, &
-                                                natom, nspins
+                                                iiB, iiiB, ispin, natom, &
+                                                nspins
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: scale_fac
     TYPE(cell_type), POINTER                 :: cell
@@ -860,8 +856,7 @@ CONTAINS
     !
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
-    ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(shift_pw_gspace(3,nspins))
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
@@ -924,8 +919,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
-    DEALLOCATE(shift_pw_gspace,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(shift_pw_gspace)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw)
     !
     ! Finalize

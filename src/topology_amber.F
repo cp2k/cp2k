@@ -104,7 +104,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: handle, iw, j, natom, stat
+    INTEGER                                  :: handle, iw, j, natom
     LOGICAL                                  :: my_end, setup_velocities
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -257,8 +257,7 @@ CPSourceFileRef,&
           CALL section_velocity_val_set(velocity_section, velocity=velocity, &
                conv_factor=1.0_dp)
        END IF
-       DEALLOCATE(velocity,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(velocity)
     END IF
     IF (my_end) THEN
        CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
@@ -399,8 +398,7 @@ CPSourceFileRef,&
       istart, mbona, mbper, mdper, mgper, mphia, mtheta, natom, natom_prev, &
       natyp, nbona, nbond_prev, nbonh, nbper, ndper, ngper, nhparm, nmxrs, &
       nnb, nparm, nphb, nphi_prev, nphia, nphih, nptra, nres, nsize, ntheta, &
-      ntheta_prev, ntheth, ntypes, numang, numbnd, numextra, stat, &
-      unique_torsions
+      ntheta_prev, ntheth, ntypes, numang, numbnd, numextra, unique_torsions
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iac, ib, ibh, icb, icbh, ico, icp, &
       icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
       jth, kp, kph, kt, kth, lp, lph
@@ -476,103 +474,62 @@ CPSourceFileRef,&
                 natom_prev = 0
                 IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
                 ! Allocate for extracting connectivity infos
-                ALLOCATE(labres (nres               ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(ipres  (nres               ),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(labres (nres               ))
+                ALLOCATE(ipres  (nres               ))
              END IF
              IF (do_forcefield) THEN
                 ! Allocate for extracting forcefield infos
-                ALLOCATE(iac    (natom              ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(ico    (ntypes*ntypes      ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(rk     (numbnd             ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(req    (numbnd             ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(tk     (numang             ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(teq    (numang             ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(pk     (nptra              ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(pn     (nptra              ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(phase  (nptra              ),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(cn1    (ntypes*(ntypes+1)/2),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(cn2    (ntypes*(ntypes+1)/2),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(asol   (ntypes*(ntypes+1)/2),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(bsol   (ntypes*(ntypes+1)/2),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(iac    (natom              ))
+                ALLOCATE(ico    (ntypes*ntypes      ))
+                ALLOCATE(rk     (numbnd             ))
+                ALLOCATE(req    (numbnd             ))
+                ALLOCATE(tk     (numang             ))
+                ALLOCATE(teq    (numang             ))
+                ALLOCATE(pk     (nptra              ))
+                ALLOCATE(pn     (nptra              ))
+                ALLOCATE(phase  (nptra              ))
+                ALLOCATE(cn1    (ntypes*(ntypes+1)/2))
+                ALLOCATE(cn2    (ntypes*(ntypes+1)/2))
+                ALLOCATE(asol   (ntypes*(ntypes+1)/2))
+                ALLOCATE(bsol   (ntypes*(ntypes+1)/2))
              END IF
              ! Always Allocate
-             ALLOCATE(ibh    (nbonh              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(jbh    (nbonh              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(icbh   (nbonh              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(ib     (nbona              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(jb     (nbona              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(icb    (nbona              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(ith    (ntheth             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(jth    (ntheth             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(kth    (ntheth             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(icth   (ntheth             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(it     (ntheta             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(jt     (ntheta             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(kt     (ntheta             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(ict    (ntheta             ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(iph    (nphih              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(jph    (nphih              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(kph    (nphih              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(lph    (nphih              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(icph   (nphih              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(ip     (nphia              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(jp     (nphia              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(kp     (nphia              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(lp     (nphia              ),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(icp    (nphia              ),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(ibh    (nbonh              ))
+             ALLOCATE(jbh    (nbonh              ))
+             ALLOCATE(icbh   (nbonh              ))
+             ALLOCATE(ib     (nbona              ))
+             ALLOCATE(jb     (nbona              ))
+             ALLOCATE(icb    (nbona              ))
+             ALLOCATE(ith    (ntheth             ))
+             ALLOCATE(jth    (ntheth             ))
+             ALLOCATE(kth    (ntheth             ))
+             ALLOCATE(icth   (ntheth             ))
+             ALLOCATE(it     (ntheta             ))
+             ALLOCATE(jt     (ntheta             ))
+             ALLOCATE(kt     (ntheta             ))
+             ALLOCATE(ict    (ntheta             ))
+             ALLOCATE(iph    (nphih              ))
+             ALLOCATE(jph    (nphih              ))
+             ALLOCATE(kph    (nphih              ))
+             ALLOCATE(lph    (nphih              ))
+             ALLOCATE(icph   (nphih              ))
+             ALLOCATE(ip     (nphia              ))
+             ALLOCATE(jp     (nphia              ))
+             ALLOCATE(kp     (nphia              ))
+             ALLOCATE(lp     (nphia              ))
+             ALLOCATE(icp    (nphia              ))
           CASE("ATOM_NAME")
              ! Atom names are just ignored according the CP2K philosophy
              CYCLE
           CASE("AMBER_ATOM_TYPE")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
-             ALLOCATE(strtmp_a(natom), stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(strtmp_a(natom))
              CALL rd_amber_section(parser, section, strtmp_a , natom)
              DO i=1,natom
                 atom_info%id_atmname(natom_prev+i)=str2id(strtmp_a(i))
              ENDDO
-             DEALLOCATE(strtmp_a, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(strtmp_a)
           CASE("CHARGE")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
@@ -684,10 +641,8 @@ CPSourceFileRef,&
        ! ----------------------------------------------------------
        ! Conform Amber Names with CHARMM convention (kind<->charge)
        ! ----------------------------------------------------------
-       ALLOCATE(isymbl(natom),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(iwork(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(isymbl(natom))
+       ALLOCATE(iwork(natom))
 
        DO i=1,SIZE(isymbl)
           isymbl(i) = id2str(atom_info%id_atmname(natom_prev+i))
@@ -721,14 +676,10 @@ CPSourceFileRef,&
        atom_info%resid(natom_prev+ipres(i):natom_prev+natom)   = i
 
        ! Deallocate when extracting connectivity infos
-       DEALLOCATE(iwork,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(isymbl,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(labres,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(ipres,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(iwork)
+       DEALLOCATE(isymbl)
+       DEALLOCATE(labres)
+       DEALLOCATE(ipres)
 
        ! ----------------------------------------------------------
        ! Copy connectivity
@@ -782,10 +733,8 @@ CPSourceFileRef,&
        CALL reallocate(conn_info%phi_d,1,nphi_prev+nphih+nphia)
 
        IF (nphih+nphia /= 0) THEN
-          ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(iwork(nphih+nphia),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(full_torsions(4,nphih+nphia))
+          ALLOCATE(iwork(nphih+nphia))
 
           DO i = 1, nphih
              full_torsions(1,i)          = iph(i)
@@ -823,10 +772,8 @@ CPSourceFileRef,&
           CALL reallocate(conn_info%phi_c,1,unique_torsions)
           CALL reallocate(conn_info%phi_d,1,unique_torsions)
 
-          DEALLOCATE(full_torsions,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(iwork,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(full_torsions)
+          DEALLOCATE(iwork)
        END IF
        ! IMPROPERS
        CALL reallocate(conn_info%impr_a,1,0)
@@ -942,83 +889,46 @@ CPSourceFileRef,&
        CALL reallocate(amb_info%nonbond_rmin2, 1, nsize)
 
        ! Deallocate at the end of the dirty job
-       DEALLOCATE(iac,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(ico,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(rk,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(req,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(tk,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(teq,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(pk,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(pn,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(phase,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cn1,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cn2,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(asol,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(bsol,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(iac)
+       DEALLOCATE(ico)
+       DEALLOCATE(rk)
+       DEALLOCATE(req)
+       DEALLOCATE(tk)
+       DEALLOCATE(teq)
+       DEALLOCATE(pk)
+       DEALLOCATE(pn)
+       DEALLOCATE(phase)
+       DEALLOCATE(cn1)
+       DEALLOCATE(cn2)
+       DEALLOCATE(asol)
+       DEALLOCATE(bsol)
        CALL timestop(handle2)
     END IF
     ! Always Deallocate
-    DEALLOCATE(ibh,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(jbh,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(icbh,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ib,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(jb,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(icb,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ith,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(jth,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kth,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(icth,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(it,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(jt,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kt,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ict,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(iph,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(jph,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kph,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(lph,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(icph,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ip,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(jp,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kp,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(lp,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(icp,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ibh)
+    DEALLOCATE(jbh)
+    DEALLOCATE(icbh)
+    DEALLOCATE(ib)
+    DEALLOCATE(jb)
+    DEALLOCATE(icb)
+    DEALLOCATE(ith)
+    DEALLOCATE(jth)
+    DEALLOCATE(kth)
+    DEALLOCATE(icth)
+    DEALLOCATE(it)
+    DEALLOCATE(jt)
+    DEALLOCATE(kt)
+    DEALLOCATE(ict)
+    DEALLOCATE(iph)
+    DEALLOCATE(jph)
+    DEALLOCATE(kph)
+    DEALLOCATE(lph)
+    DEALLOCATE(icph)
+    DEALLOCATE(ip)
+    DEALLOCATE(jp)
+    DEALLOCATE(kp)
+    DEALLOCATE(lp)
+    DEALLOCATE(icp)
     CALL parser_release(parser)
     CALL timestop(handle)
     RETURN
@@ -1053,8 +963,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, gind, handle, iend, &
-                                                ind, isize, j, k, kend, &
-                                                kstart, stat
+                                                ind, isize, j, k, kend, kstart
     INTEGER, DIMENSION(:), POINTER           :: cindx, lindx
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ctmp
@@ -1064,12 +973,9 @@ CPSourceFileRef,&
     CALL timeset(routineN, handle)
     iend = i - 1
     isize= iend-istart+1
-    ALLOCATE(cwork(isize),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(lindx(isize),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(cindx(isize),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cwork(isize))
+    ALLOCATE(lindx(isize))
+    ALLOCATE(cindx(isize))
     ind = 0
     DO k = istart, iend
        ind = ind + 1
@@ -1108,12 +1014,9 @@ CPSourceFileRef,&
           isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
        END DO
     END IF
-    DEALLOCATE(cwork, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(lindx, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(cindx, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cwork)
+    DEALLOCATE(lindx)
+    DEALLOCATE(cindx)
     CALL timestop(handle)
   END SUBROUTINE conform_atom_type_low
 
@@ -1520,17 +1423,15 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure, l_dum
 
     failure        = .FALSE.
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
-       ALLOCATE(work_label(2,nbond),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(iwork(nbond),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work_label(2,nbond))
+       ALLOCATE(iwork(nbond))
        DO i = 1, nbond
           name_atm_a = particle_set(ib(i))%atomic_kind%name
           name_atm_b = particle_set(jb(i))%atomic_kind%name
@@ -1571,10 +1472,8 @@ CPSourceFileRef,&
           END IF
        END DO
 
-       DEALLOCATE(work_label,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(iwork, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(work_label)
+       DEALLOCATE(iwork)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bonds_info
@@ -1616,17 +1515,15 @@ CPSourceFileRef,&
                                                 name_atm_c
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure, l_dum
 
     failure        = .FALSE.
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
-       ALLOCATE(work_label(3,ntheta),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(iwork(ntheta),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work_label(3,ntheta))
+       ALLOCATE(iwork(ntheta))
        DO i = 1, ntheta
           name_atm_a = particle_set(it(i))%atomic_kind%name
           name_atm_b = particle_set(jt(i))%atomic_kind%name
@@ -1676,10 +1573,8 @@ CPSourceFileRef,&
           END IF
        END DO
 
-       DEALLOCATE(work_label,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(iwork, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(work_label)
+       DEALLOCATE(iwork)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bends_info
@@ -1728,17 +1623,15 @@ CPSourceFileRef,&
                                                 name_atm_c, name_atm_d
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure, l_dum
 
     failure        = .FALSE.
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
-       ALLOCATE(work_label(6,nphi),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(iwork(nphi),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work_label(6,nphi))
+       ALLOCATE(iwork(nphi))
        DO i = 1, nphi
           name_atm_a = particle_set(ip(i))%atomic_kind%name
           name_atm_b = particle_set(jp(i))%atomic_kind%name
@@ -1817,10 +1710,8 @@ CPSourceFileRef,&
           END IF
        END DO
 
-       DEALLOCATE(work_label,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(iwork, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(work_label)
+       DEALLOCATE(iwork)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_torsions_info
@@ -1859,7 +1750,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: name_atm_a
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: work_label
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: check, failure, l_dum
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
@@ -1867,10 +1758,8 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     CALL timeset(routineN, handle)
-    ALLOCATE(work_label(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(iwork(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work_label(natom))
+    ALLOCATE(iwork(natom))
     DO i = 1, natom
        name_atm_a = particle_set(i)%atomic_kind%name
        l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a)
@@ -1925,10 +1814,8 @@ CPSourceFileRef,&
        END IF
     END DO
 
-    DEALLOCATE(work_label,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(iwork,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work_label)
+    DEALLOCATE(iwork)
     CALL timestop(handle)
   END SUBROUTINE post_process_LJ_info
 

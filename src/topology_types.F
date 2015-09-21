@@ -206,19 +206,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_topology', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     !-----------------------------------------------------------------------------
     ! 1. Nullify and allocate things in topology
     !-----------------------------------------------------------------------------
-    ALLOCATE(topology%atom_info,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(topology%conn_info,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(topology%cons_info,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(topology%atom_info)
+    ALLOCATE(topology%conn_info)
+    ALLOCATE(topology%cons_info)
     !-----------------------------------------------------------------------------
     ! 2. Initialize and Nullify things in topology
     !-----------------------------------------------------------------------------
@@ -407,7 +403,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_topology', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -415,163 +410,124 @@ CONTAINS
     ! 1. DEALLOCATE things in topology%atom_info
     !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%atom_info%id_molname)) THEN
-       DEALLOCATE(topology%atom_info%id_molname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%id_molname)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_resname)) THEN
-       DEALLOCATE(topology%atom_info%id_resname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%id_resname)
     END IF
     IF(ASSOCIATED(topology%atom_info%resid)) THEN
-       DEALLOCATE(topology%atom_info%resid,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%resid)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_atmname)) THEN
-       DEALLOCATE(topology%atom_info%id_atmname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%id_atmname)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_atom_names)) THEN
-       DEALLOCATE(topology%atom_info%id_atom_names,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%id_atom_names)
     END IF
     IF(ASSOCIATED(topology%atom_info%r)) THEN
-       DEALLOCATE(topology%atom_info%r,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%r)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_typ)) THEN
-       DEALLOCATE(topology%atom_info%map_mol_typ,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%map_mol_typ)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_num)) THEN
-       DEALLOCATE(topology%atom_info%map_mol_num,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%map_mol_num)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_res)) THEN
-       DEALLOCATE(topology%atom_info%map_mol_res,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%map_mol_res)
     END IF
     IF(ASSOCIATED(topology%atom_info%atm_charge)) THEN
-       DEALLOCATE(topology%atom_info%atm_charge,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%atm_charge)
     END IF
     IF(ASSOCIATED(topology%atom_info%atm_mass)) THEN
-       DEALLOCATE(topology%atom_info%atm_mass,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%atm_mass)
     END IF
     IF(ASSOCIATED(topology%atom_info%occup)) THEN
-       DEALLOCATE(topology%atom_info%occup,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%occup)
     END IF
     IF(ASSOCIATED(topology%atom_info%beta)) THEN
-       DEALLOCATE(topology%atom_info%beta,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%beta)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_element)) THEN
-       DEALLOCATE(topology%atom_info%id_element,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info%id_element)
     END IF
     !-----------------------------------------------------------------------------
     ! 2. DEALLOCATE things in topology%conn_info
     !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%conn_info%bond_a)) THEN
-       DEALLOCATE(topology%conn_info%bond_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%bond_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%bond_b)) THEN
-       DEALLOCATE(topology%conn_info%bond_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%bond_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%bond_type)) THEN
-       DEALLOCATE(topology%conn_info%bond_type,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%bond_type)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_a)) THEN
-       DEALLOCATE(topology%conn_info%ub_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%ub_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_b)) THEN
-       DEALLOCATE(topology%conn_info%ub_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%ub_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_c)) THEN
-       DEALLOCATE(topology%conn_info%ub_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%ub_c)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_a)) THEN
-       DEALLOCATE(topology%conn_info%theta_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%theta_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_b)) THEN
-       DEALLOCATE(topology%conn_info%theta_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%theta_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_c)) THEN
-       DEALLOCATE(topology%conn_info%theta_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%theta_c)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_type)) THEN
-       DEALLOCATE(topology%conn_info%theta_type,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%theta_type)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_a)) THEN
-       DEALLOCATE(topology%conn_info%phi_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%phi_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_b)) THEN
-       DEALLOCATE(topology%conn_info%phi_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%phi_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_c)) THEN
-       DEALLOCATE(topology%conn_info%phi_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%phi_c)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_d)) THEN
-       DEALLOCATE(topology%conn_info%phi_d,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%phi_d)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_type)) THEN
-       DEALLOCATE(topology%conn_info%phi_type,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%phi_type)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_a)) THEN
-       DEALLOCATE(topology%conn_info%impr_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%impr_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_b)) THEN
-       DEALLOCATE(topology%conn_info%impr_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%impr_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_c)) THEN
-       DEALLOCATE(topology%conn_info%impr_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%impr_c)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_d)) THEN
-       DEALLOCATE(topology%conn_info%impr_d,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%impr_d)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_type)) THEN
-       DEALLOCATE(topology%conn_info%impr_type,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%impr_type)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_a)) THEN
-       DEALLOCATE(topology%conn_info%onfo_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%onfo_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_b)) THEN
-       DEALLOCATE(topology%conn_info%onfo_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%onfo_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_a)) THEN
-       DEALLOCATE(topology%conn_info%c_bond_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%c_bond_a)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_b)) THEN
-       DEALLOCATE(topology%conn_info%c_bond_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%c_bond_b)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_type)) THEN
-       DEALLOCATE(topology%conn_info%c_bond_type,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info%c_bond_type)
     END IF
     !-----------------------------------------------------------------------------
     ! 3. DEALLOCATE things in topology%cons_info
@@ -585,16 +541,13 @@ CONTAINS
     CALL cell_release(topology%cell_ref)
     CALL cell_release(topology%cell_muc)
     IF(ASSOCIATED(topology%atom_info)) THEN
-       DEALLOCATE(topology%atom_info,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%atom_info)
     END IF
     IF(ASSOCIATED(topology%conn_info)) THEN
-       DEALLOCATE(topology%conn_info,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%conn_info)
     END IF
     IF(ASSOCIATED(topology%cons_info)) THEN
-       DEALLOCATE(topology%cons_info,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(topology%cons_info)
     END IF
 
   END SUBROUTINE deallocate_topology
@@ -611,50 +564,40 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     ! Fixed Atoms
     IF(ASSOCIATED(constraint_info%fixed_atoms)) THEN
-       DEALLOCATE(constraint_info%fixed_atoms, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_atoms)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_type)) THEN
-       DEALLOCATE(constraint_info%fixed_type, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_type)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_molnames)) THEN
-       DEALLOCATE(constraint_info%fixed_molnames, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_molnames)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_mol_type)) THEN
-       DEALLOCATE(constraint_info%fixed_mol_type, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_mol_type)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_restraint)) THEN
-       DEALLOCATE(constraint_info%fixed_restraint, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_restraint)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_k0)) THEN
-       DEALLOCATE(constraint_info%fixed_k0, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_k0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_mol_restraint)) THEN
-       DEALLOCATE(constraint_info%fixed_mol_restraint, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_mol_restraint)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_mol_k0)) THEN
-       DEALLOCATE(constraint_info%fixed_mol_k0, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_mol_k0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_exclude_qm)) THEN
-       DEALLOCATE(constraint_info%fixed_exclude_qm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_exclude_qm)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_exclude_mm)) THEN
-       DEALLOCATE(constraint_info%fixed_exclude_mm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%fixed_exclude_mm)
     END IF
     ! Collective Constraint
     IF (ASSOCIATED(constraint_info%colvar_set)) THEN
@@ -664,219 +607,166 @@ CONTAINS
              NULLIFY(constraint_info%colvar_set(i)%colvar)
           END IF
        END DO
-       DEALLOCATE(constraint_info%colvar_set, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%colvar_set)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_mol)) THEN
-       DEALLOCATE(constraint_info%const_colv_mol,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_colv_mol)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_molname)) THEN
-       DEALLOCATE(constraint_info%const_colv_molname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_colv_molname)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_target)) THEN
-       DEALLOCATE(constraint_info%const_colv_target,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_colv_target)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_target_growth)) THEN
-       DEALLOCATE(constraint_info%const_colv_target_growth,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_colv_target_growth)
     END IF
     IF(ASSOCIATED(constraint_info%colv_intermolecular)) THEN
-       DEALLOCATE(constraint_info%colv_intermolecular,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%colv_intermolecular)
     END IF
     IF(ASSOCIATED(constraint_info%colv_restraint)) THEN
-       DEALLOCATE(constraint_info%colv_restraint,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%colv_restraint)
     END IF
     IF(ASSOCIATED(constraint_info%colv_k0)) THEN
-       DEALLOCATE(constraint_info%colv_k0,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%colv_k0)
     END IF
     IF(ASSOCIATED(constraint_info%colv_exclude_qm)) THEN
-       DEALLOCATE(constraint_info%colv_exclude_qm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%colv_exclude_qm)
     END IF
     IF(ASSOCIATED(constraint_info%colv_exclude_mm)) THEN
-       DEALLOCATE(constraint_info%colv_exclude_mm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%colv_exclude_mm)
     END IF
     ! G3x3
     IF(ASSOCIATED(constraint_info%const_g33_mol)) THEN
-       DEALLOCATE(constraint_info%const_g33_mol,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_mol)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_molname)) THEN
-       DEALLOCATE(constraint_info%const_g33_molname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_molname)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_a)) THEN
-       DEALLOCATE(constraint_info%const_g33_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_a)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_b)) THEN
-       DEALLOCATE(constraint_info%const_g33_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_b)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_c)) THEN
-       DEALLOCATE(constraint_info%const_g33_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_c)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_dab)) THEN
-       DEALLOCATE(constraint_info%const_g33_dab,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_dab)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_dac)) THEN
-       DEALLOCATE(constraint_info%const_g33_dac,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_dac)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_dbc)) THEN
-       DEALLOCATE(constraint_info%const_g33_dbc,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g33_dbc)
     END IF
     IF(ASSOCIATED(constraint_info%g33_intermolecular)) THEN
-       DEALLOCATE(constraint_info%g33_intermolecular,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g33_intermolecular)
     END IF
     IF(ASSOCIATED(constraint_info%g33_restraint)) THEN
-       DEALLOCATE(constraint_info%g33_restraint,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g33_restraint)
     END IF
     IF(ASSOCIATED(constraint_info%g33_k0)) THEN
-       DEALLOCATE(constraint_info%g33_k0,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g33_k0)
     END IF
     IF(ASSOCIATED(constraint_info%g33_exclude_qm)) THEN
-       DEALLOCATE(constraint_info%g33_exclude_qm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g33_exclude_qm)
     END IF
     IF(ASSOCIATED(constraint_info%g33_exclude_mm)) THEN
-       DEALLOCATE(constraint_info%g33_exclude_mm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g33_exclude_mm)
     END IF
     ! G4x6
     IF(ASSOCIATED(constraint_info%const_g46_mol)) THEN
-       DEALLOCATE(constraint_info%const_g46_mol,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_mol)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_molname)) THEN
-       DEALLOCATE(constraint_info%const_g46_molname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_molname)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_a)) THEN
-       DEALLOCATE(constraint_info%const_g46_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_a)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_b)) THEN
-       DEALLOCATE(constraint_info%const_g46_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_b)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_c)) THEN
-       DEALLOCATE(constraint_info%const_g46_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_c)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_d)) THEN
-       DEALLOCATE(constraint_info%const_g46_d,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_d)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dab)) THEN
-       DEALLOCATE(constraint_info%const_g46_dab,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_dab)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dac)) THEN
-       DEALLOCATE(constraint_info%const_g46_dac,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_dac)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dbc)) THEN
-       DEALLOCATE(constraint_info%const_g46_dbc,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_dbc)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dad)) THEN
-       DEALLOCATE(constraint_info%const_g46_dad,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_dad)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dbd)) THEN
-       DEALLOCATE(constraint_info%const_g46_dbd,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_dbd)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dcd)) THEN
-       DEALLOCATE(constraint_info%const_g46_dcd,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_g46_dcd)
     END IF
     IF(ASSOCIATED(constraint_info%g46_intermolecular)) THEN
-       DEALLOCATE(constraint_info%g46_intermolecular,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g46_intermolecular)
     END IF
     IF(ASSOCIATED(constraint_info%g46_restraint)) THEN
-       DEALLOCATE(constraint_info%g46_restraint,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g46_restraint)
     END IF
     IF(ASSOCIATED(constraint_info%g46_k0)) THEN
-       DEALLOCATE(constraint_info%g46_k0,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g46_k0)
     END IF
     IF(ASSOCIATED(constraint_info%g46_exclude_qm)) THEN
-       DEALLOCATE(constraint_info%g46_exclude_qm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g46_exclude_qm)
     END IF
     IF(ASSOCIATED(constraint_info%g46_exclude_mm)) THEN
-       DEALLOCATE(constraint_info%g46_exclude_mm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%g46_exclude_mm)
     END IF
     ! virtual_site
     IF(ASSOCIATED(constraint_info%const_vsite_mol)) THEN
-       DEALLOCATE(constraint_info%const_vsite_mol,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_mol)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_molname)) THEN
-       DEALLOCATE(constraint_info%const_vsite_molname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_molname)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_a)) THEN
-       DEALLOCATE(constraint_info%const_vsite_a,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_a)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_b)) THEN
-       DEALLOCATE(constraint_info%const_vsite_b,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_b)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_c)) THEN
-       DEALLOCATE(constraint_info%const_vsite_c,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_c)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_d)) THEN
-       DEALLOCATE(constraint_info%const_vsite_d,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_d)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_wbc)) THEN
-       DEALLOCATE(constraint_info%const_vsite_wbc,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_wbc)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_wdc)) THEN
-       DEALLOCATE(constraint_info%const_vsite_wdc,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%const_vsite_wdc)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_intermolecular)) THEN
-       DEALLOCATE(constraint_info%vsite_intermolecular,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%vsite_intermolecular)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_restraint)) THEN
-       DEALLOCATE(constraint_info%vsite_restraint,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%vsite_restraint)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_k0)) THEN
-       DEALLOCATE(constraint_info%vsite_k0,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%vsite_k0)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_exclude_qm)) THEN
-       DEALLOCATE(constraint_info%vsite_exclude_qm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%vsite_exclude_qm)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_exclude_mm)) THEN
-       DEALLOCATE(constraint_info%vsite_exclude_mm, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(constraint_info%vsite_exclude_mm)
     END IF
   END SUBROUTINE deallocate_constraint
 
@@ -893,7 +783,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
 
@@ -901,33 +790,27 @@ CONTAINS
     atom_info => topology%atom_info
 
     IF (ASSOCIATED(atom_info%id_molname)) THEN
-       DEALLOCATE(atom_info%id_molname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_info%id_molname)
     END IF
 
     IF (ASSOCIATED(atom_info%resid)) THEN
-       DEALLOCATE(atom_info%resid,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_info%resid)
     END IF
 
     IF (ASSOCIATED(atom_info%id_resname)) THEN
-       DEALLOCATE(atom_info%id_resname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_info%id_resname)
     END IF
 
     IF (ASSOCIATED(atom_info%id_atmname)) THEN
-       DEALLOCATE(atom_info%id_atmname,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_info%id_atmname)
     END IF
 
     IF (ASSOCIATED(atom_info%atm_charge)) THEN
-       DEALLOCATE(atom_info%atm_charge,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_info%atm_charge)
     END IF
 
     IF (ASSOCIATED(atom_info%atm_mass)) THEN
-       DEALLOCATE(atom_info%atm_mass,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_info%atm_mass)
     END IF
 
   END SUBROUTINE pre_read_topology

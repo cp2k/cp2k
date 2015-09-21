@@ -138,7 +138,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lr_adiabatic_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, lambda, omega, sx
@@ -168,8 +168,7 @@ CONTAINS
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
        dummy=> rho
     END IF
@@ -248,8 +247,7 @@ CONTAINS
     !$omp end parallel
 
     IF (cp_debug) THEN
-       DEALLOCATE(dummy,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dummy)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -2923,8 +2921,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lr_adiabatic_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, npoints, &
-                                                stat
+    INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, lambda, omega, sx
@@ -2963,8 +2960,7 @@ CONTAINS
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
        dummy=> rho(1)%array
     END IF
@@ -3085,8 +3081,7 @@ CONTAINS
     END DO
 
     IF (cp_debug) THEN
-       DEALLOCATE(dummy,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dummy)
     ELSE
        NULLIFY(dummy)
     END IF

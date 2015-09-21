@@ -199,7 +199,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, stat
+    INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -243,45 +243,36 @@ CONTAINS
              CALL deallocate_grid_atom(qs_kind_set(ikind)%grid_atom)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%elec_conf)) THEN
-             DEALLOCATE (qs_kind_set(ikind)%elec_conf,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%elec_conf)
           END IF
 
           IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) THEN
              IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%orbitals)) THEN
-                DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%orbitals,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%orbitals)
              END IF
-             DEALLOCATE (qs_kind_set(ikind)%dft_plus_u,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%dft_plus_u)
           END IF
 
           IF (ASSOCIATED(qs_kind_set(ikind)%dispersion)) THEN
-             DEALLOCATE (qs_kind_set(ikind)%dispersion,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%dispersion)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%addel)) THEN
-             DEALLOCATE (qs_kind_set(ikind)%addel,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%addel)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%naddel)) THEN
-             DEALLOCATE (qs_kind_set(ikind)%naddel,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%naddel)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%laddel)) THEN
-             DEALLOCATE (qs_kind_set(ikind)%laddel,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%laddel)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%reltmat)) THEN
-             DEALLOCATE (qs_kind_set(ikind)%reltmat,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (qs_kind_set(ikind)%reltmat)
           END IF
 
           CALL remove_basis_set_container(qs_kind_set(ikind)%basis_sets)
 
        END DO
-       DEALLOCATE (qs_kind_set,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (qs_kind_set)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer qs_kind_set is not associated and "//&
@@ -1496,8 +1487,7 @@ CONTAINS
                                  keyword_name="_SECTION_PARAMETERS_",&
                                  l_val=section_enabled)
        IF (section_enabled) THEN
-          ALLOCATE (qs_kind%dft_plus_u,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (qs_kind%dft_plus_u)
           NULLIFY (qs_kind%dft_plus_u%orbitals)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="L",&
@@ -1541,8 +1531,7 @@ CONTAINS
              CALL cp_assert(((norbitals > 0).AND.(norbitals <= 2*l+1)),cp_failure_level,cp_assertion_failed,routineP,&
                             "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected",&
                             failure)
-             ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals))
              qs_kind%dft_plus_u%orbitals(:) = orbitals(:)
              NULLIFY (orbitals)
              DO m=1,norbitals

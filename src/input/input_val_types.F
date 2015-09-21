@@ -131,14 +131,13 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, len_c, narg, nVal, stat
+    INTEGER                                  :: i, len_c, narg, nVal
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(val))
-  ALLOCATE(val,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(val)
   NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val,val%enum)
   val%type_of_var=no_t
   last_val_id=last_val_id+1
@@ -151,16 +150,14 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(l_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%l_val(1),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%l_val(1))
      val%l_val(1)=l_val
      val%type_of_var=logical_t
   END IF
   IF (PRESENT(l_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%l_val(SIZE(l_vals)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%l_val(SIZE(l_vals)))
      val%l_val=l_vals
      val%type_of_var=logical_t
   END IF
@@ -174,16 +171,14 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(r_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%r_val(1),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%r_val(1))
      val%r_val(1)=r_val
      val%type_of_var=real_t
   END IF
   IF (PRESENT(r_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%r_val(SIZE(r_vals)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%r_val(SIZE(r_vals)))
      val%r_val=r_vals
      val%type_of_var=real_t
   END IF
@@ -197,16 +192,14 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(i_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%i_val(1),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%i_val(1))
      val%i_val(1)=i_val
      val%type_of_var=integer_t
   END IF
   IF (PRESENT(i_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%i_val(SIZE(i_vals)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%i_val(SIZE(i_vals)))
      val%i_val=i_vals
      val%type_of_var=integer_t
   END IF
@@ -221,8 +214,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
-     ALLOCATE(val%c_val(1),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%c_val(1))
      val%c_val(1)=c_val
      val%type_of_var=char_t
   END IF
@@ -230,8 +222,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
      CPASSERT(ALL(LEN_TRIM(c_vals)<=default_string_length))
      narg=narg+1
-     ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%c_val(SIZE(c_vals)))
      val%c_val=c_vals
      val%type_of_var=char_t
   END IF
@@ -246,8 +237,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      narg=narg+1
      len_c=LEN_TRIM(lc_val)
      nVal=MAX(1,CEILING(REAL(len_c,dp)/80._dp))
-     ALLOCATE(val%c_val(nVal),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%c_val(nVal))
 
      IF (len_c == 0) THEN
         val%c_val(1) = ""
@@ -262,8 +252,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
   IF (PRESENT(lc_vals)) THEN
      CPASSERT(ALL(LEN_TRIM(lc_vals)<=default_string_length))
      narg=narg+1
-     ALLOCATE(val%c_val(SIZE(lc_vals)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val%c_val(SIZE(lc_vals)))
      val%c_val=lc_vals
      val%type_of_var=lchar_t
   END IF
@@ -300,7 +289,6 @@ SUBROUTINE val_release(val)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -310,25 +298,20 @@ SUBROUTINE val_release(val)
      val%ref_count=val%ref_count-1
      IF (val%ref_count==0) THEN
         IF (ASSOCIATED(val%l_val)) THEN
-           DEALLOCATE(val%l_val,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(val%l_val)
         END IF
         IF (ASSOCIATED(val%i_val)) THEN
-           DEALLOCATE(val%i_val,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(val%i_val)
         END IF
         IF (ASSOCIATED(val%r_val)) THEN
-           DEALLOCATE(val%r_val,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(val%r_val)
         END IF
         IF (ASSOCIATED(val%c_val)) THEN
-           DEALLOCATE(val%c_val,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(val%c_val)
         END IF
         CALL enum_release(val%enum)
         val%type_of_var=no_t
-        DEALLOCATE(val,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(val)
      END IF
   END IF
   NULLIFY(val)
@@ -797,14 +780,12 @@ SUBROUTINE val_duplicate(val_in,val_out)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
   CPASSERT(ASSOCIATED(val_in))
   CPASSERT(.NOT.ASSOCIATED(val_out))
-  ALLOCATE(val_out,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(val_out)
   last_val_id=last_val_id+1
   val_out%id_nr=last_val_id
   val_out%type_of_var=val_in%type_of_var
@@ -814,23 +795,19 @@ SUBROUTINE val_duplicate(val_in,val_out)
 
   NULLIFY(val_out%l_val,val_out%i_val,val_out%c_val,val_out%r_val)
   IF (ASSOCIATED(val_in%l_val)) THEN
-     ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val_out%l_val(SIZE(val_in%l_val)))
      val_out%l_val=val_in%l_val
   END IF
   IF (ASSOCIATED(val_in%i_val)) THEN
-     ALLOCATE(val_out%i_val(SIZE(val_in%i_val)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val_out%i_val(SIZE(val_in%i_val)))
      val_out%i_val=val_in%i_val
   END IF
   IF (ASSOCIATED(val_in%r_val)) THEN
-     ALLOCATE(val_out%r_val(SIZE(val_in%r_val)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val_out%r_val(SIZE(val_in%r_val)))
      val_out%r_val=val_in%r_val
   END IF
   IF (ASSOCIATED(val_in%c_val)) THEN
-     ALLOCATE(val_out%c_val(SIZE(val_in%c_val)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(val_out%c_val(SIZE(val_in%c_val)))
      val_out%c_val=val_in%c_val
   END IF
 END SUBROUTINE val_duplicate

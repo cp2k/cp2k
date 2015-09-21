@@ -112,7 +112,6 @@ SUBROUTINE pw_release(pw)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -126,20 +125,16 @@ SUBROUTINE pw_release(pw)
         allocated_pw_count = allocated_pw_count - 1
         SELECT CASE(pw % in_use)
         CASE (REALDATA1D)
-           DEALLOCATE ( pw % cr, STAT = stat )
-           CPASSERT(stat==0)
+           DEALLOCATE ( pw % cr)
         CASE(COMPLEXDATA1D)
-           DEALLOCATE ( pw % cc, STAT = stat )
-           CPASSERT(stat==0)
+           DEALLOCATE ( pw % cc)
         CASE(REALDATA3D)
            IF (ASSOCIATED(pw%cr3d)) THEN
               !FM optimizations of pools might have removed the 3d field to cache it
-              DEALLOCATE ( pw % cr3d, STAT = stat )
-              CPASSERT(stat==0)
+              DEALLOCATE ( pw % cr3d)
            END IF
         CASE(COMPLEXDATA3D)
-           DEALLOCATE ( pw % cc3d, STAT = stat )
-           CPASSERT(stat==0)
+           DEALLOCATE ( pw % cc3d)
         CASE(NODATA)
         CASE default
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -147,8 +142,7 @@ SUBROUTINE pw_release(pw)
         END SELECT
         CALL pw_grid_release(pw%pw_grid)
         pw%ref_count=0
-        DEALLOCATE(pw, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(pw)
      END IF
   END IF
   NULLIFY(pw)
@@ -177,7 +171,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -186,8 +180,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
 
   CALL timeset(routineN,handle)
   CPASSERT(.NOT.ASSOCIATED(pw))
-  ALLOCATE(pw,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(pw)
   logger => cp_get_default_logger()
   IF (debug_this_module) THEN
      WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
@@ -221,12 +214,10 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
 
   SELECT CASE(use_data)
   CASE(REALDATA1D)
-     ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
-     CPASSERT(stat==0)
+     ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ))
 
   CASE(COMPLEXDATA1D)
-     ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
-     CPASSERT(stat==0)
+     ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ))
 
   CASE (REALDATA3D)
      IF (PRESENT(cr3d_ptr)) THEN
@@ -242,16 +233,14 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
         ALLOCATE ( pw % cr3d ( &
              bounds ( 1, 1 ) : bounds ( 2, 1 ), &
              bounds ( 1, 2 ) : bounds ( 2, 2 ), &
-             bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
-        CPASSERT(stat==0)
+             bounds ( 1, 3 ) : bounds ( 2, 3 ) ))
      END IF
 
   CASE(COMPLEXDATA3D)
      ALLOCATE ( pw % cc3d ( &
           bounds ( 1, 1 ) : bounds ( 2, 1 ), &
           bounds ( 1, 2 ) : bounds ( 2, 2 ), &
-          bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
-     CPASSERT(stat==0)
+          bounds ( 1, 3 ) : bounds ( 2, 3 ) ))
   CASE(NODATA)
   CASE default
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

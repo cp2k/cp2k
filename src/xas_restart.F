@@ -103,10 +103,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER :: group, handle, i, ia, ie, ispin, istat, nao, nao_read, &
-      nelectron, nexc_atoms, nexc_atoms_read, nexc_search, nexc_search_read, &
-      nmo, nmo_read, output_unit, rst_unit, source, xas_estate, &
-      xas_estate_read, xas_method_read
+    INTEGER :: group, handle, i, ia, ie, ispin, nao, nao_read, nelectron, &
+      nexc_atoms, nexc_atoms_read, nexc_search, nexc_search_read, nmo, &
+      nmo_read, output_unit, rst_unit, source, xas_estate, xas_estate_read, &
+      xas_method_read
     LOGICAL                                  :: failure, file_exists
     REAL(dp)                                 :: occ_estate, occ_estate_read, &
                                                 xas_nelectron, &
@@ -197,8 +197,7 @@ CONTAINS
       estate = xas_estate_read
 
       CALL get_mo_set(mo_set=mos(1)%mo_set,nao=nao)
-      ALLOCATE (vecbuffer(1,nao),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (vecbuffer(1,nao))
 
       DO ispin = 1, SIZE(mos)
         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, eigenvalues=eigenvalues,&
@@ -212,8 +211,7 @@ CONTAINS
                  "To change basis is not possible. "//&
                  CPSourceFileRef,&
                  only_ionode=.TRUE.)
-          ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(eig_read(nmo_read), occ_read(nmo_read))
           eig_read = 0.0_dp
           occ_read = 0.0_dp
           nmo = MIN(nmo,nmo_read)
@@ -229,8 +227,7 @@ CPSourceFileRef,&
                  only_ionode=.TRUE.)
 
           END IF
-          DEALLOCATE(eig_read, occ_read, STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(eig_read, occ_read)
         ENDIF
         CALL mp_bcast(eigenvalues,source,group)
         CALL mp_bcast(occupation_numbers,source,group)
@@ -254,8 +251,7 @@ CPSourceFileRef,&
 
       END DO ! ispin
 
-      DEALLOCATE(vecbuffer,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(vecbuffer)
 
 !      nspin = SIZE(mos,1)
 !      DO ispin = 1,nspin
@@ -463,9 +459,8 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'find_excited_core_orbital', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ic_max, ir_max, istat, m, &
-                                                n, nao, nexc_search, nmo, &
-                                                xas_estate
+    INTEGER                                  :: i, ic_max, ir_max, m, n, nao, &
+                                                nexc_search, nmo, xas_estate
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a_max, b_max, ip_energy, &
@@ -486,11 +481,9 @@ CPSourceFileRef,&
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
          eigenvalues=eigenvalues,occupation_numbers=occupation_numbers)
-    ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuffer(1,nao))
     vecbuffer = 0.0_dp
-    ALLOCATE(vecbuffer2(1,nexc_search),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuffer2(1,nexc_search))
     vecbuffer2 = 0.0_dp
 
   ! ** use the maximum overlap criterion to find the index of the excited orbital
@@ -528,8 +521,7 @@ CPSourceFileRef,&
     CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
          nao,1,transpose=.TRUE.)
 
-    DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(vecbuffer,vecbuffer2)
 
  END SUBROUTINE find_excited_core_orbital
 

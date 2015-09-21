@@ -68,8 +68,7 @@ CONTAINS
     CHARACTER(LEN=2), ALLOCATABLE, &
       DIMENSION(:)                           :: element
     CHARACTER(LEN=8)                         :: csym1, csym2, csymm, esymm
-    INTEGER                                  :: handle, i, ierr, iw, natom, &
-                                                plevel
+    INTEGER                                  :: handle, i, iw, natom, plevel
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype, z
     LOGICAL                                  :: check, failure, molecular, &
                                                 pall, pcoor, pinertia, prmat, &
@@ -107,8 +106,7 @@ CONTAINS
         NULLIFY(mol_sym)
 
         natom = SIZE(particle_set)
-        ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom))
 
         DO i=1,natom
           CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z(i))
@@ -146,8 +144,7 @@ CONTAINS
           CPASSERT(check)
         END IF
 
-        DEALLOCATE(coord,z,weight,atype,element,STAT=ierr)
-        CPASSERT(ierr==0)
+        DEALLOCATE(coord,z,weight,atype,element)
 
         CALL release_molsym(mol_sym)
 
@@ -157,8 +154,7 @@ CONTAINS
         NULLIFY(crys_sym)
 
         natom = SIZE(particle_set)
-        ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom))
 
         DO i=1,natom
           CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z(i))

@@ -52,14 +52,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(para_env))
-    ALLOCATE(para_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(para_env)
     para_env%group=group
     para_env%source=0
     para_env%ref_count=1
@@ -115,7 +113,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -127,8 +124,7 @@ CONTAINS
          IF (para_env%owns_group) THEN
             CALL mp_comm_free(para_env%group)
          END IF
-         DEALLOCATE(para_env,stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(para_env)
       END IF
     END IF
     NULLIFY(para_env)
@@ -219,22 +215,19 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(cart))
-    ALLOCATE(cart,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cart)
     cart%owns_group=.TRUE.
     IF (PRESENT(owns_group)) cart%owns_group=owns_group
     cart%ndims=ndims
     cart%group=group
 
     ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),&
-         cart%num_pe(ndims),stat=stat)
-    CPASSERT(stat==0)
+         cart%num_pe(ndims))
 
     cart%source=0
     cart%mepos=0
@@ -277,7 +270,6 @@ SUBROUTINE cp_cart_release(cart)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -289,10 +281,8 @@ SUBROUTINE cp_cart_release(cart)
         IF (cart%owns_group) THEN
             CALL mp_comm_free(cart%group)
          END IF
-        DEALLOCATE(cart%source,cart%periodic,cart%mepos,cart%num_pe,stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(cart,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(cart%source,cart%periodic,cart%mepos,cart%num_pe)
+        DEALLOCATE(cart)
      END IF
   END IF
   NULLIFY(cart)

@@ -71,7 +71,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -80,43 +80,33 @@ CONTAINS
        IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
           DO i = 1, SIZE(fist_neighbor%neighbor_kind_pairs)
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%list)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%list, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%list)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)
              END IF
           END DO
-          DEALLOCATE(fist_neighbor%neighbor_kind_pairs, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fist_neighbor%neighbor_kind_pairs)
        END IF
-       DEALLOCATE(fist_neighbor, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(fist_neighbor)
     END IF
   END SUBROUTINE fist_neighbor_deallocate
 
@@ -135,8 +125,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, list_size, &
-                                                nlistmin, stat
+    INTEGER                                  :: handle, i, list_size, nlistmin
     LOGICAL                                  :: failure
     TYPE(neighbor_kind_pairs_type), &
       DIMENSION(:), POINTER                  :: new_pairs
@@ -144,71 +133,55 @@ CONTAINS
     failure=.FALSE.
     CALL timeset ( routineN, handle )
     IF (.NOT.ASSOCIATED(fist_neighbor)) THEN
-       ALLOCATE(fist_neighbor,stat=stat)
-          CPASSERT(stat==0)
+       ALLOCATE(fist_neighbor)
        NULLIFY(fist_neighbor%neighbor_kind_pairs)
     ENDIF
 
     nlistmin=(2*MAXVAL(ncell)+1)**3
     IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
        IF (SIZE(fist_neighbor%neighbor_kind_pairs)<nlistmin) THEN
-          ALLOCATE(new_pairs(nlistmin),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(new_pairs(nlistmin))
           DO i=1,SIZE(fist_neighbor%neighbor_kind_pairs)
              new_pairs(i)%list   =>fist_neighbor%neighbor_kind_pairs(i)%list
              list_size = SIZE(new_pairs(i)%list)
-             ALLOCATE(new_pairs(i)%id_kind(list_size),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(new_pairs(i)%ei_scale(0),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(new_pairs(i)%vdw_scale(0),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(new_pairs(i)%is_onfo(0),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(new_pairs(i)%id_kind(list_size))
+             ALLOCATE(new_pairs(i)%ei_scale(0))
+             ALLOCATE(new_pairs(i)%vdw_scale(0))
+             ALLOCATE(new_pairs(i)%is_onfo(0))
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)
              END IF
           ENDDO
           DO i=SIZE(fist_neighbor%neighbor_kind_pairs)+1,nlistmin
-             ALLOCATE(new_pairs(i)%list(2,0),stat=stat)
-             CPASSERT(stat==0)
-             ALLOCATE(new_pairs(i)%id_kind(0),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(new_pairs(i)%list(2,0))
+             ALLOCATE(new_pairs(i)%id_kind(0))
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
              NULLIFY(new_pairs(i)%ei_scale,new_pairs(i)%vdw_scale,new_pairs(i)%is_onfo)
           ENDDO
-          DEALLOCATE(fist_neighbor%neighbor_kind_pairs,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fist_neighbor%neighbor_kind_pairs)
           fist_neighbor%neighbor_kind_pairs=>new_pairs
        ELSE
           DO i=1,SIZE(fist_neighbor%neighbor_kind_pairs)
@@ -217,19 +190,13 @@ CONTAINS
           END DO
        ENDIF
     ELSE
-       ALLOCATE(fist_neighbor%neighbor_kind_pairs(nlistmin),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(fist_neighbor%neighbor_kind_pairs(nlistmin))
        DO i=1,nlistmin
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%list(2,0),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind(0),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale(0),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale(0),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%list(2,0))
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind(0))
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale(0))
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale(0))
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo(0))
           NULLIFY(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
@@ -283,7 +250,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER :: eps_default = EPSILON(0.0_dp)*1.0E4_dp
 
     INTEGER                                  :: new_npairs, npairs, nscale, &
-                                                old_npairs, stat
+                                                old_npairs
     INTEGER, DIMENSION(:), POINTER           :: new_id_kind
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
     LOGICAL                                  :: ex_ei, ex_vdw, failure, &
@@ -374,18 +341,14 @@ CONTAINS
        ! just a choice that will also grow for zero size arrays:
        new_npairs = INT(5+1.2*old_npairs)
        ! Pair Atoms Info
-       ALLOCATE(new_list(2,new_npairs),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(new_list(2,new_npairs))
        new_list(1:2,1:old_npairs)=neighbor_kind_pair%list(1:2,1:old_npairs)
-       DEALLOCATE(neighbor_kind_pair%list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(neighbor_kind_pair%list)
        neighbor_kind_pair%list=>new_list
        ! Kind Info
-       ALLOCATE(new_id_kind(new_npairs),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(new_id_kind(new_npairs))
        new_id_kind(1:old_npairs)=neighbor_kind_pair%id_kind(1:old_npairs)
-       DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(neighbor_kind_pair%id_kind)
        neighbor_kind_pair%id_kind=>new_id_kind
     ENDIF
 

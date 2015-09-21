@@ -81,7 +81,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, i_rep_val, isize, j, &
-                                                size_array, stat
+                                                size_array
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(section_vals_type), POINTER         :: nvec_section
@@ -96,8 +96,7 @@ CONTAINS
     isize      = 0
     i_rep_val  = 0
     Main_Loop: DO i = 1, SIZE(dimer_env%nvec), size_array
-       ALLOCATE(array(size_array), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(array(size_array))
        i_rep_val = i_rep_val + 1
        DO j = 1, size_array
           isize = isize + 1

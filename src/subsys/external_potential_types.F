@@ -255,14 +255,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_all_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
-    ALLOCATE (potential,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (potential)
 
     NULLIFY (potential%elec_conf)
 
@@ -283,14 +281,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
-    ALLOCATE (potential,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (potential)
 
     potential%apol = 0.0_dp
     potential%cpol = 0.0_dp
@@ -316,14 +312,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
-    ALLOCATE (potential,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (potential)
 
     NULLIFY (potential%alpha)
     NULLIFY (potential%cval)
@@ -348,14 +342,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gth_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
-    ALLOCATE (potential,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (potential)
 
     NULLIFY (potential%alpha_ppnl)
     NULLIFY (potential%cexp_ppl)
@@ -396,15 +388,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_all_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
-       DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (potential,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (potential%elec_conf)
+       DEALLOCATE (potential)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "The pointer potential is not associated.")
@@ -424,14 +413,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        ! Nothing exciting here yet.
-       DEALLOCATE (potential,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (potential)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "The pointer potential is not associated.")
@@ -452,7 +439,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -460,16 +446,13 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
        IF (ASSOCIATED(potential%alpha)) THEN
-          DEALLOCATE (potential%alpha,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%alpha)
        END IF
        IF (ASSOCIATED(potential%cval)) THEN
-          DEALLOCATE (potential%cval,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%cval)
        END IF
 
-       DEALLOCATE (potential,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (potential)
 
     ELSE
 
@@ -493,67 +476,48 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gth_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     IF (ASSOCIATED(potential)) THEN
 
-       DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (potential%elec_conf)
        !     *** Deallocate the parameters of the local part ***
 
        IF (ASSOCIATED(potential%cexp_ppl)) THEN
-          DEALLOCATE (potential%cexp_ppl,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%cexp_ppl)
        END IF
 
        !     *** Deallocate the parameters of the non-local part ***
        IF (ASSOCIATED(potential%alpha_ppnl)) THEN
-          DEALLOCATE (potential%alpha_ppnl,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%cprj,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%cprj_ppnl,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%hprj_ppnl,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%nprj_ppnl,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%vprj_ppnl,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%alpha_ppnl)
+          DEALLOCATE (potential%cprj)
+          DEALLOCATE (potential%cprj_ppnl)
+          DEALLOCATE (potential%hprj_ppnl)
+          DEALLOCATE (potential%nprj_ppnl)
+          DEALLOCATE (potential%vprj_ppnl)
        END IF
 
        IF (ASSOCIATED(potential%alpha_lpot)) THEN
-          DEALLOCATE (potential%alpha_lpot,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%nct_lpot,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%cval_lpot,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%alpha_lpot)
+          DEALLOCATE (potential%nct_lpot)
+          DEALLOCATE (potential%cval_lpot)
        END IF
 
        IF (ASSOCIATED(potential%alpha_lsd)) THEN
-          DEALLOCATE (potential%alpha_lsd,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%nct_lsd,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%cval_lsd,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%alpha_lsd)
+          DEALLOCATE (potential%nct_lsd)
+          DEALLOCATE (potential%cval_lsd)
        END IF
 
        IF (ASSOCIATED(potential%alpha_nlcc)) THEN
-          DEALLOCATE (potential%alpha_nlcc,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%nct_nlcc,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (potential%cval_nlcc,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (potential%alpha_nlcc)
+          DEALLOCATE (potential%nct_nlcc)
+          DEALLOCATE (potential%cval_nlcc)
        END IF
 
-       DEALLOCATE (potential,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (potential)
     ELSE
 
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1135,8 +1099,7 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER                                  :: irep, l, stat, strlen1, &
-                                                strlen2
+    INTEGER                                  :: irep, l, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
@@ -1230,8 +1193,7 @@ CONTAINS
              potential%zeff_correction = zeff_correction
              potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
-             DEALLOCATE (elec_conf,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (elec_conf)
 
              ! Read r(loc) to define the exponent of the core charge
              ! distribution and calculate the corresponding coefficient
@@ -1499,7 +1461,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
     INTEGER :: i, ic, ipot, irep, istr, j, l, lppnl, lprj_ppnl_max, maxlppl, &
-      n, nppnl, nprj_ppnl, nprj_ppnl_max, stat, strlen1, strlen2
+      n, nppnl, nprj_ppnl, nprj_ppnl_max, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
@@ -1605,8 +1567,7 @@ CONTAINS
              potential%zeff_correction = zeff_correction
              potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
-             DEALLOCATE (elec_conf,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (elec_conf)
 
              !         *** Read r(loc) to define the exponent of the core charge    ***
              !         *** distribution and calculate the corresponding coefficient ***
@@ -2012,8 +1973,7 @@ CONTAINS
                 CALL reallocate(potential%cprj_ppnl,1,nprj_ppnl_max,0,lppnl)
                 CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
 
-                DEALLOCATE (hprj_ppnl,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (hprj_ppnl)
              END IF
              EXIT search_loop
           END IF

@@ -283,7 +283,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -294,19 +294,13 @@ CONTAINS
     END IF
     CALL nddo_mpole_create(nddo_mpole)
     ! Allocate Global Arrays
-    ALLOCATE(nddo_mpole%charge(natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(nddo_mpole%dipole(3,natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(nddo_mpole%quadrupole(3,3,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(nddo_mpole%charge(natom))
+    ALLOCATE(nddo_mpole%dipole(3,natom))
+    ALLOCATE(nddo_mpole%quadrupole(3,3,natom))
 
-    ALLOCATE(nddo_mpole%efield0(  natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(nddo_mpole%efield1(3,natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(nddo_mpole%efield2(9,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(nddo_mpole%efield0(  natom))
+    ALLOCATE(nddo_mpole%efield1(3,natom))
+    ALLOCATE(nddo_mpole%efield2(9,natom))
 
     CALL timestop(handle)
 

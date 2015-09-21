@@ -52,13 +52,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mixed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.ASSOCIATED(mixed_energy)) THEN
-      ALLOCATE (mixed_energy,STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (mixed_energy)
     END IF
     CALL init_mixed_energy(mixed_energy)
   END SUBROUTINE allocate_mixed_energy
@@ -76,13 +74,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mixed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(mixed_energy)) THEN
-      DEALLOCATE (mixed_energy,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE (mixed_energy)
     END IF
   END SUBROUTINE deallocate_mixed_energy
 

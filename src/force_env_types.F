@@ -191,7 +191,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, my_group, stat
+    INTEGER                                  :: i, my_group
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: my_logger
 
@@ -214,8 +214,7 @@ CONTAINS
                 IF (force_env%in_use==use_mixed_force) &
                    CALL cp_rm_default_logger()
              END DO
-             DEALLOCATE(force_env%sub_force_env,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(force_env%sub_force_env)
           END IF
 
           SELECT CASE ( force_env%in_use )
@@ -241,8 +240,7 @@ CONTAINS
           CALL qmmmx_env_release(force_env%qmmmx_env)
           CALL section_vals_release(force_env%force_env_section)
           CALL section_vals_release(force_env%root_section)
-          DEALLOCATE(force_env,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(force_env)
        END IF
     END IF
     NULLIFY(force_env)
@@ -669,8 +667,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'multiple_fe_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_eval, main_force_eval, &
-                                                stat
+    INTEGER                                  :: iforce_eval, main_force_eval
     INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
     LOGICAL                                  :: failure
 
@@ -679,8 +676,7 @@ CONTAINS
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
          i_vals=my_i_force_eval)
-    ALLOCATE(i_force_eval(nforce_eval),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(i_force_eval(nforce_eval))
     IF (nforce_eval>0) THEN
        IF (nforce_eval==SIZE(my_i_force_eval)) THEN
           i_force_eval                = my_i_force_eval

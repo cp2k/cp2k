@@ -89,7 +89,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -98,8 +98,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    ALLOCATE(diis_buffer,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(diis_buffer)
 
     NULLIFY (diis_buffer%b_matrix)
     NULLIFY (diis_buffer%error)
@@ -954,7 +953,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_create_sparse', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -963,8 +962,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    ALLOCATE(diis_buffer,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(diis_buffer)
 
     NULLIFY (diis_buffer%b_matrix)
     NULLIFY (diis_buffer%error)

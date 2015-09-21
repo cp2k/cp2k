@@ -165,7 +165,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
@@ -175,8 +174,7 @@ CONTAINS
        CALL section_vals_get(qmmm_section, explicit=explicit)
        CPASSERT(explicit)
 
-       ALLOCATE(work(3),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(3))
        work = force_env%qmmm_env%qm%transl_v
        CALL section_vals_val_set(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work)
     END SELECT
@@ -201,7 +199,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
       nparticle_kind, nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -218,8 +216,7 @@ CONTAINS
        nparticle_kind = atomic_kinds%n_els
        nparticle = particles%n_els
 
-       ALLOCATE (ascii(rng_record_length,nparticle),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (ascii(rng_record_length,nparticle))
        ascii = 0
 
        DO iparticle=1,nparticle
@@ -240,8 +237,7 @@ CONTAINS
 
        CALL section_rng_val_set(rng_section=rng_section,nsize=nparticle,ascii=ascii)
 
-       DEALLOCATE (ascii,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (ascii)
     END IF
 
   END SUBROUTINE update_rng_particle
@@ -268,7 +264,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: coord_file_name, unit_str
     INTEGER                                  :: coord_file_format, handle, &
-                                                output_unit, stat
+                                                output_unit
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
@@ -293,8 +289,7 @@ CONTAINS
 
     ! Remove the multiple_unit_cell from the input structure.. at this point we have
     ! already all the information we need..
-    ALLOCATE(multiple_unit_cell(3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(multiple_unit_cell(3))
     multiple_unit_cell = 1
     CALL section_vals_val_set(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
          i_vals_ptr=multiple_unit_cell)
@@ -621,8 +616,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_dipoles_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, irk, Nlist, &
-                                                nloop, stat
+    INTEGER                                  :: handle, ik, irk, Nlist, nloop
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -652,8 +646,7 @@ CONTAINS
        Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nloop
-       ALLOCATE(work(3),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(3))
        ! Always stored in A.U.
        work = dipoles(1:3,irk)
        CALL val_create(my_val,r_vals_ptr=work)
@@ -703,7 +696,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ik, ind, irk, j, &
-                                                Nlist, nloop, stat
+                                                Nlist, nloop
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -733,8 +726,7 @@ CONTAINS
        Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nloop
-       ALLOCATE(work(6),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(6))
        ! Always stored in A.U.
        ind = 0
        DO i = 1, 3

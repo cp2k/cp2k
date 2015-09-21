@@ -357,7 +357,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: c_val, info, location
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: c_val_p
-    INTEGER                                  :: handle, i, i_val, stat
+    INTEGER                                  :: handle, i, i_val
     INTEGER, DIMENSION(:), POINTER           :: i_val_p
     LOGICAL                                  :: check, failure, l_val
     LOGICAL, DIMENSION(:), POINTER           :: l_val_p
@@ -379,8 +379,7 @@ CONTAINS
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
-                ALLOCATE(l_val_p(0),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(l_val_p(0))
                 CALL val_create(val,l_vals_ptr=l_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -407,8 +406,7 @@ CONTAINS
              l_val_p => cp_to_array(l_first)
              CALL cp_dealloc(l_first)
           ELSE
-             ALLOCATE(l_val_p(n_var),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(l_val_p(n_var))
              DO i=1,n_var
                 CALL parser_get_object(parser,l_val_p(i))
              END DO
@@ -422,8 +420,7 @@ CONTAINS
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
-                ALLOCATE(i_val_p(0),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(i_val_p(0))
                 CALL val_create(val,i_vals_ptr=i_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -450,8 +447,7 @@ CONTAINS
              i_val_p => cp_to_array(i_first)
              CALL cp_dealloc(i_first)
           ELSE
-             ALLOCATE(i_val_p(n_var),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(i_val_p(n_var))
              DO i=1,n_var
                 CALL parser_get_object(parser,i_val_p(i))
              END DO
@@ -465,8 +461,7 @@ CONTAINS
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
-                ALLOCATE(r_val_p(0),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(r_val_p(0))
                 CALL val_create(val,r_vals_ptr=r_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -494,8 +489,7 @@ CONTAINS
              r_val_p => cp_to_array(r_first)
              CALL cp_dealloc(r_first)
           ELSE
-             ALLOCATE(r_val_p(n_var),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(r_val_p(n_var))
              c_val = ""
              DO i=1,n_var
                 CALL get_r_val(r_val_p(i), parser, unit, default_units, c_val)
@@ -509,8 +503,7 @@ CONTAINS
        NULLIFY(c_val_p)
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (n_var<1) THEN
-             ALLOCATE(c_val_p(1),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(c_val_p(1))
              c_val_p(1)=' '
              CALL val_create(val,c_vals_ptr=c_val_p)
           ELSE
@@ -540,8 +533,7 @@ CONTAINS
              c_val_p => cp_to_array(c_first)
              CALL cp_dealloc(c_first)
           ELSE
-             ALLOCATE(c_val_p(n_var),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(c_val_p(n_var))
              DO i=1,n_var
                 CALL parser_get_object(parser,c_val_p(i))
              END DO
@@ -560,8 +552,7 @@ CONTAINS
             " one always represent a whole line, till the end"//&
             TRIM(parser_location(parser)),failure)
        IF (parser_test_next_token(parser)=="EOL") THEN
-          ALLOCATE(c_val_p(1),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(c_val_p(1))
           c_val_p(1)=' '
        ELSE
           NULLIFY(c_last,c_first)
@@ -586,8 +577,7 @@ CONTAINS
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
-                ALLOCATE(i_val_p(0),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(i_val_p(0))
                 CALL val_create(val,i_vals_ptr=i_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -614,8 +604,7 @@ CONTAINS
              i_val_p => cp_to_array(i_first)
              CALL cp_dealloc(i_first)
           ELSE
-             ALLOCATE(i_val_p(n_var),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(i_val_p(n_var))
              DO i=1,n_var
                 CALL parser_get_object(parser,c_val)
                 i_val_p(i)=enum_c2i(enum,c_val)

@@ -373,8 +373,8 @@ CONTAINS
 
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: cc_mix
     INTEGER                                  :: handle, i, ib, ibb, ig, &
-                                                ispin, istat, jb, nb, nb1, &
-                                                nbuffer, ng, nspin
+                                                ispin, jb, nb, nb1, nbuffer, &
+                                                ng, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha_kerker, alpha_pulay, &
                                                 beta, f_mix, inv_err, norm, &
@@ -405,27 +405,20 @@ CONTAINS
     ibb = MODULO(mixing_store%ncall,nbuffer) + 1
 
     nb1 = nb + 1
-    ALLOCATE(a(nb1,nb1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(a(nb1,nb1))
     a=0.0_dp
-    ALLOCATE(b(nb1,nb1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(b(nb1,nb1))
     b=0.0_dp
-    ALLOCATE(c(nb,nb), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(c(nb,nb))
     c=0.0_dp
-    ALLOCATE(c_inv(nb,nb), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(c_inv(nb,nb))
     c_inv=0.0_dp
-    ALLOCATE(alpha_c(nb), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(alpha_c(nb))
     alpha_c=0.0_dp
     norm_c_inv = 0.0_dp
-    ALLOCATE(ev(nb1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ev(nb1))
     ev=0.0_dp
-    ALLOCATE(cc_mix(ng), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(cc_mix(ng))
 
     DO ispin = 1,nspin
       mixing_store%res_buffer(ib,ispin)%cc(:) = CMPLX(0._dp,0._dp,KIND=dp)
@@ -518,16 +511,11 @@ CONTAINS
       END IF  ! nb==1
     END DO ! ispin
 
-    DEALLOCATE(a, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(b, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(ev, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(cc_mix, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(c,c_inv,alpha_c, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(a)
+    DEALLOCATE(b)
+    DEALLOCATE(ev)
+    DEALLOCATE(cc_mix)
+    DEALLOCATE(c,c_inv,alpha_c)
 
     CALL timestop(handle)
 
@@ -558,9 +546,8 @@ CONTAINS
     COMPLEX(dp)                              :: cc_mix
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: res_rho
     INTEGER                                  :: handle, i, iatom, ib, ibb, &
-                                                ig, ispin, istat, j, jb, kb, &
-                                                n1, n2, natom, nb, nbuffer, &
-                                                ng, nspin
+                                                ig, ispin, j, jb, kb, n1, n2, &
+                                                natom, nb, nbuffer, ng, nspin
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: alpha, beta, dcpc_h_res, &
                                                 dcpc_s_res, delta_norm, &
@@ -604,20 +591,15 @@ CONTAINS
 !    ibb = MIN(mixing_store%ncall+1,nbuffer)
 !dbg
 
-    ALLOCATE(a(ib-1,ib-1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(a(ib-1,ib-1))
     a=0.0_dp
-    ALLOCATE(b(ib-1,ib-1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(b(ib-1,ib-1))
     b=0.0_dp
-    ALLOCATE(c(ib-1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(c(ib-1))
     c=0.0_dp
-    ALLOCATE(g(ib-1), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(g(ib-1))
     g=0.0_dp
-    ALLOCATE(res_rho(ng), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(res_rho(ng))
 
     IF(gapw) THEN
       CALL get_qs_env(qs_env=qs_env,&
@@ -818,8 +800,7 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(a,b,c,g,res_rho, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(a,b,c,g,res_rho)
 
     CALL timestop(handle)
 
@@ -889,24 +870,17 @@ CONTAINS
     nb = MIN(mixing_store%ncall,nbuffer)
     ibb = MIN(mixing_store%ncall+1,nbuffer)
 
-    ALLOCATE(res_rho(ng), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(res_rho_p(ng), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(res_rho(ng))
+    ALLOCATE(res_rho_p(ng))
     IF(ib>1) THEN
-      ALLOCATE(a(ib-1,ib-1), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(a(ib-1,ib-1))
       a=0.0_dp
-      ALLOCATE(b(ib-1,ib-1), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(b(ib-1,ib-1))
       b=0.0_dp
-      ALLOCATE(bq(ib-1,ib-1), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(bq(ib-1,ib-1))
       bq=0.0_dp
-      ALLOCATE(tmp(ng), STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(delta_res_p(ng),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(tmp(ng))
+      ALLOCATE(delta_res_p(ng))
     END IF
 
     p_metric => mixing_store%p_metric
@@ -1228,13 +1202,10 @@ CONTAINS
 
     END DO  ! ispin
     IF(ib>1) THEN
-      DEALLOCATE(a,b,bq, STAT=istat)
-      CPASSERT(istat==0)
-      DEALLOCATE(delta_res_p,tmp, STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(a,b,bq)
+      DEALLOCATE(delta_res_p,tmp)
     END IF
-    DEALLOCATE(res_rho,res_rho_p, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(res_rho,res_rho_p)
 
     CALL timestop(handle)
 
@@ -1275,8 +1246,8 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:), POINTER       :: gn
     INTEGER                                  :: handle, ib, ib_next, ib_prev, &
                                                 ig, ig_global, iig, ispin, &
-                                                istat, jb, kb, nb, nbuffer, &
-                                                ng, ng_global, nspin
+                                                jb, kb, nb, nbuffer, ng, &
+                                                ng_global, nspin
     LOGICAL                                  :: failure, use_zgemm, &
                                                 use_zgemm_rev
     REAL(dp) :: alpha, f_mix, gn_norm, gn_norm_old, inv_err, n_low, n_up, &
@@ -1359,47 +1330,32 @@ CONTAINS
 
     ! allocate temporary arrays
     ! step_matrix  S ngxnb
-    ALLOCATE(step_matrix(ng,nb),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(step_matrix(ng,nb))
     ! res_matrix Y  ngxnb
-    ALLOCATE(res_matrix(ng,nb),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(res_matrix(ng,nb))
     ! matrix A  nbxnb
-    ALLOCATE(a_matrix(nb,ng_global),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(a_matrix(nb,ng_global))
     ! PSI nb vector of norms
-    ALLOCATE(norm_res(nb),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(norm_res_low(nb),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(norm_res_up(nb),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(norm_res(nb))
+    ALLOCATE(norm_res_low(nb))
+    ALLOCATE(norm_res_up(nb))
 
     ! matrix B   nbxnb
-    ALLOCATE(b_matrix(nb,nb),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(b_matrix(nb,nb))
     ! matrix B_inv   nbxnb
-    ALLOCATE(binv_matrix(nb,nb),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(binv_matrix(nb,nb))
 
-    ALLOCATE(gn_global(ng_global),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(res_matrix_global(ng_global),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(gn_global(ng_global))
+    ALLOCATE(res_matrix_global(ng_global))
     IF(use_zgemm) THEN
-      ALLOCATE(sa(ng,ng_global),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(ya(ng,ng_global),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(sa(ng,ng_global))
+      ALLOCATE(ya(ng,ng_global))
     END IF
     IF(use_zgemm_rev) THEN
-      ALLOCATE(tmp_vec(nb),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(tmp_vec(nb))
     END IF
-    ALLOCATE(pgn(ng),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(ugn(ng),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(pgn(ng))
+    ALLOCATE(ugn(ng))
 
 
     DO ispin = 1,nspin
@@ -1616,28 +1572,19 @@ CONTAINS
     END DO ! ispin
 
     ! Deallocate  temporary arrays
-    DEALLOCATE(step_matrix,res_matrix, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(norm_res, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(norm_res_up, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(norm_res_low, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(a_matrix,b_matrix,binv_matrix, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(ugn,pgn, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(step_matrix,res_matrix)
+    DEALLOCATE(norm_res)
+    DEALLOCATE(norm_res_up)
+    DEALLOCATE(norm_res_low)
+    DEALLOCATE(a_matrix,b_matrix,binv_matrix)
+    DEALLOCATE(ugn,pgn)
     IF(use_zgemm) THEN
-      DEALLOCATE(sa,ya, STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(sa,ya)
     END IF
     IF(use_zgemm_rev) THEN
-      DEALLOCATE(tmp_vec, STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(tmp_vec)
     END IF
-    DEALLOCATE(gn_global,res_matrix_global, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(gn_global,res_matrix_global)
 
     CALL timestop(handle)
 
@@ -1754,13 +1701,10 @@ CONTAINS
                rho_atom_set=rho_atom)
         natom = SIZE(rho_atom)
         IF(.NOT. ASSOCIATED(mixing_store%paw)) THEN
-          ALLOCATE(mixing_store%paw(natom),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mixing_store%paw(natom))
           mixing_store%paw = .FALSE.
-          ALLOCATE(mixing_store%cpc_h_in(natom,nspins),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(mixing_store%cpc_s_in(natom,nspins),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mixing_store%cpc_h_in(natom,nspins))
+          ALLOCATE(mixing_store%cpc_s_in(natom,nspins))
           DO ispin = 1,nspins
             DO iat = 1,natom
                NULLIFY(mixing_store%cpc_h_in(iat,ispin)%r_coef)
@@ -1775,8 +1719,7 @@ CONTAINS
     IF (mixing_method==pulay_mixing_nr .OR.mixing_method==broyden_mixing_new_nr&
            .OR. mixing_method==multisecant_mixing_nr ) THEN
       IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-        ALLOCATE(mixing_store%rhoin_buffer(nbuffer,nspins), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mixing_store%rhoin_buffer(nbuffer,nspins))
         DO ispin = 1,nspins
           DO i = 1,nbuffer
             NULLIFY(mixing_store%rhoin_buffer(i,ispin)%cc)
@@ -1788,8 +1731,7 @@ CONTAINS
 !   *** allocare res_buffer if needed
     IF (mixing_method>=pulay_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%res_buffer)) THEN
-        ALLOCATE(mixing_store%res_buffer(nbuffer,nspins), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mixing_store%res_buffer(nbuffer,nspins))
         DO ispin = 1,nspins
           DO i = 1,nbuffer
             NULLIFY(mixing_store%res_buffer(i,ispin)%cc)
@@ -1801,8 +1743,7 @@ CONTAINS
 !   *** allocate pulay buffer ***
     IF (mixing_method==pulay_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%pulay_matrix)) THEN
-        ALLOCATE(mixing_store%pulay_matrix(nbuffer,nbuffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mixing_store%pulay_matrix(nbuffer,nbuffer))
       END IF
 
     END IF
@@ -1815,10 +1756,8 @@ CONTAINS
         END DO
       END IF
       IF(.NOT. ASSOCIATED(mixing_store%drho_buffer)) THEN
-        ALLOCATE(mixing_store%drho_buffer(nbuffer,nspins), STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(mixing_store%last_res(nspins), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mixing_store%drho_buffer(nbuffer,nspins))
+        ALLOCATE(mixing_store%last_res(nspins))
         DO ispin = 1,nspins
           DO i = 1,nbuffer
            NULLIFY(mixing_store%drho_buffer(i,ispin)%cc)
@@ -1828,10 +1767,8 @@ CONTAINS
       END IF
       IF(dft_control%qs_control%gapw) THEN
         IF(.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
-          ALLOCATE(mixing_store%cpc_h_old(natom,nspins),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(mixing_store%cpc_s_old(natom,nspins),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mixing_store%cpc_h_old(natom,nspins))
+          ALLOCATE(mixing_store%cpc_s_old(natom,nspins))
           DO ispin = 1,nspins
             DO iat = 1,natom
                NULLIFY(mixing_store%cpc_h_old(iat,ispin)%r_coef)
@@ -1840,14 +1777,10 @@ CONTAINS
           END DO
         END IF
         IF(.NOT. ASSOCIATED(mixing_store%dcpc_h_in)) THEN
-          ALLOCATE(mixing_store%dcpc_h_in(nbuffer,natom,nspins),STAT=stat)
-        CPASSERT(stat==0)
-          ALLOCATE(mixing_store%dcpc_s_in(nbuffer,natom,nspins),STAT=stat)
-        CPASSERT(stat==0)
-          ALLOCATE(mixing_store%cpc_h_lastres(natom,nspins),STAT=stat)
-        CPASSERT(stat==0)
-          ALLOCATE(mixing_store%cpc_s_lastres(natom,nspins),STAT=stat)
-        CPASSERT(stat==0)
+          ALLOCATE(mixing_store%dcpc_h_in(nbuffer,natom,nspins))
+          ALLOCATE(mixing_store%dcpc_s_in(nbuffer,natom,nspins))
+          ALLOCATE(mixing_store%cpc_h_lastres(natom,nspins))
+          ALLOCATE(mixing_store%cpc_s_lastres(natom,nspins))
           DO ispin = 1,nspins
             DO iat = 1,natom
               DO i = 1,nbuffer
@@ -1864,18 +1797,12 @@ CONTAINS
 !   *** allocate broyden buffer ***
     IF (mixing_method==broyden_mixing_new_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
-        ALLOCATE(mixing_store%last_res(nspins), STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(mixing_store%delta_res(nbuffer-1,nspins), STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(mixing_store%u_vec(nbuffer-1,nspins), STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(mixing_store%z_vec(nbuffer-1,nspins), STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(mixing_store%weight(nbuffer,nspins), STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(mixing_store%fmat(nbuffer-1,nbuffer-1,nspins), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mixing_store%last_res(nspins))
+        ALLOCATE(mixing_store%delta_res(nbuffer-1,nspins))
+        ALLOCATE(mixing_store%u_vec(nbuffer-1,nspins))
+        ALLOCATE(mixing_store%z_vec(nbuffer-1,nspins))
+        ALLOCATE(mixing_store%weight(nbuffer,nspins))
+        ALLOCATE(mixing_store%fmat(nbuffer-1,nbuffer-1,nspins))
         DO ispin = 1,nspins
         DO i = 1,nbuffer-1
            NULLIFY(mixing_store%delta_res(i,ispin)%cc)
@@ -1890,8 +1817,7 @@ CONTAINS
 !   *** allocate multisecant buffer ***
     IF (mixing_method==multisecant_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%norm_res_buffer)) THEN
-        ALLOCATE(mixing_store%norm_res_buffer(nbuffer,nspins), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mixing_store%norm_res_buffer(nbuffer,nspins))
       END IF
     END IF
 
@@ -1954,12 +1880,10 @@ CONTAINS
     END IF
 
     IF(.NOT. ASSOCIATED(mixing_store%kerker_factor)) THEN
-      ALLOCATE(mixing_store%kerker_factor(ng),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(mixing_store%kerker_factor(ng))
     END IF
     IF(.NOT. ASSOCIATED(mixing_store%special_metric)) THEN
-      ALLOCATE(mixing_store%special_metric(ng),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(mixing_store%special_metric(ng))
     END IF
     beta = mixing_store%beta
     kmin = 0.1_dp
@@ -1985,8 +1909,7 @@ CONTAINS
       IF(ASSOCIATED(mixing_store%rhoin_buffer)) THEN
         IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1,ispin)%cc)) THEN
            DO ib = 1,nbuffer
-              ALLOCATE(mixing_store%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)
-              CPASSERT(istat==0)
+              ALLOCATE(mixing_store%rhoin_buffer(ib,ispin)%cc(ng))
             END DO
          END IF
          mixing_store%rhoin_buffer(1,ispin)%cc(1:ng) = &
@@ -1995,8 +1918,7 @@ CONTAINS
       IF(ASSOCIATED(mixing_store%res_buffer)) THEN
         IF(.NOT. ASSOCIATED(mixing_store%res_buffer(1,ispin)%cc)) THEN
           DO ib = 1,nbuffer
-            ALLOCATE(mixing_store%res_buffer(ib,ispin)%cc(ng),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(mixing_store%res_buffer(ib,ispin)%cc(ng))
           END DO
         END IF
       END IF
@@ -2022,10 +1944,8 @@ CONTAINS
          n2 = SIZE(rho_atom(iat)%cpc_s(ispin)%r_coef,2)
          IF(ASSOCIATED(mixing_store%cpc_s_in)) THEN
            IF(.NOT. ASSOCIATED(mixing_store%cpc_s_in(iat,ispin)%r_coef)) THEN
-              ALLOCATE(mixing_store%cpc_s_in(iat,ispin)%r_coef(n1,n2),STAT=istat)
-              CPASSERT(istat==0)
-              ALLOCATE(mixing_store%cpc_h_in(iat,ispin)%r_coef(n1,n2),STAT=istat)
-              CPASSERT(istat==0)
+              ALLOCATE(mixing_store%cpc_s_in(iat,ispin)%r_coef(n1,n2))
+              ALLOCATE(mixing_store%cpc_h_in(iat,ispin)%r_coef(n1,n2))
            END IF
            mixing_store%cpc_h_in(iat,ispin)%r_coef = rho_atom(iat)%cpc_h(ispin)%r_coef
            mixing_store%cpc_s_in(iat,ispin)%r_coef = rho_atom(iat)%cpc_s(ispin)%r_coef
@@ -2044,11 +1964,9 @@ CONTAINS
          END IF
          IF(.NOT. ASSOCIATED(mixing_store%drho_buffer(1,ispin)%cc)) THEN
            DO ib = 1,nbuffer
-             ALLOCATE(mixing_store%drho_buffer(ib,ispin)%cc(ng),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(mixing_store%drho_buffer(ib,ispin)%cc(ng))
            END DO
-           ALLOCATE(mixing_store%last_res(ispin)%cc(ng),STAT=istat)
-           CPASSERT(istat==0)
+           ALLOCATE(mixing_store%last_res(ispin)%cc(ng))
          END IF
          DO ib = 1,nbuffer
             mixing_store%drho_buffer(ib,ispin)%cc = CMPLX(0.0_dp,0.0_dp,kind=dp)
@@ -2070,15 +1988,11 @@ CONTAINS
            mixing_store%cpc_s_old(iat,ispin)%r_coef = 0.0_dp
            IF(.NOT. ASSOCIATED(mixing_store%dcpc_s_in(1,iat,ispin)%r_coef)) THEN
              DO ib = 1,nbuffer
-               ALLOCATE(mixing_store%dcpc_h_in(ib,iat,ispin)%r_coef(n1,n2),STAT=istat)
-               CPASSERT(istat==0)
-               ALLOCATE(mixing_store%dcpc_s_in(ib,iat,ispin)%r_coef(n1,n2),STAT=istat)
-               CPASSERT(istat==0)
+               ALLOCATE(mixing_store%dcpc_h_in(ib,iat,ispin)%r_coef(n1,n2))
+               ALLOCATE(mixing_store%dcpc_s_in(ib,iat,ispin)%r_coef(n1,n2))
              END DO
-             ALLOCATE(mixing_store%cpc_h_lastres(iat,ispin)%r_coef(n1,n2),STAT=istat)
-             CPASSERT(istat==0)
-             ALLOCATE(mixing_store%cpc_s_lastres(iat,ispin)%r_coef(n1,n2),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(mixing_store%cpc_h_lastres(iat,ispin)%r_coef(n1,n2))
+             ALLOCATE(mixing_store%cpc_s_lastres(iat,ispin)%r_coef(n1,n2))
            END IF
            DO ib = 1,nbuffer
              mixing_store%dcpc_h_in(ib,iat,ispin)%r_coef = 0.0_dp
@@ -2092,8 +2006,7 @@ CONTAINS
        END IF
 
        IF(.NOT. ASSOCIATED(mixing_store%p_metric)) THEN
-         ALLOCATE(mixing_store%p_metric(ng),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(mixing_store%p_metric(ng))
               bconst = mixing_store%bconst
               g2min = 1.E30_dp
               DO ig = 1,ng
@@ -2119,20 +2032,15 @@ CONTAINS
        DO ispin = 1,nspin
          IF(.NOT. ASSOCIATED(mixing_store%u_vec(1,ispin)%cc)) THEN
             DO ib = 1,nbuffer-1
-              ALLOCATE(mixing_store%delta_res(ib,ispin)%cc(ng),STAT=istat)
-              CPASSERT(istat==0)
-              ALLOCATE(mixing_store%u_vec(ib,ispin)%cc(ng),STAT=istat)
-               CPASSERT(istat==0)
-              ALLOCATE(mixing_store%z_vec(ib,ispin)%cc(ng),STAT=istat)
-              CPASSERT(istat==0)
+              ALLOCATE(mixing_store%delta_res(ib,ispin)%cc(ng))
+              ALLOCATE(mixing_store%u_vec(ib,ispin)%cc(ng))
+              ALLOCATE(mixing_store%z_vec(ib,ispin)%cc(ng))
             END DO
-            ALLOCATE(mixing_store%last_res(ispin)%cc(ng),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(mixing_store%last_res(ispin)%cc(ng))
          END IF
        END DO
        IF(.NOT. ASSOCIATED(mixing_store%p_metric)) THEN
-         ALLOCATE(mixing_store%p_metric(ng),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(mixing_store%p_metric(ng))
          bconst = mixing_store%bconst
          g2min = 1.E30_dp
          DO ig = 1,ng
@@ -2150,8 +2058,7 @@ CONTAINS
       END IF
     ELSEIF(mixing_method==multisecant_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%ig_global_index)) THEN
-         ALLOCATE(mixing_store%ig_global_index(ng),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(mixing_store%ig_global_index(ng))
       END IF
       mixing_store%ig_global_index = 0
       ig_count = 0

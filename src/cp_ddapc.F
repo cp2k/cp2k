@@ -98,8 +98,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ddapc_size, handle, i, my_id, &
-                                                stat
+    INTEGER                                  :: ddapc_size, handle, i, my_id
     LOGICAL                                  :: ddapc_restraint_is_spin, &
                                                 et_coupling_calc, &
                                                 explicit_potential, failure
@@ -130,10 +129,8 @@ CONTAINS
     IF(dft_control%qs_control%ddapc_restraint)THEN
        ddapc_size=SIZE(dft_control%qs_control%ddapc_restraint_control)
        IF(SIZE(energy%ddapc_restraint).NE.ddapc_size)THEN
-          DEALLOCATE(energy%ddapc_restraint,stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(energy%ddapc_restraint(ddapc_size),stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(energy%ddapc_restraint)
+          ALLOCATE(energy%ddapc_restraint(ddapc_size))
        END IF
 
        DO i=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
@@ -248,7 +245,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_CD', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw, stat
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: apply_decpl, failure, need_f
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
@@ -350,13 +347,10 @@ CONTAINS
           END IF
        END IF
        ! Clean the allocated arrays
-       DEALLOCATE(charges, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(radii, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charges)
+       DEALLOCATE(radii)
        IF (ASSOCIATED(dq)) THEN
-          DEALLOCATE(dq, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dq)
        END IF
        CALL cp_print_key_finished_output(iw,logger,multipole_section,&
             "PROGRAM_RUN_INFO")
@@ -389,7 +383,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RS', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw, my_id, stat
+    INTEGER                                  :: handle, iw, my_id
     LOGICAL                                  :: apply_restrain, failure, &
                                                 need_f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
@@ -465,13 +459,10 @@ CONTAINS
                                           particle_set)
        END IF
        ! Clean the allocated arrays
-       DEALLOCATE(charges, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(radii, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charges)
+       DEALLOCATE(radii)
        IF (ASSOCIATED(dq)) THEN
-          DEALLOCATE(dq, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dq)
        END IF
        CALL cp_print_key_finished_output(iw,logger,restraint_section,&
             "PROGRAM_RUN_INFO")
@@ -503,7 +494,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RF', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw, stat
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: apply_solvation, failure, &
                                                 need_f
     REAL(KINd=dp)                            :: e_recpl
@@ -578,13 +569,10 @@ CONTAINS
                radii, dq, charges)
        END IF
        ! Clean the allocated arrays
-       DEALLOCATE(charges, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(radii, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charges)
+       DEALLOCATE(radii)
        IF (ASSOCIATED(dq)) THEN
-          DEALLOCATE(dq, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dq)
        END IF
        CALL cp_print_key_finished_output(iw,logger,solvation_section,&
             "PROGRAM_RUN_INFO")

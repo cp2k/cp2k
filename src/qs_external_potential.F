@@ -242,7 +242,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: def_error, this_error
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
-    INTEGER                                  :: handle, j, stat
+    INTEGER                                  :: handle, j
     LOGICAL                                  :: check, failure, my_force
     REAL(KIND=dp)                            :: dedf, dx, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
@@ -282,10 +282,8 @@ CONTAINS
           dfunc(j)=dedf
        END DO
     END IF
-    DEALLOCATE(my_par,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(my_val,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(my_par)
+    DEALLOCATE(my_val)
     CALL finalizef()
     CALL timestop(handle)
   END SUBROUTINE get_external_potential

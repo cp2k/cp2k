@@ -462,7 +462,7 @@ CONTAINS
     INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &
       ijob_end, ijob_start, iunit, n_jobs_to_run, new_group, new_output_unit, &
       new_rank, new_size, ngroups, num_slaves, output_unit, primus_slave, &
-      slave_group, slave_rank, source, stat, tag, todo
+      slave_group, slave_rank, source, tag, todo
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 master_slave_partition, &
                                                 slave_distribution, &
@@ -490,8 +490,7 @@ CONTAINS
 
     IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
-    ALLOCATE(farming_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(farming_env)
     CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
@@ -505,8 +504,7 @@ CONTAINS
 
        ALLOCATE(master_slave_partition(0:1))
        master_slave_partition=(/1,para_env%num_pe-1/)
-       ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(group_distribution(0:para_env%num_pe-1))
 
        CALL mp_comm_split(para_env%group,slave_group,ngroups,group_distribution,&
                    n_subgroups=2, group_partition=master_slave_partition)
@@ -533,8 +531,7 @@ CONTAINS
     IF (output_unit>0) WRITE(output_unit,FMT="(T2,A,I0)") "FARMING| number of slaves ",num_slaves
 
     ! keep track of which para_env rank is which slave/master
-    ALLOCATE(slave_distribution(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(slave_distribution(0:para_env%num_pe-1))
     slave_distribution=0
     slave_distribution(para_env%mepos)=slave_rank
     CALL mp_sum(slave_distribution,para_env%group)
@@ -546,8 +543,7 @@ CONTAINS
 
     ! split the current communicator for the slaves
     ! in a new_group, new_size and new_rank according to the number of groups required according to the input
-    ALLOCATE(group_distribution(0:num_slaves-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(group_distribution(0:num_slaves-1))
     group_distribution=-1
     IF (slave) THEN
         IF (farming_env%group_size_wish_set) THEN
@@ -662,8 +658,7 @@ CONTAINS
              END SELECT
           ENDDO
        ELSE ! master
-          ALLOCATE(slave_status(0:ngroups-1),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(slave_status(0:ngroups-1))
           slave_status=slave_status_wait
           ijob_current=ijob_start-1
 
@@ -716,8 +711,7 @@ CONTAINS
 
           ENDDO
 
-          DEALLOCATE(slave_status,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(slave_status)
 
        ENDIF
     ELSE
@@ -775,10 +769,8 @@ CONTAINS
     CALL mp_comm_free(slave_group)
 
     ! and message passing deallocate structures
-    DEALLOCATE(group_distribution,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(slave_distribution,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(group_distribution)
+    DEALLOCATE(slave_distribution)
 
     ! clean the farming env
     CALL deallocate_farming_env(farming_env)

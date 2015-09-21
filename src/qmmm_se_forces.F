@@ -94,7 +94,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, ikind, iqm, &
                                                 ispin, itype, natom, &
                                                 natorb_a, nkind, &
-                                                number_qm_atoms, stat
+                                                number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: anag, defined, failure, found
     REAL(KIND=dp)                            :: delta, enuclear
@@ -144,8 +144,7 @@ CONTAINS
             max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
        ! Create a fake semi-empirical type to handle the classical atom
-       ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Forces_QM(3,number_qm_atoms))
        CALL semi_empirical_create(se_kind_mm)
        CALL se_param_set_default(se_kind_mm,0,do_method_pchg)
        itype    = get_se_type(se_kind_mm%typ)
@@ -235,8 +234,7 @@ CONTAINS
        END DO
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
-       DEALLOCATE(Forces_QM,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Forces_QM)
        CALL semi_empirical_release(se_kind_mm)
 
     END IF

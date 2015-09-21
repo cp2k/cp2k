@@ -46,7 +46,7 @@ SUBROUTINE clebsch_gordon_test ()
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: a1, a2, a3
     INTEGER                                  :: il, iw, l1, l2, ll, lp, m1, &
-                                                m2, mm, mp, na, stat
+                                                m2, mm, mp, na
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
@@ -66,12 +66,9 @@ SUBROUTINE clebsch_gordon_test ()
      CALL init_lebedev_grids
      ll = get_number_of_lebedev_grid(n=na)
      na = lebedev_grid(ll)%n
-     ALLOCATE (wa(na), STAT=stat)
-     CPASSERT(stat==0)
-     ALLOCATE (a1(na),a2(na),a3(na), STAT=stat)
-     CPASSERT(stat==0)
-     ALLOCATE (b1(na),b2(na),b3(na), STAT=stat)
-     CPASSERT(stat==0)
+     ALLOCATE (wa(na))
+     ALLOCATE (a1(na),a2(na),a3(na))
+     ALLOCATE (b1(na),b2(na),b3(na))
 
      wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
@@ -158,12 +155,9 @@ SUBROUTINE clebsch_gordon_test ()
        WRITE(iw,'(A,i2,A)') " Test for l = ",l1," done"
      END DO
 
-     DEALLOCATE ( wa, STAT=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE (a1, a2, a3, STAT=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE (b1, b2, b3, STAT=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE ( wa)
+     DEALLOCATE (a1, a2, a3)
+     DEALLOCATE (b1, b2, b3)
 
      CALL deallocate_lebedev_grids()
      CALL clebsch_gordon_deallocate()

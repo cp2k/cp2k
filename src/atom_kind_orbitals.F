@@ -88,7 +88,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, ierr, ii, ipgf, j, k, k1, k2, l, ll, lm, m, mb, mo, n, ne, &
+    INTEGER :: i, ii, ipgf, j, k, k1, k2, l, ll, lm, m, mb, mo, n, ne, &
       nexp_lpot, nexp_lsd, nexp_nlcc, ngp, nj, nr, ns, nset, nsgf, quadtype, z
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
@@ -154,8 +154,7 @@ CONTAINS
                   coulomb_integral_type=do_numeric,&
                   exchange_integral_type=do_numeric)
 
-    ALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (potential,basis,integrals)
 
     IF ( ASSOCIATED(gth_potential) ) THEN
       potential%ppot_type=gth_pseudo
@@ -311,11 +310,9 @@ CONTAINS
 
     nj = MAXVAL(basis%nprim)
     ns = MAXVAL(basis%nbas)
-    ALLOCATE (basis%am(nj,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%am(nj,0:3))
     basis%am = 0._dp
-    ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%cm(nj,ns,0:3))
     basis%cm = 0._dp
     DO j=0,3
       nj = 0
@@ -341,10 +338,8 @@ CONTAINS
     ! initialize basis function on a radial grid
     nr = basis%grid%nr
     m  = MAXVAL(basis%nbas)
-    ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
-    ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%bf(nr,m,0:3))
+    ALLOCATE (basis%dbf(nr,m,0:3))
 
     basis%bf =  0._dp
     basis%dbf = 0._dp
@@ -380,8 +375,7 @@ CONTAINS
                                      ncore=ncore, &
                                      nelem=nelem)
 
-    ALLOCATE (atom%state,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (atom%state)
 
     atom%state%core = 0._dp
     atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
@@ -432,11 +426,9 @@ CONTAINS
     IF (PRESENT(pmat)) THEN
       ! recover density matrix in CP2K/GPW order and normalization
       IF(ASSOCIATED(pmat)) THEN
-        DEALLOCATE (pmat,STAT=ierr)
-        CPASSERT(ierr==0)
+        DEALLOCATE (pmat)
       END IF
-      ALLOCATE (pmat(nsgf,nsgf),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE (pmat(nsgf,nsgf))
       pmat = 0._dp
       DO l=0,3
          ll = 2*l
@@ -461,8 +453,7 @@ CONTAINS
     CALL release_atom_potential(potential)
     CALL release_atom_type(atom)
 
-    DEALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE (potential,basis,integrals)
 
   END SUBROUTINE calculate_atomic_orbitals
 
@@ -491,8 +482,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: num_gto = 40
 
-    INTEGER :: i, ierr, ii, j, k, l, ll, lm, m, mb, mo, n, ne, nexp_lpot, &
-      nexp_lsd, nexp_nlcc, ngp, nn, nr, quadtype, relativistic, z
+    INTEGER                                  :: i, ii, j, k, l, ll, lm, m, &
+                                                mb, mo, n, ne, nexp_lpot, &
+                                                nexp_lsd, nexp_nlcc, ngp, nn, &
+                                                nr, quadtype, relativistic, z
     INTEGER, DIMENSION(0:3)                  :: econfx, starti
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(:), POINTER           :: econf, nct_lpot, nct_lsd, &
@@ -551,8 +544,7 @@ CONTAINS
                   coulomb_integral_type=do_numeric,&
                   exchange_integral_type=do_numeric)
 
-    ALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (potential,basis,integrals)
 
     IF ( ASSOCIATED(gth_potential) ) THEN
       potential%ppot_type=gth_pseudo
@@ -686,8 +678,7 @@ CONTAINS
     CALL Clementi_geobas(z,cval,aval,basis%nbas,starti)
     basis%nprim = basis%nbas
     m  = MAXVAL(basis%nbas)
-    ALLOCATE (basis%am(m,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%am(m,0:3))
     basis%am = 0._dp
     DO l=0,3
       DO i=1,basis%nbas(l)
@@ -704,10 +695,8 @@ CONTAINS
     ! initialize basis function on a radial grid
     nr = basis%grid%nr
     m  = MAXVAL(basis%nbas)
-    ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
-    ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (basis%bf(nr,m,0:3))
+    ALLOCATE (basis%dbf(nr,m,0:3))
     basis%bf =  0._dp
     basis%dbf = 0._dp
     DO l=0,3
@@ -815,8 +804,7 @@ CONTAINS
       ncalc = 0
     END IF
 
-    ALLOCATE (atom%state,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (atom%state)
 
     atom%state%core = 0._dp
     atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
@@ -880,8 +868,7 @@ CONTAINS
     CALL release_atom_potential(potential)
     CALL release_atom_type(atom)
 
-    DEALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE (potential,basis,integrals)
 
   END SUBROUTINE calculate_atomic_density
 
@@ -903,9 +890,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_relkin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, ii, ipgf, j, k, k1, &
-                                                k2, l, ll, m, n, ngp, nj, nn, &
-                                                nr, ns, nset, nsgf, quadtype, &
+    INTEGER                                  :: i, ii, ipgf, j, k, k1, k2, l, &
+                                                ll, m, n, ngp, nj, nn, nr, &
+                                                ns, nset, nsgf, quadtype, &
                                                 relativistic, z
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
@@ -989,8 +976,7 @@ CONTAINS
                   coulomb_integral_type=do_numeric,&
                   exchange_integral_type=do_numeric)
 
-       ALLOCATE (potential,basis,integrals,STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE (potential,basis,integrals)
 
        potential%ppot_type=no_pseudo
        CALL set_atom(atom,zcore=z,potential=potential)
@@ -1034,11 +1020,9 @@ CONTAINS
 
        nj = MAXVAL(basis%nprim)
        ns = MAXVAL(basis%nbas)
-       ALLOCATE (basis%am(nj,0:3),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE (basis%am(nj,0:3))
        basis%am = 0._dp
-       ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE (basis%cm(nj,ns,0:3))
        basis%cm = 0._dp
        DO j=0,3
          nj = 0
@@ -1075,10 +1059,8 @@ CONTAINS
        ! initialize basis function on a radial grid
        nr = basis%grid%nr
        m  = MAXVAL(basis%nbas)
-       ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-       CPASSERT(ierr==0)
-       ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE (basis%bf(nr,m,0:3))
+       ALLOCATE (basis%dbf(nr,m,0:3))
 
        basis%bf =  0._dp
        basis%dbf = 0._dp
@@ -1133,8 +1115,7 @@ CONTAINS
           ncalc = 0
        END IF
 
-       ALLOCATE (atom%state,STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE (atom%state)
 
        atom%state%core = 0._dp
        atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
@@ -1173,24 +1154,20 @@ CONTAINS
        DO l=0,3
           n = integrals%n(l)
           m = basis%nprim(l)
-          ALLOCATE (omat(m,m),STAT=ierr)
-          CPASSERT(ierr==0)
+          ALLOCATE (omat(m,m))
 
           CALL sg_erfc ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
           integrals%core(1:n,1:n,l) = MATMUL(TRANSPOSE(basis%cm(1:m,1:n,l)),&
                                              MATMUL(omat(1:m,1:m),basis%cm(1:m,1:n,l)))
 
-          DEALLOCATE (omat,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE (omat)
        END DO
 
        ! recover relativistic kinetic matrix in CP2K/GPW order and normalization
        IF(ASSOCIATED(rtmat)) THEN
-          DEALLOCATE (rtmat,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE (rtmat)
        END IF
-       ALLOCATE (rtmat(nsgf,nsgf),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE (rtmat(nsgf,nsgf))
        rtmat = 0._dp
        DO l=0,3
           ll = 2*l
@@ -1228,14 +1205,12 @@ CONTAINS
        CALL release_atom_potential(potential)
        CALL release_atom_type(atom)
 
-       DEALLOCATE (potential,basis,integrals,STAT=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE (potential,basis,integrals)
 
     ELSE
 
        IF(ASSOCIATED(rtmat)) THEN
-          DEALLOCATE (rtmat,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE (rtmat)
        END IF
        NULLIFY(rtmat)
 

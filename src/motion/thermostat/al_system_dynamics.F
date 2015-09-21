@@ -192,7 +192,7 @@ CONTAINS
 
     INTEGER :: first_atom, i, ii, ikind, imap, imol, imol_local, ipart, &
       iparticle_kind, iparticle_local, last_atom, nmol_local, nparticle, &
-      nparticle_kind, nparticle_local, stat
+      nparticle_kind, nparticle_local
     LOGICAL                                  :: check, present_vel
     REAL(KIND=dp)                            :: mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -219,8 +219,7 @@ CONTAINS
 
     nparticle = SIZE(particle_set)
     nparticle_kind = SIZE(local_particles%n_el)
-    ALLOCATE (w(3,nparticle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (w(3,nparticle))
     w(:,:) = 0.0_dp
     check=(nparticle_kind <= SIZE(local_particles%n_el) .AND. nparticle_kind <= SIZE(local_particles%list))
     CPASSERT(check)
@@ -263,8 +262,7 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE (w,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (w)
 
   END SUBROUTINE al_OU_step
 

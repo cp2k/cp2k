@@ -45,13 +45,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'taper_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(taper))
-    ALLOCATE (taper,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (taper)
     IF (range > EPSILON(0.0_dp)) THEN
        taper%apply_taper = .TRUE.
        CPASSERT(range>0.0_dp)
@@ -73,13 +71,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'taper_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(taper)) THEN
-       DEALLOCATE (taper,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (taper)
     END IF
   END SUBROUTINE taper_release
 

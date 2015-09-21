@@ -81,8 +81,7 @@ CONTAINS
     CALL section_vals_val_get(force_env_section,"MIXED%GROUP_PARTITION",n_rep_val=n_rep_val)
     IF (n_rep_val>0) THEN
        CALL section_vals_val_get(force_env_section,"MIXED%GROUP_PARTITION",i_vals=i_vals)
-       ALLOCATE(group_partition(0:SIZE(i_vals)-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(group_partition(0:SIZE(i_vals)-1))
        group_partition(:)=i_vals
        ngroup_wish_set=.TRUE.
        ngroup_wish=SIZE(i_vals)
@@ -98,8 +97,7 @@ CONTAINS
     END IF
 
     ! Split the current communicator
-    ALLOCATE(mixed_env%group_distribution(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mixed_env%group_distribution(0:para_env%num_pe-1))
     IF (group_size_wish_set) THEN
        CALL mp_comm_split(para_env%group,mixed_env%new_group,mixed_env%ngroups,mixed_env%group_distribution,&
             subgroup_min_size=group_size_wish)
@@ -120,16 +118,12 @@ CONTAINS
        WRITE(output_unit,*)
     ENDIF
     IF (ASSOCIATED(group_partition)) THEN
-       DEALLOCATE(group_partition,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(group_partition)
     END IF
     ! Allocate para_env and handle the several loggers
-    ALLOCATE(mixed_env%sub_para_env(mixed_env%ngroups),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mixed_env%sub_logger(mixed_env%ngroups),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mixed_env%energies(n_subforce_eval),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mixed_env%sub_para_env(mixed_env%ngroups))
+    ALLOCATE(mixed_env%sub_logger(mixed_env%ngroups))
+    ALLOCATE(mixed_env%energies(n_subforce_eval))
     !
     DO i = 1, mixed_env%ngroups
        NULLIFY(mixed_env%sub_para_env(i)%para_env,logger)

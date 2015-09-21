@@ -104,7 +104,7 @@ CONTAINS
     INTEGER :: handle, i, iatm, iindex, ikind, imol, imol_ref, iref, iund, &
       iw, j, k, location, max_mol_num, mm_index, n, n_rep, n_var, natom, &
       natom_loc, nkind, nlinks, old_hash, old_mol, output_unit, qm_index, &
-      stat, unique_mol
+      unique_mol
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms, qm_atom_index
     INTEGER, POINTER :: atm_map1(:), atm_map2(:), atm_map3(:), &
       map_atom_type(:), map_mol_hash(:), mm_indexes_n(:), mm_indexes_v(:), &
@@ -151,58 +151,39 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(atom_info%map_mol_typ))
     CPASSERT(.NOT.ASSOCIATED(atom_info%map_mol_res))
     !ALLOCATE all the temporary arrays needed for this routine
-    ALLOCATE(new_position(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mol_num(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(molname(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tlabel_atmname(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tlabel_molname(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tlabel_resname(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tr(3,natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tatm_charge(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tatm_mass(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(telement(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(atm_map1(natom),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(atm_map2(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(new_position(natom))
+    ALLOCATE(mol_num(natom))
+    ALLOCATE(molname(natom))
+    ALLOCATE(tlabel_atmname(natom))
+    ALLOCATE(tlabel_molname(natom))
+    ALLOCATE(tlabel_resname(natom))
+    ALLOCATE(tr(3,natom))
+    ALLOCATE(tatm_charge(natom))
+    ALLOCATE(tatm_mass(natom))
+    ALLOCATE(telement(natom))
+    ALLOCATE(atm_map1(natom))
+    ALLOCATE(atm_map2(natom))
 
     ! The only information we have at this level is the connectivity of the system.
     ! 0. Build a list of mapping atom types
-    ALLOCATE(map_atom_type(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_atom_type(natom))
     ! 1. Build a list of bonds
-    ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_bond_list(natom))
     DO I=1,natom
        map_atom_type(I) = atom_info%id_atmname(i)
-       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(atom_bond_list(I)%array1(0))
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
     CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N)
-    ALLOCATE(atom_info%map_mol_num(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_info%map_mol_num(natom))
     atom_info%map_mol_num = -1
     CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%id_molname)
     max_mol_num = MAXVAL(atom_info%map_mol_num)
     ! In atom_info%map_mol_num have already been mapped molecules
-    ALLOCATE(mol_bnd(2,max_mol_num),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mol_hash(max_mol_num),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_mol_hash(max_mol_num),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mol_bnd(2,max_mol_num))
+    ALLOCATE(mol_hash(max_mol_num))
+    ALLOCATE(map_mol_hash(max_mol_num))
     ! 2. Sort the map_mol_num array.. atm_map1 contains now the mapped index
     !    of the reordered array
     CALL sort(atom_info%map_mol_num, natom, atm_map1)
@@ -233,18 +214,14 @@ CONTAINS
        CALL setup_graph(j, reference,  map_atom_type,&
             atom_bond_list, mol_bnd, atm_map1, atm_map2)
 
-       ALLOCATE(order(SIZE(reference)),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(order(SIZE(reference)))
        CALL hash_molecule(reference, order, mol_hash(j))
 
-       DEALLOCATE(order,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(order)
        DO I=1,SIZE(reference)
-          DEALLOCATE(reference(I)%bonds,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(reference(I)%bonds)
        ENDDO
-       DEALLOCATE(reference, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(reference)
     END DO
     ! Reorder molecules hashes
     CALL sort(mol_hash, max_mol_num, map_mol_hash)
@@ -273,25 +250,21 @@ CONTAINS
              molname(natom_loc)      = mol_id
              mol_num(natom_loc)      = unique_mol
           END DO
-          DEALLOCATE(atm_map3,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atm_map3)
        ELSE
           CALL setup_graph(map_mol_hash(j), unordered,  map_atom_type,&
                       atom_bond_list, mol_bnd, atm_map1, atm_map2, atm_map3)
           DO imol_ref=1,unique_mol
              !
              reference => reference_set(imol_ref)%graph
-             ALLOCATE(order(SIZE(reference)),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(order(SIZE(reference)))
              CALL reorder_graph(reference, unordered, order, matches)
              IF (matches) EXIT
-             DEALLOCATE(order,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(order)
           ENDDO
           IF (matches) THEN
              ! Reorder according the correct index
-             ALLOCATE(wrk(SIZE(order)),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(wrk(SIZE(order)))
              CALL sort(order, SIZE(order), wrk)
              DO i=1,SIZE(order)
                 natom_loc=natom_loc+1
@@ -300,10 +273,8 @@ CONTAINS
                 mol_num(natom_loc)      = unique_mol
              END DO
              !
-             DEALLOCATE(order,STAT=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(wrk,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(order)
+             DEALLOCATE(wrk)
           ELSE
              unique_mol=unique_mol+1
              CALL setup_graph_set(reference_set,unique_mol,map_mol_hash(j),&
@@ -317,55 +288,39 @@ CONTAINS
                 molname(natom_loc)      = mol_id
                 mol_num(natom_loc)      = unique_mol
              END DO
-             DEALLOCATE(atm_map3,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(atm_map3)
           ENDIF
           DO I=1,SIZE(unordered)
-             DEALLOCATE(unordered(I)%bonds,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(unordered(I)%bonds)
           ENDDO
-          DEALLOCATE(unordered, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(atm_map3, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(unordered)
+          DEALLOCATE(atm_map3)
        ENDIF
     ENDDO
     IF (output_unit>0) THEN
        WRITE(output_unit,'(T2,"REORDER |  ",A,I7,A)')"Number of unique molecules found:",unique_mol,"."
     END IF
     CPASSERT(natom_loc==natom)
-    DEALLOCATE(map_atom_type,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atm_map1,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atm_map2,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mol_bnd,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mol_hash,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_mol_hash,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(map_atom_type)
+    DEALLOCATE(atm_map1)
+    DEALLOCATE(atm_map2)
+    DEALLOCATE(mol_bnd)
+    DEALLOCATE(mol_hash)
+    DEALLOCATE(map_mol_hash)
     ! Deallocate working arrays
     DO I=1,natom
-       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_bond_list(I)%array1)
     ENDDO
-    DEALLOCATE(atom_bond_list,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atom_info%map_mol_num,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_bond_list)
+    DEALLOCATE(atom_info%map_mol_num)
     ! Deallocate reference_set
     DO i = 1,SIZE(reference_set)
        DO j = 1, SIZE(reference_set(i)%graph)
-          DEALLOCATE(reference_set(i)%graph(j)%bonds,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(reference_set(i)%graph(j)%bonds)
        END DO
-       DEALLOCATE(reference_set(i)%graph,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(reference_set(i)%graph)
     END DO
-    DEALLOCATE(reference_set,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(reference_set)
     !Lets swap the atoms now
     DO iatm=1,natom
        location = new_position(iatm)
@@ -400,8 +355,7 @@ CONTAINS
     END DO
 
     ! Let's reorder all the list provided in the input..
-    ALLOCATE(wrk(SIZE(new_position)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wrk(SIZE(new_position)))
     CALL sort(new_position, SIZE(new_position), wrk)
 
     ! NOTE: In the future the whole list of possible integers should be updated at this level..
@@ -411,15 +365,13 @@ CONTAINS
        ! Update the qmmm_env_mm
        CPASSERT(SIZE(qmmm_env_mm%qm_atom_index)/=0)
        CPASSERT(ALL(qmmm_env_mm%qm_atom_index /= 0))
-       ALLOCATE(qm_atom_index(SIZE(qmmm_env_mm%qm_atom_index)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qm_atom_index(SIZE(qmmm_env_mm%qm_atom_index)))
        DO iatm=1,SIZE(qmmm_env_mm%qm_atom_index)
           qm_atom_index(iatm) = wrk(qmmm_env_mm%qm_atom_index(iatm))
        END DO
        qmmm_env_mm%qm_atom_index = qm_atom_index
        CPASSERT(ALL(qmmm_env_mm%qm_atom_index /= 0))
-       DEALLOCATE(qm_atom_index,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(qm_atom_index)
        ! Update the qmmm_section: MM_INDEX of the QM_KIND
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM")
        qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND")
@@ -429,8 +381,7 @@ CONTAINS
           DO k = 1, n_var
              CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
                   i_vals=mm_indexes_v)
-             ALLOCATE(mm_indexes_n(SIZE(mm_indexes_v)),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(mm_indexes_n(SIZE(mm_indexes_v)))
              DO j = 1, SIZE(mm_indexes_v)
                 mm_indexes_n(j) = wrk(mm_indexes_v(j))
              END DO
@@ -442,15 +393,13 @@ CONTAINS
        IF (qmmm_env_mm%qmmm_link) THEN
           ! Update the qmmm_env_mm
           CPASSERT(SIZE(qmmm_env_mm%mm_link_atoms)>0)
-          ALLOCATE(mm_link_atoms(SIZE(qmmm_env_mm%mm_link_atoms)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mm_link_atoms(SIZE(qmmm_env_mm%mm_link_atoms)))
           DO iatm=1,SIZE(qmmm_env_mm%mm_link_atoms)
              mm_link_atoms(iatm) = wrk(qmmm_env_mm%mm_link_atoms(iatm))
           END DO
           qmmm_env_mm%mm_link_atoms = mm_link_atoms
           CPASSERT(ALL(qmmm_env_mm%mm_link_atoms /= 0))
-          DEALLOCATE(mm_link_atoms,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(mm_link_atoms)
           ! Update the qmmm_section: MM_INDEX,QM_INDEX of the LINK atom list
           qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK")
           CALL section_vals_get(qmmm_link_section,n_repetition=nlinks)
@@ -475,43 +424,29 @@ CONTAINS
        CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep)
        DO i = 1, n_rep
           CALL section_vals_val_get(isolated_section,"LIST", i_vals=tmp_v, i_rep_val=i)
-          ALLOCATE(tmp_n(SIZE(tmp_v)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(tmp_n(SIZE(tmp_v)))
           DO j = 1, SIZE(tmp_v)
              tmp_n(j) = wrk(tmp_v(j))
           END DO
           CALL section_vals_val_set(isolated_section,"LIST", i_vals_ptr=tmp_n, i_rep_val=i)
        END DO
     END IF
-    DEALLOCATE(wrk,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wrk)
     !DEALLOCATE all the temporary arrays needed for this routine
-    DEALLOCATE(new_position,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tlabel_atmname,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tlabel_molname,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tlabel_resname,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(telement,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tr,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tatm_charge,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tatm_mass,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(molname,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mol_num,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(new_position)
+    DEALLOCATE(tlabel_atmname)
+    DEALLOCATE(tlabel_molname)
+    DEALLOCATE(tlabel_resname)
+    DEALLOCATE(telement)
+    DEALLOCATE(tr)
+    DEALLOCATE(tatm_charge)
+    DEALLOCATE(tatm_mass)
+    DEALLOCATE(molname)
+    DEALLOCATE(mol_num)
 
     ! DEALLOCATE the bond structures in the connectivity
-    DEALLOCATE(conn_info%bond_a,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(conn_info%bond_b,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(conn_info%bond_a)
+    DEALLOCATE(conn_info%bond_b)
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -579,7 +514,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: b_dim, i, j, mydim_in, &
-                                                mydim_out, stat, v_dim
+                                                mydim_out, v_dim
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -592,31 +527,25 @@ CONTAINS
     END IF
     IF (PRESENT(ldim_in))  mydim_in  = ldim_in
     IF (PRESENT(ldim_out)) mydim_out = ldim_out
-    ALLOCATE(graph_set_out(mydim_out),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(graph_set_out(mydim_out))
     DO i = 1, mydim_out
        NULLIFY(graph_set_out(i)%graph)
     END DO
     ! Copy graph structure into the temporary array
     DO i = 1, mydim_in
        v_dim = SIZE(graph_set_in(i)%graph)
-       ALLOCATE(graph_set_out(i)%graph(v_dim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(graph_set_out(i)%graph(v_dim))
        DO j = 1, v_dim
           graph_set_out(i)%graph(j)%kind = graph_set_in(i)%graph(j)%kind
           b_dim = SIZE(graph_set_in(i)%graph(j)%bonds)
-          ALLOCATE(graph_set_out(i)%graph(j)%bonds(b_dim),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(graph_set_out(i)%graph(j)%bonds(b_dim))
           graph_set_out(i)%graph(j)%bonds = graph_set_in(i)%graph(j)%bonds
-          DEALLOCATE(graph_set_in(i)%graph(j)%bonds,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(graph_set_in(i)%graph(j)%bonds)
        END DO
-       DEALLOCATE(graph_set_in(i)%graph,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(graph_set_in(i)%graph)
     END DO
     IF (ASSOCIATED(graph_set_in)) THEN
-       DEALLOCATE(graph_set_in,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(graph_set_in)
     END IF
 
   END SUBROUTINE allocate_graph_set
@@ -648,7 +577,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idim, ifirst, ilast, j, &
-                                                nbonds, nelement, stat
+                                                nbonds, nelement
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -661,18 +590,15 @@ CONTAINS
     ifirst = map_mol(1,ind)
     ilast  = map_mol(2,ind)
     nelement = ilast-ifirst+1
-    ALLOCATE(graph(nelement),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(graph(nelement))
     IF (PRESENT(atm_map3)) THEN
-       ALLOCATE(atm_map3(nelement),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(atm_map3(nelement))
     END IF
     DO i = ifirst, ilast
        idim = idim + 1
        graph(idim)%kind = array2(atm_map1(i))
        nbonds = SIZE(atom_bond_list(atm_map1(i))%array1)
-       ALLOCATE(graph(idim)%bonds(nbonds),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(graph(idim)%bonds(nbonds))
        DO j = 1, nbonds
           graph(idim)%bonds(j) = atm_map2(atom_bond_list(atm_map1(i))%array1(j))
        END DO
@@ -701,18 +627,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iend, istart, ldim, stat
+    INTEGER                                  :: i, iend, istart, ldim
     INTEGER, DIMENSION(:), POINTER           :: tmp, wrk
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(nsize>0)
-    ALLOCATE(wrk(Ndim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wrk(Ndim))
     CALL sort(Ilist1,Ndim,wrk)
     IF (nsize/=1) THEN
-       ALLOCATE(tmp(Ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp(Ndim))
        tmp = Ilist2(1:Ndim)
        DO i = 1,Ndim
           Ilist2(i)=tmp(wrk(i))
@@ -733,8 +657,7 @@ CONTAINS
              Ilist4(i)=tmp(wrk(i))
           END DO
        END SELECT
-       DEALLOCATE(tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp)
        istart = 1
        DO i = 1,Ndim
           IF (Ilist1(i)/=Ilist1(istart)) THEN
@@ -751,8 +674,7 @@ CONTAINS
        CALL  reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
             ldim, istart, iend)
     END IF
-    DEALLOCATE(wrk,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wrk)
   END SUBROUTINE reorder_list_array
 
 ! *****************************************************************************
@@ -774,41 +696,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     INTEGER, DIMENSION(:), POINTER           :: tmp_2, tmp_3, tmp_4
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     SELECT CASE(nsize)
     CASE(2)
-       ALLOCATE(tmp_2(ldim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_2(ldim))
        tmp_2(:) = Ilist2(istart:iend)
        CALL reorder_list_array(tmp_2,nsize=nsize-1,ndim=ldim)
        Ilist2(istart:iend) = tmp_2(:)
-       DEALLOCATE(tmp_2,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_2)
     CASE(3)
-       ALLOCATE(tmp_2(ldim),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(tmp_3(ldim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_2(ldim))
+       ALLOCATE(tmp_3(ldim))
        tmp_2(:) = Ilist2(istart:iend)
        tmp_3(:) = Ilist3(istart:iend)
        CALL reorder_list_array(tmp_2,tmp_3,nsize=nsize-1,ndim=ldim)
        Ilist2(istart:iend) = tmp_2(:)
        Ilist3(istart:iend) = tmp_3(:)
-       DEALLOCATE(tmp_2,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(tmp_3,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_2)
+       DEALLOCATE(tmp_3)
     CASE(4)
-       ALLOCATE(tmp_2(ldim),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(tmp_3(ldim),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(tmp_4(ldim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_2(ldim))
+       ALLOCATE(tmp_3(ldim))
+       ALLOCATE(tmp_4(ldim))
        tmp_2(:) = Ilist2(istart:iend)
        tmp_3(:) = Ilist3(istart:iend)
        tmp_4(:) = Ilist4(istart:iend)
@@ -816,12 +728,9 @@ CONTAINS
        Ilist2(istart:iend) = tmp_2(:)
        Ilist3(istart:iend) = tmp_3(:)
        Ilist4(istart:iend) = tmp_4(:)
-       DEALLOCATE(tmp_2,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(tmp_3,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(tmp_4,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_2)
+       DEALLOCATE(tmp_3)
+       DEALLOCATE(tmp_4)
     END SELECT
 
   END SUBROUTINE reorder_list_array_low
@@ -905,7 +814,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, index1, index2, Nsize, stat
+    INTEGER                                  :: I, index1, index2, Nsize
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
     LOGICAL                                  :: failure
 
@@ -916,21 +825,17 @@ CONTAINS
 
        wrk_tmp => work(index1)%array1
        Nsize=SIZE(wrk_tmp)
-       ALLOCATE(work(index1)%array1(Nsize+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(index1)%array1(Nsize+1))
        work(index1)%array1(1:Nsize) = wrk_tmp
        work(index1)%array1(Nsize+1) = index2
-       DEALLOCATE(wrk_tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk_tmp)
 
        wrk_tmp => work(index2)%array1
        Nsize=SIZE(wrk_tmp)
-       ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(index2)%array1(Nsize+1))
        work(index2)%array1(1:Nsize) = wrk_tmp
        work(index2)%array1(Nsize+1) = index1
-       DEALLOCATE(wrk_tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk_tmp)
     ENDDO
 
   END SUBROUTINE reorder_structure1d
@@ -955,7 +860,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, index1, index2, index3, &
-                                                Nsize, stat
+                                                Nsize
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
     LOGICAL                                  :: failure
 
@@ -967,39 +872,31 @@ CONTAINS
 
        wrk_tmp => work(index1)%array1
        Nsize=SIZE(wrk_tmp)
-       ALLOCATE(work(index1)%array1(Nsize+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(index1)%array1(Nsize+1))
        work(index1)%array1(1:Nsize) = wrk_tmp
        work(index1)%array1(Nsize+1) = index2
-       DEALLOCATE(wrk_tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk_tmp)
 
        wrk_tmp => work(index2)%array1
        Nsize=SIZE(wrk_tmp)
-       ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(index2)%array1(Nsize+1))
        work(index2)%array1(1:Nsize) = wrk_tmp
        work(index2)%array1(Nsize+1) = index1
-       DEALLOCATE(wrk_tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk_tmp)
 
        wrk_tmp => work(index1)%array2
        Nsize=SIZE(wrk_tmp)
-       ALLOCATE(work(index1)%array2(Nsize+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(index1)%array2(Nsize+1))
        work(index1)%array2(1:Nsize) = wrk_tmp
        work(index1)%array2(Nsize+1) = index3
-       DEALLOCATE(wrk_tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk_tmp)
 
        wrk_tmp => work(index2)%array2
        Nsize=SIZE(wrk_tmp)
-       ALLOCATE(work(index2)%array2(Nsize+1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(work(index2)%array2(Nsize+1))
        work(index2)%array2(1:Nsize) = wrk_tmp
        work(index2)%array2(Nsize+1) = -index3
-       DEALLOCATE(wrk_tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk_tmp)
     ENDDO
 
   END SUBROUTINE reorder_structure2d
@@ -1083,8 +980,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
-                                                ielem_found, iw, n_rep, &
-                                                natom, stat
+                                                ielem_found, iw, n_rep, natom
     LOGICAL                                  :: failure, user_defined
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mass
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -1104,10 +1000,8 @@ CONTAINS
     ! Available external info
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND")
     CALL section_vals_get(kind_section,n_repetition=n_rep)
-    ALLOCATE(keyword(n_rep),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mass(n_rep),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(keyword(n_rep))
+    ALLOCATE(mass(n_rep))
     mass = HUGE(0.0_dp)
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
@@ -1140,10 +1034,8 @@ CONTAINS
        IF(iw>0) WRITE(iw,'(7X,A,A5,A,F12.5)') "In topology_set_atm_mass :: element = ",&
             id2str(atom_info%id_element(iatom))," a_mass ", atom_info%atm_mass(iatom)
     END DO
-    DEALLOCATE(keyword,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mass,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(keyword)
+    DEALLOCATE(mass)
 
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -1167,7 +1059,7 @@ CONTAINS
     INTEGER                                  :: counter, first, first_loc, &
                                                 handle, i, iatom, iw, k, &
                                                 loc_counter, mol_num, &
-                                                mol_typ, n, natom, stat
+                                                mol_typ, n, natom
     LOGICAL                                  :: failure, icheck_num, &
                                                 icheck_typ
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -1190,11 +1082,9 @@ CONTAINS
     IF (iw>0) WRITE(iw,'(A)')"Start of Molecule_Check",&
          "  Checking consistency between the generated molecules"
 
-    ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_bond_list(natom))
     DO I=1,natom
-       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(atom_bond_list(I)%array1(0))
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
@@ -1281,11 +1171,9 @@ CONTAINS
     IF (iw>0) WRITE(iw,'(A)')"End of Molecule_Check"
 
     DO I=1,natom
-       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_bond_list(I)%array1)
     ENDDO
-    DEALLOCATE(atom_bond_list,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atom_bond_list)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO")

@@ -583,7 +583,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_format
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, iw, natoms, &
-                                                num_x, stat
+                                                num_x
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     LOGICAL                                  :: failure, success
     REAL(KIND=dp)                            :: ecom, ekin, mass, mass_tot, &
@@ -616,8 +616,7 @@ CONTAINS
     END IF
 
     ! Build a list of all fixed atoms (if any)
-    ALLOCATE (is_fixed(natoms),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (is_fixed(natoms))
 
     is_fixed = use_perd_none
     molecule_kind_set => molecule_kinds%els
@@ -676,8 +675,7 @@ CONTAINS
        WRITE ( iw, '( 1X,79("*"),/)' )
     END IF
 
-    DEALLOCATE (is_fixed,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (is_fixed)
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
     CALL timestop(handle)
 
@@ -1699,8 +1697,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ifixd, &
-                                                imolecule_kind, iw, natoms, &
-                                                stat
+                                                imolecule_kind, iw, natoms
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: angvel_tol, rcom(3), &
@@ -1733,8 +1730,7 @@ CONTAINS
 
           natoms = SIZE(particles%els)
           ! Build a list of all fixed atoms (if any)
-          ALLOCATE (is_fixed(natoms),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (is_fixed(natoms))
 
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
@@ -1766,8 +1762,7 @@ CONTAINS
              END IF
           END IF
 
-          DEALLOCATE (is_fixed,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (is_fixed)
 
           CALL cp_print_key_finished_output(iw,logger,md_section,&
                "PRINT%PROGRAM_RUN_INFO")
@@ -1941,7 +1936,7 @@ CONTAINS
     CHARACTER(len=2*default_string_length)   :: line
     INTEGER                                  :: handle, iatom, ifixd, &
                                                 imolecule_kind, iparticle, &
-                                                iw, natom, nparticle, stat
+                                                iw, natom, nparticle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_index, is_fixed
     LOGICAL                                  :: failure, init_cascade, is_ok, &
                                                 no_read_error
@@ -2014,14 +2009,10 @@ CONTAINS
            "CASCADE| ","Atom index","v(x)","v(y)","v(z)","weight"
        END IF
 
-       ALLOCATE (atom_index(natom),STAT=stat)
-       CPASSERT(stat == 0)
-       ALLOCATE (matom(natom),STAT=stat)
-       CPASSERT(stat == 0)
-       ALLOCATE (vatom(3,natom),STAT=stat)
-       CPASSERT(stat == 0)
-       ALLOCATE (weight(natom),STAT=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE (atom_index(natom))
+       ALLOCATE (matom(natom))
+       ALLOCATE (vatom(3,natom))
+       ALLOCATE (weight(natom))
 
        DO iatom=1,natom
           is_ok = cp_sll_val_next(atom_list,val)
@@ -2085,19 +2076,14 @@ CONTAINS
                                          SQRT(2.0_dp*weight(iatom)/matom(iatom))*vatom(1:3,iatom)
        END DO
 
-       DEALLOCATE (atom_index,STAT=stat)
-       CPASSERT(stat == 0)
-       DEALLOCATE (matom,STAT=stat)
-       CPASSERT(stat == 0)
-       DEALLOCATE (vatom,STAT=stat)
-       CPASSERT(stat == 0)
-       DEALLOCATE (weight,STAT=stat)
-       CPASSERT(stat == 0)
+       DEALLOCATE (atom_index)
+       DEALLOCATE (matom)
+       DEALLOCATE (vatom)
+       DEALLOCATE (weight)
 
        IF (iw > 0) THEN
           ! Build a list of all fixed atoms (if any)
-          ALLOCATE (is_fixed(nparticle),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (is_fixed(nparticle))
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
           DO imolecule_kind=1,molecule_kinds%n_els
@@ -2133,8 +2119,7 @@ CONTAINS
 !MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:',rcom(1:3)
 !MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:',vang(1:3)
 !MK          END IF
-          DEALLOCATE (is_fixed,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (is_fixed)
        END IF
 
     END IF

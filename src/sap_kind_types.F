@@ -64,7 +64,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_sap_int', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, stat
+    INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
     TYPE(clist_type), POINTER                :: clist
 
@@ -79,37 +79,29 @@ CONTAINS
             DO k=1,SIZE(sap_int(i)%alist(j)%clist)
               clist => sap_int(i)%alist(j)%clist(k)
               IF ( ASSOCIATED(clist%acint) ) THEN
-                DEALLOCATE (clist%acint,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (clist%acint)
               END IF
               IF ( ASSOCIATED(clist%sgf_list) ) THEN
-                DEALLOCATE (clist%sgf_list,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (clist%sgf_list)
               END IF
               IF ( ASSOCIATED(clist%achint) ) THEN
-                DEALLOCATE (clist%achint,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (clist%achint)
               END IF
             END DO
-            DEALLOCATE (sap_int(i)%alist(j)%clist,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE (sap_int(i)%alist(j)%clist)
           END IF
         END DO
-        DEALLOCATE (sap_int(i)%alist,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE (sap_int(i)%alist)
       END IF
       IF ( ASSOCIATED(sap_int(i)%asort) ) THEN
-        DEALLOCATE (sap_int(i)%asort,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE (sap_int(i)%asort)
       END IF
       IF ( ASSOCIATED(sap_int(i)%aindex) ) THEN
-        DEALLOCATE (sap_int(i)%aindex,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE (sap_int(i)%aindex)
       END IF
     END DO
 
-    DEALLOCATE (sap_int,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (sap_int)
 
   END SUBROUTINE release_sap_int
 
@@ -241,7 +233,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sap_sort', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iac, na, stat
+    INTEGER                                  :: iac, na
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -251,8 +243,7 @@ CONTAINS
     DO iac=1,SIZE(sap_int)
        IF (.NOT.ASSOCIATED(sap_int(iac)%alist)) CYCLE
        na = SIZE(sap_int(iac)%alist)
-       ALLOCATE(sap_int(iac)%asort(na),sap_int(iac)%aindex(na),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(sap_int(iac)%asort(na),sap_int(iac)%aindex(na))
        sap_int(iac)%asort(1:na)=sap_int(iac)%alist(1:na)%aatom
        CALL sort(sap_int(iac)%asort,na,sap_int(iac)%aindex)
     END DO

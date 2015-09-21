@@ -91,7 +91,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, idg, j, nparticle, stat
+    INTEGER                                  :: i, idg, j, nparticle
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -110,8 +110,7 @@ CONTAINS
       IF(gopt_env%force_env%in_use == use_qmmmx)&
          CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
       nparticle = force_env_get_nparticle(gopt_env%force_env)
-      ALLOCATE (x0(3*nparticle),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (x0(3*nparticle))
       CALL pack_subsys_particles(subsys=subsys,r=x0)
     CASE (default_cell_method_id)
       SELECT CASE (gopt_env%cell_method_id)
@@ -125,8 +124,7 @@ CONTAINS
          IF(gopt_env%force_env%in_use == use_qmmmx)&
             CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
-         ALLOCATE (x0(3*nparticle+6),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE (x0(3*nparticle+6))
          CALL pack_subsys_particles(subsys=subsys,r=x0)
          idg = 3*nparticle
          DO i=1,3
@@ -137,8 +135,7 @@ CONTAINS
          END DO
       CASE (default_cell_geo_opt_id,default_cell_md_id)
          CALL force_env_get(gopt_env%force_env,cell=cell)
-         ALLOCATE (x0(6),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE (x0(6))
          idg = 0
          DO i=1,3
            DO j=1,i

@@ -206,7 +206,7 @@ SUBROUTINE pw_env_release(pw_env, kg)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, igrid_level, stat
+    INTEGER                                  :: i, igrid_level
     LOGICAL                                  :: failure, my_kg
 
   failure=.FALSE.
@@ -220,23 +220,19 @@ SUBROUTINE pw_env_release(pw_env, kg)
         CALL pw_pools_dealloc(pw_env%pw_pools)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
            IF(my_kg) THEN
-             DEALLOCATE (pw_env%gridlevel_info%cutoff,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (pw_env%gridlevel_info%cutoff)
              CALL section_vals_release(pw_env%gridlevel_info%print_section)
-             DEALLOCATE (pw_env%gridlevel_info%count,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (pw_env%gridlevel_info%count)
            ELSE
              CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
            END IF
-           DEALLOCATE(pw_env%gridlevel_info,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(pw_env%gridlevel_info)
         END IF
         IF (ASSOCIATED(pw_env%cube_info)) THEN
            DO igrid_level=1,SIZE(pw_env%cube_info)
               CALL destroy_cube_info(pw_env%cube_info(igrid_level))
            END DO
-           DEALLOCATE(pw_env%cube_info,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(pw_env%cube_info)
         END IF
         CALL pw_pool_release(pw_env%xc_pw_pool)
         CALL pw_pool_release(pw_env%vdw_pw_pool)
@@ -244,21 +240,18 @@ SUBROUTINE pw_env_release(pw_env, kg)
           DO i=1, SIZE(pw_env%rs_descs)
             CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc)
           END DO
-          DEALLOCATE(pw_env%rs_descs, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pw_env%rs_descs)
         END IF
         IF (ASSOCIATED(pw_env%rs_grids)) THEN
           DO i=1, SIZE(pw_env%rs_grids)
             CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
           END DO
-          DEALLOCATE(pw_env%rs_grids, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pw_env%rs_grids)
         END IF
         IF (ASSOCIATED(pw_env%lgrid)) THEN
           CALL lgrid_release(pw_env%lgrid)
         END IF
-        DEALLOCATE(pw_env, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(pw_env)
     END IF
   END IF
   NULLIFY(pw_env)

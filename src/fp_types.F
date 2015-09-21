@@ -67,15 +67,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
       failure=.FALSE.
 
       CPASSERT(.NOT.ASSOCIATED(fp_env))
-      ALLOCATE(fp_env,stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(fp_env)
       fp_env%ref_count=1
 
       fp_env%use_fp=.FALSE.

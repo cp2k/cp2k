@@ -78,7 +78,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3*default_string_length)   :: message
-    INTEGER                                  :: i, ip, iw, j, k, np, stat, &
+    INTEGER                                  :: i, ip, iw, j, k, np, &
                                                 stress_tensor
     LOGICAL                                  :: check_failed, debug_forces, &
                                                 debug_stress_tensor, failure, &
@@ -236,15 +236,13 @@ CONTAINS
        ! Copy forces in array and start the numerical calculation
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        np = subsys%particles%n_els
-       ALLOCATE (analyt_forces(np,3),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (analyt_forces(np,3))
        DO ip=1,np
           analyt_forces(ip,1:3) = particles(ip)%f(1:3)
        END DO
        ! Loop on atoms and coordinates
        IF (ASSOCIATED(numer_forces)) DEALLOCATE (numer_forces)
-       ALLOCATE (numer_forces(subsys%particles%n_els,3),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (numer_forces(subsys%particles%n_els,3))
        Atom: DO ip=1,np
           Coord: DO k=1,3
              numer_energy = 0.0_dp

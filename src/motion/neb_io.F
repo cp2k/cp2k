@@ -189,8 +189,7 @@ CONTAINS
     CHARACTER(LEN=20)                        :: mytype
     CHARACTER(LEN=default_string_length)     :: line, title, unit_str
     INTEGER                                  :: crd, ener, frc, handle, i, &
-                                                irep, ndig, ndigl, stat, &
-                                                ttst, vel
+                                                irep, ndig, ndigl, ttst, vel
     LOGICAL                                  :: explicit, failure, lval
     REAL(KIND=dp)                            :: f_ann, tmp_r1, unit_conv
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures
@@ -266,10 +265,8 @@ CONTAINS
     IF (output_unit>0) THEN
        tc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%TEMP_CONTROL")
        vc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%VEL_CONTROL")
-       ALLOCATE(temperatures(neb_env%number_of_replica),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(ekin(neb_env%number_of_replica),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(temperatures(neb_env%number_of_replica))
+       ALLOCATE(ekin(neb_env%number_of_replica))
        CALL get_temperatures(vels,particle_set,temperatures,ekin=ekin)
        WRITE(output_unit,'(/)',ADVANCE="NO")
        WRITE(output_unit,FMT='(A,A)')' **************************************', &
@@ -339,10 +336,8 @@ CONTAINS
                                                neb_env%spring_energy
        WRITE(output_unit,FMT='(A,A)')' **************************************', &
             '*****************************************'
-       DEALLOCATE(ekin,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(temperatures,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ekin)
+       DEALLOCATE(temperatures)
     END IF
     ! Ener file
     ener = cp_print_key_unit_nr(logger,neb_env%neb_section,"ENERGY",&

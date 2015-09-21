@@ -239,20 +239,16 @@ CONTAINS
       routineN = 'qs_scf_ensure_outer_loop_vars', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nhistory, nvariables, stat
+    INTEGER                                  :: nhistory, nvariables
 
     IF (scf_control%outer_scf%have_scf) THEN
        nhistory = scf_control%outer_scf%max_scf + 1
        nvariables = outer_loop_variables_count(scf_control)
-       ALLOCATE(scf_env%outer_scf%variables(nvariables,nhistory),STAT=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(scf_env%outer_scf%count(nhistory),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(scf_env%outer_scf%variables(nvariables,nhistory))
+       ALLOCATE(scf_env%outer_scf%count(nhistory))
        scf_env%outer_scf%count=0
-       ALLOCATE(scf_env%outer_scf%gradient(nvariables,nhistory),STAT=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(scf_env%outer_scf%gradient(nvariables,nhistory))
+       ALLOCATE(scf_env%outer_scf%energy(nhistory))
     ENDIF
 
   END SUBROUTINE qs_scf_ensure_outer_loop_vars
@@ -302,7 +298,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, is, nao, nrow_block, &
-                                                nw, stat
+                                                nw
     LOGICAL                                  :: do_kpoints
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
@@ -341,8 +337,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
           nw = dft_control%nspins
           IF (do_kpoints) nw = 4
-          ALLOCATE(scf_env%scf_work1(nw), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(scf_env%scf_work1(nw))
           DO is=1,SIZE(scf_env%scf_work1)
              NULLIFY(scf_env%scf_work1(is)%matrix)
              CALL cp_fm_create(scf_env%scf_work1(is)%matrix,&
@@ -405,8 +400,7 @@ CONTAINS
     IF (do_kpoints) THEN
        IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
           nw = 4
-          ALLOCATE(scf_env%scf_work1(nw), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(scf_env%scf_work1(nw))
           DO is=1,SIZE(scf_env%scf_work1)
              NULLIFY(scf_env%scf_work1(is)%matrix)
              CALL cp_fm_create(scf_env%scf_work1(is)%matrix,&

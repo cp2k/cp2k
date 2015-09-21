@@ -156,15 +156,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(kpoint))
 
-    ALLOCATE(kpoint,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(kpoint)
 
     kpoint%kp_scheme = ""
     kpoint%nkp_grid = 0
@@ -209,7 +207,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, ik
+    INTEGER                                  :: ik
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -217,18 +215,15 @@ CONTAINS
     IF(ASSOCIATED(kpoint)) THEN
 
        IF(ASSOCIATED(kpoint%xkp)) THEN
-         DEALLOCATE(kpoint%xkp,STAT=ierr)
-         CPASSERT(ierr==0)
+         DEALLOCATE(kpoint%xkp)
          NULLIFY(kpoint%xkp)
        END IF
        IF(ASSOCIATED(kpoint%wkp)) THEN
-         DEALLOCATE(kpoint%wkp,STAT=ierr)
-         CPASSERT(ierr==0)
+         DEALLOCATE(kpoint%wkp)
          NULLIFY(kpoint%wkp)
        END IF
        IF(ASSOCIATED(kpoint%kp_dist)) THEN
-         DEALLOCATE(kpoint%kp_dist,STAT=ierr)
-         CPASSERT(ierr==0)
+         DEALLOCATE(kpoint%kp_dist)
        ENDIF
 
        CALL mpools_release(kpoint%mpools)
@@ -247,12 +242,10 @@ CONTAINS
           DO ik=1,SIZE(kpoint%kp_env)
              CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env)
           END DO
-          DEALLOCATE(kpoint%kp_env,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(kpoint%kp_env)
        END IF
 
-       DEALLOCATE(kpoint,STAT=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE(kpoint)
        NULLIFY(kpoint)
 
     END IF
@@ -518,7 +511,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: i, ierr, n_rep, nval, wfntype
+    INTEGER                                  :: i, n_rep, nval, wfntype
     LOGICAL                                  :: available, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: reallist
 
@@ -556,8 +549,7 @@ CONTAINS
           CASE ("GENERAL")
              CALL section_vals_val_get(kpoint_section,"KPOINT", n_rep_val=n_rep)
              kpoint%nkp = n_rep
-             ALLOCATE(kpoint%xkp(3,n_rep),kpoint%wkp(n_rep),STAT=ierr)
-             CPASSERT(ierr==0)
+             ALLOCATE(kpoint%xkp(3,n_rep),kpoint%wkp(n_rep))
              DO i=1,n_rep
                 CALL section_vals_val_get(kpoint_section,"KPOINT", i_rep_val=i,&
                                   r_vals=reallist)
@@ -683,15 +675,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(kp_env))
 
-    ALLOCATE(kp_env,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(kp_env)
 
     kp_env%nkpoint = 0
     kp_env%wkp     = 0.0_dp
@@ -715,7 +705,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ic, ierr, is
+    INTEGER                                  :: ic, is
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -728,8 +718,7 @@ CONTAINS
                 CALL deallocate_mo_set(kp_env%mos(ic,is)%mo_set)
              END DO
           END DO
-          DEALLOCATE(kp_env%mos,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(kp_env%mos)
        END IF
 
        IF(ASSOCIATED(kp_env%pmat)) THEN
@@ -738,8 +727,7 @@ CONTAINS
                 CALL cp_fm_release(kp_env%pmat(ic,is)%matrix)
              END DO
           END DO
-          DEALLOCATE(kp_env%pmat,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(kp_env%pmat)
        END IF
 
        IF(ASSOCIATED(kp_env%wmat)) THEN
@@ -748,12 +736,10 @@ CONTAINS
                 CALL cp_fm_release(kp_env%wmat(ic,is)%matrix)
              END DO
           END DO
-          DEALLOCATE(kp_env%wmat,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(kp_env%wmat)
        END IF
 
-       DEALLOCATE(kp_env,STAT=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE(kp_env)
        NULLIFY(kp_env)
 
     END IF

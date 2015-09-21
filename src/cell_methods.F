@@ -276,8 +276,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: cell_file_name
-    INTEGER                                  :: i, idum, j, my_format, n_rep, &
-                                                stat
+    INTEGER                                  :: i, idum, j, my_format, n_rep
     LOGICAL                                  :: explicit, failure, my_end
     REAL(KIND=dp)                            :: xdum
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
@@ -327,16 +326,13 @@ CPSourceFileRef)
 CPSourceFileRef,&
          only_ionode=.TRUE.)
     ! Copy cell information in the A, B, C fields..(we may need them later on..)
-    ALLOCATE(cell_par(3), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cell_par(3))
     cell_par = hmat(:,1)
     CALL section_vals_val_set(cell_section,"A",r_vals_ptr=cell_par)
-    ALLOCATE(cell_par(3), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cell_par(3))
     cell_par = hmat(:,2)
     CALL section_vals_val_set(cell_section,"B",r_vals_ptr=cell_par)
-    ALLOCATE(cell_par(3), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cell_par(3))
     cell_par = hmat(:,3)
     CALL section_vals_val_set(cell_section,"C",r_vals_ptr=cell_par)
     ! Unset possible keywords

@@ -91,7 +91,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ikind, ilist, &
       jatom, jkind, jneighbor, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, &
-      nneighbor, row, stat
+      nneighbor, row
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
     REAL(KIND=dp)                            :: dab, rab(3)
@@ -114,8 +114,7 @@ CONTAINS
       nkind = lri_env%lri_ints%nkind
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
-      ALLOCATE(atom_of_kind(natom),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       CALL neighbor_list_iterator_create(nl_iterator,soo_list)
@@ -138,8 +137,7 @@ CONTAINS
          nbb = lrii%nbb
          nn=nfa+nfb
 
-         ALLOCATE(h_work(nba,nbb),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(h_work(nba,nbb))
          h_work(:,:)=0.0_dp
 
          IF (iatom <= jatom) THEN
@@ -183,15 +181,13 @@ CONTAINS
            h_block(1:nba,1:nbb)=h_block(1:nba,1:nbb)+h_work(1:nba,1:nbb)
          ENDIF
  
-         DEALLOCATE(h_work,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(h_work)
       END DO
 
       CALL cp_dbcsr_finalize(h_matrix)
  
       CALL neighbor_list_iterator_release(nl_iterator)
-      DEALLOCATE(atom_of_kind,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(atom_of_kind)
   
     END IF
 

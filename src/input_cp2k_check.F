@@ -294,8 +294,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: restarted_infos
     INTEGER                                  :: ensemble, handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
-                                                nforce_eval1, nforce_eval2, &
-                                                stat
+                                                nforce_eval1, nforce_eval2
     INTEGER, DIMENSION(:), POINTER           :: ivec, iwalkers_status, iwork, &
                                                 rwalkers_status
     LOGICAL                                  :: bsse_check, check, explicit1, &
@@ -371,8 +370,7 @@ CONTAINS
                       CALL set_restart_info("COORDINATES",restarted_infos)
                       ! Copy over also the information on the multiple_unit_cell
                       CALL section_vals_val_get(section1,"TOPOLOGY%MULTIPLE_UNIT_CELL",i_vals=ivec)
-                      ALLOCATE(iwork(3),stat=stat)
-                      CPASSERT(stat==0)
+                      ALLOCATE(iwork(3))
                       iwork=ivec
                       CALL section_vals_val_set(section2,"TOPOLOGY%MULTIPLE_UNIT_CELL",i_vals_ptr=iwork)
                    END IF
@@ -438,8 +436,7 @@ CONTAINS
              IF (flag.AND.qmmm_check) THEN
                 CALL set_restart_info("QMMM TRANSLATION VECTOR",restarted_infos)
                 CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec)
-                ALLOCATE(work(3),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(work(3))
                 work = vec
                 CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work)
              END IF
@@ -636,8 +633,7 @@ CONTAINS
           IF (flag.AND.check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS")) THEN
              CALL section_vals_val_get(restart_file,"MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS",&
                   i_vals=rwalkers_status)
-             ALLOCATE(iwalkers_status(SIZE(rwalkers_status)),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(iwalkers_status(SIZE(rwalkers_status)))
              iwalkers_status = rwalkers_status
              CALL section_vals_val_set(input_file,"MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS",&
                   i_vals_ptr=iwalkers_status)
@@ -826,7 +822,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_restart_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -859,8 +855,7 @@ CONTAINS
        WRITE(output_unit,'(1X,79("*"),/)')
     END IF
     IF (ASSOCIATED(restarted_infos)) THEN
-       DEALLOCATE(restarted_infos,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(restarted_infos)
     END IF
   END SUBROUTINE release_restart_info
 

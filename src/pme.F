@@ -119,9 +119,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ierr, ig, &
-                                                ipart, j, nd(3), npart, &
-                                                nshell, p1, p2
+    INTEGER                                  :: group, handle, i, ig, ipart, &
+                                                j, nd(3), npart, nshell, p1, &
+                                                p2
     LOGICAL                                  :: failure, is1_core, is2_core
     REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa, ffb
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -366,8 +366,7 @@ CONTAINS
 
     !--------END OF STRESS TENSOR CALCULATION -----------
 
-    ALLOCATE ( drpot(1:3), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( drpot(1:3))
     DO i = 1, 3
        CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
        CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid)
@@ -475,8 +474,7 @@ CONTAINS
        DO i = 1, 3
           CALL rs_grid_release(drpot(i)%rs_grid)
        END DO
-       DEALLOCATE ( drpot, STAT = ierr )
-       CPASSERT(ierr==0)
+       DEALLOCATE ( drpot)
     END IF
 
     CALL pw_pool_give_back_pw ( pw_small_pool, rhos1%pw)

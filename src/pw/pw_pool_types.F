@@ -122,15 +122,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
     logger => cp_get_default_logger()
 
-    ALLOCATE(pool, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pool)
     pool%pw_grid => pw_grid
     CALL pw_grid_retain(pw_grid)
     last_pw_pool_id_nr=last_pw_pool_id_nr+1
@@ -192,7 +190,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_flush_cache', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: array_att
@@ -253,8 +250,7 @@ CONTAINS
     DO
        IF (.NOT.cp_sll_3d_r_next(array_iterator,el_att=array_att)&
             ) EXIT
-       DEALLOCATE(array_att,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(array_att)
     END DO
     CALL cp_sll_3d_r_dealloc(pool%real3d_array)
 
@@ -273,7 +269,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -296,8 +291,7 @@ CONTAINS
           CPASSERT(ASSOCIATED(pool%pw_grid))
           CALL pw_grid_release(pool%pw_grid)
 
-          DEALLOCATE(pool,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pool)
        END IF
     END IF
     NULLIFY(pool)
@@ -652,7 +646,6 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_cr3d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: compatible, failure, &
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
@@ -682,8 +675,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
            CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                 routineP,"hit max_cache"//&
 CPSourceFileRef)
-           DEALLOCATE(cr3d, stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(cr3d)
         END IF
      ELSE
         IF (debug_this_module) THEN
@@ -692,8 +684,7 @@ CPSourceFileRef)
              pw_pool%id_nr
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
-        DEALLOCATE(cr3d, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(cr3d)
      END IF
   ELSE
      IF (debug_this_module) THEN
@@ -728,14 +719,13 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_create_pws', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
-  ALLOCATE(pws(SIZE(pools)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(pws(SIZE(pools)))
   DO i=1,SIZE(pools)
      NULLIFY(pws(i)%pw)
      CALL pw_pool_create_pw(pools(i)%pool,pws(i)%pw,use_data,&
@@ -759,7 +749,7 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_pws', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -770,8 +760,7 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws)
   DO i=1,SIZE(pools)
      CALL pw_pool_give_back_pw(pools(i)%pool,pws(i)%pw)
   END DO
-  DEALLOCATE(pws,stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(pws)
 END SUBROUTINE pw_pools_give_back_pws
 
 ! *****************************************************************************
@@ -789,14 +778,13 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPASSERT(ASSOCIATED(source_pools))
-  ALLOCATE(target_pools(SIZE(source_pools)), stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(target_pools(SIZE(source_pools)))
   DO i=1,SIZE(source_pools)
      target_pools(i)%pool => source_pools(i)%pool
      CALL pw_pool_retain(source_pools(i)%pool)
@@ -818,7 +806,7 @@ SUBROUTINE pw_pools_dealloc(pools)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -827,8 +815,7 @@ SUBROUTINE pw_pools_dealloc(pools)
      DO i=1,SIZE(pools)
         CALL pw_pool_release(pools(i)%pool)
      END DO
-     DEALLOCATE(pools,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(pools)
   END IF
   NULLIFY(pools)
 END SUBROUTINE pw_pools_dealloc

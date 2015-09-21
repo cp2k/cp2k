@@ -137,8 +137,7 @@ CONTAINS
     farming_section => section_vals_get_subs_vals(root_section,"FARMING")
 
     IF (ASSOCIATED(farming_env%group_partition)) THEN
-       DEALLOCATE(farming_env%group_partition,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(farming_env%group_partition)
     END IF
 
     ! The following input order is used
@@ -195,8 +194,7 @@ CONTAINS
     jobs_section => section_vals_get_subs_vals(farming_section,"JOB")
     CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs)
 
-    ALLOCATE(farming_env%Job(farming_env % njobs),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(farming_env%Job(farming_env % njobs))
     CALL init_job_type(farming_env%job)
 
     has_dep=.FALSE.

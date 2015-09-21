@@ -783,14 +783,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(cell))
-    ALLOCATE (cell,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (cell)
     last_cell_id = last_cell_id + 1
     cell%id_nr = last_cell_id
     cell%ref_count = 1
@@ -844,7 +842,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -853,8 +850,7 @@ CONTAINS
        CPASSERT(cell%ref_count>0)
        cell%ref_count=cell%ref_count-1
        IF (cell%ref_count==0) THEN
-          DEALLOCATE(cell,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(cell)
        END IF
        NULLIFY(cell)
     END IF

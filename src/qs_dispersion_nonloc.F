@@ -80,7 +80,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: filename
     INTEGER                                  :: funit, handle, nqs, &
-                                                nr_points, q1_i, q2_i, stat, &
+                                                nr_points, q1_i, q2_i, &
                                                 vdw_type
     LOGICAL                                  :: failure
 
@@ -115,8 +115,7 @@ CONTAINS
           CALL mp_bcast(nr_points,para_env%source,para_env%group)
           CALL mp_bcast(dispersion_env%r_max,para_env%source,para_env%group)
           ALLOCATE(dispersion_env%q_mesh(nqs),dispersion_env%kernel(0:nr_points,nqs,nqs),&
-                   dispersion_env%d2phi_dk2(0:nr_points,nqs,nqs),STAT=stat)
-          CPASSERT(stat==0)
+                   dispersion_env%d2phi_dk2(0:nr_points,nqs,nqs))
           dispersion_env%nqs = nqs
           dispersion_env%nr_points = nr_points
           IF(para_env%source==para_env%mepos) THEN
@@ -147,8 +146,7 @@ CONTAINS
           CALL mp_bcast(dispersion_env%kernel,para_env%source,para_env%group)
           CALL mp_bcast(dispersion_env%d2phi_dk2,para_env%source,para_env%group)
           ! 2nd derivates for interpolation
-          ALLOCATE(dispersion_env%d2y_dx2(nqs,nqs),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(dispersion_env%d2y_dx2(nqs,nqs))
           CALL initialize_spline_interpolation (dispersion_env%q_mesh, dispersion_env%d2y_dx2)
           !
           dispersion_env%q_cut = dispersion_env%q_mesh(nqs)
@@ -191,8 +189,7 @@ CONTAINS
       nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
 
     INTEGER                                  :: handle, i, i_grid, idir, &
-                                                ispin, n1, n2, n3, np, nspin, &
-                                                stat
+                                                ispin, n1, n2, n3, np, nspin
     LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: b_value, beta, Ec_nl, sumnp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dq0_dgradrho, dq0_drho, hpot, &
@@ -234,8 +231,7 @@ CONTAINS
 
     ! get density derivatives
     nspin=SIZE(rho_r)
-    ALLOCATE ( drho_r(3,nspin), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( drho_r(3,nspin))
     DO ispin=1,nspin
        DO idir=1,3
           NULLIFY(drho_r(idir,ispin)%pw)
@@ -248,8 +244,7 @@ CONTAINS
     END DO
 
     np = SIZE(tmp_r%cr3d)
-    ALLOCATE ( rho(np), drho(np,3), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rho(np), drho(np,3))
     rho = 0.0_dp
     drho = 0.0_dp
     DO ispin=1,nspin
@@ -270,8 +265,7 @@ CONTAINS
     !! ---------------------------------------------------------------------------------
 
     IF (energy_only) THEN
-       ALLOCATE ( q0(np), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( q0(np))
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
              CPABORT("Unknown vdW-DF functional")
@@ -281,8 +275,7 @@ CONTAINS
              CALL get_q0_on_grid_eo_rvv10 (rho,drho,q0,dispersion_env)
        END SELECT
     ELSE
-       ALLOCATE ( q0(np), dq0_drho(np), dq0_dgradrho(np), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( q0(np), dq0_drho(np), dq0_dgradrho(np))
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
              CPABORT("Unknown vdW-DF functional")
@@ -307,8 +300,7 @@ CONTAINS
     !! thetas are stored in reciprocal space as  theta_i(k) because this is the way they are used later
     !! for the convolution (equation 11 of SOLER).
     !! --------------------------------------------------------------------------------------------------
-    ALLOCATE ( thetas(np,dispersion_env%nqs), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( thetas(np,dispersion_env%nqs))
     !! Interpolate the P_i polynomials defined in equation 3 in SOLER for the particular
     !! q0 values we have.
     CALL spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2, q0, thetas)
@@ -340,8 +332,7 @@ CONTAINS
     n1 = SIZE(tmp_r%cr3d,1)
     n2 = SIZE(tmp_r%cr3d,2)
     n3 = SIZE(tmp_r%cr3d,3)
-    ALLOCATE ( thetas_g(dispersion_env%nqs), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( thetas_g(dispersion_env%nqs))
     DO i=1,dispersion_env%nqs
        tmp_r%cr3d = RESHAPE(thetas(:,i),(/n1,n2,n3/))
        NULLIFY(thetas_g(i)%pw)
@@ -393,8 +384,7 @@ CONTAINS
        !! full grid  because, as can be seen in SOLER equation 9, processors need
        !! to access grid points outside their allocated regions.
        !! -------------------------------------------------------------------------
-       ALLOCATE ( potential(np), hpot(np), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( potential(np), hpot(np))
        IF(use_virial) THEN
           ! calculates gradient contribution to stress
           grid => tmp_g%pw_grid
@@ -434,8 +424,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g)
     END IF
 
-    DEALLOCATE ( thetas, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( thetas)
 
     DO i=1,dispersion_env%nqs
        CALL pw_pool_give_back_pw(pw_pool, thetas_g(i)%pw)
@@ -448,14 +437,11 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, tmp_r)
     CALL pw_pool_give_back_pw(pw_pool, tmp_g)
 
-    DEALLOCATE ( rho, drho, drho_r, thetas_g, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rho, drho, drho_r, thetas_g)
     IF (energy_only) THEN
-       DEALLOCATE ( q0, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( q0)
     ELSE
-       DEALLOCATE ( q0, dq0_drho, dq0_dgradrho, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( q0, dq0_drho, dq0_dgradrho)
     END IF
 
     CALL timestop(handle)
@@ -490,7 +476,7 @@ CONTAINS
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: u_vdw(:,:)
     INTEGER                                  :: handle, ig, igs, iq, l, m, &
-                                                nqs, q1_i, q2_i, stat
+                                                nqs, q1_i, q2_i
     LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: g, g2, g2_last, g_multiplier, &
                                                 gm
@@ -501,10 +487,8 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     nqs = dispersion_env%nqs
-    ALLOCATE(kernel_of_k(nqs,nqs),dkernel_of_dk(nqs,nqs),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(theta(nqs),thetam(nqs),theta_g(nqs),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kernel_of_k(nqs,nqs),dkernel_of_dk(nqs,nqs))
+    ALLOCATE(theta(nqs),thetam(nqs),theta_g(nqs))
 
     IF (PRESENT(virial)) THEN
        use_virial = .TRUE.
@@ -517,8 +501,7 @@ CONTAINS
     grid => thetas_g(1)%pw%pw_grid
 
     IF (.NOT.energy_only) THEN
-       ALLOCATE(u_vdW(grid%ngpts_cut_local,nqs),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(u_vdW(grid%ngpts_cut_local,nqs))
        u_vdW(:,:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
     END IF
 
@@ -576,13 +559,10 @@ CONTAINS
              thetas_g(iq)%pw%cc(ig) = u_vdW(ig,iq)
           END DO
        END DO
-       DEALLOCATE(u_vdW,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(u_vdW)
     END IF
-    DEALLOCATE(theta,thetam,theta_g,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(kernel_of_k,dkernel_of_dk,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(theta,thetam,theta_g)
+    DEALLOCATE(kernel_of_k,dkernel_of_dk)
 
     CALL timestop(handle)
 
@@ -627,7 +607,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_grid, l, m, nqs, &
-                                                P_i, q, q_hi, q_low, stat
+                                                P_i, q, q_hi, q_low
     LOGICAL                                  :: failure, use_virial
     REAL(dp)                                 :: a, b, b_value, c, const, d, &
                                                 dP_dq0, dq, e, f, P, prefactor
@@ -654,8 +634,7 @@ CONTAINS
     d2y_dx2 => dispersion_env%d2y_dx2
     q_mesh => dispersion_env%q_mesh
     nqs = dispersion_env%nqs
-    ALLOCATE(y(nqs),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(y(nqs))
 
     DO i_grid = 1,SIZE(u_vdw,1)
        q_low = 1
@@ -723,8 +702,7 @@ CONTAINS
           END IF
        END DO
     END DO
-    DEALLOCATE(y,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(y)
 
     CALL timestop(handle)
 

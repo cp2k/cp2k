@@ -107,7 +107,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: handle, hesunit_read, indf, &
                                                 info, iter_nr, its, maxiter, &
-                                                ndf, nfree, output_unit, stat
+                                                ndf, nfree, output_unit
     LOGICAL                                  :: cell_opt, conv, failure, &
                                                 hesrest, ionode, &
                                                 shell_present, should_stop, &
@@ -177,8 +177,7 @@ CONTAINS
     CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat")
     CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp")
     CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat")
-    ALLOCATE (eigval(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (eigval(ndf))
     eigval(:) = 0.0_dp
 
     CALL force_env_get(force_env=force_env,subsys=subsys)
@@ -214,32 +213,25 @@ CONTAINS
        CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one)
     END IF
 
-    ALLOCATE (xold(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (xold(ndf))
     xold(:) = x0(:)
 
-    ALLOCATE (g(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (g(ndf))
     g(:) = 0.0_dp
 
-    ALLOCATE (gold(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gold(ndf))
     gold(:) = 0.0_dp
 
-    ALLOCATE (dx(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (dx(ndf))
     dx(:) = 0.0_dp
 
-    ALLOCATE (dg(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (dg(ndf))
     dg(:) = 0.0_dp
 
-    ALLOCATE (work(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (work(ndf))
     work(:) = 0.0_dp
 
-    ALLOCATE (dr(ndf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (dr(ndf))
     dr(:) = 0.0_dp
 
     ! refernce cell needed for smooth cell optimizations
@@ -359,22 +351,14 @@ CONTAINS
     CALL cp_fm_release(hess_tmp)
 
     CALL cp_blacs_env_release(blacs_env)
-    DEALLOCATE (xold,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (g,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (gold,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (dx,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (dg,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (eigval,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (dr,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (xold)
+    DEALLOCATE (g)
+    DEALLOCATE (gold)
+    DEALLOCATE (dx)
+    DEALLOCATE (dg)
+    DEALLOCATE (eigval)
+    DEALLOCATE (work)
+    DEALLOCATE (dr)
 
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
          "PRINT%PROGRAM_RUN_INFO")
@@ -962,8 +946,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'construct_initial_hess', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iat_col, iat_row, iglobal, iind, j, jat_row, jglobal, jind, &
-      k, natom, ncol_local, nrow_local, stat, z
+    INTEGER                                  :: i, iat_col, iat_row, iglobal, &
+                                                iind, j, jat_row, jglobal, &
+                                                jind, k, natom, ncol_local, &
+                                                nrow_local, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
@@ -993,16 +979,11 @@ CONTAINS
      CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
             local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
      natom=particles%n_els
-     ALLOCATE(at_row(natom),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(rho_ij(natom,natom),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(d_ij(natom,natom),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(r_ij(natom,natom,3),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(fixed(3,natom),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(at_row(natom))
+     ALLOCATE(rho_ij(natom,natom))
+     ALLOCATE(d_ij(natom,natom))
+     ALLOCATE(r_ij(natom,natom,3))
+     ALLOCATE(fixed(3,natom))
      fixed=1.0_dp
      CALL fix_atom_control( force_env,fixed)
      DO i=1,3
@@ -1067,16 +1048,11 @@ CONTAINS
            END IF 
         END DO
      END DO
-     DEALLOCATE(fixed,stat=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE(rho_ij,stat=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE(d_ij,stat=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE(r_ij,stat=stat)
-     CPASSERT(stat==0)
-     DEALLOCATE(at_row,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(fixed)
+     DEALLOCATE(rho_ij)
+     DEALLOCATE(d_ij)
+     DEALLOCATE(r_ij)
+     DEALLOCATE(at_row)
 
   END SUBROUTINE  construct_initial_hess
 

@@ -80,8 +80,8 @@ CONTAINS
 
     INTEGER                                  :: atom_i, atom_j, handle, i, &
                                                 ia, iatom, ic, icol, ikind, &
-                                                irow, is, istat, jatom, &
-                                                jkind, natom, nimg
+                                                irow, is, jatom, jkind, &
+                                                natom, nimg
     INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
@@ -147,8 +147,7 @@ CONTAINS
        ! virial
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
-       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (atom_of_kind(natom),kind_of(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,atom_of_kind=atom_of_kind)
        CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -226,8 +225,7 @@ CONTAINS
        END DO
        CALL neighbor_list_iterator_release(nl_iterator)
        !
-       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (atom_of_kind,kind_of)
        IF ( SIZE(matrix_p,1) == 2 ) THEN
           DO ic=1,SIZE(matrix_p,2)
              CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
@@ -239,8 +237,7 @@ CONTAINS
     ! KS matrix
     IF ( .NOT. just_energy ) THEN
        CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s,natom=natom)
-       ALLOCATE (kind_of(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (kind_of(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
        !
        nimg = SIZE(ks_matrix,2)
@@ -291,8 +288,7 @@ CONTAINS
        END DO
        CALL neighbor_list_iterator_release(nl_iterator)
        !
-       DEALLOCATE (kind_of,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (kind_of)
     END IF
 
     CALL timestop(handle)

@@ -336,13 +336,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(mixed_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mixed_env)
     CALL init_mixed_env(mixed_env,para_env=para_env)
   END SUBROUTINE mixed_env_create
 
@@ -377,7 +375,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ngroups, stat
+    INTEGER                                  :: i, ngroups
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -393,19 +391,14 @@ CONTAINS
                 CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env)
              END IF
           END DO
-          DEALLOCATE(mixed_env%sub_para_env, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mixed_env%sub_logger, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mixed_env%energies, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(mixed_env%sub_para_env)
+          DEALLOCATE(mixed_env%sub_logger)
+          DEALLOCATE(mixed_env%energies)
           IF (ASSOCIATED(mixed_env%par)) THEN
-             DEALLOCATE(mixed_env%par, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(mixed_env%par)
           END IF
           IF (ASSOCIATED(mixed_env%val)) THEN
-             DEALLOCATE(mixed_env%val, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(mixed_env%val)
           END IF
           CALL cell_release(mixed_env%cell_ref)
           CALL cp_para_env_release(mixed_env%para_env)
@@ -413,11 +406,9 @@ CONTAINS
           CALL cp_subsys_release(mixed_env%subsys)
           CALL section_vals_release(mixed_env%input)
           IF (ASSOCIATED(mixed_env%group_distribution)) THEN
-             DEALLOCATE(mixed_env%group_distribution, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(mixed_env%group_distribution)
           END IF
-          DEALLOCATE(mixed_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(mixed_env)
        END IF
     END IF
     NULLIFY(mixed_env)

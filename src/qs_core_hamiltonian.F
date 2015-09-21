@@ -159,8 +159,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, img, maxder, natom, &
-                                                nder, nders, nimages, nkind, &
-                                                stat
+                                                nder, nders, nimages, nkind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL :: all_potential_present, failure, gth_potential_present, kgpot, &
       lrigpw, ofdft, ppl_present, use_virial
@@ -354,8 +353,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, matrix_h_kp=matrix_h)
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,nimages)
     DO img=1,nimages
-       ALLOCATE(matrix_h(1,img)%matrix,STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(matrix_h(1,img)%matrix)
        CALL cp_dbcsr_init(matrix_h(1,img)%matrix)
        IF (.NOT.ofdft) THEN
           CALL cp_dbcsr_copy(matrix_h(1,img)%matrix,matrix_t(1,img)%matrix,&
@@ -495,8 +493,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, iatom, ikind, istat, &
-                                                jatom, natom
+    INTEGER                                  :: blk, iatom, ikind, jatom, &
+                                                natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
@@ -504,8 +502,7 @@ CONTAINS
 
     failure = .FALSE.
     natom = SIZE(particle_set)
-    ALLOCATE (kind_of(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (kind_of(natom))
 
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
@@ -520,8 +517,7 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    DEALLOCATE (kind_of,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (kind_of)
 
   END SUBROUTINE build_atomic_relmat
 

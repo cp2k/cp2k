@@ -405,9 +405,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance_real', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, istat, istate, jstate, &
-                                                natom, ncol_local, &
-                                                nrow_global, nrow_local
+    INTEGER                                  :: iatom, istate, jstate, natom, &
+                                                ncol_local, nrow_global, &
+                                                nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
     REAL(dp)                                 :: grad_ij, zii, zij, zjj
@@ -421,8 +421,7 @@ CONTAINS
     CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_local = nrow_local,  &
          ncol_local = ncol_local, nrow_global = nrow_global, &
          row_indices = row_indices, col_indices = col_indices)
-    ALLOCATE(diag(nrow_global,natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(diag(nrow_global,natom))
 
     CALL cp_fm_create(force , zij_fm_set(1,1)%matrix%matrix_struct)
     CALL cp_fm_set_all (force, 0._dp)
@@ -446,8 +445,7 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(diag,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(diag)
 
     CALL cp_fm_maxabsval ( force, tolerance)
 
@@ -485,9 +483,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, istat, j, &
-      l_spin, lb, my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, &
-      s_spin, ub
+    INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, j, l_spin, lb, &
+      my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
@@ -525,8 +522,7 @@ CONTAINS
           l_spin = myspin
           my_nspins = 1
        END IF
-       ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (moloc_coeff(my_nspins))
        DO ispin = s_spin,l_spin
           NULLIFY(tmp_fm_struct,mo_coeff)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
@@ -560,8 +556,7 @@ CONTAINS
             mat_ptr=> mo_coeff
           END IF
           IF(localized_wfn_control%set_of_states == state_loc_list) THEN
-             ALLOCATE(vecbuffer(1,nao),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(vecbuffer(1,nao))
              IF(localized_wfn_control%do_homo)THEN
                  my_occ =  occupations(localized_wfn_control%loc_states(1, ispin))
              END IF
@@ -588,8 +583,7 @@ CONTAINS
                 CALL cp_fm_set_submatrix(moloc_coeff(ispin)%matrix,vecbuffer,1,imoloc,&
                      nao,1,transpose=.TRUE.)
              END DO
-             DEALLOCATE(vecbuffer,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(vecbuffer)
           ELSE
              my_occ  = occupations( lb )
              occ_imo = occupations( ub )
@@ -632,8 +626,7 @@ CONTAINS
              dim_op = 6
           END IF
           CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=dim_op)
-          ALLOCATE ( qs_loc_env % op_sm_set ( 2, dim_op ), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE ( qs_loc_env % op_sm_set ( 2, dim_op ))
           DO i=1, dim_op
              DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
                 NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
@@ -647,8 +640,7 @@ CONTAINS
 
        ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
           natoms = SIZE ( qs_loc_env % particle_set, 1 )
-          ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ))
           CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=natoms)
           DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
              CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
@@ -713,8 +705,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: dim_op, handle, i, iatom, icol, ikind, inode, irow, iset, &
-      istat, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, maxl, &
-      ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
+      jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, maxl, ncoa, &
+      ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(3)                    :: perd0
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -774,10 +766,8 @@ CONTAINS
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set, &
          cell=cell, dim_op=dim_op)
 
-    ALLOCATE (op_cos(dim_op),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (op_sin(dim_op),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (op_cos(dim_op))
+    ALLOCATE (op_sin(dim_op))
     DO i = 1, dim_op
        NULLIFY (op_cos(i)%block)
        NULLIFY (op_sin(i)%block)
@@ -798,8 +788,7 @@ CONTAINS
     perd0(1:3) = cell%perd(1:3)
     cell%perd(1:3) = 1
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -924,11 +913,9 @@ CONTAINS
        NULLIFY(op_cos(i)%block)
        NULLIFY(op_sin(i)%block)
     END DO
-    DEALLOCATE(op_cos,op_sin, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(op_cos,op_sin)
 
-    DEALLOCATE(cosab,sinab,work,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cosab,sinab,work,basis_set_list)
 
     CALL timestop(handle)
   END SUBROUTINE get_berry_operator
@@ -1156,13 +1143,11 @@ CONTAINS
 
     max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
 
-    ALLOCATE (vecbuffer(1,nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (vecbuffer(1,nao))
     IF(ASSOCIATED(qs_loc_env%localized_wfn_control%loc_states)) THEN
       DEALLOCATE(qs_loc_env%localized_wfn_control%loc_states,STAT=istat)
     END IF
-    ALLOCATE(qs_loc_env%localized_wfn_control%loc_states(max_nloc,2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(qs_loc_env%localized_wfn_control%loc_states(max_nloc,2))
     qs_loc_env%localized_wfn_control%loc_states = 0
 
     DO ispin=1,nspin
@@ -1176,15 +1161,13 @@ CONTAINS
          READ(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin)
          IF(do_homo) THEN
            READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
-           ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-           CPASSERT(istat==0)
+           ALLOCATE(eig_read(nmo_read), occ_read(nmo_read))
            eig_read = 0.0_dp
            occ_read = 0.0_dp
            READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
          ELSE
            READ (rst_unit) nmo_read
-           ALLOCATE(eig_read(nmo_read), STAT=istat)
-           CPASSERT(istat==0)
+           ALLOCATE(eig_read(nmo_read))
            eig_read = 0.0_dp
            READ (rst_unit) eig_read(1:nmo_read)
          END IF
@@ -1203,12 +1186,10 @@ CONTAINS
          IF(do_homo) THEN
            mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
            mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
-           DEALLOCATE(eig_read, occ_read, STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(eig_read, occ_read)
          ELSE
            evals(ispin)%array(1:nmo) = eig_read(1:nmo)
-           DEALLOCATE(eig_read, STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(eig_read)
          END IF
 
       END IF
@@ -1233,8 +1214,7 @@ CONTAINS
 
     CALL mp_bcast(qs_loc_env%localized_wfn_control%loc_states,source,group)
 
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(vecbuffer)
 
     END IF
 
@@ -1495,8 +1475,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, ir, n_list, n_rep, &
-                                                n_state, nline, output_unit, &
-                                                stat
+                                                n_state, nline, output_unit
     INTEGER, DIMENSION(:), POINTER           :: list, loc_list
     LOGICAL                                  :: failure, my_do_xas
     REAL(dp), POINTER                        :: ene(:)
@@ -1570,8 +1549,7 @@ CONTAINS
               END DO ! ir
               IF(n_list/=0) THEN
                  localized_wfn_control%set_of_states=state_loc_list
-                 ALLOCATE(localized_wfn_control%loc_states(n_list,2),STAT=stat)
-                 CPASSERT(stat==0)
+                 ALLOCATE(localized_wfn_control%loc_states(n_list,2))
                  localized_wfn_control%loc_states = 0
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
@@ -1580,8 +1558,7 @@ CONTAINS
                    localized_wfn_control%nloc_states(2) = 0
                    localized_wfn_control%loc_states(:,2) = 0
                  END IF
-                 DEALLOCATE(loc_list, STAT=stat)
-                 CPASSERT(stat==0)
+                 DEALLOCATE(loc_list)
                END IF
             END IF
 
@@ -1603,14 +1580,12 @@ CONTAINS
               END DO ! ir
               IF(n_list/=0) THEN
                  localized_wfn_control%set_of_states=state_loc_list
-                 ALLOCATE(localized_wfn_control%loc_states(n_list,2),STAT=stat)
-                 CPASSERT(stat==0)
+                 ALLOCATE(localized_wfn_control%loc_states(n_list,2))
                  localized_wfn_control%loc_states = 0
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
                  localized_wfn_control%nloc_states(1) = n_list
-                 DEALLOCATE(loc_list, STAT=stat)
-                 CPASSERT(stat==0)
+                 DEALLOCATE(loc_list)
               END IF
             END IF
           END IF
@@ -1761,14 +1736,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_centers', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat
+    INTEGER                                  :: ispin
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     DO ispin = 1,nspins
-       ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)), STAT = istat)
-       CPASSERT(istat==0)
+       ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)))
        localized_wfn_control%centers_set(ispin)%array = 0.0_dp
     END DO
 
@@ -1792,7 +1766,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ispin, istat, max_iloc, &
+    INTEGER                                  :: i, ispin, max_iloc, &
                                                 max_nmoloc, state
     LOGICAL                                  :: failure
 
@@ -1817,8 +1791,7 @@ CONTAINS
        END DO
     CASE(state_loc_range)
        ! Range
-       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2))
        localized_wfn_control%loc_states = 0
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = &
@@ -1833,8 +1806,7 @@ CONTAINS
        END DO
     CASE(energy_loc_range)
        ! Energy
-       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2))
        localized_wfn_control%loc_states = 0
        DO ispin = 1,nspins
           DO i = 1,nmoloc(ispin)
@@ -1843,8 +1815,7 @@ CONTAINS
        END DO
     CASE(state_loc_all)
        ! All
-       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2))
        localized_wfn_control%loc_states = 0
 
        DO ispin = 1,nspins

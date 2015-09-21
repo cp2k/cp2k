@@ -90,7 +90,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fe_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, id_method, stat
+    INTEGER                                  :: i, id_method
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: ui_section, ui_var_section
 
@@ -102,8 +102,7 @@ CONTAINS
        CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method)
        SELECT CASE(id_method)
        CASE (do_fe_ui)
-          ALLOCATE(fe_env, stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(fe_env)
           NULLIFY(fe_env%covmx, fe_env%uivar, fe_env%conv_par, fe_env%cg_data)
           fe_env%type = id_method
           fe_env%nr_points   = 0
@@ -113,8 +112,7 @@ CONTAINS
           ui_var_section => section_vals_get_subs_vals(ui_section,"UVAR")
           CALL section_vals_get(ui_var_section,n_repetition=fe_env%ncolvar)
           ! Convergence controlling parameters
-          ALLOCATE(fe_env%conv_par, stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(fe_env%conv_par)
           fe_env%conv_par%test_k  = .FALSE.
           fe_env%conv_par%test_sw = .FALSE.
           fe_env%conv_par%test_vn = .FALSE.
@@ -133,8 +131,7 @@ CONTAINS
           CALL section_vals_val_get(ui_section,"CONVERGENCE_CONTROL%VN_CONFIDENCE_LIMIT",&
                r_val=fe_env%conv_par%vn_conf_lm)
           ! Umbrella Integration variables
-          ALLOCATE(fe_env%uivar(fe_env%ncolvar), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(fe_env%uivar(fe_env%ncolvar))
           DO i = 1, fe_env%ncolvar
              ! Read Umbrella Integration Variable definition
              CALL section_vals_val_get(ui_var_section,"COLVAR",&
@@ -142,11 +139,9 @@ CONTAINS
              NULLIFY(fe_env%uivar(i)%ss)
           END DO
        CASE (do_fe_ac)
-          ALLOCATE(fe_env, stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(fe_env)
           NULLIFY(fe_env%covmx, fe_env%uivar, fe_env%conv_par, fe_env%cg_data)
-          ALLOCATE(fe_env%covmx(3,0), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(fe_env%covmx(3,0))
           fe_env%type = id_method
           CALL section_vals_val_get(fe_section,"ALCHEMICAL_CHANGE%EPS_CONV",r_val=fe_env%eps_conv)
        CASE DEFAULT
@@ -166,46 +161,38 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fe_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(fe_env)) THEN
        IF (ASSOCIATED(fe_env%covmx)) THEN
-          DEALLOCATE(fe_env%covmx,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fe_env%covmx)
        END IF
        IF (ASSOCIATED(fe_env%cg_data)) THEN
           DO i = 1, SIZE(fe_env%cg_data)
              IF (ASSOCIATED(fe_env%cg_data(i)%avg)) THEN
-                DEALLOCATE(fe_env%cg_data(i)%avg,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fe_env%cg_data(i)%avg)
              END IF
              IF (ASSOCIATED(fe_env%cg_data(i)%var)) THEN
-                DEALLOCATE(fe_env%cg_data(i)%var,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fe_env%cg_data(i)%var)
              END IF
           END DO
-          DEALLOCATE(fe_env%cg_data,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fe_env%cg_data)
        END IF
        IF (ASSOCIATED(fe_env%conv_par)) THEN
-          DEALLOCATE(fe_env%conv_par,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fe_env%conv_par)
        END IF
        IF (ASSOCIATED(fe_env%uivar)) THEN
           DO i = 1, SIZE(fe_env%uivar)
              IF (ASSOCIATED(fe_env%uivar(i)%ss)) THEN
-                DEALLOCATE(fe_env%uivar(i)%ss,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(fe_env%uivar(i)%ss)
              END IF
           END DO
-          DEALLOCATE(fe_env%uivar,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fe_env%uivar)
        END IF
-       DEALLOCATE(fe_env, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(fe_env)
     END IF
   END SUBROUTINE fe_env_release
 

@@ -166,8 +166,7 @@ CPSourceFileRef)
 
   CPASSERT(.NOT.ASSOCIATED(blacs_env))
 
-  ALLOCATE(blacs_env,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(blacs_env)
   blacs_env%group=0
   blacs_env%ref_count=1
   blacs_env%mepos(:)=0
@@ -247,8 +246,7 @@ CPSourceFileRef)
   blacs_env%blacs2mpi=0
   blacs_env%blacs2mpi(blacs_env%mepos(1),blacs_env%mepos(2))=para_env%mepos
   CALL mp_sum(blacs_env%blacs2mpi,para_env%group)
-  ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1))
   blacs_env%mpi2blacs=-1
   DO ipcol=0,blacs_env%num_pe(2)-1
      DO iprow=0,blacs_env%num_pe(1)-1
@@ -292,7 +290,6 @@ SUBROUTINE cp_blacs_env_release(blacs_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -303,12 +300,9 @@ SUBROUTINE cp_blacs_env_release(blacs_env)
      IF (blacs_env%ref_count<1) THEN
         CALL cp_blacs_gridexit(blacs_env%group)
         CALL cp_para_env_release(blacs_env%para_env)
-        DEALLOCATE(blacs_env%mpi2blacs, stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(blacs_env%blacs2mpi,stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(blacs_env,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(blacs_env%mpi2blacs)
+        DEALLOCATE(blacs_env%blacs2mpi)
+        DEALLOCATE(blacs_env)
      END IF
   END IF
   NULLIFY(blacs_env)

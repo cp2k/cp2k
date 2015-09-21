@@ -464,12 +464,9 @@ CONTAINS
           IF (output_unit>0) WRITE(output_unit,*) &
                " Unclear how we define MOs / localization in the restricted case ... skipping"
        ELSE
-          ALLOCATE(occupied_orbs(dft_control%nspins),stat=istat)
-          CPASSERT(istat==0)
-          ALLOCATE(occupied_evals(dft_control%nspins),stat=istat)
-          CPASSERT(istat==0)
-          ALLOCATE(homo_localized(dft_control%nspins),stat=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(occupied_orbs(dft_control%nspins))
+          ALLOCATE(occupied_evals(dft_control%nspins))
+          ALLOCATE(homo_localized(dft_control%nspins))
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                   eigenvalues=mo_eigenvalues)
@@ -499,10 +496,8 @@ CONTAINS
           CALL loc_write_restart(qs_loc_env_homo,loc_print_section,mos,&
                homo_localized, do_homo)
           CALL cp_fm_vect_dealloc(homo_localized)
-          DEALLOCATE(occupied_orbs,stat=istat)
-          CPASSERT(istat==0)
-          DEALLOCATE(occupied_evals,stat=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(occupied_orbs)
+          DEALLOCATE(occupied_evals)
           ! Print Total Dipole if the localization has been performed
           IF (qs_loc_env_homo%do_localize) THEN
              CALL qs_scf_post_loc_dip(input, dft_control, qs_loc_env_homo, logger, qs_env)
@@ -565,10 +560,8 @@ CONTAINS
              min_lumos=MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:,:)),nlumo)
           END IF
 
-          ALLOCATE(unoccupied_orbs(dft_control%nspins),STAT=istat)
-          CPASSERT(istat==0)
-          ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(unoccupied_orbs(dft_control%nspins))
+          ALLOCATE(unoccupied_evals(dft_control%nspins))
           CALL  make_lumo(qs_env,scf_env,unoccupied_orbs,unoccupied_evals,min_lumos,nlumos)
           lumo_ptr=>unoccupied_orbs
           DO ispin=1,dft_control%nspins
@@ -594,8 +587,7 @@ CONTAINS
           END IF
 
           IF(p_loc_lumo)THEN
-             ALLOCATE(lumo_localized(dft_control%nspins),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(lumo_localized(dft_control%nspins))
              DO ispin=1,dft_control%nspins
                 CALL cp_fm_create(lumo_localized(ispin)%matrix,unoccupied_orbs(ispin)%matrix%matrix_struct)
                 CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix,lumo_localized(ispin)%matrix)
@@ -647,24 +639,20 @@ CONTAINS
        IF(p_loc_lumo)CALL cp_fm_vect_dealloc(lumo_localized)
     END IF
     IF(ASSOCIATED(marked_states))THEN
-       DEALLOCATE(marked_states,stat=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(marked_states)
     END IF
 
     ! This is just a deallocation for printing MO_CUBES or TDDFPT
     IF (.NOT. do_kpoints) THEN
        IF(compute_lumos) THEN
           DO ispin=1,dft_control%nspins
-             DEALLOCATE(unoccupied_evals(ispin)%array,stat=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(unoccupied_evals(ispin)%array)
              IF (.NOT.dft_control%do_tddfpt_calculation) &
                   CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
           ENDDO
-          DEALLOCATE(unoccupied_evals,stat=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(unoccupied_evals)
           IF (.NOT.dft_control%do_tddfpt_calculation) THEN
-            DEALLOCATE(unoccupied_orbs,stat=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(unoccupied_orbs)
           END IF
        ENDIF
     ENDIF
@@ -676,10 +664,8 @@ CONTAINS
               message="STM not implemented for k-point calculations!", &
               error_level=cp_warning_level)
       ELSE
-         ALLOCATE(unoccupied_orbs_stm(dft_control%nspins),STAT=istat)
-         CPASSERT(istat==0)
-         ALLOCATE(unoccupied_evals_stm(dft_control%nspins),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(unoccupied_orbs_stm(dft_control%nspins))
+         ALLOCATE(unoccupied_evals_stm(dft_control%nspins))
          CALL  make_lumo(qs_env,scf_env,unoccupied_orbs_stm,unoccupied_evals_stm,&
                          nlumo_stm,nlumos)
 
@@ -687,14 +673,11 @@ CONTAINS
                            unoccupied_evals_stm)
 
          DO ispin=1,dft_control%nspins
-             DEALLOCATE(unoccupied_evals_stm(ispin)%array,stat=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(unoccupied_evals_stm(ispin)%array)
              CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
          ENDDO
-         DEALLOCATE(unoccupied_evals_stm,stat=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE(unoccupied_orbs_stm,stat=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(unoccupied_evals_stm)
+         DEALLOCATE(unoccupied_orbs_stm)
        END IF
     END IF
 
@@ -755,7 +738,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, mystate, ns, &
-                                                output_unit, stat
+                                                output_unit
     INTEGER, DIMENSION(:), POINTER           :: lstates, marked_states_spin
     LOGICAL                                  :: do_homo, failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
@@ -784,8 +767,7 @@ CONTAINS
                "WANNIER_STATES"),cp_p_file)) THEN
         CALL get_qs_env(qs_env=qs_env,WannierCentres=wc)
         IF (.NOT. ASSOCIATED(wc)) THEN
-          ALLOCATE(wc(dft_control%nspins),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(wc(dft_control%nspins))
         ENDIF
     ENDIF
     DO ispin=1,dft_control%nspins
@@ -824,10 +806,8 @@ CONTAINS
                "WANNIER_STATES"),cp_p_file)) THEN
              ns=SIZE(qs_loc_env%localized_wfn_control%loc_states,1)
              IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
-               ALLOCATE(wc(ispin)%WannierHamDiag(ns),stat=stat)
-               CPASSERT(stat==0)
-               ALLOCATE(wc(ispin)%centres(3,ns),stat=stat)
-               CPASSERT(stat==0)
+               ALLOCATE(wc(ispin)%WannierHamDiag(ns))
+               ALLOCATE(wc(ispin)%centres(3,ns))
              ENDIF
 
              wc(ispin)%centres(:,:)=scenter(1+(ispin-1)*3:ispin*3,:)
@@ -845,14 +825,12 @@ CONTAINS
                   marked_states=marked_states_spin)
              IF(ASSOCIATED(marked_states_spin))THEN
                 IF(.NOT.ASSOCIATED(marked_states))THEN
-                   ALLOCATE(marked_states(SIZE(marked_states_spin),dft_control%nspins,2),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(marked_states(SIZE(marked_states_spin),dft_control%nspins,2))
                 END IF
                 mystate=1
                 IF(qs_loc_env%tag_mo=="LUMO")mystate=2
                 marked_states(:,ispin,mystate)=marked_states_spin(:)
-                DEALLOCATE(marked_states_spin,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(marked_states_spin)
              END IF
           ENDIF
        END IF
@@ -889,8 +867,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, istat, &
-                                                n, nao, nmo, output_unit
+    INTEGER                                  :: handle, homo, ispin, n, nao, &
+                                                nmo, output_unit
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -932,8 +910,7 @@ CONTAINS
        CALL cp_fm_get_info(mo_coeff, nrow_global=n)
        nlumos=MAX(1,MIN(nlumo,nao-nmo))
        IF (nlumo==-1) nlumos=nao-nmo
-       ALLOCATE(unoccupied_evals(ispin)%array(nlumos),stat=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(unoccupied_evals(ispin)%array(nlumos))
        CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
             nrow_global=n,ncol_global=nlumos)
        CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos")
@@ -1541,7 +1518,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_et', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, stat
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: do_et, failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_mos
@@ -1556,10 +1533,8 @@ CONTAINS
     IF(do_et)THEN
        IF(qs_env%et_coupling%first_run)THEN
           NULLIFY(my_mos)
-          ALLOCATE(my_mos(dft_control%nspins),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(my_mos(dft_control%nspins))
+          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins))
           DO ispin =1,dft_control%nspins
              NULLIFY(my_mos(ispin)%matrix)
              CALL cp_fm_create(matrix=my_mos(ispin)%matrix,&
@@ -1596,7 +1571,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
     INTEGER                                  :: handle, ispin, output_unit, &
-                                                stat, unit_nr
+                                                unit_nr
     LOGICAL                                  :: append_cube, do_elf, failure, &
                                                 gapw
     REAL(dp)                                 :: rho_cutoff
@@ -1625,8 +1600,7 @@ CONTAINS
       gapw=dft_control%qs_control%gapw
       IF(.NOT. gapw) THEN
         ! allocate
-        ALLOCATE(elf_r(dft_control%nspins),stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(elf_r(dft_control%nspins))
         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                             pw_pools=pw_pools)
         DO ispin = 1,dft_control%nspins
@@ -1670,8 +1644,7 @@ CONTAINS
         END DO
 
         ! deallocate
-        DEALLOCATE(elf_r,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(elf_r)
 
       ELSE
          ! not implemented
@@ -1705,7 +1678,7 @@ CONTAINS
       f23 = (2.0_dp/3.0_dp), f53 = (5.0_dp/3.0_dp)
 
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
-                                                nspin, stat
+                                                nspin
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: deriv_pw, drho_r_valid, &
@@ -1752,16 +1725,11 @@ CONTAINS
     bo = rho_struct_r(1)%pw%pw_grid%bounds_local
     cfermi = (3.0_dp/10.0_dp)*(pi*pi*3.0_dp)**f23
 
-    ALLOCATE(rho_r(nspin),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tau_r(nspin),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tau_g(nspin),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(drho_r(3*nspin),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(drho_g(3*nspin),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rho_r(nspin))
+    ALLOCATE(tau_r(nspin))
+    ALLOCATE(tau_g(nspin))
+    ALLOCATE(drho_r(3*nspin))
+    ALLOCATE(drho_g(3*nspin))
 
     DO ispin = 1,nspin
        rho_r(ispin)%pw => rho_struct_r(ispin)%pw
@@ -1859,16 +1827,11 @@ CONTAINS
       END IF
     END DO  !ispin
 
-    DEALLOCATE(rho_r,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tau_r,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tau_g,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(drho_r,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(drho_g,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(rho_r)
+    DEALLOCATE(tau_r)
+    DEALLOCATE(tau_g)
+    DEALLOCATE(drho_r)
+    DEALLOCATE(drho_g)
 
     CALL timestop(handle)
 
@@ -2234,8 +2197,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, istat, iw, &
-      j, l, n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
+    INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, j, l, &
+      n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
       print_level, tile_npts, unit_nr
     LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
       do_dirichlet_bc_cube, do_kpoints, failure, has_dirichlet_bc, &
@@ -2395,8 +2358,7 @@ CONTAINS
                 WRITE(unit_nr,*) nkind
              END IF
              ! calculate atomic density and core density
-             ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind),stat=istat)
-             CPASSERT(istat==0)
+             ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind))
              DO ikind=1,nkind
                atomic_kind => atomic_kind_set(ikind)
                qs_kind     => qs_kind_set(ikind)
@@ -2442,8 +2404,7 @@ CONTAINS
                    CALL mp_sum(nr,para_env%group)
                    CALL mp_sum(niso,para_env%group)
 
-                   ALLOCATE(bfun(nr,niso),stat=istat)
-                   CPASSERT(istat==0)
+                   ALLOCATE(bfun(nr,niso))
                    bfun = 0._dp
                    DO ispin = 1,dft_control%nspins
                       IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
@@ -2464,8 +2425,7 @@ CONTAINS
                          WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
                       END IF
                    END DO
-                   DEALLOCATE(bfun,stat=istat)
-                   CPASSERT(istat==0)
+                   DEALLOCATE(bfun)
                 END DO
              ELSE
                 IF (unit_nr>0) THEN
@@ -2478,8 +2438,7 @@ CONTAINS
                 END IF
              END IF
 
-             DEALLOCATE(ppdens,aedens,ccdens,stat=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(ppdens,aedens,ccdens)
 
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                "DFT%PRINT%E_DENSITY_CUBE")
@@ -3034,8 +2993,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_charges', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iat, ikind, istat, natom, &
-                                                nkind, nspin, refc, shapef
+    INTEGER                                  :: i, iat, ikind, natom, nkind, &
+                                                nspin, refc, shapef
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: do_sc, failure, paw_atom
     REAL(KIND=dp)                            :: zeff
@@ -3063,8 +3022,7 @@ CONTAINS
     CALL create_hirshfeld_type(hirshfeld_env)
     !
     CALL get_qs_env(qs_env,nkind=nkind,natom=natom)
-    ALLOCATE(hirshfeld_env%charges(natom),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(hirshfeld_env%charges(natom))
     ! input options
     CALL section_vals_val_get(input_section,"SELF_CONSISTENT",l_val=do_sc)
     CALL section_vals_val_get(input_section,"SHAPE_FUNCTION",i_val=shapef)
@@ -3078,8 +3036,7 @@ CONTAINS
     CALL get_qs_env(qs_env,rho=rho)
     CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
     nspin=SIZE(matrix_p,1)
-    ALLOCATE(charges(natom,nspin),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(charges(natom,nspin))
     SELECT CASE (refc)
        CASE (ref_charge_atomic)
           DO ikind=1,nkind
@@ -3132,8 +3089,7 @@ CONTAINS
     END IF
     !
     CALL release_hirshfeld_type(hirshfeld_env)
-    DEALLOCATE(charges,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(charges)
 
   END SUBROUTINE hirshfeld_charges
 
@@ -3154,7 +3110,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'project_function_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: info, istat, n
+    INTEGER                                  :: info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
@@ -3163,8 +3119,7 @@ CONTAINS
     failure = .FALSE.
 
     n = SIZE(ca)
-    ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n))
 
     CALL sg_overlap ( smat, l, a, a )
     CALL sg_overlap ( tmat, l, a, b )
@@ -3173,8 +3128,7 @@ CONTAINS
     CPASSERT(info==0)
     ca(:) = v(:,1)
     
-    DEALLOCATE(smat,tmat,v,ipiv,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(smat,tmat,v,ipiv)
 
   END SUBROUTINE project_function_a
 
@@ -3196,7 +3150,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'project_function_b', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, info, istat, n, nr
+    INTEGER                                  :: i, info, n, nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: afun
@@ -3207,8 +3161,7 @@ CONTAINS
 
     n = SIZE(ca)
     nr = grid_atom%nr
-    ALLOCATE(smat(n,n),v(n,1),ipiv(n),afun(nr),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(smat(n,n),v(n,1),ipiv(n),afun(nr))
 
     CALL sg_overlap ( smat, l, a, a )
     DO i=1,n
@@ -3219,8 +3172,7 @@ CONTAINS
     CPASSERT(info==0)
     ca(:) = v(:,1)
 
-    DEALLOCATE(smat,v,ipiv,afun,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(smat,v,ipiv,afun)
 
   END SUBROUTINE project_function_b
 

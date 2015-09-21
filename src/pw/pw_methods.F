@@ -1437,8 +1437,7 @@ CONTAINS
           ! gather results
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_GATHER : 3d -> 1d "
           CALL pw_gather ( pw2, c_out)
-          DEALLOCATE ( c_out, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( c_out)
        CASE ( "FW_R3DC1D" )
 #if defined (__PW_CUDA)
           CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale = norm)
@@ -1449,8 +1448,7 @@ CONTAINS
           CALL copy_rc(pw1%cr3d,c_out)
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           CALL pw_gather ( pw2, c_out)
-          DEALLOCATE ( c_out, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( c_out)
 #endif
        CASE ( "BW_C3DC3D" )
           c_in => pw1%cc3d
@@ -1465,8 +1463,7 @@ CONTAINS
           ! use real part only
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  REAL part "
           pw2%cr3d = REAL ( c_out,KIND=dp)
-          DEALLOCATE ( c_out, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( c_out)
        CASE ( "BW_C1DC3D" )
           c_out => pw2%cc3d
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_SCATTER : 3d -> 1d "
@@ -1486,8 +1483,7 @@ CONTAINS
           ! use real part only
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  REAL part "
           CALL copy_cr(c_out,pw2%cr3d)
-          DEALLOCATE ( c_out, STAT = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE ( c_out)
 #endif
        END SELECT
 
@@ -1574,8 +1570,7 @@ CONTAINS
              IF ( test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0 ) &
                   WRITE ( output_unit,'(A)') "  PW_GATHER : 2d -> 1d "
              CALL pw_gather ( pw2, grays)
-             DEALLOCATE ( c_in, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( c_in)
           END IF
        CASE ( "BW_C1DC3D" )
           !..prepare input
@@ -1628,8 +1623,7 @@ CONTAINS
              IF ( test .AND. pw1%pw_grid%para%group_head .AND. output_unit > 0 ) &
                   WRITE ( output_unit,'(A)') "  Real part "
              CALL copy_cr(c_in,pw2%cr3d)
-             DEALLOCATE ( c_in, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( c_in)
           END IF
        END SELECT
 

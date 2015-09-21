@@ -91,7 +91,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ensemble, handle, idg, idir, ip, &
-                                                nparticle, nsize, shell_index, stat
+                                                nparticle, nsize, shell_index
     LOGICAL                                  :: failure, explicit, my_final_evaluation
     REAL(KIND=dp)                            :: f_ts, potential_energy
     REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
@@ -152,8 +152,7 @@
           END IF
        CASE (default_ts_method_id)
           ! Transition State Optimization
-          ALLOCATE (gradient_ts(particles%n_els*3),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (gradient_ts(particles%n_els*3))
           ! Real calculation of energy and forces for transition state optimization:
           ! When doing dimer methods forces have to be always computed since the function
           ! to minimize is not the energy but the effective force
@@ -167,8 +166,7 @@
                 gradient = gradient_ts
              END IF
           END IF
-          DEALLOCATE (gradient_ts,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gradient_ts)
        END SELECT
        ! This call is necessary for QM/MM if a Translation is applied
        ! this makes the geometry optimizer consistent

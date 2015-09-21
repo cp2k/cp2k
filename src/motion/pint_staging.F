@@ -50,14 +50,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(staging_env))
-    ALLOCATE(staging_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(staging_env)
     last_staging_id=last_staging_id+1
     staging_env%id_nr=last_staging_id
     staging_env%ref_count=1
@@ -87,7 +85,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -96,8 +93,7 @@ CONTAINS
      CPASSERT(staging_env%ref_count>0)
      staging_env%ref_count=staging_env%ref_count-1
      IF (staging_env%ref_count==0) THEN
-        DEALLOCATE(staging_env,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(staging_env)
      END IF
     END IF
     NULLIFY(staging_env)
@@ -149,7 +145,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iat, ib, iseg, stat
+    INTEGER                                  :: i, iat, ib, iseg
     LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: scal
 
@@ -163,8 +159,7 @@ CONTAINS
     END IF
     IF (PRESENT(mass_beads).OR.PRESENT(mass_fict)) THEN
 
-       ALLOCATE(scal(staging_env%p),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(scal(staging_env%p))
        DO iseg=1,staging_env%nseg
           DO i=1,staging_env%j ! check order!!!
              scal(staging_env%j*(iseg-1)+i)=REAL(i,dp)/REAL(MAX(1,i-1),dp)
@@ -249,7 +244,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_u2x', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ist, j, stat
+    INTEGER                                  :: i, ist, j
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: const, const2
@@ -261,8 +256,7 @@ CONTAINS
     j=staging_env%j
     const=REAL(j-1,dp)/REAL(j,dp)
     const2=1._dp/REAL(j,dp)
-    ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg))
     DO i=1,staging_env%nseg
        iii(i)=staging_env%j*(i-1)+1 !first el
     END DO
@@ -303,7 +297,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_f2uf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, idim, ij, ist, k, stat
+    INTEGER                                  :: i, idim, ij, ist, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj, kkk
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: const, sum_f
@@ -314,8 +308,7 @@ CONTAINS
     CPASSERT(staging_env%ref_count>0)
     const=REAL(staging_env%j-1,dp)/REAL(staging_env%j,dp)
     ALLOCATE(iii(staging_env%j),jjj(staging_env%j),&
-         kkk(staging_env%j),stat=stat)
-    CPASSERT(stat==0)
+         kkk(staging_env%j))
     DO ist=1,staging_env%j-1
        iii(ist)=(ist-1)*staging_env%j+1 ! first el
        jjj(ist)=iii(ist)+staging_env%j-1 ! last el
@@ -362,7 +355,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_calc_uf_h', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idim, isg, ist, stat
+    INTEGER                                  :: idim, isg, ist
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj, kkk
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: d, f
@@ -373,8 +366,7 @@ CONTAINS
     e_h = 0.0_dp
 
     ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),&
-         kkk(staging_env%nseg),stat=stat)
-    CPASSERT(stat==0)
+         kkk(staging_env%nseg))
 
     DO ist=1,staging_env%nseg
        iii(ist)=(ist-1)*staging_env%j+1 ! first el

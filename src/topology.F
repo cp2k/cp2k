@@ -293,7 +293,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: elements
     INTEGER                                  :: handle, handle2, i, id, itmp, &
-                                                iw, j, k, stat
+                                                iw, j, k
     LOGICAL                                  :: check, failure, my_qmmm, &
                                                 use_mm_map_first
     TYPE(cp_logger_type), POINTER            :: logger
@@ -350,8 +350,7 @@ CONTAINS
     CALL create_ff_map("CHARMM")
     CALL create_ff_map("GROMOS")
 
-    ALLOCATE(elements(SIZE(topology%atom_info%id_element)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(elements(SIZE(topology%atom_info%id_element)))
     DO i=1,SIZE(elements)
        elements(i) = id2str(topology%atom_info%id_element(i))
     ENDDO
@@ -382,8 +381,7 @@ CONTAINS
           END IF
        END DO
     END DO
-    DEALLOCATE(elements,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(elements)
     CALL destroy_ff_map("GROMOS")
     CALL destroy_ff_map("CHARMM")
     CALL destroy_ff_map("AMBER")

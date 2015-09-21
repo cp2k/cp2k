@@ -162,14 +162,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_nmax, stat
+    INTEGER                                  :: my_nmax
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = .NOT. fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
-    ALLOCATE(hash_table%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hash_table%obj)
     NULLIFY(hash_table%obj%table)
     hash_table%obj%nmax = 0
     hash_table%obj%nelements = 0
@@ -246,7 +245,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax, power, stat
+    INTEGER                                  :: ii, my_nmax, power
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
@@ -263,14 +262,11 @@ CONTAINS
     my_nmax = 2**power
     IF (ASSOCIATED(hash_table%obj%table)) THEN
        IF (SIZE(hash_table%obj%table) .NE. my_nmax) THEN
-          DEALLOCATE(hash_table%obj%table, STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(hash_table%obj%table(my_nmax), STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hash_table%obj%table)
+          ALLOCATE(hash_table%obj%table(my_nmax))
        END IF
     ELSE
-       ALLOCATE(hash_table%obj%table(my_nmax), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(hash_table%obj%table(my_nmax))
     END IF
     hash_table%obj%nmax = my_nmax
     hash_table%obj%prime = fb_hash_table_matching_prime(my_nmax)
@@ -307,7 +303,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_rehash', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax, stat
+    INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: failure
     TYPE(fb_hash_table_element), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_table
@@ -322,8 +318,7 @@ CONTAINS
     ELSE
        my_nmax = hash_table%obj%nmax
     END IF
-    ALLOCATE(tmp_table(hash_table%obj%nmax), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp_table(hash_table%obj%nmax))
     tmp_table(:) = hash_table%obj%table(:)
     CALL fb_hash_table_release(hash_table)
     CALL fb_hash_table_create(hash_table=hash_table, &
@@ -335,8 +330,7 @@ CONTAINS
                                  val=tmp_table(ii)%val)
        END IF
     END DO
-    DEALLOCATE(tmp_table, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmp_table)
   END SUBROUTINE fb_hash_table_rehash
 
 ! *****************************************************************************
@@ -350,7 +344,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
@@ -361,12 +354,10 @@ CONTAINS
        IF (hash_table%obj%ref_count == 0) THEN
           hash_table%obj%ref_count = 1
           IF (ASSOCIATED(hash_table%obj%table)) THEN
-             DEALLOCATE(hash_table%obj%table, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(hash_table%obj%table)
           END IF
           hash_table%obj%ref_count = 0
-          DEALLOCATE(hash_table%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hash_table%obj)
        END IF
     ELSE
        NULLIFY(hash_table%obj)

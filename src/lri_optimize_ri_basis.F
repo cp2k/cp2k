@@ -200,8 +200,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_optimization', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, iset, ishell, n, nset, &
-                                                stat
+    INTEGER                                  :: ikind, iset, ishell, n, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
@@ -212,8 +211,7 @@ CONTAINS
     NULLIFY(fbas, gcc_orig, npgf, nshell, zet)
     failure = .FALSE.
 
-    ALLOCATE(lri_opt%ri_gcc_orig(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(lri_opt%ri_gcc_orig(nkind))
 
     ! *** get parameters 
     CALL get_optimization_parameter(lri_opt,lri_optbas_section,&
@@ -250,8 +248,7 @@ CONTAINS
      
       ! *** constraints on exponents
       IF(lri_opt%use_constraints) THEN
-        ALLOCATE(zet_init(SIZE(x)),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(zet_init(SIZE(x)))
         zet_init(:)=x 
       ELSE
         x(:)=SQRT(x)
@@ -386,7 +383,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, iset, ishell, n, nset, &
-                                                nvar_exp, stat
+                                                nvar_exp
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zet_max, zet_min
@@ -400,8 +397,7 @@ CONTAINS
 
     ! nvar_exp: number of exponents that are variables
     nvar_exp= SIZE(x) - lri_opt%ncoeff
-    ALLOCATE(zet_trans(nvar_exp),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(zet_trans(nvar_exp))
    
     ! *** update exponents 
     IF(lri_opt%opt_exps) THEN
@@ -449,8 +445,7 @@ CONTAINS
       ENDDO
     ENDIF
 
-    DEALLOCATE(zet_trans,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(zet_trans)
   END SUBROUTINE update_exponents
 
 ! *****************************************************************************
@@ -470,14 +465,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_exp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet_max, zet_min
 
     failure = .FALSE.
-    ALLOCATE(zet_max(nvar),zet_min(nvar),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(zet_max(nvar),zet_min(nvar))
     
     zet_min(:) = zet_init(:)*(1.0_dp-lri_opt%scale_exp)
     zet_max(:) = zet_init(:)*(1.0_dp+lri_opt%scale_exp)
@@ -486,8 +479,7 @@ CONTAINS
    
     zet_trans= zet_min + (zet_max-zet_min)/(1+EXP(-a*(zet-zet_init)))
 
-    DEALLOCATE(zet_max,zet_min,STAT=stat) 
-    CPASSERT(stat==0)
+    DEALLOCATE(zet_max,zet_min)
 
 
   END SUBROUTINE transfer_exp
@@ -799,11 +791,9 @@ CONTAINS
 
        ! build the overlap matrix
        IF(iatom == jatom) THEN
-        ALLOCATE(smat(nfa,nfa),STAT=stat) 
-        CPASSERT(stat==0)
+        ALLOCATE(smat(nfa,nfa))
        ELSE
-        ALLOCATE(smat(nn,nn),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(smat(nn,nn))
        ENDIF
        smat(1:nfa,1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
        IF(iatom /= jatom) THEN
@@ -814,8 +804,7 @@ CONTAINS
        ENDIF
 
        IF(iatom==jatom) nn=nfa
-       ALLOCATE(diag(nn),off_diag(nn-1),tau(nn-1),work(1),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(diag(nn),off_diag(nn-1),tau(nn-1),work(1))
        diag=0.0_dp
        off_diag=0.0_dp
        tau=0.0_dp

@@ -99,8 +99,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: existing_ii, ii, ncols, &
-                                                nrows, stat
+    INTEGER                                  :: existing_ii, ii, ncols, nrows
     INTEGER(KIND=int_8)                      :: pair_ind
     LOGICAL                                  :: check_ok, failure, found
 
@@ -122,17 +121,14 @@ CONTAINS
     IF (found) THEN
        ! matrix block aready stored, need to to reassign
        IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
-          DEALLOCATE(matrix_data%obj%blks(existing_ii)%p, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(matrix_data%obj%blks(existing_ii)%p)
        END IF
-       ALLOCATE(matrix_data%obj%blks(existing_ii)%p(nrows,ncols), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(matrix_data%obj%blks(existing_ii)%p(nrows,ncols))
        matrix_data%obj%blks(existing_ii)%p(:,:) = blk(:,:)
     ELSE
        matrix_data%obj%nblks = matrix_data%obj%nblks + 1
        ii = matrix_data%obj%nblks
-       ALLOCATE(matrix_data%obj%blks(ii)%p(nrows,ncols), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(matrix_data%obj%blks(ii)%p(nrows,ncols))
        matrix_data%obj%blks(ii)%p(:,:) = blk(:,:)
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
@@ -167,14 +163,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
-    ALLOCATE(matrix_data%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix_data%obj)
     CALL fb_hash_table_nullify(matrix_data%obj%ind)
     NULLIFY(matrix_data%obj%blks)
     matrix_data%obj%nmax = 0
@@ -254,7 +248,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax, stat
+    INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
@@ -270,15 +264,12 @@ CONTAINS
     IF (ASSOCIATED(matrix_data%obj%blks)) THEN
        DO ii = 1, SIZE(matrix_data%obj%blks)
           IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
-             DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(matrix_data%obj%blks(ii)%p)
           END IF
        END DO
-       DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(matrix_data%obj%blks)
     END IF
-    ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix_data%obj%blks(my_nmax))
     matrix_data%obj%nmax = my_nmax
     ! nullify matrix blocks
     DO ii = 1, SIZE(matrix_data%obj%blks)
@@ -310,7 +301,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, stat
+    INTEGER                                  :: ii
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
@@ -326,16 +317,13 @@ CONTAINS
           IF (ASSOCIATED(matrix_data%obj%blks)) THEN
              DO ii = 1, SIZE(matrix_data%obj%blks)
                 IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
-                   DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(matrix_data%obj%blks(ii)%p)
                 END IF
              END DO
-             DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(matrix_data%obj%blks)
           END IF
           matrix_data%obj%ref_count = 0
-          DEALLOCATE(matrix_data%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(matrix_data%obj)
        END IF
     ELSE
        NULLIFY(matrix_data%obj)
@@ -376,7 +364,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_resize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax, stat
+    INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: check_ok, failure
     TYPE(fb_matrix_block), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_blks
@@ -389,29 +377,24 @@ CONTAINS
     ! are always added to the array sequencially, and so their address
     ! do not change upon resizing.
     IF (ASSOCIATED(matrix_data%obj%blks)) THEN
-       ALLOCATE(tmp_blks(matrix_data%obj%nblks), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_blks(matrix_data%obj%nblks))
        DO ii = 1, SIZE(tmp_blks)
           NULLIFY(tmp_blks(ii)%p)
        END DO
        DO ii = 1, matrix_data%obj%nblks
           tmp_blks(ii)%p => matrix_data%obj%blks(ii)%p
        END DO
-       DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(matrix_data%obj%blks)
+       ALLOCATE(matrix_data%obj%blks(my_nmax))
        DO ii = 1, SIZE(matrix_data%obj%blks)
           NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
        DO ii = 1, matrix_data%obj%nblks
           matrix_data%obj%blks(ii)%p => tmp_blks(ii)%p
        END DO
-       DEALLOCATE(tmp_blks, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_blks)
     ELSE
-       ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(matrix_data%obj%blks(my_nmax))
        DO ii = 1, SIZE(matrix_data%obj%blks)
           NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO

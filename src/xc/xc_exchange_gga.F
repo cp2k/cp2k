@@ -169,7 +169,7 @@ CONTAINS
     CHARACTER(len=12), DIMENSION(2)          :: norm_drho_spin_name
     CHARACTER(len=6), DIMENSION(2)           :: rho_spin_name
     INTEGER                                  :: handle, ispin, m, npoints, &
-                                                nspin, stat
+                                                nspin
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
@@ -215,10 +215,8 @@ CONTAINS
     m = ABS(order)
     CALL xgga_init(rho_cutoff)
 
-    ALLOCATE ( s(npoints), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE ( fs(npoints,m+1), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( s(npoints))
+    ALLOCATE ( fs(npoints,m+1))
 
     DO ispin=1,nspin
        IF (lsd) THEN
@@ -329,10 +327,8 @@ CONTAINS
        END IF
     END DO
 
-    DEALLOCATE ( s, STAT=stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( fs, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( s)
+    DEALLOCATE ( fs)
 
     CALL timestop(handle)
   END SUBROUTINE xgga_eval

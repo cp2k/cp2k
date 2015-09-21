@@ -246,7 +246,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, liwork, lwork, &
-                                                n, nb, stat
+                                                n, nb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     INTEGER, EXTERNAL                        :: ilaenv
     LOGICAL                                  :: divide_and_conquer, failure
@@ -292,11 +292,9 @@ CONTAINS
 
     ! Allocate work storage
 
-    ALLOCATE (work(lwork),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (work(lwork))
     IF (divide_and_conquer) THEN
-       ALLOCATE (iwork(liwork),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (iwork(liwork))
     END IF
 
     ! Diagonalize the matrix a
@@ -319,12 +317,10 @@ CONTAINS
 
     ! Release work storage
 
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (work)
 
     IF (divide_and_conquer) THEN
-       DEALLOCATE (iwork,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (iwork)
     END IF
 
     CALL timestop(handle)
@@ -436,10 +432,8 @@ CONTAINS
     failure = .FALSE.
     n = SIZE(a,1)
     lwork = 20*n
-    ALLOCATE (ipiv(n),STAT=info)
-    CPASSERT(info==0)
-    ALLOCATE (work(lwork),STAT=info)
-    CPASSERT(info==0)
+    ALLOCATE (ipiv(n))
+    ALLOCATE (work(lwork))
     ipiv = 0
     work  = 0._dp
     info = 0
@@ -447,8 +441,7 @@ CONTAINS
     IF (info==0) THEN
        CALL dgetri(n,a,n,ipiv,work,lwork,info)
     END IF
-    DEALLOCATE (ipiv,work,STAT=info)
-    CPASSERT(info==0)
+    DEALLOCATE (ipiv,work)
   END SUBROUTINE invmat
 
 ! *****************************************************************************
@@ -547,7 +540,7 @@ CONTAINS
 
     CHARACTER(LEN=1)                         :: norm, trans
     CHARACTER(LEN=default_string_length)     :: message
-    INTEGER                                  :: info, iter, n, stat
+    INTEGER                                  :: info, iter, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
     LOGICAL                                  :: do_improve, failure
     REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
@@ -594,26 +587,19 @@ CONTAINS
     END IF
 
     ! Allocate work storage
-    ALLOCATE (a_lu(n,n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (a_lu(n,n))
 
-    ALLOCATE (b(n,n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (b(n,n))
 
-    ALLOCATE (berr(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (berr(n))
 
-    ALLOCATE (ferr(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ferr(n))
 
-    ALLOCATE (ipiv(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ipiv(n))
 
-    ALLOCATE (iwork(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (iwork(n))
 
-    ALLOCATE (work(4*n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (work(4*n))
 
     a_lu(1:n,1:n) = a(1:n,1:n)
 
@@ -689,20 +675,13 @@ CONTAINS
     ENDIF
 
     ! Release work storage
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (iwork,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (ipiv,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (ferr,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (berr,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (b,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (a_lu,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (work)
+    DEALLOCATE (iwork)
+    DEALLOCATE (ipiv)
+    DEALLOCATE (ferr)
+    DEALLOCATE (berr)
+    DEALLOCATE (b)
+    DEALLOCATE (a_lu)
 
   END SUBROUTINE invert_matrix_d
 
@@ -743,7 +722,7 @@ CONTAINS
       DIMENSION(:)                           :: work
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a_lu, b
-    INTEGER                                  :: info, iter, n, stat
+    INTEGER                                  :: info, iter, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
@@ -782,26 +761,19 @@ CONTAINS
     END IF
 
     ! Allocate work storage
-    ALLOCATE (a_lu(n,n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (a_lu(n,n))
 
-    ALLOCATE (b(n,n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (b(n,n))
 
-    ALLOCATE (berr(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (berr(n))
 
-    ALLOCATE (ferr(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ferr(n))
 
-    ALLOCATE (ipiv(n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (ipiv(n))
 
-    ALLOCATE (rwork(2*n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (rwork(2*n))
 
-    ALLOCATE (work(2*n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (work(2*n))
 
     a_lu(1:n,1:n) = a(1:n,1:n)
 
@@ -875,20 +847,13 @@ CONTAINS
     END DO
 
     ! Release work storage
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (rwork,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (ipiv,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (ferr,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (berr,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (b,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (a_lu,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (work)
+    DEALLOCATE (rwork)
+    DEALLOCATE (ipiv)
+    DEALLOCATE (ferr)
+    DEALLOCATE (berr)
+    DEALLOCATE (b)
+    DEALLOCATE (a_lu)
 
   END SUBROUTINE invert_matrix_z
 
@@ -908,8 +873,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, info, lwork, n, &
-                                                stat
+    INTEGER                                  :: handle, i, info, lwork, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sig, work
@@ -920,8 +884,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     n=SIZE(a,1)
-    ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n))
     u(:,:)   = 0.0_dp
     vt(:,:)  = 0.0_dp
     sig(:) = 0.0_dp
@@ -939,10 +902,8 @@ CONTAINS
                         "ERROR in DGESDD: Could not retrieve work array sizes")
     END IF
     lwork = INT(work(1))
-    DEALLOCATE(work,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(work(lwork),STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
+    ALLOCATE(work(lwork))
 
     ! do SVD
     CALL dgesdd('A',n,n,a(1,1),n,sig(1),u(1,1),n,vt(1,1),n,work(1),&
@@ -966,8 +927,7 @@ CONTAINS
     CALL dgemm("N","T",n,n,n,1._dp,sig_plus,n,u,n,0._dp,temp_mat,n)
     CALL dgemm("T","N",n,n,n,1._dp,vt,n,temp_mat,n,0._dp,a_pinverse,n)
 
-    DEALLOCATE( u,vt,sig,iwork,work,sig_plus,temp_mat,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE( u,vt,sig,iwork,work,sig_plus,temp_mat)
 
     CALL timestop(handle)
 
@@ -989,8 +949,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, info, lwork, n, &
-                                                stat
+    INTEGER                                  :: handle, i, info, lwork, n
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig, work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1000,8 +959,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     n=SIZE(a,1)
-    ALLOCATE(dinv(n,n),eig(n),work(1),temp_mat(n,n),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dinv(n,n),eig(n),work(1),temp_mat(n,n))
     dinv(:,:) = 0.0_dp
     eig(:)    = 0.0_dp
     work(:)   = 0.0_dp
@@ -1015,10 +973,8 @@ CONTAINS
                          "ERROR in DSYEV: Could not retrieve work array sizes")
     END IF
     lwork = INT(work(1))
-    DEALLOCATE(work,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(work(lwork),STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
+    ALLOCATE(work(lwork))
 
     ! get eigenvalues and eigenvectors
     CALL dsyev('V','U',n,a(1,1),n,eig(1),work(1),lwork,info)
@@ -1041,8 +997,7 @@ CONTAINS
     CALL dgemm("N","T",n,n,n,1._dp,dinv,n,a,n,0._dp,temp_mat,n)
     CALL dgemm("N","N",n,n,n,1._dp,a,n,temp_mat,n,0._dp,a_pinverse,n)
 
-    DEALLOCATE(eig,work,dinv,temp_mat,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(eig,work,dinv,temp_mat)
 
     CALL timestop(handle)
 

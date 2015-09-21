@@ -79,7 +79,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: filename
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, maxl, mb, &
+    INTEGER :: do_eric, do_erie, handle, i, im, in, iw, k, l, maxl, mb, &
       method, mo, n, n_meth, n_rep, nder, num_gau, num_gto, num_pol, reltyp, &
       zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
@@ -120,8 +120,7 @@ CONTAINS
     IF ( zz /= 1 ) zval = zz
 
     ! read and set up inofrmation on the basis sets
-    ALLOCATE(ae_basis,pp_basis,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_basis,pp_basis)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS")
     NULLIFY(ae_basis%grid)
     CALL init_atom_basis(ae_basis,basis_section,zval,"AE")
@@ -144,8 +143,7 @@ CONTAINS
     ! read and setup information on the pseudopotential
     NULLIFY(potential_section)
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL")
-    ALLOCATE(ae_pot,p_pot,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_pot,p_pot)
     CALL init_atom_potential(p_pot,potential_section,zval)
     CALL init_atom_potential(ae_pot,potential_section,-1)
 
@@ -183,11 +181,9 @@ CONTAINS
     CALL section_vals_get(method_section,n_repetition=n_meth)
 
     ! integrals
-    ALLOCATE(ae_int, pp_int,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_int, pp_int)
 
-    ALLOCATE(atom_info(n_rep,n_meth),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(atom_info(n_rep,n_meth))
 
     DO in = 1, n_rep
       DO im = 1, n_meth
@@ -233,8 +229,7 @@ CONTAINS
         CALL section_vals_val_get(external_vxc_section,"GRID_TOL",&
              r_val= atom_info(in,im)%atom%zmpvxcgrid_tol)
 
-        ALLOCATE(state,STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(state)
 
         ! get the electronic configuration
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
@@ -466,11 +461,9 @@ CONTAINS
         CALL release_atom_type(atom_info(in,im)%atom)
       END DO
     END DO
-    DEALLOCATE(atom_info,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(atom_info)
 
-    DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int)
 
     CALL timestop(handle)
 
@@ -492,8 +485,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_response_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ider, ierr, j, k, l, &
-                                                lhomo, m, n, nhomo, s1, s2
+    INTEGER                                  :: i, ider, j, k, l, lhomo, m, &
+                                                n, nhomo, s1, s2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dene, emax, expzet, fhomo, o, &
                                                 prefac, zeta
@@ -530,11 +523,9 @@ CONTAINS
 
     s1=SIZE(atom%orbitals%wfn,1)
     s2=SIZE(atom%orbitals%wfn,2)
-    ALLOCATE(wfn(s1,s2,0:3,-nder:nder),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(wfn(s1,s2,0:3,-nder:nder))
     s2=MAXVAL(state%maxn_occ)+nder
-    ALLOCATE(rbasis(s1,s2,0:3),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(rbasis(s1,s2,0:3))
     rbasis = 0._dp
 
     DO ider=-nder,nder
@@ -580,8 +571,7 @@ CONTAINS
       ENDDO
 
       ! check
-      ALLOCATE(amat(n,n),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(amat(n,n))
       amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
       DO i=1,n
         amat(i,i)=amat(i,i) - 1._dp
@@ -589,8 +579,7 @@ CONTAINS
       IF (MAXVAL(ABS(amat)) > 1.e-12) THEN
          WRITE(iw,'(A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
       END IF
-      DEALLOCATE(amat,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(amat)
 
       ! Quickstep normalization
       WRITE(iw,'(/,A,T30,I3)') " Angular momentum :",l
@@ -606,8 +595,7 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(wfn,rbasis,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(wfn,rbasis)
 
     WRITE(iw,'(" ",79("*"))')
 
@@ -626,8 +614,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: i, ibeta, ierr, j, k, l, &
-                                                lmax, nbeta, nr, nwfc, nwfn
+    INTEGER                                  :: i, ibeta, j, k, l, lmax, &
+                                                nbeta, nr, nwfc, nwfn
     LOGICAL                                  :: failure, up
     REAL(KIND=dp)                            :: pf, rl, rmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta, corden, dens, ef, &
@@ -735,16 +723,14 @@ CONTAINS
        CALL compose(string,"size",ival=nr)
        WRITE(iw,'(T8,A)') TRIM(string)
        WRITE(iw,'(T8,A)') 'columns="4">'
-       ALLOCATE(corden(nr),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE(corden(nr))
        CALL atom_core_density(corden,pot,"RHO",atom%basis%grid%rad)
        IF(up) THEN
           WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=1,nr)
        ELSE
           WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=nr,1,-1)
        END IF
-       DEALLOCATE(corden,STAT=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE(corden)
        WRITE(iw,'(T4,A)') '</PP_NLCC>'
     END IF
 
@@ -753,22 +739,19 @@ CONTAINS
     CALL compose(string,"size",ival=nr)
     WRITE(iw,'(T8,A)') TRIM(string)
     WRITE(iw,'(T8,A)') 'columns="4">'
-    ALLOCATE(locpot(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(locpot(nr))
     CALL atom_local_potential(locpot,pot,atom%basis%grid%rad)
     IF(up) THEN
        WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=1,nr)
     ELSE
        WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=nr,1,-1)
     END IF
-    DEALLOCATE(locpot,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(locpot)
     WRITE(iw,'(T4,A)') '</PP_LOCAL>'
 
     ! nonlocal PP
     WRITE(iw,'(T4,A)') '<PP_NONLOCAL>'
-    ALLOCATE(rp(nr),ef(nr),beta(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(rp(nr),ef(nr),beta(nr))
     ibeta = 0
     DO l=0,3
        IF(pot%nl(l) == 0) CYCLE
@@ -799,11 +782,9 @@ CONTAINS
           WRITE(iw,'(T8,A)') TRIM(string)
        END DO
     END DO
-    DEALLOCATE(rp,ef,beta,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(rp,ef,beta)
     ! nonlocal PP matrix elements
-    ALLOCATE(dij(nbeta,nbeta),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(dij(nbeta,nbeta))
     dij = 0._dp
     DO l=0,3
        IF(pot%nl(l) == 0) CYCLE
@@ -815,13 +796,11 @@ CONTAINS
     WRITE(iw,'(T12,A)') 'columns="4">'
     WRITE(iw,'(T12,4ES25.12E3)') ((0.5_dp*dij(i,j),j=1,nbeta),i=1,nbeta)
     WRITE(iw,'(T8,A)') '</PP_DIJ>'
-    DEALLOCATE(dij,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(dij)
     WRITE(iw,'(T4,A)') '</PP_NONLOCAL>'
 
     ! atomic wavefunctions
-    ALLOCATE(beta(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(beta(nr))
     WRITE(iw,'(T4,A)') '<PP_PSWFC>'
     nwfn=0
     DO l=0,3
@@ -852,12 +831,10 @@ CONTAINS
        END DO
     END DO
     WRITE(iw,'(T4,A)') '</PP_PSWFC>'
-    DEALLOCATE(beta,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(beta)
 
     ! atomic charge
-    ALLOCATE(dens(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(dens(nr))
     WRITE(iw,'(T4,A)') '<PP_RHOATOM type="real"'
     CALL compose(string,"size",ival=nr)
     WRITE(iw,'(T8,A)') TRIM(string)
@@ -870,8 +847,7 @@ CONTAINS
        WRITE(iw,'(T8,4ES25.12E3)') (4._dp*pi*dens(j)*atom%basis%grid%rad2(j),j=nr,1,-1)
     END IF
     WRITE(iw,'(T4,A)') '</PP_RHOATOM>'
-    DEALLOCATE(dens,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(dens)
 
     WRITE(iw,'(A)') '</UPF>'
 

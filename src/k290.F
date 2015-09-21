@@ -122,23 +122,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_csym_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(csym))
 
     IF ( ASSOCIATED(csym%xkappa) ) THEN
-       DEALLOCATE(csym%xkappa,STAT=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE(csym%xkappa)
     END IF
     IF ( ASSOCIATED(csym%ty) ) THEN
-       DEALLOCATE(csym%ty,STAT=ierr)
-       CPASSERT(ierr==0)
+       DEALLOCATE(csym%ty)
     END IF
 
-    DEALLOCATE(csym,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(csym)
 
   END SUBROUTINE release_csym_type
 
@@ -177,8 +173,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_sym_gen', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, isos, isum, n, &
-                                                nat, nhash, nkk, nkpts, nsp
+    INTEGER                                  :: handle, ik, isum, n, nat, &
+                                                nhash, nkk, nkpts, nsp
     INTEGER, ALLOCATABLE                     :: f0(:,:), includ(:), isc(:), &
                                                 list(:), lrot(:,:), lwght(:)
     LOGICAL                                  :: failure
@@ -190,16 +186,13 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CPASSERT(.NOT.ASSOCIATED(csym))
-    ALLOCATE(csym,stat=isos)
-    CPASSERT(isos==0)
+    ALLOCATE(csym)
 
     !..total number of atoms
     nat = SIZE(coor,2)
     !..allocate arrays for coordinates and atom types
-    ALLOCATE (csym%xkappa(3,nat),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (csym%ty(nat),STAT=isos)
-    CPASSERT(isos==0)
+    ALLOCATE (csym%xkappa(3,nat))
+    ALLOCATE (csym%ty(nat))
     !..count number of atom types
     csym%ty = types
     nsp = 0
@@ -246,27 +239,17 @@ CONTAINS
     csym%nkpoint = csym%iq1*csym%iq2*csym%iq3
     nkk = csym%nkpoint
     !..allocate intermediate arrays
-    ALLOCATE (rx(3,nat),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (tvec(3,nat),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (isc(nat),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (f0(49,nat),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (wvkl(3,nkk),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (lwght(nkk),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (lrot(48,nkk),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (includ(nkk),STAT=isos)
-    CPASSERT(isos==0)
+    ALLOCATE (rx(3,nat))
+    ALLOCATE (tvec(3,nat))
+    ALLOCATE (isc(nat))
+    ALLOCATE (f0(49,nat))
+    ALLOCATE (wvkl(3,nkk))
+    ALLOCATE (lwght(nkk))
+    ALLOCATE (lrot(48,nkk))
+    ALLOCATE (includ(nkk))
     nhash = MAX(2000,nkk/10)
-    ALLOCATE (list(nkk+nhash),STAT=isos)
-    CPASSERT(isos==0)
-    ALLOCATE (rlist(3,nkk),STAT=isos)
-    CPASSERT(isos==0)
+    ALLOCATE (list(nkk+nhash))
+    ALLOCATE (rlist(3,nkk))
 
     IF ( PRESENT(iounit) ) THEN
        csym%punit = iounit
@@ -295,16 +278,14 @@ CONTAINS
           isum = isum + lwght(nkpts)
        END DO
        wsum=REAL(isum,KIND=dp)
-       ALLOCATE (xkpoint(3,nkpts),wkpoint(nkpts),STAT=isos)
-       CPASSERT(isos==0)
+       ALLOCATE (xkpoint(3,nkpts),wkpoint(nkpts))
        DO ik=1,nkpts
           wkpoint(ik) = REAL(lwght(ik),KIND=dp)/wsum
           xkpoint(1:3,ik) = wvkl(1:3,ik)
        END DO
     END IF
     !..deallocate intermediate arrays
-    DEALLOCATE (rx,tvec,isc,f0,wvkl,lwght,lrot,includ,list,rlist,STAT=isos)
-    CPASSERT(isos==0)
+    DEALLOCATE (rx,tvec,isc,f0,wvkl,lwght,lrot,includ,list,rlist)
 
     CALL timestop(handle)
 

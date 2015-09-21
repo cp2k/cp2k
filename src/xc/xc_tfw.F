@@ -134,7 +134,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tfw_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, stat
+    INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho
@@ -157,8 +157,7 @@ CONTAINS
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL tfw_init(epsilon_rho)
 
-    ALLOCATE ( s(npoints), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( s(npoints))
     CALL calc_s(rho,grho,s, npoints)
 
     IF ( order>=0 ) THEN
@@ -212,8 +211,7 @@ CONTAINS
             error_level=cp_failure_level)
     END IF
 
-    DEALLOCATE ( s, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( s)
     CALL timestop(handle)
   END SUBROUTINE tfw_lda_eval
 
@@ -260,8 +258,7 @@ CONTAINS
     CHARACTER(len=6), DIMENSION(2), PARAMETER :: &
       rho_spin_name = (/"(rhoa)","(rhob)"/)
 
-    INTEGER                                  :: handle, i, ispin, npoints, &
-                                                stat
+    INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho
@@ -291,8 +288,7 @@ CONTAINS
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL tfw_init(epsilon_rho)
 
-    ALLOCATE ( s(npoints), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( s(npoints))
 
     DO ispin=1,2
        CALL calc_s(rho(ispin)%array, norm_drho(ispin)%array, s, npoints)
@@ -356,8 +352,7 @@ CONTAINS
        END IF
     END DO
 
-    DEALLOCATE ( s, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( s)
     CALL timestop(handle)
   END SUBROUTINE tfw_lsd_eval
 

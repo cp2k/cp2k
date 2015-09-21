@@ -94,7 +94,7 @@ CONTAINS
 
     INTEGER :: counter, handle, ikind, iparticle, iparticle_kind, &
       iparticle_local, ishell, jkind, last_update, nparticle, nparticle_kind, &
-      nparticle_local, nshell, num_update, output_unit, stat
+      nparticle_local, nshell, num_update, output_unit
     LOGICAL :: build_from_scratch, failure, geo_check, shell_adiabatic, &
       shell_present, update_neighbor_lists
     LOGICAL, DIMENSION(:, :), POINTER        :: full_nl
@@ -180,8 +180,7 @@ CONTAINS
        END IF
     ELSE
        ! There is no r_last_update to compare with. Neighbor lists from scratch.
-       ALLOCATE (r_last_update(nparticle),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (r_last_update(nparticle))
        DO iparticle=1,nparticle
           r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
        END DO
@@ -196,24 +195,20 @@ CONTAINS
 
     ! Allocate the r_last_update_pbc, rshell_last_update_pbc, rcore_last_update_pbc
     IF (.NOT.ASSOCIATED(r_last_update_pbc)) THEN
-       ALLOCATE (r_last_update_pbc(nparticle),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (r_last_update_pbc(nparticle))
     END IF
     IF(shell_present .AND. .NOT.ASSOCIATED(rshell_last_update_pbc)) THEN
-       ALLOCATE (rshell_last_update_pbc(nshell),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (rshell_last_update_pbc(nshell))
     END IF
     IF(shell_present .AND. .NOT.ASSOCIATED(rcore_last_update_pbc)) THEN
-       ALLOCATE (rcore_last_update_pbc(nshell),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (rcore_last_update_pbc(nshell))
     END IF
 
     ! update the neighbor lists
     IF (update_neighbor_lists) THEN
        ! determine which pairs of atom kinds need full neighbor lists. Full
        ! means that atom a is in the neighbor list of atom b and vice versa.
-       ALLOCATE(full_nl(nparticle_kind,nparticle_kind),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(full_nl(nparticle_kind,nparticle_kind))
        IF (ASSOCIATED(potparm)) THEN
           DO ikind = 1, nparticle_kind
              DO jkind = ikind, nparticle_kind
@@ -275,8 +270,7 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,mm_section,&
             "PRINT%NEIGHBOR_LISTS")
-       DEALLOCATE(full_nl,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(full_nl)
     END IF
 
     ! Store particle positions after the last update, translated to the

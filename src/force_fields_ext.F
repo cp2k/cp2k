@@ -80,7 +80,7 @@ CONTAINS
       POINTER                                :: namearray(:)
     INTEGER                                  :: handle, iatom, icon, itemp, &
                                                 itype, iw, jatom, ncon, &
-                                                ntype, offset, stat
+                                                ntype, offset
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: cosphi0, cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
@@ -304,8 +304,7 @@ CONTAINS
          "PRINT%FF_INFO")
     CALL timestop(handle)
 
-    DEALLOCATE(namearray,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(namearray)
   END SUBROUTINE read_force_field_gromos
 
 ! *****************************************************************************

@@ -640,7 +640,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: label
     INTEGER                                  :: handle, i, ikind, imol, j, &
                                                 my_index, n3x3con, n4x6con, &
-                                                nconstraint, nkind, stat
+                                                nconstraint, nkind
     LOGICAL                                  :: do_ext_constraint, &
                                                 do_int_constraint, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: lagr
@@ -657,8 +657,7 @@ CONTAINS
     do_ext_constraint = (gci%ntot>0)
     IF (dump_lm.AND.(do_int_constraint.OR.do_ext_constraint)) THEN
        nkind = SIZE (  molecule_kind_set )
-       ALLOCATE(lagr(nconstraint),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(lagr(nconstraint))
        lagr = 0.0_dp
        ! Dump lagrange multipliers for Intramolecular Constraints
        my_index = 0
@@ -727,8 +726,7 @@ CONTAINS
              WRITE(log_unit,FMT='(T40,4F15.9)')lagr(j:MIN(j+3,SIZE(lagr)))
           END DO
        END IF
-       DEALLOCATE(lagr,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lagr)
     END IF
     CALL timestop(handle)
 

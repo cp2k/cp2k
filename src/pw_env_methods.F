@@ -120,7 +120,7 @@ SUBROUTINE pw_env_create(pw_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -128,8 +128,7 @@ SUBROUTINE pw_env_create(pw_env)
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(pw_env))
-    ALLOCATE(pw_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pw_env)
     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
          pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
          pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid, &
@@ -161,8 +160,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 
     CHARACTER(LEN=3)                         :: string
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
-      igrid_level, iounit, ncommensurate, ngrid_level, stat, &
-      xc_deriv_method_id, xc_smooth_method_id
+      igrid_level, iounit, ncommensurate, ngrid_level, xc_deriv_method_id, &
+      xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
     LOGICAL :: efg_present, failure, linres_present, odd, set_vdw_pool, &
@@ -231,22 +230,19 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
     DO i=1, SIZE(pw_env%rs_descs)
       CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc)
     END DO
-    DEALLOCATE(pw_env%rs_descs,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pw_env%rs_descs)
   END IF
   IF (ASSOCIATED(pw_env%rs_grids)) THEN
     DO i=1, SIZE(pw_env%rs_grids)
       CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
     END DO
-    DEALLOCATE(pw_env%rs_grids,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pw_env%rs_grids)
   END IF
   CALL lgrid_release(pw_env%lgrid)
   IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
      CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
   ELSE
-     ALLOCATE(pw_env%gridlevel_info,stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(pw_env%gridlevel_info)
   END IF
   IF(dft_control%qs_control%gapw) THEN
      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
@@ -259,8 +255,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
      DO igrid_level=1,SIZE(pw_env%cube_info)
         CALL destroy_cube_info(pw_env%cube_info(igrid_level))
      END DO
-     DEALLOCATE(pw_env%cube_info,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(pw_env%cube_info)
   END IF
   NULLIFY(pw_env%pw_pools, pw_env%cube_info)
 
@@ -298,8 +293,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
        ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
        print_section=print_section)
   ! init pw_grids and pools
-  ALLOCATE(pw_pools(ngrid_level),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(pw_pools(ngrid_level))
 
   IF (dft_control % qs_control % commensurate_mgrids) THEN
      ncommensurate=ngrid_level
@@ -551,8 +545,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 !
 !
 
-  ALLOCATE(radius(ngrid_level),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(radius(ngrid_level))
 
   CALL compute_max_radius(radius, pw_env, qs_env)
 
@@ -561,14 +554,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 !    set up the rs_grids and the cubes, requires 'radius' to be set up correctly
 !
 !
-  ALLOCATE(rs_descs(ngrid_level),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(rs_descs(ngrid_level))
 
-  ALLOCATE(rs_grids(ngrid_level),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(rs_grids(ngrid_level))
 
-  ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
-  CPASSERT(stat==0)
+  ALLOCATE (pw_env%cube_info(ngrid_level))
   higher_grid_layout=(/-1,-1,-1/)
 
   DO igrid_level=1,ngrid_level
@@ -596,8 +586,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   pw_env%rs_descs => rs_descs
   pw_env%rs_grids => rs_grids
 
-  DEALLOCATE(radius,stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(radius)
 
   ! Initialise the lgrids which may be used by OpenMP threads in QS routines
   ! (but don't yet allocate the lgrid, in case we don't need it)

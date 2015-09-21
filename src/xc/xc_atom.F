@@ -349,7 +349,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, lsd
     REAL(dp)                                 :: drho_cutoff
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -387,11 +387,9 @@ CONTAINS
     END DO
 
     NULLIFY(pw_pool)
-    ALLOCATE(vxc_pw(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vxc_pw(nspins))
     DO ispin=1, nspins
-       ALLOCATE(vxc_pw(ispin)%pw, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(vxc_pw(ispin)%pw)
        vxc_pw(ispin)%pw%cr3d => vxc(:,:,ispin:ispin)
     END DO
 
@@ -399,11 +397,9 @@ CONTAINS
          xc_section,gapw=.TRUE., vxg=vxg)
 
     DO ispin=1, nspins
-       DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(vxc_pw(ispin)%pw)
     END DO
-    DEALLOCATE(vxc_pw, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(vxc_pw)
 
     ! zero the derivative data for the next call
     pos => deriv_set%derivs

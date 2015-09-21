@@ -93,7 +93,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, igrid, stat
+    INTEGER                                  :: handle, igrid
     LOGICAL                                  :: failure
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -105,8 +105,7 @@ CONTAINS
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(ks_qmmm_env))
-    ALLOCATE(ks_qmmm_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ks_qmmm_env)
 
     NULLIFY( ks_qmmm_env%pw_env,&
              ks_qmmm_env%cube_info)
@@ -128,8 +127,7 @@ CONTAINS
     IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
        CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
        CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools)
-       ALLOCATE(cube_info(SIZE(pools)), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(cube_info(SIZE(pools)))
        DO igrid=1,SIZE(pools)
           CALL init_cube_info(cube_info(igrid),&
             pools(igrid)%pool%pw_grid%dr(:),&

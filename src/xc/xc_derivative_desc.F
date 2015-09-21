@@ -64,7 +64,7 @@ CONTAINS
     CHARACTER(len=MAX_LABEL_LENGTH)          :: tmp
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: deriv_array
-    INTEGER                                  :: i, l_label, pos, stat
+    INTEGER                                  :: i, l_label, pos
     LOGICAL                                  :: ordered
 
     CALL create_split_derivative_desc(deriv_desc,deriv_array)
@@ -90,8 +90,7 @@ CONTAINS
        pos=pos+l_label+2
     END DO
 
-    DEALLOCATE(deriv_array, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(deriv_array)
 
   END SUBROUTINE standardize_derivative_desc
 
@@ -108,7 +107,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_split_derivative_desc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, nderiv, stat
+    INTEGER                                  :: i, j, nderiv
 
     nderiv=0
     DO i=1,LEN(deriv_desc)
@@ -117,8 +116,7 @@ CONTAINS
        END IF
     END DO
 
-    ALLOCATE(res(nderiv),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(res(nderiv))
 
     nderiv=0
     DO i=1,LEN(deriv_desc)

@@ -54,7 +54,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_history_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, n1, n2, n3, ndiis
+    INTEGER                                  :: i, n1, n2, n3, ndiis
     LOGICAL                                  :: failure
     REAL(dp)                                 :: damp, eps
 
@@ -70,19 +70,15 @@ CONTAINS
     history%hpos = 0
     history%damping = damp
     history%eps_diis = eps
-    ALLOCATE ( history%dmat(ndiis+1,ndiis+1), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( history%dmat(ndiis+1,ndiis+1))
 
-    ALLOCATE ( history%hmat(ndiis), STAT=ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( history%hmat(ndiis))
     n1 = SIZE(matrix,1)
     n2 = SIZE(matrix,2)
     n3 = SIZE(matrix,3)
     DO i=1,ndiis
-      ALLOCATE ( history%hmat(i)%emat(n1,n2,n3), STAT=ierr )
-      CPASSERT(ierr==0)
-      ALLOCATE ( history%hmat(i)%fmat(n1,n2,n3), STAT=ierr )
-      CPASSERT(ierr==0)
+      ALLOCATE ( history%hmat(i)%emat(n1,n2,n3))
+      ALLOCATE ( history%hmat(i)%fmat(n1,n2,n3))
     END DO
 
   END SUBROUTINE atom_history_init
@@ -123,7 +119,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_history_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -133,25 +129,21 @@ CONTAINS
     history%damping = 0._dp
     history%eps_diis = 0._dp
     IF ( ASSOCIATED(history%dmat) ) THEN
-      DEALLOCATE ( history%dmat, STAT=ierr )
-      CPASSERT(ierr==0)
+      DEALLOCATE ( history%dmat)
       NULLIFY ( history%dmat )
     END IF
     IF ( ASSOCIATED(history%hmat) ) THEN
       DO i=1,SIZE(history%hmat)
         IF ( ASSOCIATED(history%hmat(i)%emat) ) THEN
-          DEALLOCATE ( history%hmat(i)%emat, STAT=ierr )
-          CPASSERT(ierr==0)
+          DEALLOCATE ( history%hmat(i)%emat)
           NULLIFY ( history%hmat(i)%emat )
         END IF
         IF ( ASSOCIATED(history%hmat(i)%fmat) ) THEN
-          DEALLOCATE ( history%hmat(i)%fmat, STAT=ierr )
-          CPASSERT(ierr==0)
+          DEALLOCATE ( history%hmat(i)%fmat)
           NULLIFY ( history%hmat(i)%fmat )
         END IF
       END DO
-      DEALLOCATE ( history%hmat, STAT=ierr )
-      CPASSERT(ierr==0)
+      DEALLOCATE ( history%hmat)
       NULLIFY ( history%hmat )
     END IF
 
@@ -171,8 +163,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, info, j, lwork, na, &
-                                                nb, nlen, nm, nmax, nnow, rank
+    INTEGER                                  :: i, info, j, lwork, na, nb, &
+                                                nlen, nm, nmax, nnow, rank
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, rcond, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s, work
@@ -187,8 +179,7 @@ CONTAINS
         ! DIIS
         rcond = 1.e-10_dp
         lwork = 25*nmax
-        ALLOCATE(vec(nmax+1,2),s(nmax+1),work(lwork),STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(vec(nmax+1,2),s(nmax+1),work(lwork))
         nlen = history%hlen
         vec = 0._dp
         vec(nlen+1,1) = 1._dp
@@ -216,8 +207,7 @@ CONTAINS
           fmat = fmat + vec(i,1)*history%hmat(na)%fmat
         END DO
 
-        DEALLOCATE(vec,s,work,STAT=ierr)
-        CPASSERT(ierr==0)
+        DEALLOCATE(vec,s,work)
       ELSE
         ! damping
         nm = nnow - 1

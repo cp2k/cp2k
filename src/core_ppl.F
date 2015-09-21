@@ -108,7 +108,7 @@ CONTAINS
       inode, irow, iset, jatom, jkind, jset, katom, kkind, ldai, ldsab, &
       maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, mepos, natom, &
       ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nseta, nsetb, nthread, sgfa, &
-      sgfb, stat
+      sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -154,8 +154,7 @@ CONTAINS
 
     dokp = (nimages > 1)
 
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
@@ -180,8 +179,7 @@ CONTAINS
     ldsab = MAX(maxco,ncoset(maxlppl),maxsgf,maxlppl)
     ldai = ncoset(maxl+nder+1)
 
-    ALLOCATE (basis_set_list(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -213,7 +211,7 @@ CONTAINS
 !$OMP          nct_lpot, cval_ppl, cval_lpot, ap_iterator, rac, dac, rbc, dbc, &                             
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &                                   
 !$OMP          f0, failure, katom, ppl_work, atom_c, cellind, img, &                                                        
-!$OMP          stat, ldai)                 
+!$OMP          ldai)                 
 
         mepos=0
 !$      mepos=omp_get_thread_num()
@@ -221,17 +219,13 @@ CONTAINS
     ! iterator for basis/potential list
     CALL neighbor_list_iterator_create(ap_iterator,sac_ppl,search=.TRUE.)
 
-    ALLOCATE(hab(ldsab,ldsab,maxnset,maxnset),work(ldsab,ldsab*maxder),STAT=stat)
-      CPASSERT(stat==0)
+    ALLOCATE(hab(ldsab,ldsab,maxnset,maxnset),work(ldsab,ldsab*maxder))
       ldai = ncoset(2*maxlgto+2*nder)
-      ALLOCATE (ppl_work(ldai,ldai,MAX(maxder,2*maxlgto+2*nder+1)),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (ppl_work(ldai,ldai,MAX(maxder,2*maxlgto+2*nder+1)))
       IF (calculate_forces) THEN
-         ALLOCATE(pab(maxco,maxco,maxnset,maxnset),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(pab(maxco,maxco,maxnset,maxnset))
          ldai = ncoset(maxlgto)
-         ALLOCATE (ppl_fwork(ldai,ldai,maxder),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE (ppl_fwork(ldai,ldai,maxder))
       END IF
       
     DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
@@ -464,20 +458,17 @@ CONTAINS
 
     CALL neighbor_list_iterator_release(ap_iterator)
         
-    DEALLOCATE(hab,work,ppl_work,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(hab,work,ppl_work)
         
     IF (calculate_forces) THEN
-       DEALLOCATE(pab,ppl_fwork,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(pab,ppl_fwork)
     END IF
 
 !$OMP END PARALLEL
 
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom_of_kind,basis_set_list)
 
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***

@@ -82,13 +82,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(gopt_param, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(gopt_param)
 
     last_gopt_param_id=last_gopt_param_id+1
     gopt_param%id_nr=last_gopt_param_id
@@ -206,7 +204,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -215,8 +212,7 @@ CONTAINS
        CPASSERT(gopt_param%ref_count>0)
        gopt_param%ref_count=gopt_param%ref_count-1
        IF (gopt_param%ref_count==0) THEN
-          DEALLOCATE(gopt_param, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(gopt_param)
        END IF
     END IF
   END SUBROUTINE gopt_param_release

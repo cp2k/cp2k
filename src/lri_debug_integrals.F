@@ -51,7 +51,7 @@ CONTAINS
     INTEGER                                  :: ia1, iax, iay, iaz, ib1, ibx, &
                                                 iby, ibz, la_max, la_min, &
                                                 lb_max, lb_min, lds, ma, &
-                                                maxl, mb, stat
+                                                maxl, mb
     INTEGER, DIMENSION(3)                    :: na, nb
     REAL(KIND=dp)                            :: dab, dmax, res1, xa, xb
     REAL(KIND=dp), ALLOCATABLE, &
@@ -75,13 +75,11 @@ CONTAINS
   
 
     !---------------------------------------
-    ALLOCATE(sab(ncoset(la_max),ncoset(lb_max)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sab(ncoset(la_max),ncoset(lb_max)))
 
     maxl=MAX(la_max, lb_max)
     lds = ncoset(maxl)
-    ALLOCATE(swork(lds,lds,1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(swork(lds,lds,1))
     sab=0._dp
     rab(:)= B(:) - A(:)
     dab = SQRT(DOT_PRODUCT(rab,rab))
@@ -122,8 +120,7 @@ CONTAINS
    
     WRITE(*,*) "dmax", dmax
 
-   DEALLOCATE(sab,swork,STAT=stat) 
-   CPASSERT(stat==0)
+   DEALLOCATE(sab,swork)
 
   END SUBROUTINE overlap_ab_test_simple
 
@@ -212,7 +209,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ia1, iax, iay, iaz, ib1, ibx, iby, ibz, ic1, icx, icy, icz, &
-      la_max, la_min, lb_max, lb_min, lc_max, lc_min, ma, mb, mc, stat
+      la_max, la_min, lb_max, lb_min, lc_max, lc_min, ma, mb, mc
     INTEGER, DIMENSION(3)                    :: na, nb, nc
     REAL(KIND=dp)                            :: dab, dac, dbc, dmax, res1, &
                                                 xa, xb, xc
@@ -245,8 +242,7 @@ CONTAINS
     dac = SQRT(DOT_PRODUCT(rac,rac))
     rbc(:)= C(:) - B(:)
     dbc = SQRT(DOT_PRODUCT(rbc,rbc))
-    ALLOCATE(sabc(ncoset(la_max),ncoset(lb_max),ncoset(lc_max)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sabc(ncoset(la_max),ncoset(lb_max),ncoset(lc_max)))
     xa_work(1)=xa
     xb_work(1)=xb
     xc_work(1)=xc
@@ -304,8 +300,7 @@ CONTAINS
    
     WRITE(*,*) "dmax", dmax
 
-   DEALLOCATE(sabc,STAT=stat) 
-   CPASSERT(stat==0)
+   DEALLOCATE(sabc)
     
   END SUBROUTINE overlap_abc_test_simple
 
@@ -426,7 +421,7 @@ CONTAINS
 
     INTEGER :: i, iax, iay, iaz, ibx, iby, ibz, j, k, l, la_max, la_max1, &
       la_max2, la_min, la_min1, la_min2, lb_max, lb_max1, lb_max2, lb_min, &
-      lb_min1, lb_min2, lds, ma, maxl, mb, stat
+      lb_min1, lb_min2, lds, ma, maxl, mb
     INTEGER, DIMENSION(3)                    :: na, naa, nb, nbb
     REAL(KIND=dp)                            :: dab, dmax, res1, xa, xa1, &
                                                 xa2, xb, xb1, xb2
@@ -459,13 +454,11 @@ CONTAINS
   
 
     !---------------------------------------
-    ALLOCATE(saabb(ncoset(la_max1),ncoset(la_max2),ncoset(lb_max1),ncoset(lb_max2)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(saabb(ncoset(la_max1),ncoset(la_max2),ncoset(lb_max1),ncoset(lb_max2)))
 
     maxl=MAX(la_max1+la_max2, lb_max1+lb_max2)
     lds = ncoset(maxl)
-    ALLOCATE(swork(lds,lds),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(swork(lds,lds))
     saabb=0._dp
     rab(:)= B(:) - A(:)
     dab = SQRT(DOT_PRODUCT(rab,rab))
@@ -527,8 +520,7 @@ CONTAINS
    
     WRITE(*,*) "dmax", dmax
 
-   DEALLOCATE(saabb,swork,STAT=stat) 
-   CPASSERT(stat==0)
+   DEALLOCATE(saabb,swork)
 
   END SUBROUTINE overlap_aabb_test_simple
 

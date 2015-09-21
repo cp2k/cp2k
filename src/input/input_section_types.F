@@ -160,7 +160,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_n_keywords, &
-                                                my_n_subsections, n, stat
+                                                my_n_subsections, n
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -171,8 +171,7 @@ CONTAINS
     my_n_subsections=0
     IF (PRESENT(n_subsections)) my_n_subsections=n_subsections
 
-    ALLOCATE(section,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(section)
     last_section_id=last_section_id+1
     section%id_nr=last_section_id
     section%ref_count=1
@@ -194,19 +193,16 @@ CONTAINS
 
     NULLIFY(section%citations)
     IF (PRESENT(citations)) THEN
-       ALLOCATE(section%citations(SIZE(citations)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(section%citations(SIZE(citations)))
        section%citations=citations
     ENDIF
 
-    ALLOCATE(section%keywords(-1:my_n_keywords),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(section%keywords(-1:my_n_keywords))
     DO i=-1,my_n_keywords
        NULLIFY(section%keywords(i)%keyword)
     END DO
 
-    ALLOCATE(section%subsections(my_n_subsections),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(section%subsections(my_n_subsections))
     DO i=1,my_n_subsections
        NULLIFY(section%subsections(i)%section)
     END DO
@@ -243,7 +239,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -253,27 +249,23 @@ CONTAINS
        section%ref_count=section%ref_count-1
        IF (section%ref_count==0) THEN
           IF (ASSOCIATED(section%citations)) THEN
-             DEALLOCATE(section%citations,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(section%citations)
           ENDIF
           IF (ASSOCIATED(section%keywords)) THEN
              DO i=-1,UBOUND(section%keywords,1)
                 CALL keyword_release(section%keywords(i)%keyword)
              END DO
-             DEALLOCATE(section%keywords,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(section%keywords)
           END IF
           section%n_keywords=0
           IF (ASSOCIATED(section%subsections)) THEN
              DO i=1,SIZE(section%subsections)
                 CALL section_release(section%subsections(i)%section)
              END DO
-             DEALLOCATE(section%subsections,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(section%subsections)
           END IF
           DEALLOCATE(section%description)
-          DEALLOCATE(section,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(section)
        END IF
        NULLIFY(section)
     END IF
@@ -724,7 +716,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_add_keyword', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, stat
+    INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
     TYPE(keyword_p_type), DIMENSION(:), &
       POINTER                                :: new_keywords
@@ -758,16 +750,14 @@ CONTAINS
        END DO
 
        IF (UBOUND(section%keywords,1)==section%n_keywords) THEN
-          ALLOCATE(new_keywords(-1:section%n_keywords+10),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(new_keywords(-1:section%n_keywords+10))
           DO i=-1,section%n_keywords
              new_keywords(i)%keyword => section%keywords(i)%keyword
           END DO
           DO i=section%n_keywords+1,UBOUND(new_keywords,1)
              NULLIFY(new_keywords(i)%keyword)
           END DO
-          DEALLOCATE(section%keywords,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(section%keywords)
           section%keywords => new_keywords
        END IF
        section%n_keywords=section%n_keywords+1
@@ -787,7 +777,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_add_subsection', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     TYPE(section_p_type), DIMENSION(:), &
       POINTER                                :: new_subsections
@@ -799,16 +789,14 @@ CONTAINS
     CPASSERT(ASSOCIATED(subsection))
     CPASSERT(subsection%ref_count>0)
     IF (SIZE(section%subsections)<section%n_subsections+1) THEN
-       ALLOCATE(new_subsections(section%n_subsections+10),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(new_subsections(section%n_subsections+10))
        DO i=1,section%n_subsections
           new_subsections(i)%section => section%subsections(i)%section
        END DO
        DO i=section%n_subsections+1,SIZE(new_subsections)
           NULLIFY(new_subsections(i)%section)
        END DO
-       DEALLOCATE(section%subsections,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(section%subsections)
        section%subsections => new_subsections
     END IF
     DO i=1,section%n_subsections
@@ -836,24 +824,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section_vals))
-    ALLOCATE(section_vals,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(section_vals)
     last_section_vals_id=last_section_vals_id+1
     section_vals%id_nr=last_section_vals_id
     section_vals%ref_count=1
     CALL section_retain(section)
     section_vals%section => section
     section%frozen=.TRUE.
-    ALLOCATE(section_vals%values(-1:section%n_keywords,0),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(section_vals%subs_vals(section%n_subsections,1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(section_vals%values(-1:section%n_keywords,0))
+    ALLOCATE(section_vals%subs_vals(section%n_subsections,1))
     DO i=1,section%n_subsections
        NULLIFY(section_vals%subs_vals(i,1)%section_vals)
        CALL section_vals_create(section_vals%subs_vals(i,1)%section_vals,&
@@ -892,7 +877,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
@@ -913,21 +898,17 @@ CONTAINS
                 CALL cp_sll_val_dealloc(section_vals%values(i,j)%list)
              END DO
           END DO
-          DEALLOCATE(section_vals%values,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(section_vals%values)
           DO j=1,SIZE(section_vals%subs_vals,2)
              DO i=1,SIZE(section_vals%subs_vals,1)
                 CALL section_vals_release(section_vals%subs_vals(i,j)%section_vals)
              END DO
           END DO
-          DEALLOCATE(section_vals%subs_vals,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(section_vals%subs_vals)
           IF (ASSOCIATED(section_vals%ibackup)) THEN
-             DEALLOCATE(section_vals%ibackup,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(section_vals%ibackup)
           END IF
-          DEALLOCATE(section_vals,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(section_vals)
        END IF
     END IF
   END SUBROUTINE section_vals_release
@@ -1119,7 +1100,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_add_values', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
@@ -1130,15 +1111,13 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
-    ALLOCATE(new_values(-1:UBOUND(section_vals%values,1),SIZE(section_vals%values,2)+1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(new_values(-1:UBOUND(section_vals%values,1),SIZE(section_vals%values,2)+1))
     DO j=1,SIZE(section_vals%values,2)
        DO i=-1,UBOUND(section_vals%values,1)
           new_values(i,j)%list => section_vals%values(i,j)%list
        END DO
     END DO
-    DEALLOCATE(section_vals%values,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(section_vals%values)
     section_vals%values => new_values
     j=SIZE ( new_values, 2 )
     DO i=-1,UBOUND(new_values,1)
@@ -1147,15 +1126,13 @@ CONTAINS
 
     IF (SIZE(new_values,2)>1) THEN
        ALLOCATE(new_sps(SIZE(section_vals%subs_vals,1),&
-            SIZE(section_vals%subs_vals,2)+1),stat=stat)
-       CPASSERT(stat==0)
+            SIZE(section_vals%subs_vals,2)+1))
        DO j=1,SIZE(section_vals%subs_vals,2)
           DO i=1,SIZE(section_vals%subs_vals,1)
              new_sps(i,j)%section_vals => section_vals%subs_vals(i,j)%section_vals
           END DO
        END DO
-       DEALLOCATE(section_vals%subs_vals,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(section_vals%subs_vals)
        section_vals%subs_vals => new_sps
        j = SIZE ( new_sps, 2 )
        DO i=1,SIZE(new_sps,1)
@@ -1177,7 +1154,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_remove_values', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
@@ -1190,8 +1167,7 @@ CONTAINS
        CPASSERT(section_vals%ref_count>0)
        NULLIFY(el, vals)
        ! Allocate a null 0 dimension array of values
-       ALLOCATE(new_values(-1:section_vals%section%n_keywords,0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(new_values(-1:section_vals%section%n_keywords,0))
        ! Release old values
        DO j=1,SIZE(section_vals%values,2)
           DO i=-1,UBOUND(section_vals%values,1)
@@ -1202,8 +1178,7 @@ CONTAINS
              CALL cp_sll_val_dealloc(section_vals%values(i,j)%list)
           END DO
        END DO
-       DEALLOCATE(section_vals%values,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(section_vals%values)
        section_vals%values => new_values
     END IF
   END SUBROUTINE section_vals_remove_values

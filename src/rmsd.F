@@ -66,7 +66,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rmsd3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ix, j, k, natom, stat
+    INTEGER                                  :: i, ix, j, k, natom
     LOGICAL                                  :: failure, my_rotate
     REAL(KIND=dp) :: dm_r(4,4,3), lambda(4), loc_tr(3), M(4,4), mtot, &
       my_rot(3,3), Q(0:3), rr(3), rr0(3), rrsq, s, xx, yy, Z(4,4), zz
@@ -79,8 +79,7 @@ CONTAINS
     natom     = SIZE(particle_set)
     my_rotate = .FALSE.
     IF (PRESENT(rotate)) my_rotate=rotate
-    ALLOCATE(w(natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(w(natom))
     IF (PRESENT(weights)) THEN
        w(:) = weights
     ELSE
@@ -92,10 +91,8 @@ CONTAINS
        mtot = MINVAL(w)
        IF (mtot /= 0.0_dp) w(:) = w(:)/mtot
     END IF
-    ALLOCATE(rp(3,natom),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(r0p(3,natom),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rp(3,natom))
+    ALLOCATE(r0p(3,natom))
     ! Molecule given by coordinates R
     ! Find COM and center molecule in COM
     xx=0.0_dp
@@ -290,12 +287,9 @@ CONTAINS
           r((i-1)*3+1:(i-1)*3+3) = r((i-1)*3+1:(i-1)*3+3) + loc_tr
        END DO
     END IF
-    DEALLOCATE(w,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(rp,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r0p,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(w)
+    DEALLOCATE(rp)
+    DEALLOCATE(r0p)
   END SUBROUTINE rmsd3
 
 END MODULE rmsd

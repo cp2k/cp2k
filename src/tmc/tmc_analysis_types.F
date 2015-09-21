@@ -143,15 +143,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(tmc_ana))
 
-    ALLOCATE(tmc_ana,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmc_ana)
 
     NULLIFY(tmc_ana%dirs, tmc_ana%cell, tmc_ana%atoms, tmc_ana%density_3d, &
             tmc_ana%pair_correl, tmc_ana%dip_mom, tmc_ana%last_elem, &
@@ -195,7 +193,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -219,8 +216,7 @@ CONTAINS
     IF(ASSOCIATED(tmc_ana%displace)) &
       CALL tmc_ana_displacement_release(ana_disp=tmc_ana%displace)
 
-    DEALLOCATE(tmc_ana,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmc_ana)
 
   END SUBROUTINE tmc_ana_env_release
 
@@ -241,15 +237,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_density_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_dens))
 
-    ALLOCATE(ana_dens,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ana_dens)
 
     NULLIFY(ana_dens%sum_density, ana_dens%sum_dens2)
 
@@ -278,7 +272,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dens_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -287,8 +280,7 @@ CONTAINS
 
     DEALLOCATE(ana_dens%sum_density)
     DEALLOCATE(ana_dens%sum_dens2)
-    DEALLOCATE(ana_dens,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ana_dens)
   END SUBROUTINE tmc_ana_dens_release
 
   !============================================================================
@@ -309,14 +301,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_pair_correl_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_pair_correl))
-    ALLOCATE(ana_pair_correl,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ana_pair_correl)
 
     NULLIFY(ana_pair_correl%g_r, ana_pair_correl%pairs)
     ana_pair_correl%conf_counter = 0
@@ -338,7 +328,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_pair_correl_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -347,8 +336,7 @@ CONTAINS
 
     DEALLOCATE(ana_pair_correl%g_r)
     DEALLOCATE(ana_pair_correl%pairs)
-    DEALLOCATE(ana_pair_correl, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ana_pair_correl)
   END SUBROUTINE tmc_ana_pair_correl_release
 
 ! *****************************************************************************
@@ -417,14 +405,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dipole_moment_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_dip_mom))
-    ALLOCATE(ana_dip_mom,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ana_dip_mom)
 
     NULLIFY(ana_dip_mom%charges_inp, ana_dip_mom%charges)
 
@@ -453,7 +440,6 @@ CONTAINS
       routineN = 'tmc_ana_dipole_moment_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -463,8 +449,7 @@ CONTAINS
     IF(ASSOCIATED(ana_dip_mom%charges_inp)) DEALLOCATE(ana_dip_mom%charges_inp)
     IF(ASSOCIATED(ana_dip_mom%charges))     DEALLOCATE(ana_dip_mom%charges)
     DEALLOCATE(ana_dip_mom%last_dip_cl)
-    DEALLOCATE(ana_dip_mom, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ana_dip_mom)
   END SUBROUTINE tmc_ana_dipole_moment_release
 
 ! *****************************************************************************
@@ -480,14 +465,12 @@ CONTAINS
       routineN = 'tmc_ana_dipole_analysis_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_dip_ana))
-    ALLOCATE(ana_dip_ana,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ana_dip_ana)
 
     ana_dip_ana%conf_counter = 0
     ana_dip_ana%ana_type     = -1
@@ -515,7 +498,6 @@ CONTAINS
       routineN = 'tmc_ana_dipole_analysis_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -527,8 +509,7 @@ CONTAINS
     DEALLOCATE(ana_dip_ana%mu2_pv)
     DEALLOCATE(ana_dip_ana%mu2_pv_mat)
 
-    DEALLOCATE(ana_dip_ana, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ana_dip_ana)
   END SUBROUTINE tmc_ana_dipole_analysis_release
 
   !============================================================================
@@ -549,15 +530,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_displacement_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ana_disp))
     CPASSERT(dim_per_elem.GT.0)
 
-    ALLOCATE(ana_disp,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ana_disp)
 
     ana_disp%disp = 0.0_dp
     ana_disp%conf_counter = 0
@@ -576,13 +555,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_displacement_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_disp))
 
-    DEALLOCATE(ana_disp,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ana_disp)
   END SUBROUTINE tmc_ana_displacement_release
 END MODULE tmc_analysis_types

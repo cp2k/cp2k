@@ -513,8 +513,7 @@ MODULE hfx_types
     CALL section_vals_get(hfx_section,n_repetition=n_rep_hf)
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
-    ALLOCATE(x_data(n_rep_hf,n_threads),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(x_data(n_rep_hf,n_threads))
     DO i_thread=1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
@@ -733,12 +732,10 @@ MODULE hfx_types
           hf_pbc_section => section_vals_get_subs_vals(hfx_section,"PERIODIC",i_rep_section=irep)
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells)
           actual_x_data%periodic_parameter%number_of_shells_from_input = pbc_shells
-          ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(actual_x_data%neighbor_cells(1))
           CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, i_thread)
         ELSE
-          ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(actual_x_data%neighbor_cells(1))
           ! ** Initialize this guy to enable non periodic stress regtests
           actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
@@ -748,37 +745,27 @@ MODULE hfx_types
 
         !! ** This guy is allocated on the master thread only
         IF (i_thread == 1 ) THEN
-          ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(actual_x_data%atomic_block_offset(natom,natom),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(actual_x_data%set_offset(max_set, max_set, nkind, nkind),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(actual_x_data%block_offset(para_env%num_pe+1),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom))
+          ALLOCATE(actual_x_data%atomic_block_offset(natom,natom))
+          ALLOCATE(actual_x_data%set_offset(max_set, max_set, nkind, nkind))
+          ALLOCATE(actual_x_data%block_offset(para_env%num_pe+1))
         END IF
 
-        ALLOCATE(actual_x_data%distribution_forces(1),STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(actual_x_data%distribution_forces(1))
+        ALLOCATE(actual_x_data%distribution_energy(1))
 
         actual_x_data%memory_parameter%size_p_screen = 0_int_8
         IF( i_thread == 1 ) THEN
-          ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(actual_x_data%atomic_pair_list(natom,natom))
+          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom))
         END IF
 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           !! ** This guy is allocated on the master thread only
           IF (i_thread == 1 ) THEN
-            ALLOCATE(actual_x_data%pmax_atom(natom,natom),STAT=stat)
-            CPASSERT(stat==0)
-            ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2),STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(actual_x_data%pmax_atom(natom,natom))
+            ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2))
             i = 1
             DO ikind=1,nkind
               CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
@@ -786,19 +773,16 @@ MODULE hfx_types
               DO jkind=ikind,nkind
                 CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                 nsetb=actual_x_data%basis_parameter(jkind)%nset
-                ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b))
                 actual_x_data%memory_parameter%size_p_screen = &
                   actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
                 i = i + 1
               END DO
             END DO
             IF( actual_x_data%memory_parameter%treat_forces_in_core ) THEN
-              ALLOCATE(actual_x_data%pmax_atom_forces(natom,natom),STAT=stat)
-              CPASSERT(stat==0)
+              ALLOCATE(actual_x_data%pmax_atom_forces(natom,natom))
 
-              ALLOCATE(actual_x_data%initial_p_forces(nkind*(nkind+1)/2),STAT=stat)
-              CPASSERT(stat==0)
+              ALLOCATE(actual_x_data%initial_p_forces(nkind*(nkind+1)/2))
               i = 1
               DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
@@ -806,8 +790,7 @@ MODULE hfx_types
                 DO jkind=ikind,nkind
                   CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                   nsetb=actual_x_data%basis_parameter(jkind)%nset
-                  ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
-                  CPASSERT(stat==0)
+                  ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b))
                   actual_x_data%memory_parameter%size_p_screen = &
                   actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
                   i = i + 1
@@ -815,12 +798,9 @@ MODULE hfx_types
               END DO
             END IF
           END IF
-          ALLOCATE(actual_x_data%map_atom_to_kind_atom(natom),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(kind_of(natom),STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE (atom2kind(nkind),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(actual_x_data%map_atom_to_kind_atom(natom))
+          ALLOCATE(kind_of(natom))
+          ALLOCATE (atom2kind(nkind))
           CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
           atom2kind = 0
@@ -829,8 +809,7 @@ MODULE hfx_types
             atom2kind(ikind) = atom2kind(ikind) + 1
             actual_x_data%map_atom_to_kind_atom(iatom) = atom2kind(ikind)
           END DO
-          DEALLOCATE(kind_of, atom2kind, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kind_of, atom2kind)
         END IF
 
         ! ** Initialize libint type
@@ -841,10 +820,8 @@ MODULE hfx_types
         CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces)
 
         actual_x_data%maxval_cache_disk%element_counter = 1
-        ALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(actual_x_data%maxval_container_disk%first,STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(actual_x_data%maxval_container_disk)
+        ALLOCATE(actual_x_data%maxval_container_disk%first)
         actual_x_data%maxval_container_disk%first%prev => NULL()
         actual_x_data%maxval_container_disk%first%next => NULL()
         actual_x_data%maxval_container_disk%current => actual_x_data%maxval_container_disk%first
@@ -856,14 +833,12 @@ MODULE hfx_types
         WRITE(actual_x_data%maxval_container_disk%filename,'(A,I0,A,A,A)') TRIM(actual_x_data%memory_parameter%storage_location), &
                                                            storage_id,"_",actual_x_data%maxval_container_disk%desc, "6"
         CALL compress(actual_x_data%maxval_container_disk%filename, .TRUE.)
-        ALLOCATE(actual_x_data%integral_containers_disk(64), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(actual_x_data%integral_containers_disk(64))
         DO i=1,64
           actual_x_data%integral_caches_disk(i)%element_counter = 1
           actual_x_data%integral_caches_disk(i)%data = 0
           CPASSERT(stat==0)
-          ALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(actual_x_data%integral_containers_disk(i)%first)
           actual_x_data%integral_containers_disk(i)%first%prev => NULL()
           actual_x_data%integral_containers_disk(i)%first%next => NULL()
           actual_x_data%integral_containers_disk(i)%current => actual_x_data%integral_containers_disk(i)%first
@@ -969,7 +944,7 @@ MODULE hfx_types
     INTEGER :: co_counter, handle, i, ikind, ipgf, iset, j, k, la, &
       max_am_kind, max_coeff, max_nsgfl, max_pgf, max_pgf_kind, max_set, &
       nkind, nl_count, nset, nseta, offset_a, offset_a1, s_offset_nl_a, sgfa, &
-      so_counter, stat
+      so_counter
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: failure
@@ -982,8 +957,7 @@ MODULE hfx_types
 
     !! BASIS parameter
     nkind = SIZE(qs_kind_set,1)
-    ALLOCATE(basis_parameter(nkind), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(basis_parameter(nkind))
     max_set = 0
     DO ikind = 1,nkind
         IF( .NOT. do_admm ) THEN
@@ -1055,8 +1029,7 @@ MODULE hfx_types
           max_am_kind = MAX(max_am_kind, la)
         END DO
       END DO
-      ALLOCATE(basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta), STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta))
       basis_parameter(ikind)%sphi_ext = 0.0_dp
     END DO
 
@@ -1106,7 +1079,7 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release_basis_types', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -1114,13 +1087,10 @@ MODULE hfx_types
 
     !! BASIS parameter
     DO i=1,SIZE(basis_parameter)
-       DEALLOCATE(basis_parameter(i)%nsgfl,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(basis_parameter(i)%sphi_ext,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(basis_parameter(i)%nsgfl)
+       DEALLOCATE(basis_parameter(i)%sphi_ext)
     END DO
-    DEALLOCATE(basis_parameter,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(basis_parameter)
     CALL timestop(handle)
 
   END SUBROUTINE hfx_release_basis_types
@@ -1244,7 +1214,7 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, i_thread, irep, n_rep_hf, &
-                                                n_threads, stat
+                                                n_threads
     LOGICAL                                  :: failure
     TYPE(hfx_type), POINTER                  :: actual_x_data
 
@@ -1262,63 +1232,45 @@ MODULE hfx_types
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
-        DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(actual_x_data%distribution_energy,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(actual_x_data%neighbor_cells)
+        DEALLOCATE(actual_x_data%distribution_energy)
+        DEALLOCATE(actual_x_data%distribution_forces)
 
         IF( actual_x_data%load_balance_parameter%blocks_initialized ) THEN
-          DEALLOCATE(actual_x_data%blocks,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%blocks)
           IF( i_thread == 1 ) THEN
-            DEALLOCATE(actual_x_data%pmax_block,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(actual_x_data%pmax_block)
           END IF
         END IF
 
         IF( i_thread == 1 ) THEN
-          DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%atomic_pair_list_forces, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%atomic_pair_list)
+          DEALLOCATE(actual_x_data%atomic_pair_list_forces)
         END IF
 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           IF( i_thread == 1 ) THEN
-            DEALLOCATE(actual_x_data%pmax_atom, STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(actual_x_data%pmax_atom)
             DO i=1,SIZE(actual_x_data%initial_p)
-               DEALLOCATE(actual_x_data%initial_p(i)%p_kind,STAT=stat)
-               CPASSERT(stat==0)
+               DEALLOCATE(actual_x_data%initial_p(i)%p_kind)
             END DO
-            DEALLOCATE(actual_x_data%initial_p,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(actual_x_data%initial_p)
             IF( actual_x_data%memory_parameter%treat_forces_in_core) THEN
-              DEALLOCATE(actual_x_data%pmax_atom_forces, STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(actual_x_data%pmax_atom_forces)
               DO i=1,SIZE(actual_x_data%initial_p_forces)
-                 DEALLOCATE(actual_x_data%initial_p_forces(i)%p_kind,STAT=stat)
-                 CPASSERT(stat==0)
+                 DEALLOCATE(actual_x_data%initial_p_forces(i)%p_kind)
               END DO
-              DEALLOCATE(actual_x_data%initial_p_forces,STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(actual_x_data%initial_p_forces)
             END IF
           END IF
-          DEALLOCATE(actual_x_data%map_atom_to_kind_atom,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%map_atom_to_kind_atom)
         END IF
         IF( i_thread == 1 ) THEN
-          DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%atomic_block_offset,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%set_offset,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%block_offset,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%is_assoc_atomic_block)
+          DEALLOCATE(actual_x_data%atomic_block_offset)
+          DEALLOCATE(actual_x_data%set_offset)
+          DEALLOCATE(actual_x_data%block_offset)
         END IF
 
         !! BASIS parameter
@@ -1339,10 +1291,8 @@ MODULE hfx_types
         IF( actual_x_data%memory_parameter%do_disk_storage) THEN
           CALL close_file(unit_number=actual_x_data%maxval_container_disk%unit,file_status="DELETE")
         END IF
-        DEALLOCATE(actual_x_data%maxval_container_disk%first,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(actual_x_data%maxval_container_disk%first)
+        DEALLOCATE(actual_x_data%maxval_container_disk)
 
         DO i=1,64
           CALL hfx_init_container(actual_x_data%integral_containers_disk(i), &
@@ -1351,42 +1301,32 @@ MODULE hfx_types
           IF( actual_x_data%memory_parameter%do_disk_storage) THEN
             CALL close_file(unit_number=actual_x_data%integral_containers_disk(i)%unit,file_status="DELETE")
           END IF
-          DEALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%integral_containers_disk(i)%first)
         END DO
-        DEALLOCATE(actual_x_data%integral_containers_disk,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(actual_x_data%integral_containers_disk)
 
 
         ! ** screening functions
         IF(actual_x_data%screen_funct_is_initialized) THEN
-          DEALLOCATE(actual_x_data%screen_funct_coeffs_set,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%screen_funct_coeffs_kind,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%pair_dist_radii_pgf,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_set)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_kind)
+          DEALLOCATE(actual_x_data%pair_dist_radii_pgf)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf)
           actual_x_data%screen_funct_is_initialized = .FALSE.
         END IF
 
         ! ** maps
         IF( ASSOCIATED(actual_x_data%map_atoms_to_cpus) ) THEN
           DO i=1,SIZE(actual_x_data%map_atoms_to_cpus)
-            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%iatom_list,STAT=stat)
-            CPASSERT(stat==0)
-            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%jatom_list,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%iatom_list)
+            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%jatom_list)
           END DO
-          DEALLOCATE(actual_x_data%map_atoms_to_cpus,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(actual_x_data%map_atoms_to_cpus)
         END IF
       END DO
 
     END DO
-    DEALLOCATE(x_data,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(x_data)
   END SUBROUTINE hfx_release
 
 ! *****************************************************************************
@@ -1412,7 +1352,7 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=64)                        :: char_nshells
     INTEGER :: i, idx, ikind, ipgf, iset, ishell, j, jkind, jpgf, jset, &
-      jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, stat, &
+      jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, &
       total_number_of_cells, ub, ub_max
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
     LOGICAL                                  :: failure, image_cell_found, &
@@ -1489,10 +1429,8 @@ MODULE hfx_types
       max_shell = 0
       total_number_of_cells = 0
       ub = 1
-      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(x_data%neighbor_cells(1), STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%neighbor_cells)
+      ALLOCATE(x_data%neighbor_cells(1))
       x_data%neighbor_cells(1)%cell = 0.0_dp
       x_data%neighbor_cells(1)%cell_r = 0.0_dp
 
@@ -1534,16 +1472,13 @@ MODULE hfx_types
       DO WHILE (.NOT. nothing_more_to_add)
         ! Calculate distances to the eight points P1 to P8
         image_cell_found = .FALSE.
-        ALLOCATE(tmp_neighbor_cells(1:ub),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(tmp_neighbor_cells(1:ub))
         DO i = 1,ub-1
           tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
         END DO
         ub_max = (2*max_shell+1)**3
-        DEALLOCATE(x_data%neighbor_cells, STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE(x_data%neighbor_cells(1:ub_max), STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(x_data%neighbor_cells)
+        ALLOCATE(x_data%neighbor_cells(1:ub_max))
         DO i = 1,ub-1
           x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
         END DO
@@ -1552,8 +1487,7 @@ MODULE hfx_types
           x_data%neighbor_cells(i)%cell_r = 0.0_dp
         END DO
 
-        DEALLOCATE(tmp_neighbor_cells, STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(tmp_neighbor_cells)
 
         DO ishell=-max_shell,max_shell
         DO jshell=-max_shell,max_shell
@@ -1695,31 +1629,26 @@ MODULE hfx_types
         END IF
       END DO
       ! now remove what is not needed
-      ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(tmp_neighbor_cells(total_number_of_cells))
       DO i=1,ub-1
         tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
       END DO
-      DEALLOCATE(x_data%neighbor_cells, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%neighbor_cells)
       ! If we only need the supercell, total_number_of_cells is still 0, repair
       IF( total_number_of_cells == 0 ) THEN
         total_number_of_cells = 1
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
         DO i=1,total_number_of_cells
           x_data%neighbor_cells(i)%cell = 0.0_dp
           x_data%neighbor_cells(i)%cell_r = 0.0_dp
         END DO
       ELSE
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
         DO i=1,total_number_of_cells
           x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
         END DO
       END IF
-      DEALLOCATE(tmp_neighbor_cells, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(tmp_neighbor_cells)
 
       IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN
         ! Do nothing
@@ -1746,11 +1675,9 @@ MODULE hfx_types
         DO i = 0,x_data%periodic_parameter%number_of_shells
           total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
         END DO
-        DEALLOCATE(x_data%neighbor_cells, STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(x_data%neighbor_cells)
 
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
         m = 0
         i = 1
         DO WHILE(SUM(m**2)<=x_data%periodic_parameter%number_of_shells)
@@ -1765,11 +1692,9 @@ MODULE hfx_types
       DO i = 0,pbc_shells
         total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
       END DO
-      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%neighbor_cells)
 
-      ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
 
       m = 0
       i = 1
@@ -1896,7 +1821,6 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(hfx_container_node), POINTER        :: current, next
 
@@ -1912,8 +1836,7 @@ MODULE hfx_types
     END DO
 
     !! Allocate first list entry, init members
-    ALLOCATE(container%first,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(container%first)
     container%first%prev => NULL()
     container%first%next => NULL()
     container%current => container%first
@@ -1950,13 +1873,9 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    DEALLOCATE(x_data%distribution_energy)
 
-    DEALLOCATE(x_data%distribution_energy,STAT=stat)
-    CPASSERT(stat==0)
-
-    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)))
     x_data%distribution_energy = ptr_to_distr
 
   END SUBROUTINE hfx_set_distr_energy
@@ -1978,13 +1897,9 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    DEALLOCATE(x_data%distribution_forces)
 
-    DEALLOCATE(x_data%distribution_forces,STAT=stat)
-    CPASSERT(stat==0)
-
-    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)))
     x_data%distribution_forces = ptr_to_distr
 
   END SUBROUTINE hfx_set_distr_forces
@@ -2146,7 +2061,7 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, i, stat
+    INTEGER                                  :: bin, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -2157,52 +2072,40 @@ MODULE hfx_types
       DO bin=1,SIZE(x_data%maxval_container)
         CALL hfx_init_container(x_data%maxval_container(bin), x_data%memory_parameter%actual_memory_usage, &
                                  .FALSE.)
-        DEALLOCATE(x_data%maxval_container(bin)%first,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(x_data%maxval_container(bin)%first)
       END DO
-      DEALLOCATE(x_data%maxval_container,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(x_data%maxval_cache,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%maxval_container)
+      DEALLOCATE(x_data%maxval_cache)
 
       DO bin = 1,SIZE(x_data%integral_containers,2)
         DO i=1,64
           CALL hfx_init_container(x_data%integral_containers(i,bin), x_data%memory_parameter%actual_memory_usage, &
                                    .FALSE.)
-          DEALLOCATE(x_data%integral_containers(i,bin)%first,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(x_data%integral_containers(i,bin)%first)
         END DO
       END DO
-      DEALLOCATE(x_data%integral_containers,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%integral_containers)
 
-      DEALLOCATE(x_data%integral_caches, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%integral_caches)
     CASE (hfx_do_eval_forces)
       DO bin=1,SIZE(x_data%maxval_container_forces)
         CALL hfx_init_container(x_data%maxval_container_forces(bin), x_data%memory_parameter%actual_memory_usage, &
                                  .FALSE.)
-        DEALLOCATE(x_data%maxval_container_forces(bin)%first,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(x_data%maxval_container_forces(bin)%first)
       END DO
-      DEALLOCATE(x_data%maxval_container_forces,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE(x_data%maxval_cache_forces,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%maxval_container_forces)
+      DEALLOCATE(x_data%maxval_cache_forces)
 
       DO bin = 1,SIZE(x_data%integral_containers_forces,2)
         DO i=1,64
           CALL hfx_init_container(x_data%integral_containers_forces(i,bin), x_data%memory_parameter%actual_memory_usage, &
                                    .FALSE.)
-          DEALLOCATE(x_data%integral_containers_forces(i,bin)%first,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(x_data%integral_containers_forces(i,bin)%first)
         END DO
       END DO
-      DEALLOCATE(x_data%integral_containers_forces,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%integral_containers_forces)
 
-      DEALLOCATE(x_data%integral_caches_forces, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(x_data%integral_caches_forces)
 
     END SELECT
 
@@ -2221,7 +2124,7 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_containers', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, i, stat
+    INTEGER                                  :: bin, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -2229,16 +2132,13 @@ MODULE hfx_types
 
     SELECT CASE(eval_type)
     CASE (hfx_do_eval_energy)
-      ALLOCATE(x_data%maxval_cache(bin_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%maxval_cache(bin_size))
       DO bin = 1,bin_size
         x_data%maxval_cache(bin)%element_counter = 1
       END DO
-      ALLOCATE(x_data%maxval_container(bin_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%maxval_container(bin_size))
       DO bin = 1,bin_size
-        ALLOCATE(x_data%maxval_container(bin)%first,STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(x_data%maxval_container(bin)%first)
         x_data%maxval_container(bin)%first%prev => NULL()
         x_data%maxval_container(bin)%first%next => NULL()
         x_data%maxval_container(bin)%current => x_data%maxval_container(bin)%first
@@ -2246,17 +2146,14 @@ MODULE hfx_types
         x_data%maxval_container(bin)%element_counter = 1
       END DO
 
-      ALLOCATE(x_data%integral_containers(64,bin_size), STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(x_data%integral_caches(64,bin_size), STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%integral_containers(64,bin_size))
+      ALLOCATE(x_data%integral_caches(64,bin_size))
 
       DO bin = 1,bin_size
         DO i=1,64
           x_data%integral_caches(i,bin)%element_counter = 1
           x_data%integral_caches(i,bin)%data = 0
-          ALLOCATE(x_data%integral_containers(i,bin)%first,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(x_data%integral_containers(i,bin)%first)
           x_data%integral_containers(i,bin)%first%prev => NULL()
           x_data%integral_containers(i,bin)%first%next => NULL()
           x_data%integral_containers(i,bin)%current => x_data%integral_containers(i,bin)%first
@@ -2265,16 +2162,13 @@ MODULE hfx_types
         END DO
       END DO
     CASE (hfx_do_eval_forces)
-      ALLOCATE(x_data%maxval_cache_forces(bin_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%maxval_cache_forces(bin_size))
       DO bin = 1,bin_size
         x_data%maxval_cache_forces(bin)%element_counter = 1
       END DO
-      ALLOCATE(x_data%maxval_container_forces(bin_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%maxval_container_forces(bin_size))
       DO bin = 1,bin_size
-        ALLOCATE(x_data%maxval_container_forces(bin)%first,STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(x_data%maxval_container_forces(bin)%first)
         x_data%maxval_container_forces(bin)%first%prev => NULL()
         x_data%maxval_container_forces(bin)%first%next => NULL()
         x_data%maxval_container_forces(bin)%current => x_data%maxval_container_forces(bin)%first
@@ -2282,17 +2176,14 @@ MODULE hfx_types
         x_data%maxval_container_forces(bin)%element_counter = 1
       END DO
 
-      ALLOCATE(x_data%integral_containers_forces(64,bin_size), STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(x_data%integral_caches_forces(64,bin_size), STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(x_data%integral_containers_forces(64,bin_size))
+      ALLOCATE(x_data%integral_caches_forces(64,bin_size))
 
       DO bin = 1,bin_size
         DO i=1,64
           x_data%integral_caches_forces(i,bin)%element_counter = 1
           x_data%integral_caches_forces(i,bin)%data = 0
-          ALLOCATE(x_data%integral_containers_forces(i,bin)%first,STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(x_data%integral_containers_forces(i,bin)%first)
           x_data%integral_containers_forces(i,bin)%first%prev => NULL()
           x_data%integral_containers_forces(i,bin)%first%next => NULL()
           x_data%integral_containers_forces(i,bin)%current => x_data%integral_containers_forces(i,bin)%first

@@ -51,18 +51,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(buffer))
-    ALLOCATE(buffer, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer)
     buffer%size = buffer_size
-    ALLOCATE(buffer%input_lines(buffer%size), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(buffer%input_line_numbers(buffer%size), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer%input_lines(buffer%size))
+    ALLOCATE(buffer%input_line_numbers(buffer%size))
     buffer%buffer_id           = 0
     buffer%input_line_numbers  = 0
     buffer%istat               = 0
@@ -83,20 +79,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(buffer))
-    DEALLOCATE(buffer%input_lines, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(buffer%input_line_numbers, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(buffer%input_lines)
+    DEALLOCATE(buffer%input_line_numbers)
     IF (ASSOCIATED(buffer%sub_buffer)) THEN
        CALL release_buffer_type(buffer%sub_buffer)
     END IF
-    DEALLOCATE(buffer, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(buffer)
   END SUBROUTINE release_buffer_type
 
 ! ****************************************************************************

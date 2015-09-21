@@ -60,8 +60,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iunit, iw, k, maxl, &
-      mb, method, mo, n_meth, n_rep, reltyp, zcore, zval, zz
+    INTEGER                                  :: do_eric, do_erie, handle, i, &
+                                                im, in, iunit, iw, k, maxl, &
+                                                mb, method, mo, n_meth, &
+                                                n_rep, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -96,8 +98,7 @@ CONTAINS
     IF ( zz /= 1 ) zval = zz
 
     ! read and set up inofrmation on the basis sets
-    ALLOCATE(ae_basis,pp_basis,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_basis,pp_basis)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS")
     NULLIFY(ae_basis%grid)
     CALL init_atom_basis(ae_basis,basis_section,zval,"AE")
@@ -114,8 +115,7 @@ CONTAINS
     ! read and setup information on the pseudopotential
     NULLIFY(potential_section)
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL")
-    ALLOCATE(ae_pot,p_pot,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_pot,p_pot)
     CALL init_atom_potential(p_pot,potential_section,zval)
     CALL init_atom_potential(ae_pot,potential_section,-1)
 
@@ -153,11 +153,9 @@ CONTAINS
     CALL section_vals_get(method_section,n_repetition=n_meth)
 
     ! integrals
-    ALLOCATE(ae_int, pp_int,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(ae_int, pp_int)
 
-    ALLOCATE(atom_info(n_rep,n_meth),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(atom_info(n_rep,n_meth))
 
     DO in = 1, n_rep
       DO im = 1, n_meth
@@ -171,8 +169,7 @@ CONTAINS
         xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=im)
         atom_info(in,im)%atom%xc_section => xc_section
 
-        ALLOCATE(state,STAT=ierr)
-        CPASSERT(ierr==0)
+        ALLOCATE(state)
 
         ! get the electronic configuration
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
@@ -277,11 +274,9 @@ CONTAINS
         CALL release_atom_type(atom_info(in,im)%atom)
       END DO
     END DO
-    DEALLOCATE(atom_info,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(atom_info)
 
-    DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int)
 
     CALL timestop(handle)
 

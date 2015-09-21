@@ -124,7 +124,7 @@ CONTAINS
 
     CHARACTER(LEN=5)                         :: wildcard
     INTEGER                                  :: handle, iter_nr, its, &
-                                                max_steep_steps, maxiter, stat
+                                                max_steep_steps, maxiter
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves, &
                                                 save_consistent_energy_force, &
@@ -148,14 +148,10 @@ CONTAINS
     max_steep_steps    = gopt_param%max_steep_steps
     Fletcher_Reeves    = gopt_param%Fletcher_Reeves
     res_lim            = gopt_param%restart_limit
-    ALLOCATE(g (SIZE(x0)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(h (SIZE(x0)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(xi(SIZE(x0)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(xold(SIZE(x0)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(g (SIZE(x0)))
+    ALLOCATE(h (SIZE(x0)))
+    ALLOCATE(xi(SIZE(x0)))
+    ALLOCATE(xold(SIZE(x0)))
     CALL force_env_get(force_env,cell=cell)
 
     ! Evaluate energy and forces at the first step
@@ -234,14 +230,10 @@ CONTAINS
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
-    DEALLOCATE(xold, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(g, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(h, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(xi,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(xold)
+    DEALLOCATE(g)
+    DEALLOCATE(h)
+    DEALLOCATE(xi)
 
     CALL timestop(handle)
 

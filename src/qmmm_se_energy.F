@@ -100,7 +100,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iatom, ikind, &
                                                 itype, iw, natom, natorb_a, &
-                                                nkind, stat
+                                                nkind
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: anag, defined, failure, found
     REAL(KIND=dp)                            :: enuclear
@@ -170,8 +170,7 @@ CONTAINS
 
     ! Allocate the core Hamiltonian matrix
     CALL cp_dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1)
-    ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix)
 
     CALL cp_dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix)
 

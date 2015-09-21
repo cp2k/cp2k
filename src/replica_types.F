@@ -140,7 +140,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, stat
+    INTEGER                                  :: handle, i, ierr
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -155,48 +155,38 @@ CONTAINS
              CPASSERT(ierr==0)
           END IF
           IF (ASSOCIATED(rep_env%r)) THEN
-             DEALLOCATE(rep_env%r,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rep_env%r)
           END IF
           IF (ASSOCIATED(rep_env%v)) THEN
-             DEALLOCATE(rep_env%v,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rep_env%v)
           END IF
           IF (ASSOCIATED(rep_env%f)) THEN
-             DEALLOCATE(rep_env%f,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rep_env%f)
           END IF
           IF (ASSOCIATED(rep_env%wf_history)) THEN
              DO i=1,SIZE(rep_env%wf_history)
                 CALL wfi_release(rep_env%wf_history(i)%wf_history)
              END DO
-             DEALLOCATE(rep_env%wf_history,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rep_env%wf_history)
           END IF
           IF (ASSOCIATED(rep_env%results)) THEN
              DO i=1,SIZE(rep_env%results)
                 CALL cp_result_release(rep_env%results(i)%results)
              END DO
-             DEALLOCATE(rep_env%results,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rep_env%results)
           END IF
-          DEALLOCATE(rep_env%local_rep_indices,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(rep_env%rep_is_local,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rep_env%local_rep_indices)
+          DEALLOCATE(rep_env%rep_is_local)
           IF (ASSOCIATED(rep_env%replica_owner)) THEN
-             DEALLOCATE(rep_env%replica_owner,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(rep_env%replica_owner)
           END IF
-          DEALLOCATE(rep_env%inter_rep_rank,rep_env%force_rank,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rep_env%inter_rep_rank,rep_env%force_rank)
           CALL cp_cart_release(rep_env%cart)
           CALL cp_para_env_release(rep_env%para_env)
           CALL cp_para_env_release(rep_env%para_env_f)
           CALL cp_para_env_release(rep_env%para_env_inter_rep)
           CALL rep_envs_rm_rep_env(rep_env)
-          DEALLOCATE(rep_env,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rep_env)
        END IF
     END IF
     NULLIFY(rep_env)
@@ -445,21 +435,17 @@ CONTAINS
        IF (.NOT.ASSOCIATED(rep_env2)) THEN
           IF (module_initialized) THEN
              IF (.NOT.ASSOCIATED(rep_envs)) THEN
-                ALLOCATE(rep_envs(1),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(rep_envs(1))
              ELSE
-                ALLOCATE(new_rep_envs(SIZE(rep_envs)+1),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(new_rep_envs(SIZE(rep_envs)+1))
                 DO i=1,SIZE(rep_envs)
                    new_rep_envs(i)%rep_env => rep_envs(i)%rep_env
                 END DO
-                DEALLOCATE(rep_envs,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(rep_envs)
                 rep_envs => new_rep_envs
              END IF
           ELSE
-             ALLOCATE(rep_envs(1),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(rep_envs(1))
           END IF
           rep_envs(SIZE(rep_envs))%rep_env => rep_env
           module_initialized=.TRUE.
@@ -478,7 +464,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_rm_rep_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, stat
+    INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     TYPE(replica_env_p_type), DIMENSION(:), &
       POINTER                                :: new_rep_envs
@@ -487,8 +473,7 @@ CONTAINS
 
     IF (ASSOCIATED(rep_env)) THEN
        CPASSERT(module_initialized)
-       ALLOCATE(new_rep_envs(SIZE(rep_envs)-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(new_rep_envs(SIZE(rep_envs)-1))
        ii=0
        DO i=1,SIZE(rep_envs)
           IF (rep_envs(i)%rep_env%id_nr/=rep_env%id_nr) THEN
@@ -497,12 +482,10 @@ CONTAINS
           END IF
        END DO
        CPASSERT(ii==SIZE(new_rep_envs))
-       DEALLOCATE(rep_envs,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(rep_envs)
        rep_envs => new_rep_envs
        IF (SIZE(rep_envs)==0) THEN
-          DEALLOCATE(rep_envs,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rep_envs)
        END IF
     END IF
   END SUBROUTINE rep_envs_rm_rep_env

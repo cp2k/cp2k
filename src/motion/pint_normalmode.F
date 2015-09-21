@@ -55,19 +55,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, li, stat
+    INTEGER                                  :: i, j, k, li
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(p)              :: lambda
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(normalmode_env))
-    ALLOCATE(normalmode_env,stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(normalmode_env%x2u(p,p),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(normalmode_env%u2x(p,p),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(normalmode_env)
+    ALLOCATE(normalmode_env%x2u(p,p))
+    ALLOCATE(normalmode_env%u2x(p,p))
     last_normalmode_id=last_normalmode_id+1
     normalmode_env%id_nr=last_normalmode_id
     normalmode_env%ref_count=1
@@ -127,7 +124,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -136,12 +132,9 @@ CONTAINS
       CPASSERT(normalmode_env%ref_count>0)
       normalmode_env%ref_count=normalmode_env%ref_count-1
       IF (normalmode_env%ref_count==0) THEN
-        DEALLOCATE(normalmode_env%x2u,stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(normalmode_env%u2x,stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(normalmode_env,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(normalmode_env%x2u)
+        DEALLOCATE(normalmode_env%u2x)
+        DEALLOCATE(normalmode_env)
       END IF
     END IF
     NULLIFY(normalmode_env)

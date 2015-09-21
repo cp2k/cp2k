@@ -201,8 +201,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: mpi_comm_default, stat, &
-                                                unit_nr
+    INTEGER                                  :: mpi_comm_default, unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (.NOT. module_initialized) THEN
@@ -241,8 +240,7 @@ CONTAINS
        CALL cp_add_default_logger(logger)
        CALL cp_logger_release(logger)
 
-       ALLOCATE(f_envs(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(f_envs(0))
        module_initialized=.TRUE.
        ierr=0
 
@@ -283,7 +281,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_cp2k', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ienv, stat
+    INTEGER                                  :: ienv
 
 !sample peak memory
 
@@ -299,8 +297,7 @@ CONTAINS
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
           CPASSERT(ierr==0)
        END DO
-       DEALLOCATE(f_envs,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(f_envs)
        CALL cp_para_env_release(default_para_env)
        ierr=0
        CALL cp_rm_default_logger()
@@ -366,13 +363,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(f_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(f_env)
     f_env%force_env => force_env
     CALL force_env_retain(f_env%force_env)
     f_env%logger => logger
@@ -580,8 +575,7 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: old_dir, wdir
     INTEGER :: handle, i, ierr2, iforce_eval, isubforce_eval, k, &
-      method_name_id, my_group, nforce_eval, ngroups, nsubforce_size, stat, &
-      unit_nr
+      method_name_id, my_group, nforce_eval, ngroups, nsubforce_size, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 i_force_eval, &
                                                 lgroup_distribution
@@ -692,16 +686,14 @@ CONTAINS
 
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
-       ALLOCATE(f_envs(n_f_envs+10), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(f_envs(n_f_envs+10))
        DO i=1,n_f_envs
           f_envs(i)%f_env => f_envs_old(i)%f_env
        END DO
        DO i=n_f_envs+1,SIZE(f_envs)
           NULLIFY(f_envs(i)%f_env)
        END DO
-       DEALLOCATE(f_envs_old,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(f_envs_old)
     END IF
 
 
@@ -709,8 +701,7 @@ CONTAINS
 
     CALL cp2k_setup(root_section,para_env,globenv)
     ! Group Distribution
-    ALLOCATE(group_distribution(0:para_env%num_pe-1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(group_distribution(0:para_env%num_pe-1))
     group_distribution  = 0
     lgroup_distribution => group_distribution
     ! Setup all possible force_env
@@ -860,8 +851,7 @@ CPSourceFileRef,&
        END IF
        ! Handle multiple force_eval
        IF (nforce_eval>1.AND.iforce_eval==1) THEN
-          ALLOCATE(my_force_env%sub_force_env(nsubforce_size),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(my_force_env%sub_force_env(nsubforce_size))
           ! Nullify subforce_env
           DO k = 1,nsubforce_size
              NULLIFY(my_force_env%sub_force_env(k)%force_env)
@@ -882,10 +872,8 @@ CPSourceFileRef,&
     END DO
     IF (use_multiple_para_env)&
        CALL cp_rm_default_logger()
-    DEALLOCATE(group_distribution,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(i_force_eval,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(group_distribution)
+    DEALLOCATE(i_force_eval)
     timer_env => get_timer_env()
     mp_perf_env => get_mp_perf_env()
     CALL mp_max(last_f_env_id,para_env%group)
@@ -923,7 +911,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos, i, stat
+    INTEGER                                  :: env_pos, i
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(f_env_type), POINTER                :: f_env
@@ -949,8 +937,7 @@ CPSourceFileRef,&
     CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path)
     CALL section_vals_release(root_section)
     CALL globenv_release(globenv)
-    DEALLOCATE(f_env,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(f_env)
     ierr=0
   END SUBROUTINE destroy_force_env
 

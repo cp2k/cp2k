@@ -450,9 +450,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: default_dx = 0.001_dp
 
-    INTEGER                                  :: i, ip, iq, istat, j, k, &
-                                                natom, ncore, ndigits, &
-                                                nshell, output_unit
+    INTEGER                                  :: i, ip, iq, j, k, natom, &
+                                                ncore, ndigits, nshell, &
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx_w
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
@@ -501,23 +501,20 @@ CONTAINS
 
     ! Save all original particle positions
     natom = particles%n_els
-    ALLOCATE (ref_pos_atom(natom,3),STAT=istat)
-    CPASSERT(istat == 0)
+    ALLOCATE (ref_pos_atom(natom,3))
     DO i=1,natom
        ref_pos_atom(i,:) = particles%els(i)%r
     END DO
     IF (ASSOCIATED(core_particles)) THEN
        ncore = core_particles%n_els
-       ALLOCATE (ref_pos_core(ncore,3),STAT=istat)
-       CPASSERT(istat == 0)
+       ALLOCATE (ref_pos_core(ncore,3))
        DO i=1,ncore
           ref_pos_core(i,:) = core_particles%els(i)%r
        END DO
     END IF
     IF (ASSOCIATED(shell_particles)) THEN
        nshell = shell_particles%n_els
-       ALLOCATE (ref_pos_shell(nshell,3),STAT=istat)
-       CPASSERT(istat == 0)
+       ALLOCATE (ref_pos_shell(nshell,3))
        DO i=1,nshell
           ref_pos_shell(i,:) = shell_particles%els(i)%r
        END DO
@@ -610,16 +607,13 @@ CONTAINS
 
     ! Release storage
     IF (ASSOCIATED(ref_pos_atom)) THEN
-       DEALLOCATE (ref_pos_atom,STAT=istat)
-       CPASSERT(istat == 0)
+       DEALLOCATE (ref_pos_atom)
     END IF
     IF (ASSOCIATED(ref_pos_core)) THEN
-       DEALLOCATE (ref_pos_core,STAT=istat)
-       CPASSERT(istat == 0)
+       DEALLOCATE (ref_pos_core)
     END IF
     IF (ASSOCIATED(ref_pos_shell)) THEN
-       DEALLOCATE (ref_pos_shell,STAT=istat)
-       CPASSERT(istat == 0)
+       DEALLOCATE (ref_pos_shell)
     END IF
     IF (ASSOCIATED(cell_local)) CALL cell_release(cell_local)
 
@@ -672,13 +666,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE ( force_env, stat=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( force_env)
     NULLIFY (force_env%fist_env, force_env%qs_env, &
          force_env%para_env, force_env%globenv, &
          force_env%meta_env, force_env%sub_force_env, &
@@ -788,7 +780,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: def_error, description, &
                                                 this_error
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
-      natom, nforce_eval, source, stat, unit_nr
+      natom, nforce_eval, source, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: dip_exists, failure
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
@@ -835,21 +827,14 @@ CONTAINS
     mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED")
     mapping_section => section_vals_get_subs_vals(mixed_section,"MAPPING")
     ! Global Info
-    ALLOCATE(subsystems(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(particles(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(subsystems(nforce_eval))
+    ALLOCATE(particles(nforce_eval))
     ! Local Info to sync
-    ALLOCATE(global_forces(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(energies(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(glob_natoms(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(virials(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(results(nforce_eval), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(global_forces(nforce_eval))
+    ALLOCATE(energies(nforce_eval))
+    ALLOCATE(glob_natoms(nforce_eval))
+    ALLOCATE(virials(nforce_eval))
+    ALLOCATE(results(nforce_eval))
     energies    = 0.0_dp
     glob_natoms = 0
     DO iforce_eval = 1, nforce_eval
@@ -905,8 +890,7 @@ CONTAINS
        END IF
        ! Deallocate map_index array
        IF (ASSOCIATED(map_index)) THEN
-          DEALLOCATE(map_index, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(map_index)
        END IF
        CALL cp_rm_default_logger()
     END DO
@@ -918,8 +902,7 @@ CONTAINS
     CALL mp_sum(glob_natoms, force_env%para_env%group)
     ! Transfer forces
     DO iforce_eval = 1, nforce_eval
-       ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)))
        global_forces(iforce_eval)%forces = 0.0_dp
        IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
           IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
@@ -1055,25 +1038,17 @@ CONTAINS
     END SELECT
     !Simply deallocate and loose the pointer references..
     DO iforce_eval = 1, nforce_eval
-       DEALLOCATE(global_forces(iforce_eval)%forces,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(global_forces(iforce_eval)%forces)
        CALL virial_release(virials(iforce_eval)%virial)
        CALL cp_result_release(results(iforce_eval)%results)
     END DO
-    DEALLOCATE(global_forces, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(subsystems, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(particles, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(energies, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(glob_natoms, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(virials, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(results, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(global_forces)
+    DEALLOCATE(subsystems)
+    DEALLOCATE(particles)
+    DEALLOCATE(energies)
+    DEALLOCATE(glob_natoms)
+    DEALLOCATE(virials)
+    DEALLOCATE(results)
     ! Print Section
     unit_nr=cp_print_key_unit_nr(logger,mixed_section,"PRINT%DIPOLE",&
          extension=".data",middle_name="MIXED_DIPOLE",log_filename=.FALSE.)

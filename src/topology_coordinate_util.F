@@ -154,14 +154,10 @@ CONTAINS
     CALL timeset(routineN//'_1',handle2)
     counter=0
     NULLIFY(id_work,mass,id_element,charge)
-    ALLOCATE(id_work(topology%natoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mass(topology%natoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(id_element(topology%natoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(charge(topology%natoms),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(id_work(topology%natoms))
+    ALLOCATE(mass(topology%natoms))
+    ALLOCATE(id_element(topology%natoms))
+    ALLOCATE(charge(topology%natoms))
     id_work=str2id(s2s(""))
     IF (iw>0) WRITE(iw,*)"molecule_kind_set ::",SIZE(molecule_kind_set)
     DO i = 1, SIZE(molecule_kind_set)
@@ -204,13 +200,11 @@ CONTAINS
        END DO
     END DO
     topology%natom_type = counter
-    ALLOCATE(atom_info%id_atom_names(topology%natom_type),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atom_info%id_atom_names(topology%natom_type))
     DO k=1,counter
        atom_info%id_atom_names(k)=id_work(k)
     ENDDO
-    DEALLOCATE(id_work,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(id_work)
     CALL reallocate(mass,1,counter)
     CALL reallocate(id_element,1,counter)
     CALL reallocate(charge,1,counter)
@@ -253,10 +247,8 @@ CONTAINS
                TRIM(id2str(id_element(i)))
        END IF
     END DO
-    DEALLOCATE(mass,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(id_element,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mass)
+    DEALLOCATE(id_element)
     CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
@@ -264,10 +256,8 @@ CONTAINS
     ! 5. Determine number of atom of each kind (ie natom_of_kind and kind_of)
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_5',handle2)
-    ALLOCATE(kind_of(topology%natoms),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(natom_of_kind(topology%natom_type),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kind_of(topology%natoms))
+    ALLOCATE(natom_of_kind(topology%natom_type))
     kind_of(:) = 0
     natom_of_kind(:) = 0
     DO i=1,topology%natom_type
@@ -297,8 +287,7 @@ CONTAINS
     DO i=1,topology%natom_type
        atomic_kind => atomic_kind_set(i)
        NULLIFY (iatomlist)
-       ALLOCATE(iatomlist(natom_of_kind(i)),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(iatomlist(natom_of_kind(i)))
        counter=0
        DO j=1,topology%natoms
           IF(kind_of(j)==i) THEN
@@ -319,11 +308,9 @@ CONTAINS
        ENDIF
        CALL set_atomic_kind(atomic_kind=atomic_kind,&
             natom=natom_of_kind(i),atom_list=iatomlist)
-       DEALLOCATE(iatomlist,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(iatomlist)
     END DO
-    DEALLOCATE(natom_of_kind,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(natom_of_kind)
     CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
@@ -388,8 +375,7 @@ CPSourceFileRef,&
        particle_set(i)%atom_index = i
     END DO
     CALL timestop(handle2)
-    DEALLOCATE(kind_of,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(kind_of)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -405,19 +391,16 @@ CPSourceFileRef,&
        CPASSERT(PRESENT(exclusions))
        natom=topology%natoms
        ! allocate exclusions. Most likely they would only be needed for the local_particles
-       ALLOCATE(exclusions(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(exclusions(natom))
        DO I=1,natom
           NULLIFY(exclusions(i)%list_exclude_vdw)
           NULLIFY(exclusions(i)%list_exclude_ei)
           NULLIFY(exclusions(i)%list_onfo)
        ENDDO
        ! Reorder bonds
-       ALLOCATE(ex_bond_list(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ex_bond_list(natom))
        DO I=1,natom
-          ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(ex_bond_list(I)%array1(0))
        ENDDO
        N = 0
        IF(ASSOCIATED(conn_info%bond_a)) THEN
@@ -433,11 +416,9 @@ CPSourceFileRef,&
        present_12_excl_vdw_list = .FALSE.
        IF (explicit) present_12_excl_vdw_list = .TRUE.
        IF (present_12_excl_vdw_list) THEN
-          ALLOCATE(ex_bond_list_vdw(natom),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(ex_bond_list_vdw(natom))
           DO I=1,natom
-             ALLOCATE(ex_bond_list_vdw(I)%array1(0),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(ex_bond_list_vdw(I)%array1(0))
           ENDDO
           CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_vdw,&
                                     particle_set)
@@ -450,11 +431,9 @@ CPSourceFileRef,&
        present_12_excl_ei_list = .FALSE.
        IF (explicit) present_12_excl_ei_list = .TRUE.
        IF (present_12_excl_ei_list) THEN
-          ALLOCATE(ex_bond_list_ei(natom),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(ex_bond_list_ei(natom))
           DO I=1,natom
-             ALLOCATE(ex_bond_list_ei(I)%array1(0),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(ex_bond_list_ei(I)%array1(0))
           ENDDO
           CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_ei,&
                                     particle_set)
@@ -466,17 +445,14 @@ CPSourceFileRef,&
        CALL section_vals_val_get(topology_section, "AUTOGEN_EXCLUDE_LISTS", &
             l_val=autogen)
        ! Reorder bends
-       ALLOCATE(ex_bend_list(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ex_bend_list(natom))
        DO I=1,natom
-          ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(ex_bend_list(I)%array1(0))
        ENDDO
        IF (autogen) THEN
           ! Construct autogenerated 1-3 pairs, i.e. all possible 1-3 pairs instead
           ! of only the bends that are present in the topology.
-          ALLOCATE(pairs(0,2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(pairs(0,2))
           N = 0
           DO iatom = 1, natom
              DO i = 1, SIZE(ex_bond_list(iatom)%array1)
@@ -507,8 +483,7 @@ CPSourceFileRef,&
              END DO
           END DO
           CALL reorder_structure(ex_bend_list, pairs(:,1), pairs(:,2), N)
-          DEALLOCATE(pairs,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pairs)
        ELSE
           IF (ASSOCIATED(conn_info%theta_a)) THEN
              N = SIZE(conn_info%theta_a)
@@ -517,17 +492,14 @@ CPSourceFileRef,&
        END IF
 
        ! Reorder onfo
-       ALLOCATE(ex_onfo_list(natom),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ex_onfo_list(natom))
        DO I=1,natom
-          ALLOCATE(ex_onfo_list(I)%array1(0),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(ex_onfo_list(I)%array1(0))
        ENDDO
        IF (autogen) THEN
           ! Construct autogenerated 1-4 pairs, i.e. all possible 1-4 pairs instead
           ! of only the onfo's that are present in the topology.
-          ALLOCATE(pairs(0,2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(pairs(0,2))
           N = 0
           DO iatom = 1, natom
              DO i = 1, SIZE(ex_bond_list(iatom)%array1)
@@ -568,8 +540,7 @@ CPSourceFileRef,&
              END DO
           END DO
           CALL reorder_structure(ex_onfo_list, pairs(:,1), pairs(:,2), N)
-          DEALLOCATE(pairs,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pairs)
        ELSE
           IF(ASSOCIATED(conn_info%onfo_a)) THEN
              N = SIZE(conn_info%onfo_a)
@@ -596,8 +567,7 @@ CPSourceFileRef,&
           dim3 = dim2 + dim3
           IF (dim3 /= 0) THEN
              NULLIFY(list, wlist)
-             ALLOCATE(wlist(dim3),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(wlist(dim3))
              wlist(  dim0:dim0) = iatom
              IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_vdw(iatom)%array1
              IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
@@ -610,16 +580,14 @@ CPSourceFileRef,&
                 END DO
              END DO
              dim3 = SIZE(wlist)-COUNT(wlist==0)
-             ALLOCATE(list(dim3),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(list(dim3))
              j = 0
              DO i = 1, SIZE(wlist)
                 IF (wlist(i)==0)CYCLE
                 j = j + 1
                 list(j)=wlist(i)
              END DO
-             DEALLOCATE(wlist,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(wlist)
              ! Unique list completed
              NULLIFY(list2)
              IF((topology%exclude_vdw==topology%exclude_ei).AND.&
@@ -643,8 +611,7 @@ CPSourceFileRef,&
                 dim3 = dim2 + dim3
 
                 IF (dim3 /= 0) THEN
-                   ALLOCATE(wlist(dim3),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(wlist(dim3))
                    wlist(  dim0:dim0) = iatom
                    IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_ei(iatom)%array1
                    IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
@@ -657,16 +624,14 @@ CPSourceFileRef,&
                       END DO
                    END DO
                    dim3 = SIZE(wlist)-COUNT(wlist==0)
-                   ALLOCATE(list2(dim3),stat=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE(list2(dim3))
                    j = 0
                    DO i = 1, SIZE(wlist)
                       IF (wlist(i)==0)CYCLE
                       j = j + 1
                       list2(j)=wlist(i)
                    END DO
-                   DEALLOCATE(wlist,stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(wlist)
                    ! Unique list completed
                 END IF
              END IF
@@ -698,45 +663,35 @@ CPSourceFileRef,&
        END DO
        ! deallocate onfo
        DO I=1,natom
-          DEALLOCATE(ex_onfo_list(I)%array1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ex_onfo_list(I)%array1)
        ENDDO
-       DEALLOCATE(ex_onfo_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ex_onfo_list)
        ! deallocate bends
        DO I=1,natom
-          DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ex_bend_list(I)%array1)
        ENDDO
-       DEALLOCATE(ex_bend_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ex_bend_list)
        ! deallocate bonds
        IF (present_12_excl_ei_list) THEN
           DO I=1,natom
-             DEALLOCATE(ex_bond_list_ei(I)%array1,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(ex_bond_list_ei(I)%array1)
           ENDDO
-          DEALLOCATE(ex_bond_list_ei,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ex_bond_list_ei)
        ELSE
           NULLIFY(ex_bond_list_ei)
        END IF
        IF (present_12_excl_vdw_list) THEN
           DO I=1,natom
-             DEALLOCATE(ex_bond_list_vdw(I)%array1,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(ex_bond_list_vdw(I)%array1)
           ENDDO
-          DEALLOCATE(ex_bond_list_vdw,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ex_bond_list_vdw)
        ELSE
           NULLIFY(ex_bond_list_vdw)
        END IF
        DO I=1,natom
-          DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(ex_bond_list(I)%array1)
        ENDDO
-       DEALLOCATE(ex_bond_list,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ex_bond_list)
     ENDIF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
@@ -756,8 +711,7 @@ CPSourceFileRef,&
           CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
        END DO
     END IF
-    DEALLOCATE(charge,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(charge)
     CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------

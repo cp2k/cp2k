@@ -87,10 +87,8 @@ CONTAINS
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,nmo=nmo_b,eigenvalues=eigval_b, &
          occupation_numbers=occ_b)
     all_nmo = nmo_a+nmo_b
-    ALLOCATE(all_eigval(all_nmo), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(all_occ(all_nmo), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(all_eigval(all_nmo))
+    ALLOCATE(all_occ(all_nmo))
     ALLOCATE(all_index(all_nmo), STAT=stat)
 
     all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
@@ -381,7 +379,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_first, imo, nmo, &
-                                                nomo, stat, xas_estate
+                                                nomo, xas_estate
     LOGICAL                                  :: equal_size, failure, is_large
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 el_count, lengthscale, nelec, &
@@ -486,8 +484,7 @@ CONTAINS
         ELSE
           ! could be a relatively large matrix, but one could get rid of it by never storing it
           ! we only need dE/df * df/de, one could equally parallelize over entries, this could become expensive
-          ALLOCATE(dfde(nmo,nmo),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(dfde(nmo,nmo))
           ! lengthscale could become a parameter, but this is pretty good
           lengthscale=10*smear%electronic_temperature
 
@@ -499,8 +496,7 @@ CONTAINS
           ! correspondingly the deriv of  E_{KS}-kT*S wrt to e_i
           eval_deriv=MATMUL(TRANSPOSE(dfde),eval_deriv)
 
-          DEALLOCATE(dfde,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dfde)
         END IF
 
         ! Find the lowest fractional occupied MO (LFOMO)

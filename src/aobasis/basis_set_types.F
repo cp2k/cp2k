@@ -151,14 +151,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CALL deallocate_gto_basis_set(gto_basis_set)
 
-    ALLOCATE (gto_basis_set,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gto_basis_set)
 
     NULLIFY (gto_basis_set%cgf_symbol)
     NULLIFY (gto_basis_set%first_cgf)
@@ -205,69 +203,41 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(gto_basis_set))  THEN
        IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
-          DEALLOCATE (gto_basis_set%cgf_symbol,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gto_basis_set%cgf_symbol)
        ENDIF
        IF (ASSOCIATED(gto_basis_set%sgf_symbol)) THEN
-          DEALLOCATE (gto_basis_set%sgf_symbol,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gto_basis_set%sgf_symbol)
        ENDIF
-       DEALLOCATE (gto_basis_set%norm_cgf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%set_radius,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%lmax,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%lmin,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%lx,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%ly,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%lz,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%m,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%ncgf_set,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%npgf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%nsgf_set,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%nshell,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%cphi,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%pgf_radius,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%sphi,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%scon,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%zet,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%first_cgf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%first_sgf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%l,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%last_cgf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%last_sgf,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%n,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set%gcc,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (gto_basis_set,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (gto_basis_set%norm_cgf)
+       DEALLOCATE (gto_basis_set%set_radius)
+       DEALLOCATE (gto_basis_set%lmax)
+       DEALLOCATE (gto_basis_set%lmin)
+       DEALLOCATE (gto_basis_set%lx)
+       DEALLOCATE (gto_basis_set%ly)
+       DEALLOCATE (gto_basis_set%lz)
+       DEALLOCATE (gto_basis_set%m)
+       DEALLOCATE (gto_basis_set%ncgf_set)
+       DEALLOCATE (gto_basis_set%npgf)
+       DEALLOCATE (gto_basis_set%nsgf_set)
+       DEALLOCATE (gto_basis_set%nshell)
+       DEALLOCATE (gto_basis_set%cphi)
+       DEALLOCATE (gto_basis_set%pgf_radius)
+       DEALLOCATE (gto_basis_set%sphi)
+       DEALLOCATE (gto_basis_set%scon)
+       DEALLOCATE (gto_basis_set%zet)
+       DEALLOCATE (gto_basis_set%first_cgf)
+       DEALLOCATE (gto_basis_set%first_sgf)
+       DEALLOCATE (gto_basis_set%l)
+       DEALLOCATE (gto_basis_set%last_cgf)
+       DEALLOCATE (gto_basis_set%last_sgf)
+       DEALLOCATE (gto_basis_set%n)
+       DEALLOCATE (gto_basis_set%gcc)
+       DEALLOCATE (gto_basis_set)
     END IF
   END SUBROUTINE deallocate_gto_basis_set
 
@@ -286,7 +256,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: maxco, maxpgf, maxshell, &
-                                                ncgf, nset, nsgf, stat
+                                                ncgf, nset, nsgf
     LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bin, bout
 
@@ -308,60 +278,47 @@ CONTAINS
     nset = bin%nset
     ncgf = bin%ncgf
     nsgf = bin%nsgf
-    ALLOCATE (bout%cgf_symbol(ncgf),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (bout%sgf_symbol(nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%cgf_symbol(ncgf))
+    ALLOCATE (bout%sgf_symbol(nsgf))
     bout%cgf_symbol = bin%cgf_symbol
     bout%sgf_symbol = bin%sgf_symbol
-    ALLOCATE (bout%norm_cgf(ncgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%norm_cgf(ncgf))
     bout%norm_cgf = bin%norm_cgf
-    ALLOCATE (bout%set_radius(nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%set_radius(nset))
     bout%set_radius = bin%set_radius
-    ALLOCATE (bout%lmax(nset),bout%lmin(nset),bout%npgf(nset),bout%nshell(nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%lmax(nset),bout%lmin(nset),bout%npgf(nset),bout%nshell(nset))
     bout%lmax = bin%lmax
     bout%lmin = bin%lmin
     bout%npgf = bin%npgf
     bout%nshell = bin%nshell
-    ALLOCATE (bout%lx(ncgf),bout%ly(ncgf),bout%lz(ncgf),bout%m(nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%lx(ncgf),bout%ly(ncgf),bout%lz(ncgf),bout%m(nsgf))
     bout%lx = bin%lx
     bout%ly = bin%ly
     bout%lz = bin%lz
     bout%m = bin%m
-    ALLOCATE (bout%ncgf_set(nset),bout%nsgf_set(nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%ncgf_set(nset),bout%nsgf_set(nset))
     bout%ncgf_set = bin%ncgf_set
     bout%nsgf_set = bin%nsgf_set
     maxco = SIZE(bin%cphi,1)
-    ALLOCATE (bout%cphi(maxco,ncgf),bout%sphi(maxco,nsgf),bout%scon(maxco,nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%cphi(maxco,ncgf),bout%sphi(maxco,nsgf),bout%scon(maxco,nsgf))
     bout%cphi = bin%cphi
     bout%sphi = bin%sphi
     bout%scon = bin%scon
     maxpgf = MAXVAL(bin%npgf)
-    ALLOCATE (bout%pgf_radius(maxpgf,nset),bout%zet(maxpgf,nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%pgf_radius(maxpgf,nset),bout%zet(maxpgf,nset))
     bout%pgf_radius = bin%pgf_radius
     bout%zet = bin%zet
     maxshell = MAXVAL(bin%nshell)
-    ALLOCATE (bout%first_cgf(maxshell,nset),bout%first_sgf(maxshell,nset),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (bout%last_cgf(maxshell,nset),bout%last_sgf(maxshell,nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%first_cgf(maxshell,nset),bout%first_sgf(maxshell,nset))
+    ALLOCATE (bout%last_cgf(maxshell,nset),bout%last_sgf(maxshell,nset))
     bout%first_cgf = bin%first_cgf
     bout%first_sgf = bin%first_sgf
     bout%last_cgf = bin%last_cgf
     bout%last_sgf = bin%last_sgf
-    ALLOCATE (bout%n(maxshell,nset),bout%l(maxshell,nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%n(maxshell,nset),bout%l(maxshell,nset))
     bout%n = bin%n
     bout%l = bin%l
-    ALLOCATE (bout%gcc(maxpgf,maxshell,nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (bout%gcc(maxpgf,maxshell,nset))
     bout%gcc = bin%gcc
 
   END SUBROUTINE copy_gto_basis_set
@@ -383,7 +340,7 @@ CONTAINS
     CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: iset, ishell, lshell, maxco, maxpgf, maxshell, nc, ncgf, &
-      ncgfn, ncgfo, ns, nset, nsetn, nseto, nsgf, nsgfn, nsgfo, stat
+      ncgfn, ncgfo, ns, nset, nsetn, nseto, nsgf, nsgfn, nsgfo
     LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bad, bout
 
@@ -424,20 +381,16 @@ CONTAINS
     ncgfn = bad%ncgf
     ncgfo = ncgf - ncgfn
 
-    ALLOCATE (cgf_symbol(ncgf),sgf_symbol(nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (cgf_symbol(ncgf),sgf_symbol(nsgf))
     cgf_symbol(1:ncgfo) = bout%cgf_symbol(1:ncgfo)
     cgf_symbol(ncgfo+1:ncgf) = bad%cgf_symbol(1:ncgfn)
     sgf_symbol(1:nsgfo) = bout%sgf_symbol(1:nsgfo)
     sgf_symbol(nsgfo+1:nsgf) = bad%sgf_symbol(1:nsgfn)
-    DEALLOCATE (bout%cgf_symbol,bout%sgf_symbol,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (bout%cgf_symbol(ncgf),bout%sgf_symbol(nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (bout%cgf_symbol,bout%sgf_symbol)
+    ALLOCATE (bout%cgf_symbol(ncgf),bout%sgf_symbol(nsgf))
     bout%cgf_symbol = cgf_symbol
     bout%sgf_symbol = sgf_symbol
-    DEALLOCATE (cgf_symbol,sgf_symbol,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (cgf_symbol,sgf_symbol)
 
     CALL reallocate(bout%lx,1,ncgf)
     CALL reallocate(bout%ly,1,ncgf)
@@ -828,8 +781,7 @@ CONTAINS
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, jco, jpgf, ll, lmax, &
-                                                lmin, lx, ly, lz, n, npgfa, &
-                                                stat
+                                                lmin, lx, ly, lz, n, npgfa
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fnorm, gcca, gccb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ff
@@ -849,12 +801,9 @@ CONTAINS
        ll = MAX(ll,gto_basis_set%lmax(iset))
     END DO
 
-    ALLOCATE (gaa(n,n),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (vv(ncoset(ll),ncoset(ll),ll+ll+1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (ff(0:ll+ll),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gaa(n,n))
+    ALLOCATE (vv(ncoset(ll),ncoset(ll),ll+ll+1))
+    ALLOCATE (ff(0:ll+ll))
 
     DO iset=1,gto_basis_set%nset
        lmax = gto_basis_set%lmax(iset)
@@ -889,10 +838,8 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE (vv,ff, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (gaa,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (vv,ff)
+    DEALLOCATE (gaa)
 
   END SUBROUTINE init_norm_cgf_aux
 
@@ -1129,8 +1076,7 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     INTEGER :: i, ibasis, ico, ipgf, irep, iset, ishell, lshell, m, maxco, &
-      maxl, maxpgf, maxshell, nbasis, ncgf, nmin, nset, nsgf, stat, strlen1, &
-      strlen2
+      maxl, maxpgf, maxshell, nbasis, ncgf, nmin, nset, nsgf, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
     LOGICAL                                  :: basis_found, failure, found, &
@@ -1365,11 +1311,9 @@ CONTAINS
                  CALL reallocate(gto_basis_set%lz,1,ncgf)
                  CALL reallocate(gto_basis_set%m,1,nsgf)
                  CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
-                 ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-                 CPASSERT(stat==0)
+                 ALLOCATE (gto_basis_set%cgf_symbol(ncgf))
 
-                 ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-                 CPASSERT(stat==0)
+                 ALLOCATE (gto_basis_set%sgf_symbol(nsgf))
 
                  ncgf = 0
                  nsgf = 0
@@ -1396,8 +1340,7 @@ CONTAINS
                     END DO
                  END DO
 
-                 DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=stat)
-                 CPASSERT(stat==0)
+                 DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet)
 
                  basis_found = .TRUE.
                  EXIT search_loop
@@ -1408,10 +1351,8 @@ CONTAINS
         END DO search_loop
       ELSE
         match=.FALSE.
-        ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE (gto_basis_set%cgf_symbol(ncgf))
+        ALLOCATE (gto_basis_set%sgf_symbol(nsgf))
       ENDIF
 
       CALL parser_release(parser)
@@ -1469,7 +1410,7 @@ CONTAINS
     INTEGER                                  :: i, ico, ipgf, iset, ishell, &
                                                 lshell, m, maxco, maxl, &
                                                 maxpgf, maxshell, ncgf, nmin, &
-                                                nset, nsgf, stat
+                                                nset, nsgf
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
     LOGICAL                                  :: failure, is_ok
@@ -1684,11 +1625,9 @@ CONTAINS
     CALL reallocate(gto_basis_set%lz,1,ncgf)
     CALL reallocate(gto_basis_set%m,1,nsgf)
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
-    ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gto_basis_set%cgf_symbol(ncgf))
 
-    ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gto_basis_set%sgf_symbol(nsgf))
 
     ncgf = 0
     nsgf = 0
@@ -1715,8 +1654,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet)
 
   END SUBROUTINE read_gto_basis_set2
 
@@ -1979,7 +1917,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -1987,8 +1924,7 @@ CONTAINS
     failure = .FALSE.
     CALL deallocate_sto_basis_set(sto_basis_set)
 
-    ALLOCATE (sto_basis_set,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (sto_basis_set)
 
     sto_basis_set%name="NONAME"
     NULLIFY (sto_basis_set%symbol)
@@ -2009,7 +1945,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
@@ -2017,24 +1952,19 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
-          DEALLOCATE (sto_basis_set%symbol,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sto_basis_set%symbol)
        END IF
        IF (ASSOCIATED(sto_basis_set%nq)) THEN
-          DEALLOCATE (sto_basis_set%nq,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sto_basis_set%nq)
        END IF
        IF (ASSOCIATED(sto_basis_set%lq)) THEN
-          DEALLOCATE (sto_basis_set%lq,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sto_basis_set%lq)
        END IF
        IF (ASSOCIATED(sto_basis_set%zet)) THEN
-          DEALLOCATE (sto_basis_set%zet,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sto_basis_set%zet)
        END IF
 
-       DEALLOCATE (sto_basis_set,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (sto_basis_set)
     END IF
   END SUBROUTINE deallocate_sto_basis_set
 
@@ -2172,7 +2102,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name, sng
     INTEGER                                  :: ico, ipgf, iset, lshell, m, &
                                                 maxco, maxl, ncgf, ng, np, &
-                                                nset, nsgf, nshell, stat
+                                                nset, nsgf, nshell
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
@@ -2261,10 +2191,8 @@ CONTAINS
     CALL reallocate(gto_basis_set%lz,1,ncgf)
     CALL reallocate(gto_basis_set%m,1,nsgf)
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
-    ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (gto_basis_set%cgf_symbol(ncgf))
+    ALLOCATE (gto_basis_set%sgf_symbol(nsgf))
 
     ncgf = 0
     nsgf = 0

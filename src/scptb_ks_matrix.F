@@ -121,8 +121,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_scptb_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, handle, iatom, ic, ikind, ispin, istat, lmaxscp, &
-      natom, natom_kind, nkind, nspins, output_unit
+    INTEGER                                  :: atom_a, handle, iatom, ic, &
+                                                ikind, ispin, lmaxscp, natom, &
+                                                natom_kind, nkind, nspins, &
+                                                output_unit
     LOGICAL                                  :: do_es, do_scp, failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
@@ -208,12 +210,9 @@ CONTAINS
                        matrix_s_kp=matrixkp_s)
        CALL qs_rho_get(rho,rho_ao_kp=matrixkp_p)
        natom=SIZE(particle_set)
-       ALLOCATE(charges(natom,nspins),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE(mcharge(natom),STAT=istat)
-       CPASSERT(istat==0)
-       ALLOCATE(dmcharge(natom,3),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(charges(natom,nspins))
+       ALLOCATE(mcharge(natom))
+       ALLOCATE(dmcharge(natom,3))
        IF(calculate_forces) THEN
           CALL mulliken_charges(matrixkp_p,matrixkp_s,para_env,charges,dmcharge)
        ELSE
@@ -230,8 +229,7 @@ CONTAINS
             mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
           END DO
        END DO
-       DEALLOCATE(charges,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(charges)
 
        IF (do_scp) THEN
           CALL scp_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,calculate_forces,just_energy)
@@ -239,10 +237,8 @@ CONTAINS
           CALL tb_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,calculate_forces,just_energy)
        END IF
 
-       DEALLOCATE(mcharge,STAT=istat)
-       CPASSERT(istat==0)
-       DEALLOCATE(dmcharge,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(mcharge)
+       DEALLOCATE(dmcharge)
     ELSE
        energy%hartree = 0._dp
     END IF
@@ -309,8 +305,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, ewald_type, i, ia, iat, iatom, ic, icol, ikind, irow, is, &
-      istat, ja, jat, jatom, jkind, lmaxscp, nai, naj, natom, ndim, nimg, &
-      nkind, nsize
+      ja, jat, jatom, jkind, lmaxscp, nai, naj, natom, ndim, nimg, nkind, &
+      nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: cellind, periodic
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
@@ -383,8 +379,7 @@ CONTAINS
     CALL mp_sum(chabs,para_env%group)
     IF ( chabs > 1.e-8_dp ) THEN
        IF(scptb_control%do_ewald) THEN
-          ALLOCATE(gmcharge(natom,ndim),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(gmcharge(natom,ndim))
           gmcharge = 0._dp
           ! Ewald sum
           NULLIFY(ewald_env,ewald_pw)
@@ -416,8 +411,7 @@ CONTAINS
           END IF
           energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
           IF ( calculate_forces ) THEN
-            ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE (atom_of_kind(natom),kind_of(natom))
 
             CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
@@ -513,13 +507,11 @@ CONTAINS
           ! direct sum correction for Gaussians
           ehartree = 0._dp
           IF(.NOT.just_energy .OR. calculate_forces) THEN
-            ALLOCATE(qcharge(natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(qcharge(natom))
             qcharge = 0._dp
           END IF
           IF (calculate_forces) THEN
-            ALLOCATE(drcharge(3,natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(drcharge(3,natom))
             drcharge = 0._dp
           END IF
           NULLIFY(n_list)
@@ -658,17 +650,13 @@ CONTAINS
             END IF
           END IF
 
-          DEALLOCATE(gmcharge,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(gmcharge)
           IF(.NOT.just_energy .OR. calculate_forces) THEN
-            DEALLOCATE(qcharge,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(qcharge)
           END IF
           IF ( calculate_forces ) THEN
-            DEALLOCATE(drcharge,STAT=istat)
-            CPASSERT(istat==0)
-            DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(drcharge)
+            DEALLOCATE (atom_of_kind,kind_of)
           END IF
        ELSE
          ! direct sum
@@ -678,13 +666,11 @@ CONTAINS
                  error_level=cp_failure_level)
          END IF
          IF(.NOT.just_energy .OR. calculate_forces) THEN
-            ALLOCATE(qcharge(natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(qcharge(natom))
             qcharge = 0._dp
          END IF
          IF (calculate_forces) THEN
-            ALLOCATE(drcharge(3,natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(drcharge(3,natom))
             drcharge = 0._dp
          END IF
          nkind = SIZE(atomic_kind_set)
@@ -732,8 +718,7 @@ CONTAINS
          CALL mp_sum(energy%hartree,para_env%group)
          IF(.NOT.just_energy.OR.calculate_forces) THEN
             CALL mp_sum(qcharge,para_env%group)
-            ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE (atom_of_kind(natom),kind_of(natom))
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                      kind_of=kind_of, atom_of_kind=atom_of_kind)
             IF ( calculate_forces ) THEN
@@ -791,8 +776,7 @@ CONTAINS
                   force(ikind)%rho_elec(2,iat) = force(ikind)%rho_elec(2,iat) + drcharge(2,iatom)
                   force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) + drcharge(3,iatom)
                END DO
-               DEALLOCATE(drcharge,STAT=istat)
-               CPASSERT(istat==0)
+               DEALLOCATE(drcharge)
                IF (SIZE(matrix_p,1) == 2) THEN
                   DO ic=1,nimg
                      CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
@@ -801,10 +785,8 @@ CONTAINS
                END IF
             END IF
  
-            DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-            CPASSERT(istat==0)
-            DEALLOCATE(qcharge,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE (atom_of_kind,kind_of)
+            DEALLOCATE(qcharge)
          END IF
 
        END IF
@@ -838,9 +820,8 @@ CONTAINS
     INTEGER, PARAMETER                       :: ndiis = 5
     REAL(KIND=dp), PARAMETER                 :: epsrel = 1.e-8_dp
 
-    INTEGER :: blk, i, iat, iatom, ibas, ikind, is, istat, j, jat, jatom, &
-      jkind, kint, kmax, l, lmaxscp, mdiis, mpos, nat, natom, nkind, norb, &
-      nsize
+    INTEGER :: blk, i, iat, iatom, ibas, ikind, is, j, jat, jatom, jkind, &
+      kint, kmax, l, lmaxscp, mdiis, mpos, nat, natom, nkind, norb, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, lscp, &
                                                 natoms, nbasis
     LOGICAL                                  :: defined, do_kpoints, found
@@ -888,8 +869,7 @@ CONTAINS
     energy%hartree = 0._dp
 
     natom = SIZE(mcharge,1)
-    ALLOCATE(charges(natom),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(charges(natom))
     dqv = 1._dp/SQRT(4._dp*pi)
     charges(:) = mcharge*dqv
     scptb_control => dft_control%qs_control%scptb_control
@@ -899,8 +879,7 @@ CONTAINS
     ! Create scp vectors
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
     nkind = SIZE(atomic_kind_set)
-    ALLOCATE(nbasis(nkind),natoms(nkind),lscp(nkind),zeta(nkind),adef(nkind),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(nbasis(nkind),natoms(nkind),lscp(nkind),zeta(nkind),adef(nkind))
     DO ikind=1,nkind
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
        CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
@@ -1005,8 +984,7 @@ CONTAINS
 
     IF (.NOT.just_energy) THEN
 
-       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (atom_of_kind(natom),kind_of(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
        IF ( calculate_forces ) THEN
           CALL qs_rho_get(rho, rho_ao=matrix_p)
@@ -1069,8 +1047,7 @@ CONTAINS
     CALL scp_vector_release(cpol)
     CALL scp_vector_release(cw)
     CALL scp_vector_release(cp)
-    DEALLOCATE(nbasis,natoms,lscp,zeta,adef,charges,stat=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(nbasis,natoms,lscp,zeta,adef,charges)
 
   END SUBROUTINE scp_coulomb
 
@@ -1177,8 +1154,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: dr = 0.001_dp
 
-    INTEGER                                  :: i, ia, iatom, ikind, istat, &
-                                                j, ja, jatom, jkind, li, lj, &
+    INTEGER                                  :: i, ia, iatom, ikind, j, ja, &
+                                                jatom, jkind, li, lj, &
                                                 lmaxscp, nai, naj, ni, nj, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
@@ -1268,11 +1245,9 @@ CONTAINS
              nj = (lj+1)**2
              coj => cout%vector(jkind)%vmat
              cij => cin%vector(jkind)%vmat
-             ALLOCATE (aintegral(ni,nj),STAT=istat)
-             CPASSERT(istat==0)
+             ALLOCATE (aintegral(ni,nj))
              IF(calculate_forces) THEN
-                ALLOCATE (daintegral(ni,nj,3),paint(ni,nj),maint(ni,nj),STAT=istat)
-                CPASSERT(istat==0)
+                ALLOCATE (daintegral(ni,nj,3),paint(ni,nj),maint(ni,nj))
              END IF
              CALL calc_norm(normj,lj,beta)
              DO iatom=1,nai
@@ -1317,11 +1292,9 @@ CONTAINS
                    END IF
                 END DO
              END DO
-             DEALLOCATE (aintegral,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE (aintegral)
              IF(calculate_forces) THEN
-                DEALLOCATE (daintegral,paint,maint,STAT=istat)
-                CPASSERT(istat==0)
+                DEALLOCATE (daintegral,paint,maint)
              END IF
           END DO
        END DO
@@ -1361,7 +1334,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_int', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, mi, mj, ni, nj, nl
+    INTEGER                                  :: mi, mj, ni, nj, nl
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dr2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1378,8 +1351,7 @@ CONTAINS
     nl = li + lj + 1
     ni = ncoset(li)
     nj = ncoset(lj)
-    ALLOCATE (vij(ni,nj),v(ni,nj,nl),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (vij(ni,nj),v(ni,nj,nl))
 
     ! cartesian integrals
     CALL coulomb2_new(li,1,zi,0,lj,1,zj,0,rij,dr2,vij,v,f)
@@ -1389,8 +1361,7 @@ CONTAINS
     v(1:ni,1:mj,1) = MATMUL(vij(1:ni,1:nj),TRANSPOSE(c2s_tramat(1:mj,1:nj)))
     aintegral(1:mi,1:mj) = MATMUL(c2s_tramat(1:mi,1:ni),v(1:ni,1:mj,1))
 
-    DEALLOCATE (vij,v,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (vij,v)
 
   END SUBROUTINE calc_int
 

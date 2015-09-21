@@ -179,7 +179,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER                                  :: i, ithermo, my_index, stat
+    INTEGER                                  :: i, ithermo, my_index
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -189,24 +189,20 @@ CONTAINS
     CPASSERT(ASSOCIATED(gle))
     CPASSERT(.NOT.ASSOCIATED(gle%nvt))
 
-    ALLOCATE ( gle%nvt(gle%loc_num_gle),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( gle%nvt(gle%loc_num_gle))
     DO i = 1, gle%loc_num_gle
        NULLIFY(gle%nvt(i)%s)
-       ALLOCATE(gle%nvt(i)%s(gle%ndim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(gle%nvt(i)%s(gle%ndim))
        gle%nvt(i)%kin_energy = 0.0_dp
        gle%nvt(i)%thermostat_energy = 0.0_dp
     END DO
 
-    ALLOCATE ( gle%mal(mal_size),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( gle%mal(mal_size))
     gle%mal(:) = 0
 
     ! Initialize the gaussian stream random number
     initial_seed = next_rng_seed()
-    ALLOCATE (seed(3,2,gle%glob_num_gle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (seed(3,2,gle%glob_num_gle))
 
     seed(:,:,1) = initial_seed
     DO ithermo=2,gle%glob_num_gle
@@ -226,8 +222,7 @@ CONTAINS
             seed=my_seed)
     END DO
 
-    DEALLOCATE (seed,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (seed)
 
   END SUBROUTINE gle_thermo_create
 
@@ -248,20 +243,16 @@ CONTAINS
 
     IF (ASSOCIATED(gle)) THEN
        IF ( ASSOCIATED(gle%a_mat)) THEN
-          DEALLOCATE (gle%a_mat, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gle%a_mat)
        END IF
        IF ( ASSOCIATED(gle%c_mat)) THEN
-          DEALLOCATE (gle%c_mat, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gle%c_mat)
        END IF
        IF ( ASSOCIATED(gle%gle_t)) THEN
-          DEALLOCATE (gle%gle_t, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gle%gle_t)
        END IF
        IF ( ASSOCIATED(gle%gle_s)) THEN
-          DEALLOCATE (gle%gle_s, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gle%gle_s)
        END IF
        IF (ASSOCIATED (gle%nvt)) THEN
           DO i = 1,SIZE(gle%nvt)
@@ -271,17 +262,14 @@ CONTAINS
             END IF
             CPASSERT(stat==0)
           END DO
-          DEALLOCATE (gle%nvt, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gle%nvt)
        ENDIF
        IF (ASSOCIATED (gle%mal)) THEN
-          DEALLOCATE (gle%mal, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (gle%mal)
        END IF
 
        CALL release_map_info_type(gle%map_info)
-       DEALLOCATE (gle, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (gle)
     ENDIF
 
   END SUBROUTINE gle_dealloc

@@ -328,7 +328,7 @@ MODULE hfx_screening_methods
     INTEGER                                  :: handle, i, ikind, ipgf, iset, &
                                                 jkind, jpgf, jset, la, lb, &
                                                 ncoa, ncob, nkind, nseta, &
-                                                nsetb, sgfa, sgfb, stat
+                                                nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -359,8 +359,7 @@ MODULE hfx_screening_methods
     nkind = SIZE(qs_kind_set,1)
 
 !$OMP MASTER
-    ALLOCATE(coeffs_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(coeffs_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind))
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -466,8 +465,7 @@ MODULE hfx_screening_methods
     END DO
 
 !$OMP MASTER
-    ALLOCATE(coeffs_set(max_set,max_set,nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(coeffs_set(max_set,max_set,nkind,nkind))
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -564,8 +562,7 @@ MODULE hfx_screening_methods
 
     ! ** now kinds
 !$OMP MASTER
-    ALLOCATE(coeffs_kind(nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(coeffs_kind(nkind,nkind))
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -693,7 +690,7 @@ MODULE hfx_screening_methods
     INTEGER                                  :: handle, i, ikind, ipgf, iset, &
                                                 jkind, jpgf, jset, la, lb, &
                                                 ncoa, ncob, nkind, nseta, &
-                                                nsetb, sgfa, sgfb, stat
+                                                nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -722,8 +719,7 @@ MODULE hfx_screening_methods
     ra = 0.0_dp
     rb = 0.0_dp
 !$OMP MASTER
-    ALLOCATE(radii_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(radii_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind))
     DO ikind = 1,nkind
       DO jkind = 1,nkind
         DO iset=1,max_set

@@ -107,13 +107,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: averages_section
 
     failure = .FALSE.
-    ALLOCATE(md_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(md_env)
     last_md_env_id=last_md_env_id+1
     md_env%id_nr=last_md_env_id
     md_env%ref_count=1
@@ -133,14 +131,10 @@ CONTAINS
     NULLIFY(md_env%thermal_regions)
     md_env%para_env => para_env
     CALL cp_para_env_retain(md_env%para_env)
-    ALLOCATE( md_env%itimes, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE( md_env%constant, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE( md_env%used_time, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE( md_env%t, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE( md_env%itimes)
+    ALLOCATE( md_env%constant)
+    ALLOCATE( md_env%used_time)
+    ALLOCATE( md_env%t)
     md_env%itimes         = -1
     md_env%constant       = 0.0_dp
     md_env%used_time      = 0.0_dp
@@ -192,7 +186,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -203,14 +196,10 @@ CONTAINS
        IF (md_env%ref_count==0) THEN
           CALL fe_env_release( md_env%fe_env)
           CALL cp_para_env_release(md_env%para_env)
-          DEALLOCATE( md_env%itimes , stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE( md_env%constant , stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE( md_env%used_time , stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE( md_env%t , stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE( md_env%itimes )
+          DEALLOCATE( md_env%constant )
+          DEALLOCATE( md_env%used_time )
+          DEALLOCATE( md_env%t )
 
           NULLIFY(md_env%cell)
           NULLIFY(md_env%simpar)
@@ -221,8 +210,7 @@ CONTAINS
           CALL force_env_release(md_env%force_env)
           CALL release_averages(md_env%averages)
           CALL release_thermal_regions(md_env%thermal_regions)
-          DEALLOCATE(md_env,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(md_env)
        END IF
     END IF
   END SUBROUTINE md_env_release

@@ -126,7 +126,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -136,18 +135,15 @@ CONTAINS
        IF (fb_env%obj%ref_count == 0) THEN
           fb_env%obj%ref_count = 1
           IF (ASSOCIATED(fb_env%obj%rcut)) THEN
-             DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(fb_env%obj%rcut)
           END IF
           IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
-             DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(fb_env%obj%local_atoms)
           END IF
           CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
           CALL fb_trial_fns_release(fb_env%obj%trial_fns)
           fb_env%obj%ref_count = 0
-          DEALLOCATE(fb_env%obj, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fb_env%obj)
        END IF
     ELSE
        NULLIFY(fb_env%obj)
@@ -221,13 +217,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(fb_env%obj))
-    ALLOCATE(fb_env%obj, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(fb_env%obj)
     NULLIFY(fb_env%obj%rcut)
     CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
     CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
@@ -255,14 +249,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(fb_env%obj))
     IF (ASSOCIATED(fb_env%obj%rcut)) THEN
-       DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(fb_env%obj%rcut)
        NULLIFY(fb_env%obj%rcut)
     END IF
     CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
@@ -271,8 +263,7 @@ CONTAINS
     fb_env%obj%auto_cutoff_scale = 1.0_dp
     fb_env%obj%collective_com = .TRUE.
     IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
-       DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(fb_env%obj%local_atoms)
        NULLIFY(fb_env%obj%local_atoms)
     END IF
     fb_env%obj%nlocal_atoms = 0
@@ -385,15 +376,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(fb_env%obj))
     IF (PRESENT(rcut)) THEN
        IF (ASSOCIATED(fb_env%obj%rcut)) THEN
-          DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fb_env%obj%rcut)
        END IF
        fb_env%obj%rcut => rcut
     END IF
@@ -417,8 +406,7 @@ CONTAINS
          fb_env%obj%collective_com = collective_com
     IF (PRESENT(local_atoms)) THEN
        IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
-          DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fb_env%obj%local_atoms)
        END IF
        fb_env%obj%local_atoms => local_atoms
     END IF

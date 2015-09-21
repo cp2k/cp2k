@@ -183,7 +183,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ke_gga_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, m, npoints, stat
+    INTEGER                                  :: handle, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
@@ -214,10 +214,8 @@ CONTAINS
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL ke_gga_init(rho_cutoff)
 
-    ALLOCATE ( s(npoints), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE ( fs(npoints,m+1), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( s(npoints))
+    ALLOCATE ( fs(npoints,m+1))
 
 !      s = norm_drho/(rho^(4/3)*2*(pi*pi*3)^(1/3))
     CALL calc_wave_vector ( "p", rho, grho, s )
@@ -314,10 +312,8 @@ CONTAINS
             error_level=cp_failure_level)
     END IF
 
-    DEALLOCATE ( s, STAT=stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( fs, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( s)
+    DEALLOCATE ( fs)
 
     CALL timestop(handle)
 
@@ -345,8 +341,7 @@ CONTAINS
     CHARACTER(len=6), DIMENSION(2), PARAMETER :: &
       rho_spin_name = (/"(rhoa)","(rhob)"/)
 
-    INTEGER                                  :: handle, ispin, m, npoints, &
-                                                stat
+    INTEGER                                  :: handle, ispin, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff
@@ -381,10 +376,8 @@ CONTAINS
     m=ABS(order)
     CALL ke_gga_init(rho_cutoff)
 
-    ALLOCATE ( s(npoints), STAT=stat )
-    CPASSERT(stat==0)
-    ALLOCATE ( fs(npoints,m+1), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( s(npoints))
+    ALLOCATE ( fs(npoints,m+1))
 
     fact = flsd
     b = b_lsd
@@ -491,10 +484,8 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE ( s, STAT=stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( fs, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( s)
+    DEALLOCATE ( fs)
     CALL timestop(handle)
   END SUBROUTINE ke_gga_lsd_eval
 

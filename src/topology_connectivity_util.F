@@ -109,10 +109,8 @@ CONTAINS
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
-    ALLOCATE(map_atom_mol(topology%natoms),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_atom_type(topology%natoms),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_atom_mol(topology%natoms))
+    ALLOCATE(map_atom_type(topology%natoms))
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Set the topology%[nmol_type,nmol,nmol_conn]
@@ -243,8 +241,7 @@ CONTAINS
        END IF
 
        IF (found) THEN
-          ALLOCATE(molecule_list(imol-counter),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(molecule_list(imol-counter))
           DO j=1,SIZE(molecule_list)
              molecule_list(j)=j+counter
           END DO
@@ -261,8 +258,7 @@ CONTAINS
     IF (i==natom) THEN
        imol    = ABS(map_atom_mol(natom))
        ! Last atom is also a molecule by itself
-       ALLOCATE(molecule_list(imol-counter),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(molecule_list(imol-counter))
        DO j=1,SIZE(molecule_list)
           molecule_list(j)=j+counter
        END DO
@@ -291,10 +287,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 7. Set the molecule_set(imol)%[first_atom,last_atom] via set_molecule_set
     !-----------------------------------------------------------------------------
-    ALLOCATE(first_list(SIZE(molecule_set)),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(last_list(SIZE(molecule_set)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(first_list(SIZE(molecule_set)))
+    ALLOCATE(last_list(SIZE(molecule_set)))
     CALL timeset(routineN//"_7",handle2)
     first_list(:) = 0
     last_list (:) = 0
@@ -349,8 +343,7 @@ CONTAINS
                first_atom=first,last_atom=last)
           natom = 0
           IF(first/=0 .AND. last/=0) natom = last-first+1
-          ALLOCATE(atom_list(natom),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(atom_list(natom))
           DO i=1,natom
              !Atomic kind information will be filled in (PART 2)
              NULLIFY(atom_list(i)%atomic_kind)
@@ -375,10 +368,8 @@ CONTAINS
     IF(ASSOCIATED(conn_info%c_bond_a)) nvar2 = SIZE(conn_info%c_bond_a)
     nval_tot1 = nvar1
     nval_tot2 = 0
-    ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_var_mol(nvar1))
+    ALLOCATE(map_cvar_mol(nvar2))
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -413,8 +404,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + ibond*SIZE(molecule_kind%molecule_list)
 
-       ALLOCATE(bond_list(ibond),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bond_list(ibond))
        ibond = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -479,18 +469,12 @@ CONTAINS
        WRITE(output_unit,'(T5,A)')"ERROR| a different number of atoms. Check the connectivity!"
     END IF
     CPASSERT(nval_tot1==nval_tot2)
-    DEALLOCATE(map_var_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvar_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_vars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_type,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_ctype,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(map_var_mol)
+    DEALLOCATE(map_cvar_mol)
+    DEALLOCATE(map_vars)
+    DEALLOCATE(map_cvars)
+    DEALLOCATE(bnd_type)
+    DEALLOCATE(bnd_ctype)
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -499,16 +483,12 @@ CONTAINS
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_type
     CALL timeset(routineN//"_11_pre",handle2)
     idim = 0
-    ALLOCATE(c_var_a(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_b(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_c(idim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(c_var_a(idim))
+    ALLOCATE(c_var_b(idim))
+    ALLOCATE(c_var_c(idim))
     found = ASSOCIATED(conn_info%theta_type)
     IF (found) THEN
-       ALLOCATE(c_var_type(idim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(c_var_type(idim))
     END IF
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%theta_a)) THEN
        DO j=1,SIZE(conn_info%theta_a)
@@ -551,10 +531,8 @@ CONTAINS
     IF(ASSOCIATED(c_var_a))             nvar2 = SIZE(c_var_a)
     nval_tot1 = nvar1
     nval_tot2 = 0
-    ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_var_mol(nvar1))
+    ALLOCATE(map_cvar_mol(nvar2))
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -589,8 +567,7 @@ CONTAINS
        END IF
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + ibend*SIZE(molecule_kind%molecule_list)
-       ALLOCATE(bend_list(ibend),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(bend_list(ibend))
        ibend = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -651,27 +628,17 @@ CONTAINS
             nbend=SIZE(bend_list),bend_list=bend_list)
     END DO
     CPASSERT(nval_tot1==nval_tot2)
-    DEALLOCATE(map_var_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvar_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_vars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_type,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_ctype,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_a,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_b,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_c,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(map_var_mol)
+    DEALLOCATE(map_cvar_mol)
+    DEALLOCATE(map_vars)
+    DEALLOCATE(map_cvars)
+    DEALLOCATE(bnd_type)
+    DEALLOCATE(bnd_ctype)
+    DEALLOCATE(c_var_a)
+    DEALLOCATE(c_var_b)
+    DEALLOCATE(c_var_c)
     IF (found) THEN
-       DEALLOCATE(c_var_type,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(c_var_type)
     END IF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
@@ -680,12 +647,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_12_pre",handle2)
     idim = 0
-    ALLOCATE(c_var_a(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_b(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_c(idim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(c_var_a(idim))
+    ALLOCATE(c_var_b(idim))
+    ALLOCATE(c_var_c(idim))
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%ub_a)) THEN
        DO j=1,SIZE(conn_info%ub_a)
           j1 = map_atom_mol(conn_info%ub_a(j))
@@ -721,10 +685,8 @@ CONTAINS
     IF(ASSOCIATED(c_var_a))          nvar2 = SIZE(c_var_a)
     nval_tot1 = nvar1
     nval_tot2 = 0
-    ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_var_mol(nvar1))
+    ALLOCATE(map_cvar_mol(nvar2))
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -759,8 +721,7 @@ CONTAINS
        END IF
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + iub*SIZE(molecule_kind%molecule_list)
-       ALLOCATE(ub_list(iub),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ub_list(iub))
        iub = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -813,24 +774,15 @@ CONTAINS
             nub=SIZE(ub_list),ub_list=ub_list)
     END DO
     CPASSERT(nval_tot1==nval_tot2)
-    DEALLOCATE(map_var_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvar_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_vars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_type,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_ctype,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_a,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_b,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_c,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(map_var_mol)
+    DEALLOCATE(map_cvar_mol)
+    DEALLOCATE(map_vars)
+    DEALLOCATE(map_cvars)
+    DEALLOCATE(bnd_type)
+    DEALLOCATE(bnd_ctype)
+    DEALLOCATE(c_var_a)
+    DEALLOCATE(c_var_b)
+    DEALLOCATE(c_var_c)
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -839,18 +791,13 @@ CONTAINS
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_d, c_var_type
     CALL timeset(routineN//"_13_pre",handle2)
     idim = 0
-    ALLOCATE(c_var_a(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_b(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_c(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_d(idim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(c_var_a(idim))
+    ALLOCATE(c_var_b(idim))
+    ALLOCATE(c_var_c(idim))
+    ALLOCATE(c_var_d(idim))
     found = ASSOCIATED(conn_info%phi_type)
     IF (found) THEN
-       ALLOCATE(c_var_type(idim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(c_var_type(idim))
     END IF
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%phi_a)) THEN
        DO j=1,SIZE(conn_info%phi_a)
@@ -897,10 +844,8 @@ CONTAINS
     IF(ASSOCIATED(c_var_a))           nvar2 = SIZE(c_var_a)
     nval_tot1 = nvar1
     nval_tot2 = 0
-    ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_var_mol(nvar1))
+    ALLOCATE(map_cvar_mol(nvar2))
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -936,8 +881,7 @@ CONTAINS
        END IF
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + itorsion*SIZE(molecule_kind%molecule_list)
-       ALLOCATE(torsion_list(itorsion),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(torsion_list(itorsion))
        itorsion = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
@@ -1004,29 +948,18 @@ CONTAINS
             ntorsion=SIZE(torsion_list),torsion_list=torsion_list)
     END DO
     CPASSERT(nval_tot1==nval_tot2)
-    DEALLOCATE(map_var_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvar_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_vars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_type,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_ctype,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_a,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_b,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_c,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_d,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(map_var_mol)
+    DEALLOCATE(map_cvar_mol)
+    DEALLOCATE(map_vars)
+    DEALLOCATE(map_cvars)
+    DEALLOCATE(bnd_type)
+    DEALLOCATE(bnd_ctype)
+    DEALLOCATE(c_var_a)
+    DEALLOCATE(c_var_b)
+    DEALLOCATE(c_var_c)
+    DEALLOCATE(c_var_d)
     IF (found) THEN
-       DEALLOCATE(c_var_type,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(c_var_type)
     END IF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
@@ -1037,18 +970,13 @@ CONTAINS
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_d, c_var_type
     CALL timeset(routineN//"_14_pre",handle2)
     idim = 0
-    ALLOCATE(c_var_a(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_b(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_c(idim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(c_var_d(idim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(c_var_a(idim))
+    ALLOCATE(c_var_b(idim))
+    ALLOCATE(c_var_c(idim))
+    ALLOCATE(c_var_d(idim))
     found = ASSOCIATED(conn_info%impr_type)
     IF (found) THEN
-       ALLOCATE(c_var_type(idim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(c_var_type(idim))
     END IF
     IF(ASSOCIATED(conn_info%c_bond_a).AND.ASSOCIATED(conn_info%impr_a)) THEN
        DO j=1,SIZE(conn_info%impr_a)
@@ -1095,10 +1023,8 @@ CONTAINS
     IF(ASSOCIATED(c_var_a))            nvar2 = SIZE(c_var_a)
     nval_tot1 = nvar1
     nval_tot2 = 0
-    ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(map_cvar_mol(nvar2),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_var_mol(nvar1))
+    ALLOCATE(map_cvar_mol(nvar2))
     map_var_mol  = -1
     map_cvar_mol = -1
     DO i = 1, nvar1
@@ -1248,43 +1174,28 @@ CONTAINS
             nopbend=SIZE(opbend_list),opbend_list=opbend_list)
     END DO
     CPASSERT(nval_tot1==nval_tot2)
-    DEALLOCATE(map_var_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvar_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_vars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_cvars,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_type,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bnd_ctype,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_a,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_b,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_c,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(c_var_d,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(map_var_mol)
+    DEALLOCATE(map_cvar_mol)
+    DEALLOCATE(map_vars)
+    DEALLOCATE(map_cvars)
+    DEALLOCATE(bnd_type)
+    DEALLOCATE(bnd_ctype)
+    DEALLOCATE(c_var_a)
+    DEALLOCATE(c_var_b)
+    DEALLOCATE(c_var_c)
+    DEALLOCATE(c_var_d)
     IF (found) THEN
-       DEALLOCATE(c_var_type,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(c_var_type)
     END IF
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! Finally deallocate some stuff.
     !-----------------------------------------------------------------------------
-    DEALLOCATE(first_list,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(last_list,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_atom_mol,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(map_atom_type,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(first_list)
+    DEALLOCATE(last_list)
+    DEALLOCATE(map_atom_mol)
+    DEALLOCATE(map_atom_type)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO")
@@ -1309,15 +1220,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'find_bnd_typ', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ibond, j, stat
+    INTEGER                                  :: i, ibond, j
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    ALLOCATE(map_vars(nvar1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_vars(nvar1))
     CALL sort(map_var_mol,nvar1,map_vars)
-    ALLOCATE(bnd_type(2,nmol_type),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bnd_type(2,nmol_type))
     bnd_type = 0
     IF (nvar1==0) RETURN
     DO j = 1, nvar1

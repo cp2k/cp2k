@@ -81,13 +81,12 @@ CONTAINS
       routineN = 'semi_empirical_mpole_p_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpole))
-    ALLOCATE (mpole(ndim),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (mpole(ndim))
     DO i = 1, ndim
        NULLIFY(mpole(i)%mpole)
        CALL semi_empirical_mpole_create(mpole(i)%mpole)
@@ -108,7 +107,7 @@ CONTAINS
       routineN = 'semi_empirical_mpole_p_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -116,8 +115,7 @@ CONTAINS
        DO i = 1, SIZE(mpole)
           CALL semi_empirical_mpole_release(mpole(i)%mpole)
        END DO
-       DEALLOCATE (mpole, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (mpole)
     END IF
 
   END SUBROUTINE semi_empirical_mpole_p_release
@@ -133,13 +131,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpole))
-    ALLOCATE (mpole,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (mpole)
     mpole%task = .FALSE.
     mpole%indi = 0
     mpole%indj = 0
@@ -163,13 +159,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(mpole)) THEN
-       DEALLOCATE (mpole, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (mpole)
     END IF
 
   END SUBROUTINE semi_empirical_mpole_release
@@ -185,13 +179,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(nddo_mpole))
-    ALLOCATE (nddo_mpole,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nddo_mpole)
     NULLIFY(nddo_mpole%charge)
     NULLIFY(nddo_mpole%dipole)
     NULLIFY(nddo_mpole%quadrupole)
@@ -211,37 +203,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(nddo_mpole)) THEN
        IF (ASSOCIATED(nddo_mpole%charge)) THEN
-          DEALLOCATE(nddo_mpole%charge,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nddo_mpole%charge)
        END IF
        IF (ASSOCIATED(nddo_mpole%dipole)) THEN
-          DEALLOCATE(nddo_mpole%dipole,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nddo_mpole%dipole)
        END IF
        IF (ASSOCIATED(nddo_mpole%quadrupole)) THEN
-          DEALLOCATE(nddo_mpole%quadrupole,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nddo_mpole%quadrupole)
        END IF
        IF (ASSOCIATED(nddo_mpole%efield0)) THEN
-          DEALLOCATE(nddo_mpole%efield0,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nddo_mpole%efield0)
        END IF
        IF (ASSOCIATED(nddo_mpole%efield1)) THEN
-          DEALLOCATE(nddo_mpole%efield1,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nddo_mpole%efield1)
        END IF
        IF (ASSOCIATED(nddo_mpole%efield2)) THEN
-          DEALLOCATE(nddo_mpole%efield2,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nddo_mpole%efield2)
        END IF
-       DEALLOCATE (nddo_mpole, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (nddo_mpole)
     END IF
 
   END SUBROUTINE nddo_mpole_release

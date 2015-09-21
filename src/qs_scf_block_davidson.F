@@ -83,7 +83,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ritz_coefficients', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istat, nao, nmo
+    INTEGER                                  :: handle, i, nao, nmo
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: chc_diag, csc_diag
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -96,11 +96,9 @@ CONTAINS
     NULLIFY(block_mat,fm_struct_tmp,matrix_tmp)
     CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_global=nmo)
 
-    ALLOCATE(csc_diag(nmo),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(csc_diag(nmo))
 
-    ALLOCATE(chc_diag(nmo),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(chc_diag(nmo))
 
     ! storage matrix of size mos x mos, only the diagonal elements are used
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo,ncol_global=nmo, &
@@ -203,14 +201,10 @@ CONTAINS
                 " Cycle ", " conv. MOS ", " B2MAX ", " B2MIN ", " Time",  REPEAT("-",60)
     END IF
 
-    ALLOCATE(iconv(nmo), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(inotconv(nmo), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(ritz_coeff(nmo),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(vnorm(nmo),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(iconv(nmo))
+    ALLOCATE(inotconv(nmo))
+    ALLOCATE(ritz_coeff(nmo))
+    ALLOCATE(vnorm(nmo))
 
     converged=.FALSE.
     DO iter = 1, max_iter
@@ -262,10 +256,8 @@ CONTAINS
       END DO
 
       IF(nmo_converged>0) THEN
-        ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(inotconv_set(nmo_not_converged,2), STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(iconv_set(nmo_converged,2))
+        ALLOCATE(inotconv_set(nmo_not_converged,2))
         i_last = iconv(1)
         nset = 0
         DO j = 1,nmo_converged
@@ -540,14 +532,10 @@ CONTAINS
 
     END DO  ! iter
 
-    DEALLOCATE(iconv,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(inotconv,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(ritz_coeff,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(vnorm,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(iconv)
+    DEALLOCATE(inotconv)
+    DEALLOCATE(ritz_coeff)
+    DEALLOCATE(vnorm)
 
     CALL timestop(handle)
   END SUBROUTINE generate_extended_space
@@ -575,9 +563,9 @@ CONTAINS
       routineN = 'generate_extended_space_sparse', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i_first, i_last, imo, istat, iter, j, jj, k, &
-      max_iter, n, nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, &
-      nset, nset_conv, nset_not_conv
+    INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, k, max_iter, &
+      n, nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, nset, &
+      nset_conv, nset_not_conv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv, inotconv
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iconv_set, inotconv_set
     LOGICAL                                  :: converged, &
@@ -622,14 +610,10 @@ CONTAINS
 
 
     ! Allocate array for Ritz values
-    ALLOCATE(ritz_coeff(nmo),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(iconv(nmo), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(inotconv(nmo), STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(vnorm(nmo),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ritz_coeff(nmo))
+    ALLOCATE(iconv(nmo))
+    ALLOCATE(inotconv(nmo))
+    ALLOCATE(vnorm(nmo))
 
     converged=.FALSE.
     DO iter = 1, max_iter
@@ -698,10 +682,8 @@ CONTAINS
 
 
       IF(nmo_converged>0) THEN
-        ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(inotconv_set(nmo_not_converged,2), STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(iconv_set(nmo_converged,2))
+        ALLOCATE(inotconv_set(nmo_not_converged,2))
         i_last = iconv(1)
         nset = 0
         DO j = 1,nmo_converged
@@ -743,11 +725,9 @@ CONTAINS
       END IF
 
       IF(REAL(nmo_converged,dp)/REAL(nmo,dp)>bdav_env%conv_percent) THEN
-        DEALLOCATE(iconv_set,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(iconv_set)
 
-        DEALLOCATE (inotconv_set,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (inotconv_set)
 
         converged=.TRUE.
         t2 = m_walltime()
@@ -818,8 +798,7 @@ CONTAINS
         CALL cp_fm_struct_release(fm_struct_tmp)
 
         ! extract mo_notconv from mo_coeff full matrix
-        ALLOCATE(eig_not_conv(nmo_not_converged),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(eig_not_conv(nmo_not_converged))
 
         jj=1
         DO j=1,nset_not_conv
@@ -859,8 +838,7 @@ CONTAINS
         CALL cp_dbcsr_scale_by_vector(matrix_z,eig_not_conv,side='right')
         CALL cp_dbcsr_add(matrix_z,matrix_hc,-1.0_dp,1.0_dp)
 
-        DEALLOCATE(eig_not_conv,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(eig_not_conv)
 
 
         ! matrix_mm
@@ -999,10 +977,8 @@ CONTAINS
            eigenvalues(i_first:i_last) = evals(jj:jj+n-1)
            jj=jj+n
          END DO
-         DEALLOCATE(iconv_set,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE (inotconv_set,STAT=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(iconv_set)
+         DEALLOCATE (inotconv_set)
 
          CALL cp_dbcsr_release_p(mo_notconv)
          CALL cp_dbcsr_release_p(c_out)
@@ -1011,8 +987,7 @@ CONTAINS
          CALL cp_fm_to_fm(matrix_nm_fm,mo_coeff)
          eigenvalues(1:nmo) = evals(1:nmo)
       END IF
-      DEALLOCATE(evals,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(evals)
 
       CALL cp_fm_release(matrix_nm_fm)
       CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b)!fm->dbcsr
@@ -1028,14 +1003,10 @@ CONTAINS
     END DO ! iter
 
 
-    DEALLOCATE(ritz_coeff,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(iconv,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(inotconv,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(vnorm,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(ritz_coeff)
+    DEALLOCATE(iconv)
+    DEALLOCATE(inotconv)
+    DEALLOCATE(vnorm)
 
     CALL timestop(handle)
 

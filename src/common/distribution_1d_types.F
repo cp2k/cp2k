@@ -114,8 +114,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
   IF(PRESENT(n_el)) my_n_lists=SIZE(n_el)
   IF(PRESENT(n_lists)) my_n_lists=n_lists
 
-  ALLOCATE(distribution_1d,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(distribution_1d)
   distribution_1d_last_id_nr=distribution_1d_last_id_nr+1
   distribution_1d%id_nr=distribution_1d_last_id_nr
 
@@ -137,8 +136,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
   IF (PRESENT(n_el)) THEN
      distribution_1d%n_el(1:my_n_lists)=n_el(1:my_n_lists)
      DO ilist=1,my_n_lists
-       ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)))
        distribution_1d%list(ilist)%array=-1
      END DO
   ELSE
@@ -190,7 +188,7 @@ SUBROUTINE distribution_1d_release(distribution_1d)
     INTEGER                                  :: ilist, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_kind, &
-                                                nparticle_local, stat
+                                                nparticle_local
     LOGICAL                                  :: failure
     TYPE(local_particle_type), &
       DIMENSION(:), POINTER                  :: local_particle_set
@@ -201,15 +199,12 @@ SUBROUTINE distribution_1d_release(distribution_1d)
      CPASSERT(distribution_1d%ref_count>0)
      distribution_1d%ref_count=distribution_1d%ref_count-1
      IF (distribution_1d%ref_count==0) THEN
-        DEALLOCATE(distribution_1d%n_el,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(distribution_1d%n_el)
 
         DO ilist=1,SIZE(distribution_1d%list)
-           DEALLOCATE(distribution_1d%list(ilist)%array,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(distribution_1d%list(ilist)%array)
         END DO
-        DEALLOCATE(distribution_1d%list,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(distribution_1d%list)
 
         !MK Delete Wiener process
 
@@ -227,18 +222,15 @@ SUBROUTINE distribution_1d_release(distribution_1d)
                                           rng(iparticle_local)%stream)
                 END IF
               END DO
-              DEALLOCATE (local_particle_set(iparticle_kind)%rng,STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE (local_particle_set(iparticle_kind)%rng)
             END IF
           END DO
-          DEALLOCATE(local_particle_set,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(local_particle_set)
         END IF
 
         CALL cp_para_env_release(distribution_1d%para_env)
 
-        DEALLOCATE(distribution_1d,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(distribution_1d)
      END IF
   END IF
 

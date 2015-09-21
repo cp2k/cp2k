@@ -86,7 +86,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw, iw2, &
-                                                n_rep_val, num_gauss, stat
+                                                n_rep_val, num_gauss
     LOGICAL                                  :: allocate_ddapc_env, failure, &
                                                 unimplemented
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
@@ -155,15 +155,13 @@ CONTAINS
        IF (n_rep_val /= 0) THEN
           CALL section_vals_val_get(density_fit_section,"RADII",r_vals=inp_radii)
           num_gauss = SIZE(inp_radii)
-          ALLOCATE(radii(num_gauss), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(radii(num_gauss))
           radii = inp_radii
        ELSE
           CALL section_vals_val_get(density_fit_section,"NUM_GAUSS",i_val=num_gauss)
           CALL section_vals_val_get(density_fit_section,"MIN_RADIUS",r_val=rcmin)
           CALL section_vals_val_get(density_fit_section,"PFACTOR",r_val=pfact)
-          ALLOCATE(radii(num_gauss), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(radii(num_gauss))
           DO i = 1, num_gauss
              radii(i) = rcmin*pfact**(i-1)
           END DO
@@ -188,8 +186,7 @@ CONTAINS
                             qs_env%input)
        CALL cp_print_key_finished_output(iw2,logger,density_fit_section,&
             "PROGRAM_RUN_INFO/CONDITION_NUMBER")
-       DEALLOCATE(radii, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(radii)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.)
     END IF
@@ -233,7 +230,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: type_of_density
     INTEGER :: handle, handle2, handle3, i, ii, iparticle, iparticle0, ispin, &
-      iw, j, myid, n_rep_val, ndim, nparticles, num_gauss, pmax, pmin, stat
+      iw, j, myid, n_rep_val, ndim, nparticles, num_gauss, pmax, pmin
     LOGICAL                                  :: failure, need_f
     REAL(KIND=dp)                            :: c1, c3, ch_dens, gcut, pfact, &
                                                 rcmin, Vol
@@ -340,26 +337,22 @@ CONTAINS
     IF (n_rep_val /= 0) THEN
        CALL section_vals_val_get(density_fit_section,"RADII",r_vals=inp_radii)
        num_gauss = SIZE(inp_radii)
-       ALLOCATE(radii(num_gauss), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(radii(num_gauss))
        radii = inp_radii
     ELSE
        CALL section_vals_val_get(density_fit_section,"NUM_GAUSS",i_val=num_gauss)
        CALL section_vals_val_get(density_fit_section,"MIN_RADIUS",r_val=rcmin)
        CALL section_vals_val_get(density_fit_section,"PFACTOR",r_val=pfact)
-       ALLOCATE(radii(num_gauss), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(radii(num_gauss))
        DO i = 1, num_gauss
           radii(i) = rcmin*pfact**(i-1)
        END DO
     END IF
     IF (PRESENT(out_radii)) THEN
        IF (ASSOCIATED(out_radii)) THEN
-          DEALLOCATE(out_radii, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(out_radii)
        END IF
-       ALLOCATE(out_radii(SIZE(radii)), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(out_radii(SIZE(radii)))
        out_radii = radii
     END IF
     CALL section_vals_val_get(density_fit_section,"GCUT",r_val=gcut)
@@ -368,14 +361,10 @@ CONTAINS
     ! Start with the linear system
     !
     ndim = SIZE(particle_set)*SIZE(radii)
-    ALLOCATE(bv(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(qv(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(qtot(SIZE(particle_set)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(cv(ndim), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bv(ndim))
+    ALLOCATE(qv(ndim))
+    ALLOCATE(qtot(SIZE(particle_set)))
+    ALLOCATE(cv(ndim))
     CALL timeset(routineN//"-charges",handle2)
     bv(:)  = 0.0_dp
     cv(:)  = 1.0_dp/Vol
@@ -397,8 +386,7 @@ CONTAINS
        IF (ASSOCIATED(qout1)) THEN
           CPASSERT(SIZE(qout1)==SIZE(qv))
        ELSE
-          ALLOCATE(qout1(SIZE(qv)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(qout1(SIZE(qv)))
        END IF
        qout1 = qv
     END IF
@@ -406,8 +394,7 @@ CONTAINS
        IF (ASSOCIATED(qout2)) THEN
           CPASSERT(SIZE(qout2)==SIZE(qtot))
        ELSE
-          ALLOCATE(qout2(SIZE(qtot)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(qout2(SIZE(qtot)))
        END IF
        qout2 = qtot
     END IF
@@ -422,27 +409,18 @@ CONTAINS
        IF (iw>0) THEN
           WRITE(iw,'(T3,A)')" Evaluating DDAPC atomic derivatives .."
        END IF
-       ALLOCATE(dAm(ndim, ndim,3), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(dbv(ndim,3), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dAm(ndim, ndim,3))
+       ALLOCATE(dbv(ndim,3))
+       ALLOCATE(dqv(ndim,SIZE(particle_set),3))
        !NB refactor math in inner loop - no more dqv0, but new temporaries instead
-       ALLOCATE(cvT_AmI(ndim), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(cvT_AmI_dAmj(ndim), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(tv(ndim,SIZE(particle_set),3), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(AmI_cv(ndim), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(cvT_AmI(ndim))
+       ALLOCATE(cvT_AmI_dAmj(ndim))
+       ALLOCATE(tv(ndim,SIZE(particle_set),3))
+       ALLOCATE(AmI_cv(ndim))
        cvT_AmI(:) = MATMUL(cv, cp_ddapc_env%AmI)
        AmI_cv(:) = MATMUL(cp_ddapc_env%AmI,cv)
-       ALLOCATE(dAmj_qv(ndim), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(AmI_bv(ndim), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dAmj_qv(ndim))
+       ALLOCATE(AmI_bv(ndim))
        AmI_bv(:) = MATMUL(cp_ddapc_env%AmI,bv)
 
        !NB call routine to precompute sin(g.r) and cos(g.r),
@@ -518,8 +496,7 @@ CONTAINS
        !NB namely ewald_ddapc_force(), cp_decl_ddapc_forces(), restraint_functional_force()
        CPASSERT(PRESENT(dq_out))
        IF (.NOT.ASSOCIATED(dq_out)) THEN
-          ALLOCATE(dq_out(SIZE(dqv,1),SIZE(dqv,2),SIZE(dqv,3)), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(dq_out(SIZE(dqv,1),SIZE(dqv,2),SIZE(dqv,3)))
        ELSE
           CPASSERT(SIZE(dqv,1)==SIZE(dq_out,1))
           CPASSERT(SIZE(dqv,2)==SIZE(dq_out,2))
@@ -531,40 +508,26 @@ CONTAINS
                particle_set, radii, rho_tot_g, type_of_density)
           cp_ddapc_env => qs_env%cp_ddapc_env
        END IF
-       DEALLOCATE(dqv, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(dAm, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(dbv, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dqv)
+       DEALLOCATE(dAm)
+       DEALLOCATE(dbv)
        !NB deallocate new temporaries
-       DEALLOCATE(cvT_AmI, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cvT_AmI_dAmj, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(AmI_cv, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(tv, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(dAmj_qv, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(AmI_bv, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(cvT_AmI)
+       DEALLOCATE(cvT_AmI_dAmj)
+       DEALLOCATE(AmI_cv)
+       DEALLOCATE(tv)
+       DEALLOCATE(dAmj_qv)
+       DEALLOCATE(AmI_bv)
        CALL timestop(handle3)
     END IF
     !
     ! End of charge fit
     !
-    DEALLOCATE(radii, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bv, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(cv, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(qv, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(qtot, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(radii)
+    DEALLOCATE(bv)
+    DEALLOCATE(cv)
+    DEALLOCATE(qv)
+    DEALLOCATE(qtot)
     IF (.NOT.PRESENT(iwc)) THEN
        CALL cp_print_key_finished_output(iw,logger,density_fit_section,&
             "PROGRAM_RUN_INFO")
@@ -606,7 +569,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
     COMPLEX(KIND=dp)                         :: g_corr, phase
     INTEGER                                  :: handle, idim, ig, igauss, &
-                                                iparticle, n_gauss, stat
+                                                iparticle, n_gauss
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, fac, fac2, g2, gcut, &
                                                 gcut2, gfunc, gvec(3), rc, &
@@ -618,10 +581,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timeset(routineN,handle)
     NULLIFY(g_hartree)
     n_gauss = SIZE(radii)
-    ALLOCATE(cv(n_gauss*SIZE(particle_set)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(uv(n_gauss*SIZE(particle_set)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cv(n_gauss*SIZE(particle_set)))
+    ALLOCATE(uv(n_gauss*SIZE(particle_set)))
     uv      = 0.0_dp
     CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
          charges, energy_res)
@@ -689,7 +650,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
     COMPLEX(KIND=dp)                         :: g_corr, phase
     INTEGER                                  :: handle, idim, ig, igauss, &
-                                                iparticle, stat
+                                                iparticle
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: arg, fac, fac2, g2, gcut, &
                                                 gcut2, gfunc, gvec(3), rc, &
@@ -704,10 +665,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     gcut2 = gcut*gcut
     g_hartree =>  v_hartree_gspace%pw
     Vol = g_hartree%pw_grid%vol
-    ALLOCATE(cv(SIZE(M,1)), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(uv(SIZE(M,1)), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cv(SIZE(M,1)))
+    ALLOCATE(uv(SIZE(M,1)))
     cv   = 1.0_dp/Vol
     uv(:)   = MATMUL(M,charges)
     sfac = -1.0_dp/Vol
@@ -772,7 +731,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_b_vector', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, kk, ndim, stat
+    INTEGER                                  :: handle, i, kk, ndim
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3), v0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv1, bv2, ddbv
@@ -783,12 +742,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timeset(routineN,handle)
     dx   = 0.01_dp
     ndim = SIZE(particle_set)*SIZE(radii)
-    ALLOCATE(bv1(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(bv2(ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(ddbv(ndim), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(bv1(ndim))
+    ALLOCATE(bv2(ndim))
+    ALLOCATE(ddbv(ndim))
     rvec = particle_set(iparticle)%r
     cp_ddapc_env => qs_env%cp_ddapc_env
     DO i = 1, 3
@@ -816,12 +772,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        END DO
        particle_set(iparticle)%r = rvec
     END DO
-    DEALLOCATE(bv1, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bv2, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ddbv, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(bv1)
+    DEALLOCATE(bv2)
+    DEALLOCATE(ddbv)
     CALL timestop(handle)
   END SUBROUTINE debug_der_b_vector
 
@@ -856,7 +809,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_A_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, kk, ll, ndim, stat
+    INTEGER                                  :: handle, i, kk, ll, ndim
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3), v0
     REAL(KIND=dp), ALLOCATABLE, &
@@ -871,12 +824,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timeset(routineN,handle)
     dx   = 0.01_dp
     ndim = SIZE(particle_set)*SIZE(radii)
-    ALLOCATE(Am1(ndim,ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Am2(ndim,ndim), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(ddAm(ndim,ndim), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Am1(ndim,ndim))
+    ALLOCATE(Am2(ndim,ndim))
+    ALLOCATE(ddAm(ndim,ndim))
     rvec = particle_set(iparticle)%r
     cp_ddapc_env => qs_env%cp_ddapc_env
     CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
@@ -910,12 +860,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        particle_set(iparticle)%r = rvec
     END DO
     CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos)
-    DEALLOCATE(Am1, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Am2, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ddAm, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Am1)
+    DEALLOCATE(Am2)
+    DEALLOCATE(ddAm)
     CALL timestop(handle)
   END SUBROUTINE debug_der_A_matrix
 
@@ -947,8 +894,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_charge', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iparticle, kk, &
-                                                ndim, stat
+    INTEGER                                  :: handle, i, iparticle, kk, ndim
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ddqv
@@ -959,12 +905,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     WRITE(*,*)"DEBUG_CHARGE_ROUTINE"
     ndim = SIZE(particle_set)*SIZE(radii)
     NULLIFY(qtot1, qtot2)
-    ALLOCATE(qtot1(ndim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(qtot2(ndim),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(ddqv(ndim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qtot1(ndim))
+    ALLOCATE(qtot2(ndim))
+    ALLOCATE(ddqv(ndim))
     !
     dx = 0.001_dp
     DO iparticle = 1, SIZE(particle_set)
@@ -987,12 +930,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        END DO
     END DO
     !
-    DEALLOCATE(qtot1, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(qtot2, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ddqv, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(qtot1)
+    DEALLOCATE(qtot2)
+    DEALLOCATE(ddqv)
     CALL timestop(handle)
   END SUBROUTINE debug_charge
 

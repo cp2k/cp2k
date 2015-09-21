@@ -76,7 +76,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, il, ipart, ireg, nlist, &
-                                                nregions, stat
+                                                nregions
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: apply_thermostat, &
                                                 do_langevin, &
@@ -123,8 +123,7 @@ CONTAINS
        IF (nregions>0) THEN
          thermal_regions%nregions = nregions
          thermal_regions%section => thermal_region_section
-         ALLOCATE(thermal_regions%thermal_region(nregions), STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(thermal_regions%thermal_region(nregions))
          CALL force_env_get(force_env, subsys=subsys)
          CALL cp_subsys_get(subsys, particles=particles)
          IF (simpar%ensemble == langevin_ensemble) THEN
@@ -132,8 +131,7 @@ CONTAINS
             CALL cite_reference(Kantorovich2008a)
             CALL section_vals_val_get(thermal_region_section, "DO_LANGEVIN_DEFAULT", &
                                       l_val=do_langevin_default)
-            ALLOCATE(thermal_regions%do_langevin(particles%n_els), STAT=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(thermal_regions%do_langevin(particles%n_els))
             thermal_regions%do_langevin = do_langevin_default
          END IF
          DO ireg = 1,nregions
@@ -207,7 +205,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd
-    INTEGER                                  :: ireg, istat, nregions, unit
+    INTEGER                                  :: ireg, nregions, unit
     LOGICAL                                  :: failure, new_file
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -229,8 +227,7 @@ CONTAINS
                WRITE(unit,'("#",3X,A,2X,A,13X,A)')"Step Nr.","Time[fs]","Temp.[K] ...."
             END IF
             nregions = thermal_regions%nregions
-            ALLOCATE (temp(0:nregions), STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE (temp(0:nregions))
             temp = 0.0_dp
             temp(0) =  thermal_regions%temp_reg0
             DO ireg = 1,nregions
@@ -239,8 +236,7 @@ CONTAINS
             fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nregions+1)))//"F20.6)"
             fmd=TRIM(fmd)
             WRITE(UNIT=unit,FMT=fmd) itimes,time, temp(0:nregions)
-            DEALLOCATE(temp, STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(temp)
           END IF
           CALL cp_print_key_finished_output(unit,logger,thermal_regions%section,"PRINT%TEMPERATURE")
        END IF
@@ -270,7 +266,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipart, ipart_reg, ireg, &
-                                                natoms, print_unit, stat
+                                                natoms, print_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: region_id
     LOGICAL                                  :: failure, new_file
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperature
@@ -299,10 +295,8 @@ CONTAINS
                         "#", "Atom_ID", "Region_ID", "Langevin(L)/NVE(N)", "Expected_Temperature[K]"
                 END IF
                 natoms = SIZE(thermal_regions%do_langevin)
-                ALLOCATE(temperature(natoms), STAT=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(region_id(natoms), STAT=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(temperature(natoms))
+                ALLOCATE(region_id(natoms))
                 temperature(:) = simpar%temp_ext
                 region_id(:) = 0
                 DO ireg = 1, thermal_regions%nregions
@@ -323,10 +317,8 @@ CONTAINS
                       WRITE (print_unit, '(18X,A)') "--"
                    END IF
                 END DO
-                DEALLOCATE(region_id, STAT=stat)
-                CPASSERT(stat==0)
-                DEALLOCATE(temperature, STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(region_id)
+                DEALLOCATE(temperature)
              END IF
              CALL cp_print_key_finished_output(print_unit, logger, thermal_regions%section, &
                                                "PRINT%LANGEVIN_REGIONS")

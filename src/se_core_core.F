@@ -91,7 +91,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, atom_b, handle, iab, &
                                                 iatom, ikind, itype, jatom, &
-                                                jkind, natom, nkind, stat
+                                                jkind, natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
                                                 failure, use_virial
@@ -173,16 +173,14 @@ CONTAINS
     IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force)
        natom = SIZE (particle_set)
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (atom_of_kind(natom))
        delta = se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
     itype    = get_se_type(dft_control%qs_control%method_id)
 
-    ALLOCATE (se_kind_param(nkind),se_defined(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (se_kind_param(nkind),se_defined(nkind))
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_param(ikind)%se_param => se_kind_a
@@ -264,12 +262,10 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (se_kind_param,se_defined,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (se_kind_param,se_defined)
 
     IF (calculate_forces) THEN
-       DEALLOCATE(atom_of_kind,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(atom_of_kind)
     END IF
 
     CALL mp_sum(enuclear,para_env%group)

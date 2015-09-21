@@ -64,7 +64,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hirshfeld_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -73,8 +72,7 @@ CONTAINS
        CALL release_hirshfeld_type(hirshfeld_env)
     END IF
 
-    ALLOCATE(hirshfeld_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hirshfeld_env)
 
     hirshfeld_env%iterative = .FALSE.
     hirshfeld_env%shape_function_type = shape_function_gaussian
@@ -94,7 +92,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_hirshfeld_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, stat
+    INTEGER                                  :: ikind
     LOGICAL                                  :: failure
     TYPE(shape_fn), DIMENSION(:), POINTER    :: kind_shape
 
@@ -106,31 +104,25 @@ CONTAINS
           kind_shape => hirshfeld_env%kind_shape_fn
           DO ikind=1,SIZE(kind_shape)
              IF(ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%zet)) THEN
-                DEALLOCATE(kind_shape(ikind)%zet, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(kind_shape(ikind)%zet)
              END IF
              IF(ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%coef)) THEN
-                DEALLOCATE(kind_shape(ikind)%coef, stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(kind_shape(ikind)%coef)
              END IF
           END DO
-          DEALLOCATE(kind_shape, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(kind_shape)
        END IF
 
        IF(ASSOCIATED(hirshfeld_env%charges)) THEN
-          DEALLOCATE(hirshfeld_env%charges, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hirshfeld_env%charges)
        END IF
 
        IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
           CALL pw_release(hirshfeld_env%fnorm%pw)
-          DEALLOCATE(hirshfeld_env%fnorm,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hirshfeld_env%fnorm)
        ENDIF
 
-       DEALLOCATE(hirshfeld_env, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(hirshfeld_env)
 
     END IF
 

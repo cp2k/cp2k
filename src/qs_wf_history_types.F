@@ -129,7 +129,7 @@ SUBROUTINE wfs_release(snapshot)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -142,8 +142,7 @@ SUBROUTINE wfs_release(snapshot)
            DO i=1,SIZE(snapshot%wf)
               CALL cp_fm_release(snapshot%wf(i)%matrix)
            END DO
-           DEALLOCATE(snapshot%wf,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(snapshot%wf)
         END IF
         ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
         ! of qs_wf_history_methods, in case you wonder about it.
@@ -159,8 +158,7 @@ SUBROUTINE wfs_release(snapshot)
         IF (ASSOCIATED(snapshot%rho_frozen)) THEN
            CALL qs_rho_release(snapshot%rho_frozen)
         END IF
-        DEALLOCATE(snapshot,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(snapshot)
      END IF
   END IF
   NULLIFY(snapshot)
@@ -202,7 +200,7 @@ SUBROUTINE wfi_release(wf_history)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -215,11 +213,9 @@ SUBROUTINE wfi_release(wf_history)
            DO i=1,SIZE(wf_history%past_states)
               CALL wfs_release(wf_history%past_states(i)%snapshot)
            END DO
-           DEALLOCATE(wf_history%past_states,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(wf_history%past_states)
         END IF
-        DEALLOCATE(wf_history,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(wf_history)
      END IF
   END IF
   NULLIFY(wf_history)

@@ -101,7 +101,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, atom_c, handle, iatom, icol, ikind, img, &
       inode, irow, iset, jatom, jkind, jset, katom, kkind, ldai, ldsab, &
       maxco, maxder, maxl, maxnset, maxsgf, na_plus, natom, nb_plus, ncoa, &
-      ncob, nij, nkind, nseta, nsetb, sgfa, sgfb, stat
+      ncob, nij, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -142,8 +142,7 @@ CONTAINS
 
     dokp = (nimages > 1)
 
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (atom_of_kind(natom))
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
@@ -166,20 +165,16 @@ CONTAINS
 
     ldsab = MAX(maxco,maxsgf)
     ldai = ncoset(maxl+nder+1)
-    ALLOCATE(hab(ldsab,ldsab,maxnset*maxnset),work(ldsab,ldsab),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (verf(ldai,ldai,2*maxl+nder+1),vnuc(ldai,ldai,2*maxl+nder+1),ff(0:2*maxl+nder),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(hab(ldsab,ldsab,maxnset*maxnset),work(ldsab,ldsab))
+    ALLOCATE (verf(ldai,ldai,2*maxl+nder+1),vnuc(ldai,ldai,2*maxl+nder+1),ff(0:2*maxl+nder))
     IF (calculate_forces) THEN
-       ALLOCATE(pab(maxco,maxco,maxnset*maxnset),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(pab(maxco,maxco,maxnset*maxnset))
     END IF
 
     ! iterator for basis/potential list
     CALL neighbor_list_iterator_create(ap_iterator,sac_ae,search=.TRUE.)
 
-    ALLOCATE (basis_set_list(nkind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -316,8 +311,7 @@ CONTAINS
                    IF (calculate_forces) THEN
                       na_plus = npgfa(iset)*ncoset(la_max(iset)+nder)
                       nb_plus = npgfb(jset)*ncoset(lb_max(jset))
-                      ALLOCATE(habd(na_plus,nb_plus),STAT=stat)
-                      CPASSERT(stat==0)
+                      ALLOCATE(habd(na_plus,nb_plus))
                       habd = 0._dp
                       CALL verfc(&
                               la_max(iset)+nder,npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
@@ -333,8 +327,7 @@ CONTAINS
                                       la_max(iset),la_min(iset),npgfa(iset),zeta(:,iset),&
                                       lb_max(jset),lb_min(jset),npgfb(jset),zetb(:,jset),rab)
 
-                      DEALLOCATE(habd,STAT=stat)
-                      CPASSERT(stat==0)
+                      DEALLOCATE(habd)
 
                       atom_c = atom_of_kind(katom)
                       force(ikind)%all_potential(1,atom_a) =force(ikind)%all_potential(1,atom_a) + f0*force_a(1)
@@ -398,14 +391,11 @@ CONTAINS
 
     CALL neighbor_list_iterator_release(ap_iterator)
 
-    DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(hab,work,verf,vnuc,ff,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (atom_of_kind,basis_set_list)
+    DEALLOCATE(hab,work,verf,vnuc,ff)
 
     IF (calculate_forces) THEN
-       DEALLOCATE(pab,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(pab)
     END IF
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***

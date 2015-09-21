@@ -128,8 +128,7 @@ MODULE mp2
     INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, &
       iatom, ikind, irep, ispin, max_nset, my_bin_size, n_rep_hf, n_threads, &
       nao, natom, ncol_block, nelec_alpha, nelec_beta, nelectron, &
-      nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, stat, &
-      unit_nr
+      nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: calc_ex, &
@@ -265,8 +264,7 @@ MODULE mp2
 
     natom = SIZE(particle_set,1)
 
-    ALLOCATE(kind_of(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kind_of(natom))
 
     CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
@@ -311,8 +309,7 @@ MODULE mp2
     CALL cp_fm_triangular_invert(fm_matrix_s)
 
     NULLIFY(mos_mp2)
-    ALLOCATE(mos_mp2(nspins),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mos_mp2(nspins))
     DO ispin=1, nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc,nelectron=nelectron)
 
@@ -369,8 +366,7 @@ MODULE mp2
 
     !   build the table of index
     t1=m_walltime()
-    ALLOCATE(mp2_biel%index_table(natom,max_nset),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mp2_biel%index_table(natom,max_nset))
 
     CALL build_index_table(natom,max_nset,mp2_biel%index_table,basis_parameter,kind_of)
 
@@ -462,11 +458,9 @@ MODULE mp2
                       nelectron=nelec_alpha,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
-         ALLOCATE(C_alpha(dimen,dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(C_alpha(dimen,dimen))
 
-         ALLOCATE(Auto_alpha(dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(Auto_alpha(dimen))
 
          CALL cp_fm_get_submatrix(mo_coeff,C_alpha, 1, 1, dimen, dimen, .FALSE.)
          Auto_alpha(:)=mo_eigenvalues(:)
@@ -476,11 +470,9 @@ MODULE mp2
                       nelectron=nelec_beta,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
-         ALLOCATE(C_beta(dimen,dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(C_beta(dimen,dimen))
 
-         ALLOCATE(Auto_beta(dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(Auto_beta(dimen))
 
          CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE.)
          Auto_beta(:)=mo_eigenvalues(:)
@@ -528,11 +520,9 @@ MODULE mp2
                       nelectron=nelectron,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
-         ALLOCATE(C(dimen,dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(C(dimen,dimen))
 
-         ALLOCATE(Auto(dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(Auto(dimen))
 
 
          CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE.)
@@ -556,11 +546,9 @@ MODULE mp2
                     nelectron=nelectron,&
                     eigenvalues=mo_eigenvalues,&
                     mo_coeff=mo_coeff)
-       ALLOCATE(C(dimen,dimen),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(C(dimen,dimen))
 
-       ALLOCATE(Auto(dimen),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Auto(dimen))
 
        CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE.)
        Auto(:)=mo_eigenvalues(:)
@@ -571,11 +559,9 @@ MODULE mp2
                       nelectron=nelec_beta,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
-         ALLOCATE(C_beta(dimen,dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(C_beta(dimen,dimen))
 
-         ALLOCATE(Auto_beta(dimen),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(Auto_beta(dimen))
 
          CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE.)
          Auto_beta(:)=mo_eigenvalues(:)
@@ -815,8 +801,8 @@ MODULE mp2
       my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
       my_J_batch_size, my_J_occupied_end, my_J_occupied_start, natom, &
       Ni_occupied, Nj_occupied, number_groups, number_i_subset, &
-      number_j_subset, one, sqrt_number_groups, stat, &
-      total_I_size_batch_group, total_J_size_batch_group, virt_i, virt_j
+      number_j_subset, one, sqrt_number_groups, total_I_size_batch_group, &
+      total_J_size_batch_group, virt_i, virt_j
     INTEGER, ALLOCATABLE, DIMENSION(:) :: batch_sizes, batch_sizes_tmp, &
       vector_batch_I_size_group, vector_batch_J_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_list_proc, &
@@ -887,8 +873,7 @@ MODULE mp2
     ! Distribute the I index and the J index over groups
     total_I_size_batch_group=occ_i/number_i_subset
     IF(total_I_size_batch_group<1) total_I_size_batch_group=1
-    ALLOCATE(vector_batch_I_size_group(0:number_i_subset-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vector_batch_I_size_group(0:number_i_subset-1))
 
     vector_batch_I_size_group=0
     DO i=0, number_i_subset-1
@@ -908,8 +893,7 @@ MODULE mp2
 
     total_J_size_batch_group=occ_j/number_j_subset
     IF(total_J_size_batch_group<1) total_J_size_batch_group=1
-    ALLOCATE(vector_batch_J_size_group(0:number_j_subset-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(vector_batch_J_size_group(0:number_j_subset-1))
 
     vector_batch_J_size_group=0
     DO i=0, number_J_subset-1
@@ -966,8 +950,7 @@ MODULE mp2
 
     ! create the size of the batches inside the group
     my_batch_size=my_I_batch_size
-    ALLOCATE(batch_sizes(my_batch_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(batch_sizes(my_batch_size))
 
     batch_sizes=-HUGE(0)
     batch_number=0
@@ -982,12 +965,10 @@ MODULE mp2
       batch_sizes(batch_number)=last_batch
     END IF
 
-    ALLOCATE(batch_sizes_tmp(batch_number),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(batch_sizes_tmp(batch_number))
     batch_sizes_tmp(1:batch_number)=batch_sizes(1:batch_number)
     DEALLOCATE(batch_sizes)
-    ALLOCATE(batch_sizes(batch_number),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(batch_sizes(batch_number))
     batch_sizes(:)=batch_sizes_tmp
     DEALLOCATE(batch_sizes_tmp)
 
@@ -1020,8 +1001,7 @@ MODULE mp2
          Ni_occupied=batch_sizes(i_batch)
 
          counter=-1
-         ALLOCATE(ij_matrix(Ni_occupied,Nj_occupied),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(ij_matrix(Ni_occupied,Nj_occupied))
 
          ij_matrix=0
          DO i=1, Ni_occupied
@@ -1033,8 +1013,7 @@ MODULE mp2
            END DO
          END DO
 
-         ALLOCATE(ij_list_proc_temp(Ni_occupied*occ_j,2),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(ij_list_proc_temp(Ni_occupied*occ_j,2))
 
          elements_ij_proc=0
          DO i=1, Ni_occupied
@@ -1201,7 +1180,7 @@ MODULE mp2
     INTEGER                                  :: dimen, gw_corr_lev_occ, &
                                                 gw_corr_lev_virt, homo, irep, &
                                                 ispin, myfun, n_rep_hf, nmo, &
-                                                ns, stat
+                                                ns
     LOGICAL                                  :: do_hfx
     REAL(KIND=dp)                            :: hfx_fraction, t1, t2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1327,8 +1306,7 @@ MODULE mp2
                       nao=dimen)
 
       IF(ispin==1) THEN 
-        ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins))
         vec_Sigma_x_minus_vxc_gw=0.0_dp
       END IF
  
@@ -1394,8 +1372,7 @@ MODULE mp2
       CALL cp_dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
     END DO
 
-    ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins))
 
     ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,:) = vec_Sigma_x_minus_vxc_gw(:,:)

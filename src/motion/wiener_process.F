@@ -67,7 +67,7 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
-      nparticle_kind, nparticle_local, stat
+      nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -109,13 +109,11 @@ CONTAINS
 
        ! Allocate the (local) data structures for the Wiener process
 
-       ALLOCATE(local_particles%local_particle_set(nparticle_kind),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(local_particles%local_particle_set(nparticle_kind))
 
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
-          ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local))
           DO iparticle_local=1,nparticle_local
              NULLIFY (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
           END DO
@@ -124,8 +122,7 @@ CONTAINS
        ! Each process generates all seeds. The seed generation should be
        ! quite fast and in this way a broadcast is avoided.
 
-       ALLOCATE (seed(3,2,nparticle),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (seed(3,2,nparticle))
 
        seed(:,:,1) = initial_seed
        DO iparticle=2,nparticle
@@ -150,8 +147,7 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE (seed,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (seed)
 
        ! Possibly restart Wiener process
        NULLIFY (work_section)
@@ -235,7 +231,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER                                  :: i_c, stat
+    INTEGER                                  :: i_c
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -253,8 +249,7 @@ CONTAINS
     ! Each process generates all seeds. The seed generation should be
     ! quite fast and in this way a broadcast is avoided.
 
-    ALLOCATE (seed(3,2,meta_env%n_colvar),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (seed(3,2,meta_env%n_colvar))
 
     seed(:,:,1) = initial_seed
     DO i_c=2,meta_env%n_colvar
@@ -271,8 +266,7 @@ CONTAINS
        CALL create_rng_stream(rng_stream=meta_env%rng(i_c)%stream,name=name,distribution_type=GAUSSIAN,&
             extended_precision=.TRUE., seed=seed(:,:,i_c))
     END DO
-    DEALLOCATE (seed,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (seed)
 
   END SUBROUTINE create_wiener_process_cv
 

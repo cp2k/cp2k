@@ -72,8 +72,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ifixd, ii, ikind, imol, iparticle, &
-      n3x3con_restraint, n4x6con_restraint, n_restraint, nkind, &
-      nmol_per_kind, stat
+      n3x3con_restraint, n4x6con_restraint, n_restraint, nkind, nmol_per_kind
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: energy_3x3, energy_4x6, energy_colv, energy_fixd, &
       extended_energies, k0, rab(3), rab2, targ(3)
@@ -118,8 +117,7 @@ CONTAINS
     molecule_kind_set => molecule_kinds%els
 
     ! Intramolecular Restraints
-    ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(force(3,SIZE(particle_set)))
     force = 0.0_dp
 
     ! Create the list of locally fixed atoms
@@ -227,8 +225,7 @@ CONTAINS
           END DO
        END IF
     END IF
-    DEALLOCATE(force,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(force)
 
     ! Store restraint energies
     CALL force_env_get(force_env=force_env, additional_potential=extended_energies)

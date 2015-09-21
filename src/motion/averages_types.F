@@ -84,12 +84,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_averages', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, nint, stat
+    INTEGER                                  :: i, nint
     LOGICAL                                  :: do_colvars, failure
 
     failure = .FALSE.
-    ALLOCATE (averages, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (averages)
     NULLIFY(averages%virial)
     NULLIFY(averages%avecolvar)
     NULLIFY(averages%aveMmatrix)
@@ -130,10 +129,8 @@ CONTAINS
        ! Total number of COLVARs
        nint = 0
        IF (do_colvars) nint = number_of_colvar(force_env)
-       ALLOCATE(averages%avecolvar(nint), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(averages%aveMmatrix(nint*nint), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(averages%avecolvar(nint))
+       ALLOCATE(averages%aveMmatrix(nint*nint))
        DO i = 1, nint
           averages%avecolvar(i)         = 0.0_dp
        END DO
@@ -174,7 +171,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_averages', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: work_section
 
@@ -185,20 +181,17 @@ CONTAINS
        IF (averages%ref_count==0) THEN
           CALL virial_release(averages%virial)
           IF (ASSOCIATED(averages%avecolvar)) THEN
-             DEALLOCATE(averages%avecolvar, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(averages%avecolvar)
           END IF
           IF (ASSOCIATED(averages%aveMmatrix)) THEN
-             DEALLOCATE(averages%aveMmatrix, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(averages%aveMmatrix)
           END IF
           ! Removes restart values from the corresponding restart section..
           work_section => section_vals_get_subs_vals(averages%averages_section,"RESTART_AVERAGES")
           CALL section_vals_remove_values(work_section)
           NULLIFY(averages%averages_section)
           !
-          DEALLOCATE(averages,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(averages)
        END IF
     END IF
 
@@ -246,7 +239,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: ctmp
     INTEGER                                  :: delta_t, handle, i, nint, &
-                                                output_unit, stat
+                                                output_unit
     LOGICAL                                  :: failure, restart_averages
     REAL(KIND=dp)                            :: start_time
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cvalues, Mmatrix, tmp
@@ -392,18 +385,14 @@ CONTAINS
              END IF
              ! Colvars
              IF (nint>0) THEN
-                ALLOCATE(cvalues(nint),stat=stat)
-                CPASSERT(stat==0)
-                ALLOCATE(Mmatrix(nint*nint),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE(cvalues(nint))
+                ALLOCATE(Mmatrix(nint*nint))
                 CALL get_clv_force(force_env, nsize_xyz=nat*3, nsize_int=nint, cvalues=cvalues,&
                      Mmatrix=Mmatrix)
                 CALL get_averages(averages%avecolvar, cvalues, delta_t)
                 CALL get_averages(averages%aveMmatrix, Mmatrix, delta_t)
-                DEALLOCATE(cvalues,stat=stat)
-                CPASSERT(stat==0)
-                DEALLOCATE(Mmatrix,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(cvalues)
+                DEALLOCATE(Mmatrix)
              END IF
           END SELECT
        END IF

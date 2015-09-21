@@ -417,8 +417,7 @@ CONTAINS
     thermostat_info%number_of_thermostats = number
     thermostat_info%dis_type              = dis_type
 
-    DEALLOCATE(thermolist, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(thermolist)
 
   END SUBROUTINE setup_adiabatic_thermostat_info
 
@@ -450,7 +449,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, itherm, jg, &
-      last_atom, mregions, n_rep, nregions, output_unit, stat
+      last_atom, mregions, n_rep, nregions, output_unit
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -466,8 +465,7 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
 !    CPPostcondition(.NOT.(ASSOCIATED(map_loc_thermo_gen)),cp_failure_level,routineP,failure)
     CALL section_vals_get(region_sections, n_repetition=nregions)
-    ALLOCATE(thermolist(particles%n_els), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermolist(particles%n_els))
     thermolist = HUGE(0)
     molecule_set => molecules%els
     mregions = nregions
@@ -738,7 +736,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, jg, last_atom, &
-      mregions, n_rep, natom_local, nmol_per_kind, nregions, output_unit, stat
+      mregions, n_rep, natom_local, nmol_per_kind, nregions, output_unit
     INTEGER, DIMENSION(:), POINTER           :: thermolist, tmp, tmplist
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -754,8 +752,7 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
     CPASSERT(.NOT.(ASSOCIATED(map_loc_thermo_gen)))
     CALL section_vals_get(region_sections, n_repetition=nregions)
-    ALLOCATE(thermolist(particles%n_els), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermolist(particles%n_els))
     thermolist = HUGE(0)
     molecule_set => molecules%els
     mregions = nregions
@@ -805,8 +802,7 @@ CONTAINS
     IF (ANY(thermolist==HUGE(0))) THEN
        nregions = nregions + 1
        sum_of_thermostats = sum_of_thermostats + 1
-       ALLOCATE(tmp(COUNT(thermolist==HUGE(0))),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp(COUNT(thermolist==HUGE(0))))
        ilist = 0
        DO i = 1, SIZE(thermolist)
           IF (thermolist(i)==HUGE(0)) THEN
@@ -820,14 +816,12 @@ CONTAINS
           IF (ilist>0) WRITE (output_unit,'(" WARNING|",9I8)')tmp
           WRITE (output_unit,'(A)')" WARNING| They will be included in a further unique thermostat!"
        END IF
-       DEALLOCATE(tmp, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp)
     END IF
     CPASSERT(ALL(thermolist/=HUGE(0)))
 
     ! Now identify the local number of thermostats
-    ALLOCATE(tmp(nregions),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tmp(nregions))
     tmp = 0
     natom_local = 0
     DO ikind = 1, SIZE(molecule_kind_set)
@@ -843,12 +837,10 @@ CONTAINS
        END DO
     END DO
     number = SUM(tmp)
-    DEALLOCATE(tmp, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(tmp)
 
     ! Now map the local atoms with the corresponding thermostat
-    ALLOCATE(map_loc_thermo_gen(natom_local),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_loc_thermo_gen(natom_local))
     natom_local = 0
     DO ikind = 1, SIZE(molecule_kind_set)
        nmol_per_kind = local_molecules%n_el(ikind)
@@ -863,8 +855,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(thermolist, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(thermolist)
   END SUBROUTINE get_defined_region_info
 
 ! *****************************************************************************
@@ -1464,16 +1455,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imap, l, n, number, stat
+    INTEGER                                  :: imap, l, n, number
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, vpot
 
     failure = .FALSE.
     number = nhc%glob_num_nhc
-    ALLOCATE(akin(number),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(vpot(number),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(akin(number))
+    ALLOCATE(vpot(number))
     akin = 0.0_dp
     vpot = 0.0_dp
     DO n = 1, nhc%loc_num_nhc
@@ -1500,8 +1489,7 @@ CONTAINS
        IF (ASSOCIATED(array_pot)) THEN
           CPASSERT(SIZE(array_pot)==number)
        ELSE
-          ALLOCATE(array_pot(number),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(array_pot(number))
        ENDIF
        array_pot=vpot
     END IF
@@ -1509,15 +1497,12 @@ CONTAINS
        IF (ASSOCIATED(array_kin)) THEN
           CPASSERT(SIZE(array_kin)==number)
        ELSE
-          ALLOCATE(array_kin(number),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(array_kin(number))
        ENDIF
        array_kin=akin
     END IF
-    DEALLOCATE(akin,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(vpot,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(akin)
+    DEALLOCATE(vpot)
   END SUBROUTINE get_nhc_energies
 
 ! *****************************************************************************
@@ -1548,14 +1533,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kin_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imap, n, number, stat
+    INTEGER                                  :: imap, n, number
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin
 
     failure = .FALSE.
     number = glob_num
-    ALLOCATE(akin(number),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(akin(number))
     akin     = 0.0_dp
     DO n = 1, loc_num
        imap = map_info%index(n)
@@ -1575,8 +1559,7 @@ CONTAINS
        IF (ASSOCIATED(array_pot)) THEN
           CPASSERT(SIZE(array_pot)==number)
        ELSE
-          ALLOCATE(array_pot(number),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(array_pot(number))
        ENDIF
        array_pot=0.0_dp
     END IF
@@ -1584,13 +1567,11 @@ CONTAINS
        IF (ASSOCIATED(array_kin)) THEN
           CPASSERT(SIZE(array_kin)==number)
        ELSE
-          ALLOCATE(array_kin(number),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(array_kin(number))
        ENDIF
        array_kin=akin
     END IF
-    DEALLOCATE(akin,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(akin)
   END SUBROUTINE get_kin_energies
 
 ! *****************************************************************************
@@ -1620,18 +1601,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_temperatures', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imap, imap2, n, number, &
-                                                stat
+    INTEGER                                  :: i, imap, imap2, n, number
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fdeg_of_free
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
 
     failure = .FALSE.
     number = glob_num
-    ALLOCATE(akin(number),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(deg_of_free(number),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(akin(number))
+    ALLOCATE(deg_of_free(number))
     akin         = 0.0_dp
     deg_of_free  = 0.0_dp
     DO n = 1, loc_num
@@ -1660,18 +1638,15 @@ CONTAINS
        IF (ASSOCIATED(array_temp)) THEN
           CPASSERT(SIZE(array_temp)==number)
        ELSE
-          ALLOCATE(array_temp(number),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(array_temp(number))
        ENDIF
        DO i = 1, number
           array_temp(i) = akin(i)/deg_of_free(i)
           array_temp(i) = cp_unit_from_cp2k(array_temp(i), "K_temp")
        END DO
     END IF
-    DEALLOCATE(akin,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(deg_of_free,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(akin)
+    DEALLOCATE(deg_of_free)
   END SUBROUTINE get_temperatures
 
 ! *****************************************************************************
@@ -1695,7 +1670,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_thermostat_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: thermo_energy
 
@@ -1712,30 +1687,26 @@ CONTAINS
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
           CPASSERT(ASSOCIATED(thermostat%csvr))
-          ALLOCATE(thermo_energy(thermostat%csvr%loc_num_csvr),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(thermo_energy(thermostat%csvr%loc_num_csvr))
           DO i = 1,thermostat%csvr%loc_num_csvr
              thermo_energy(i) = thermostat%csvr%nvt(i)%thermostat_energy
           END DO
           CALL get_kin_energies(thermostat%csvr%map_info,thermostat%csvr%loc_num_csvr,&
                thermostat%csvr%glob_num_csvr,thermo_energy,&
                thermostat_kin, para_env, array_pot, array_kin)
-          DEALLOCATE(thermo_energy,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(thermo_energy)
 
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
           ! Energy associated with the GLE thermostat
           CPASSERT(ASSOCIATED(thermostat%gle))
-          ALLOCATE(thermo_energy(thermostat%gle%loc_num_gle),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(thermo_energy(thermostat%gle%loc_num_gle))
           DO i = 1,thermostat%gle%loc_num_gle
              thermo_energy(i) = thermostat%gle%nvt(i)%thermostat_energy
           END DO
           CALL get_kin_energies(thermostat%gle%map_info,thermostat%gle%loc_num_gle,&
                thermostat%gle%glob_num_gle,thermo_energy,&
                thermostat_kin, para_env, array_pot, array_kin)
-          DEALLOCATE(thermo_energy,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(thermo_energy)
 
        ![NB] nothing to do for Ad-Langevin?
 
@@ -1762,7 +1733,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_region_temperatures', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dof, nkt
 
@@ -1772,74 +1743,58 @@ CONTAINS
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Energy associated with the Nose-Hoover thermostat
           CPASSERT(ASSOCIATED(thermostat%nhc))
-          ALLOCATE(nkt(thermostat%nhc%loc_num_nhc), STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(dof(thermostat%nhc%loc_num_nhc), STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(nkt(thermostat%nhc%loc_num_nhc))
+          ALLOCATE(dof(thermostat%nhc%loc_num_nhc))
           DO i = 1,thermostat%nhc%loc_num_nhc
              nkt(i) = thermostat%nhc%nvt(1,i)%nkt
              dof(i) = REAL(thermostat%nhc%nvt(1,i)%degrees_of_freedom,KIND=dp)
           END DO
           CALL get_temperatures ( thermostat%nhc%map_info, thermostat%nhc%loc_num_nhc, &
           thermostat%nhc%glob_num_nhc, nkt, dof, para_env, tot_temperature, array_temp)
-          DEALLOCATE(nkt, STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(dof, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nkt)
+          DEALLOCATE(dof)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
           CPASSERT(ASSOCIATED(thermostat%csvr))
 
-          ALLOCATE(nkt(thermostat%csvr%loc_num_csvr), STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(dof(thermostat%csvr%loc_num_csvr), STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(nkt(thermostat%csvr%loc_num_csvr))
+          ALLOCATE(dof(thermostat%csvr%loc_num_csvr))
           DO i = 1,thermostat%csvr%loc_num_csvr
              nkt(i) = thermostat%csvr%nvt(i)%nkt
              dof(i) = REAL(thermostat%csvr%nvt(i)%degrees_of_freedom,KIND=dp)
           END DO
           CALL get_temperatures ( thermostat%csvr%map_info, thermostat%csvr%loc_num_csvr, &
           thermostat%csvr%glob_num_csvr, nkt, dof, para_env, tot_temperature, array_temp)
-          DEALLOCATE(nkt, STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(dof, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nkt)
+          DEALLOCATE(dof)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
           ! Energy associated with the AD_LANGEVIN thermostat
           CPASSERT(ASSOCIATED(thermostat%al))
 
-          ALLOCATE(nkt(thermostat%al%loc_num_al), STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(dof(thermostat%al%loc_num_al), STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(nkt(thermostat%al%loc_num_al))
+          ALLOCATE(dof(thermostat%al%loc_num_al))
           DO i = 1,thermostat%al%loc_num_al
              nkt(i) = thermostat%al%nvt(i)%nkt
              dof(i) = REAL(thermostat%al%nvt(i)%degrees_of_freedom,KIND=dp)
           END DO
           CALL get_temperatures ( thermostat%al%map_info, thermostat%al%loc_num_al, &
           thermostat%al%glob_num_al, nkt, dof, para_env, tot_temperature, array_temp)
-          DEALLOCATE(nkt, STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(dof, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nkt)
+          DEALLOCATE(dof)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
           ! Energy associated with the GLE thermostat
           CPASSERT(ASSOCIATED(thermostat%gle))
 
-          ALLOCATE(nkt(thermostat%gle%loc_num_gle), STAT=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(dof(thermostat%gle%loc_num_gle), STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(nkt(thermostat%gle%loc_num_gle))
+          ALLOCATE(dof(thermostat%gle%loc_num_gle))
           DO i = 1,thermostat%gle%loc_num_gle
              nkt(i) = thermostat%gle%nvt(i)%nkt
              dof(i) = REAL(thermostat%gle%nvt(i)%degrees_of_freedom,KIND=dp)
           END DO
           CALL get_temperatures ( thermostat%gle%map_info, thermostat%gle%loc_num_gle, &
           thermostat%gle%glob_num_gle, nkt, dof, para_env, tot_temperature, array_temp)
-          DEALLOCATE(nkt, STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(dof, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(nkt)
+          DEALLOCATE(dof)
        END IF
     END IF
 
@@ -1905,7 +1860,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_thermostat_status', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, unit
+    INTEGER                                  :: i, unit
     LOGICAL                                  :: failure, new_file
     REAL(KIND=dp)                            :: thermo_kin, thermo_pot, &
                                                 tot_temperature
@@ -1942,10 +1897,8 @@ CONTAINS
             END DO
             CALL m_flush(unit)
           END IF
-          DEALLOCATE(array_kin, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(array_pot, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(array_kin)
+          DEALLOCATE(array_pot)
           CALL cp_print_key_finished_output(unit,logger,thermostat%section,"PRINT%ENERGY")
        END IF
        ! Print Temperatures of the regions
@@ -1967,8 +1920,7 @@ CONTAINS
             END DO
             CALL m_flush(unit)
           END IF
-          DEALLOCATE(array_temp, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(array_temp)
           CALL cp_print_key_finished_output(unit,logger,thermostat%section,"PRINT%TEMPERATURE")
        END IF
     END IF
@@ -1990,13 +1942,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'communication_thermo_low1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, icheck, ncheck, stat
+    INTEGER                                  :: i, icheck, ncheck
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work, work2
 
     failure = .FALSE.
-    ALLOCATE(work(para_env%num_pe),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(para_env%num_pe))
     DO i = 1, number
        work = 0.0_dp
        work(para_env%mepos+1) = array(i)
@@ -2004,8 +1955,7 @@ CONTAINS
        ncheck   = COUNT(work/=0.0_dp)
        array(i) = 0.0_dp
        IF (ncheck/=0) THEN
-          ALLOCATE(work2(ncheck),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(work2(ncheck))
           ncheck = 0
           DO icheck = 1, para_env%num_pe
              IF (work(icheck)/=0.0_dp) THEN
@@ -2017,12 +1967,10 @@ CONTAINS
           CPASSERT(ALL(work2==work2(1)))
 
           array(i) = work2(1)
-          DEALLOCATE(work2,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(work2)
        END IF
     END DO
-    DEALLOCATE(work,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
   END SUBROUTINE communication_thermo_low1
 
 ! *****************************************************************************
@@ -2041,13 +1989,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'communication_thermo_low2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, icheck, j, ncheck, stat
+    INTEGER                                  :: i, icheck, j, ncheck
     INTEGER, DIMENSION(:, :), POINTER        :: work, work2
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    ALLOCATE(work(number1,para_env%num_pe),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(number1,para_env%num_pe))
     DO i = 1, number2
        work = 0
        work(:,para_env%mepos+1) = array(:,i)
@@ -2060,8 +2007,7 @@ CONTAINS
        END DO
        array(:,i) = 0
        IF (ncheck/=0) THEN
-          ALLOCATE(work2(number1,ncheck),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(work2(number1,ncheck))
           ncheck = 0
           DO icheck = 1, para_env%num_pe
              IF (ANY(work(:,icheck)/=0)) THEN
@@ -2074,12 +2020,10 @@ CONTAINS
              CPASSERT(ALL(work2(:,j)==work2(:,1)))
           END DO
           array(:,i) = work2(:,1)
-          DEALLOCATE(work2,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(work2)
        END IF
     END DO
-    DEALLOCATE(work,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
   END SUBROUTINE communication_thermo_low2
 
 END MODULE thermostat_utils

@@ -109,8 +109,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idir, idir2, idir3, &
-                                                iiB, iiiB, ispin, istat, &
-                                                natom, nspins
+                                                iiB, iiiB, ispin, natom, &
+                                                nspins
     LOGICAL                                  :: failure, gapw, &
                                                 interpolate_shift
     REAL(dp)                                 :: scale_fac
@@ -165,8 +165,7 @@ CONTAINS
     !
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
-    ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(shift_pw_gspace(3,nspins))
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
@@ -246,8 +245,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
-    DEALLOCATE(shift_pw_gspace,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(shift_pw_gspace)
     !
     ! Finalize
     CALL timestop(handle)
@@ -274,8 +272,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ia, iat, iatom, idir2_1, idir3_1, ikind, ir, ira, &
-      ispin, istat, j, jatom, mepos, n_nics, na, natom, natom_local, &
-      natom_tot, nkind, nnics_local, nr, nra, nspins, num_pe, output_unit
+      ispin, j, jatom, mepos, n_nics, na, natom, natom_local, natom_tot, &
+      nkind, nnics_local, nr, nra, nspins, num_pe, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list_j, list_nics_j
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -345,13 +343,11 @@ CONTAINS
     scale_fac_1 = fac_vecp(idir3_1,idir2_1,idir)
     !
     ALLOCATE(cs_loc_tmp(3,natom_tot),list_j(natom_tot),&
-             dist_ij(3,natom_tot),STAT=istat)
-    CPASSERT(istat==0)
+             dist_ij(3,natom_tot))
     cs_loc_tmp = 0.0_dp
     IF(do_nics) THEN
        ALLOCATE(cs_nics_loc_tmp(3,n_nics),list_nics_j(n_nics),&
-                dist_nics_ij(3,n_nics),STAT=istat)
-       CPASSERT(istat==0)
+                dist_nics_ij(3,n_nics))
        cs_nics_loc_tmp = 0.0_dp
     ENDIF
     !
@@ -496,16 +492,14 @@ CONTAINS
     chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) &
          & - nmr_env%shift_factor_gapw * cs_loc_tmp(:,:) / 2.0_dp
     !
-    DEALLOCATE(cs_loc_tmp,list_j,dist_ij,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cs_loc_tmp,list_j,dist_ij)
     !
     IF(do_nics) THEN
        CALL mp_sum(cs_nics_loc_tmp,para_env%group)
        chemical_shift_nics_loc(:,iB,:) = chemical_shift_nics_loc(:,iB,:) &
             & - nmr_env%shift_factor_gapw * cs_nics_loc_tmp(:,:) / 2.0_dp
        !
-       DEALLOCATE(cs_nics_loc_tmp,list_nics_j,dist_nics_ij,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(cs_nics_loc_tmp,list_nics_j,dist_nics_ij)
     ENDIF
     !
     CALL timestop(handle)
@@ -745,10 +739,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: name, title
-    INTEGER                                  :: iatom, ir, istat, n_nics, &
-                                                nat_print, natom, &
-                                                output_unit, unit_atoms, &
-                                                unit_nics
+    INTEGER                                  :: iatom, ir, n_nics, nat_print, &
+                                                natom, output_unit, &
+                                                unit_atoms, unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
     LOGICAL                                  :: do_nics, failure, gapw
     REAL(dp) :: chi_aniso, chi_iso, chi_sym_tot(3,3), chi_tensor(3,3,2), &
@@ -805,11 +798,9 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     nat_print=SIZE(cs_atom_list,1)
 
-    ALLOCATE(cs_tot(3,3,nat_print),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(cs_tot(3,3,nat_print))
     IF(do_nics) THEN
-       ALLOCATE(cs_nics_tot(3,3,n_nics),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(cs_nics_tot(3,3,n_nics))
     ENDIF
     ! Finalize Chi calculation
     ! Symmetrize
@@ -1040,11 +1031,9 @@ CONTAINS
     ENDIF ! print shift
     !
     ! clean up
-    DEALLOCATE(cs_tot,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cs_tot)
     IF(do_nics) THEN
-       DEALLOCATE(cs_nics_tot,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(cs_nics_tot)
     ENDIF
     !
 !100 FORMAT(A,1X,I5)

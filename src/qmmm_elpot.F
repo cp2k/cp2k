@@ -95,12 +95,10 @@ CONTAINS
     ! Preprocessing
     !
     IF (SIZE(mm_el_pot_radius) /= 0) THEN
-       ALLOCATE(radius(1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(radius(1))
        radius(1) = mm_el_pot_radius(1)
     ELSE
-       ALLOCATE(radius(0),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(radius(0))
     END IF
     Loop_on_all_values: DO I = 2, SIZE(mm_el_pot_radius)
        Found=.FALSE.
@@ -119,22 +117,19 @@ CONTAINS
     END DO Loop_on_all_values
     !
     CPASSERT(.NOT.ASSOCIATED(potentials))
-    ALLOCATE(potentials(SIZE(radius)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(potentials(SIZE(radius)))
 
     Potential_Type: DO K = 1, SIZE(radius)
 
        rc = radius(K)
-       ALLOCATE(potentials(K)%Pot, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(potentials(K)%Pot)
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
           NULLIFY(pot0_2)
        CASE(do_qmmm_pcharge)
           NULLIFY(pot0_2)
        CASE(do_qmmm_gauss,do_qmmm_swave)
-          ALLOCATE(pot0_2(2,np), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(pot0_2(2,np))
        END SELECT
 
        SELECT CASE(qmmm_coupl_type)
@@ -219,8 +214,7 @@ CONTAINS
           CYCLE Potential_Type
        END SELECT
        NULLIFY(mm_atom_index)
-       ALLOCATE(mm_atom_index(1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(mm_atom_index(1))
        ! Build mm_atom_index List
        DO J= 1, SIZE(mm_el_pot_radius)
           IF (rc.EQ.mm_el_pot_radius(J)) THEN
@@ -237,8 +231,7 @@ CONTAINS
                                  mm_atom_index=mm_atom_index)
 
     END DO Potential_Type
-    DEALLOCATE(radius, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(radius)
   END SUBROUTINE qmmm_potential_init
 
 ! *****************************************************************************

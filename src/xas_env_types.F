@@ -322,12 +322,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    ALLOCATE(xas_env,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(xas_env)
 
 
     xas_env%ref_count=1
@@ -364,7 +362,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ik, istat, j
+    INTEGER                                  :: i, ik, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -374,33 +372,24 @@ CONTAINS
        xas_env%ref_count = xas_env%ref_count -1
        IF (xas_env%ref_count==0) THEN
 
-         DEALLOCATE(xas_env%state_of_atom,xas_env%atom_of_state,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE(xas_env%type_of_state,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE(xas_env%mykind_of_atom,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE(xas_env%mykind_of_kind,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE(xas_env%exc_atoms,STAT=istat)
-         CPASSERT(istat==0)
-         DEALLOCATE(xas_env%centers_wfn,STAT=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(xas_env%state_of_atom,xas_env%atom_of_state)
+         DEALLOCATE(xas_env%type_of_state)
+         DEALLOCATE(xas_env%mykind_of_atom)
+         DEALLOCATE(xas_env%mykind_of_kind)
+         DEALLOCATE(xas_env%exc_atoms)
+         DEALLOCATE(xas_env%centers_wfn)
          IF(ASSOCIATED(xas_env%all_evals)) THEN
-           DEALLOCATE(xas_env%all_evals,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(xas_env%all_evals)
          END IF
          IF(ASSOCIATED(xas_env%unoccupied_evals)) THEN
-           DEALLOCATE(xas_env%unoccupied_evals,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(xas_env%unoccupied_evals)
          END IF
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
            DO i = 1,SIZE(xas_env%groundstate_coeff)
              CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool,&
                   xas_env%groundstate_coeff(i)%matrix)
            END DO
-           DEALLOCATE(xas_env%groundstate_coeff,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(xas_env%groundstate_coeff)
          END IF
          IF(ASSOCIATED(xas_env%dip_fm_set)) THEN
            DO i = 1,SIZE(xas_env%dip_fm_set,2)
@@ -408,8 +397,7 @@ CONTAINS
                CALL cp_fm_release(xas_env%dip_fm_set(j,i)%matrix)
              END DO
            END DO
-           DEALLOCATE(xas_env%dip_fm_set,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(xas_env%dip_fm_set)
          END IF
 
          IF(ASSOCIATED(xas_env%excvec_coeff)) THEN
@@ -442,24 +430,21 @@ CONTAINS
            DO ik = 1,SIZE(xas_env%my_gto_basis,1)
              CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
            END DO
-           DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(xas_env%my_gto_basis)
          END IF
 
          IF(ASSOCIATED(xas_env%stogto_overlap)) THEN
            DO ik = 1,SIZE(xas_env%stogto_overlap,1)
              DEALLOCATE(xas_env%stogto_overlap(ik)%array)
            END DO
-           DEALLOCATE(xas_env%stogto_overlap,STAT=istat)
-           CPASSERT(istat==0)
+           DEALLOCATE(xas_env%stogto_overlap)
          END IF
 
          CALL scf_env_release(xas_env%scf_env)
          CALL scf_c_release(xas_env%scf_control)
 
 
-         DEALLOCATE(xas_env,STAT=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(xas_env)
          NULLIFY(xas_env)
        END IF
     END IF

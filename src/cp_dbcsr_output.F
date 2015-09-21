@@ -94,7 +94,7 @@ CONTAINS
     CHARACTER(LEN=60)                        :: matrix_name
     INTEGER                                  :: col1, col2, group, &
                                                 ncol_global, nrow_global, &
-                                                nsgf, row1, row2, stat
+                                                nsgf, row1, row2
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -106,8 +106,7 @@ CONTAINS
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,&
          ncol_global=ncol_global)
 
-    ALLOCATE(matrix(nrow_global,ncol_global),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix(nrow_global,ncol_global))
     CALL cp_fm_get_submatrix(blacs_matrix,matrix)
 
     ! *** Get the matrix dimension and check the optional arguments ***
@@ -143,8 +142,7 @@ CONTAINS
 
     ! *** Release work storage ***
     IF (ASSOCIATED(matrix)) THEN
-       DEALLOCATE (matrix,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (matrix)
     END IF
 
   END SUBROUTINE write_fm_with_basis_info
@@ -181,7 +179,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: matrix_name
     INTEGER                                  :: col1, col2, dim_col, dim_row, &
-                                                group, row1, row2, stat
+                                                group, row1, row2
     LOGICAL                                  :: failure, print_sym
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -252,8 +250,7 @@ CONTAINS
     END IF
 
     IF (ASSOCIATED(matrix)) THEN
-       DEALLOCATE (matrix,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (matrix)
     END IF
 
   END SUBROUTINE cp_dbcsr_write_sparse_matrix
@@ -271,8 +268,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_repl_dbcsr_to_repl_fm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, handle, i, istat, &
-                                                j, nblkcols_total, &
+    INTEGER                                  :: blk, col, handle, i, j, &
+                                                nblkcols_total, &
                                                 nblkrows_total, nc, nr, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_offset, r_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
@@ -294,8 +291,7 @@ CONTAINS
     row_blk_size => cp_dbcsr_row_block_sizes(sparse_matrix)
 
     !> this should be precomputed somewhere else
-    ALLOCATE(r_offset(nblkrows_total),c_offset(nblkcols_total),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(r_offset(nblkrows_total),c_offset(nblkcols_total))
 
     r_offset(1) = 1
     DO row = 2,nblkrows_total
@@ -309,8 +305,7 @@ CONTAINS
     nc = SUM(col_blk_size)
     !<
 
-    ALLOCATE (fm(nr,nc),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (fm(nr,nc))
 
     fm(:,:) = 0.0_dp
 
@@ -325,8 +320,7 @@ CONTAINS
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    DEALLOCATE(r_offset,c_offset,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(r_offset,c_offset)
 
     CALL timestop(handle)
 
@@ -367,8 +361,7 @@ CONTAINS
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: from, group, iatom, icol, ikind, irow, iset, isgf, ishell, &
-      iso, jcol, l, left, natom, ncol, ndigits, nset, nsgf, right, stat, to, &
-      width
+      iso, jcol, l, left, natom, ncol, ndigits, nset, nsgf, right, to, width
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
@@ -396,10 +389,8 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
-      ALLOCATE (first_sgf(natom),STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE (last_sgf(natom),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (first_sgf(natom))
+      ALLOCATE (last_sgf(natom))
       CALL get_particle_set(particle_set, qs_kind_set,&
                             first_sgf=first_sgf,&
                             last_sgf=last_sgf)
@@ -477,10 +468,8 @@ CONTAINS
       END DO
 
       WRITE (UNIT=output_unit,FMT="(/)")
-      DEALLOCATE (first_sgf,STAT=stat)
-      CPASSERT(stat==0)
-      DEALLOCATE (last_sgf,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE (first_sgf)
+      DEALLOCATE (last_sgf)
     END IF
 
     CALL mp_sync(group)
@@ -596,7 +585,7 @@ CONTAINS
     INTEGER                                  :: group, handle, ipe, mype, &
                                                 natom, nblock_max, &
                                                 nelement_max, npe, nrow, &
-                                                stat, tmp(2)
+                                                tmp(2)
     INTEGER(KIND=int_8)                      :: nblock_sum, nblock_tot, &
                                                 nelement_sum
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
@@ -616,12 +605,10 @@ CONTAINS
     npe = para_env%num_pe
 
     ! *** Allocate work storage ***
-    ALLOCATE (nblock(npe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nblock(npe))
     nblock(:) = 0
 
-    ALLOCATE (nelement(npe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nelement(npe))
     nelement(:) = 0
 
     nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
@@ -687,11 +674,9 @@ CONTAINS
     END IF
 
     ! *** Release work storage ***
-    DEALLOCATE (nblock,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (nblock)
 
-    DEALLOCATE (nelement,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (nelement)
 
     CALL timestop(handle)
 

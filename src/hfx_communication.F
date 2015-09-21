@@ -93,7 +93,7 @@ MODULE hfx_communication
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, block_size, data_from, dest, i, iatom, icpu, ikind, iset, &
-      istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
+      jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure, found
@@ -109,10 +109,8 @@ MODULE hfx_communication
     failure = .FALSE.
 
     full_density = 0.0_dp
-    ALLOCATE(sendbuffer(number_of_p_entries),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(recbuffer(number_of_p_entries),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(sendbuffer(number_of_p_entries))
+    ALLOCATE(recbuffer(number_of_p_entries))
 
     i=1
     CALL cp_dbcsr_iterator_start(iter, rho, shared=.FALSE.)
@@ -187,8 +185,7 @@ MODULE hfx_communication
       sendbuffer=>recbuffer
       recbuffer=>swapbuffer
     ENDDO
-    DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(sendbuffer, recbuffer)
     ! sync before/after a ring of isendrecv
     CALL mp_sync(para_env%group)
 
@@ -229,8 +226,8 @@ MODULE hfx_communication
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, block_size, data_to, dest, dest_cpu, i, iatom, icpu, &
-      ikind, iset, istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, &
-      pa1, pb, pb1, req(2), source
+      ikind, iset, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, &
+      pb, pb1, req(2), source
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     REAL(dp)                                 :: my_fac, myd_fac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
@@ -242,11 +239,9 @@ MODULE hfx_communication
     IF( PRESENT( off_diag_fac ) ) my_fac = off_diag_fac
     IF( PRESENT( diag_fac ) ) myd_fac = diag_fac
 
-    ALLOCATE(sendbuffer(number_of_p_entries), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(sendbuffer(number_of_p_entries))
     sendbuffer =0.0_dp
-    ALLOCATE(recbuffer(number_of_p_entries), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(recbuffer(number_of_p_entries))
     recbuffer =0.0_dp
 
     ncpu = para_env%num_pe
@@ -306,8 +301,7 @@ MODULE hfx_communication
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(sendbuffer, recbuffer)
 
   END SUBROUTINE distribute_ks_matrix
 
@@ -340,8 +334,8 @@ MODULE hfx_communication
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ikind, img, istat, &
-                                                natom, nimages, nspins, stat
+    INTEGER                                  :: iatom, ikind, img, natom, &
+                                                nimages, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     REAL(dp), DIMENSION(:, :), POINTER       :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -369,14 +363,12 @@ MODULE hfx_communication
     CPASSERT(nimages==1)
 
     natom = SIZE(particle_set,1)
-    ALLOCATE(kind_of(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(kind_of(natom))
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
 
-    ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(last_sgf_global(0:natom))
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -391,8 +383,7 @@ MODULE hfx_communication
                                  actual_x_data%block_offset, kind_of, basis_parameter, &
                                  off_diag_fac=0.5_dp)
     END DO
-    DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(actual_x_data%full_ks_alpha)
 
     IF(nspins == 2) THEN
       full_ks => actual_x_data%full_ks_beta
@@ -404,12 +395,10 @@ MODULE hfx_communication
                               actual_x_data%block_offset, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp)
       END DO
-      DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(actual_x_data%full_ks_beta)
     END IF
 
-    DEALLOCATE(kind_of, last_sgf_global, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(kind_of, last_sgf_global)
 
   END SUBROUTINE scale_and_add_fock_to_ks_matrix
 
@@ -481,7 +470,7 @@ MODULE hfx_communication
 
     INTEGER :: blk, handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, &
       jatom, jkind, jset, natom, ncpu, nseta, nsetb, number_of_p_blocks, &
-      offset, stat, tmp(2)
+      offset, tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in, buffer_out, &
                                                 counter, rcount, rdispl
     INTEGER, DIMENSION(:), POINTER           :: iatom_list, jatom_list, &
@@ -520,12 +509,9 @@ MODULE hfx_communication
     ! send this info around, so we can construct is_assoc_atomic_block
     ! pack all data in buffers and use allgatherv
     !
-    ALLOCATE(buffer_in(3*number_of_p_blocks),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(buffer_out(3*number_of_p_blocks*para_env%num_pe),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(rcount(para_env%num_pe),rdispl(para_env%num_pe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_in(3*number_of_p_blocks))
+    ALLOCATE(buffer_out(3*number_of_p_blocks*para_env%num_pe))
+    ALLOCATE(rcount(para_env%num_pe),rdispl(para_env%num_pe))
 
     buffer_in=0
     ibuf=0
@@ -569,10 +555,8 @@ MODULE hfx_communication
     END IF
 
     natom = SIZE(is_assoc_atomic_block,1)
-    ALLOCATE(map_atoms_to_cpus(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(counter(para_env%num_pe), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_atoms_to_cpus(para_env%num_pe))
+    ALLOCATE(counter(para_env%num_pe))
     counter = 0
 
     DO iatom=1,natom
@@ -582,10 +566,8 @@ MODULE hfx_communication
       END DO
     END DO
     DO icpu = 1,para_env%num_pe
-      ALLOCATE(map_atoms_to_cpus(icpu)%iatom_list(counter(icpu)),STAT=stat)
-      CPASSERT(stat==0)
-      ALLOCATE(map_atoms_to_cpus(icpu)%jatom_list(counter(icpu)),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(map_atoms_to_cpus(icpu)%iatom_list(counter(icpu)))
+      ALLOCATE(map_atoms_to_cpus(icpu)%jatom_list(counter(icpu)))
     END DO
     counter = 0
     DO iatom=1,natom
@@ -599,8 +581,7 @@ MODULE hfx_communication
       END DO
     END DO
 
-    DEALLOCATE(counter, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(counter)
 
     ncpu = para_env%num_pe
     offset = 1

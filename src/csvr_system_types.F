@@ -97,7 +97,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER                                  :: i, ithermo, my_index, stat
+    INTEGER                                  :: i, ithermo, my_index
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -107,15 +107,13 @@ CONTAINS
     CPASSERT(ASSOCIATED(csvr))
     CPASSERT(.NOT.ASSOCIATED(csvr%nvt))
 
-    ALLOCATE ( csvr%nvt(csvr%loc_num_csvr),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( csvr%nvt(csvr%loc_num_csvr))
     DO i = 1, csvr%loc_num_csvr
        csvr%nvt(i)%thermostat_energy = 0.0_dp
        NULLIFY(csvr%nvt(i)%gaussian_rng_stream)
     END DO
     ! Initialize the gaussian stream random number
-    ALLOCATE (seed(3,2,csvr%glob_num_csvr),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (seed(3,2,csvr%glob_num_csvr))
     initial_seed = next_rng_seed()
 
     seed(:,:,1) = initial_seed
@@ -133,8 +131,7 @@ CONTAINS
             name=name,distribution_type=GAUSSIAN, extended_precision=.TRUE.,&
             seed=my_seed)
     END DO
-    DEALLOCATE (seed,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (seed)
 
   END SUBROUTINE csvr_thermo_create
 
@@ -149,15 +146,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(csvr)) THEN
        CALL csvr_thermo_dealloc(csvr%nvt)
        CALL release_map_info_type(csvr%map_info)
-       DEALLOCATE (csvr, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (csvr)
     ENDIF
 
   END SUBROUTINE csvr_dealloc
@@ -174,7 +169,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -184,8 +179,7 @@ CONTAINS
              CALL delete_rng_stream(nvt(i)%gaussian_rng_stream)
           ENDIF
        END DO
-       DEALLOCATE (nvt, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (nvt)
     ENDIF
   END SUBROUTINE csvr_thermo_dealloc
 

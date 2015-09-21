@@ -101,13 +101,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(shell))
-    ALLOCATE(shell,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(shell)
     shell%ref_count = 1
 
   END SUBROUTINE shell_create
@@ -126,14 +124,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_p_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(shell_list))
-    ALLOCATE(shell_list(ndim), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(shell_list(ndim))
 
     DO i = 1,ndim
       NULLIFY (shell_list(i)%shell)
@@ -175,7 +172,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -183,8 +179,7 @@ CONTAINS
       CPASSERT(shell%ref_count>0)
       shell%ref_count=shell%ref_count-1
       IF(shell%ref_count==0) THEN
-        DEALLOCATE(shell,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(shell)
       END IF
     END IF
     NULLIFY(shell)
@@ -202,14 +197,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_p_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
 
     IF (ASSOCIATED(shell_list)) THEN
       DO i = 1,SIZE(shell_list)
          CALL shell_release(shell_list(i)%shell)
       END DO
-      DEALLOCATE(shell_list,stat=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(shell_list)
     END IF
 
     NULLIFY (shell_list)

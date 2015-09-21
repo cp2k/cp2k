@@ -93,8 +93,8 @@ MODULE qs_rho0_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, icg, ig1, ig2, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
-      iso2, istat, l, l1, l2, llmax, m1, m2, max_iso_not0_local, max_s_harm, &
-      maxl, maxso, n1, n2, nset
+      iso2, l, l1, l2, llmax, m1, m2, max_iso_not0_local, max_s_harm, maxl, &
+      maxso, n1, n2, nset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
@@ -118,8 +118,7 @@ MODULE qs_rho0_methods
     max_s_harm = harmonics%max_s_harm
     llmax = harmonics%llmax
 
-    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm))
 
     my_CG => harmonics%my_CG
 
@@ -162,8 +161,7 @@ MODULE qs_rho0_methods
       m1 = m1 + maxso
     END DO  ! iset1
 
-    DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cg_list,cg_n_list)
 
     CALL timestop(handle)
   END SUBROUTINE calculate_mpole_gau
@@ -206,9 +204,9 @@ MODULE qs_rho0_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iat, iatom, ic, ico, &
-                                                ir, is, iso, ispin, istat, l, &
-                                                lmax0, lshell, lx, ly, lz, &
-                                                nr, nsotot, nspins
+                                                ir, is, iso, ispin, l, lmax0, &
+                                                lshell, lx, ly, lz, nr, &
+                                                nsotot, nspins
     LOGICAL                                  :: failure
     REAL(dp)                                 :: sum1
     REAL(dp), ALLOCATABLE, &
@@ -257,11 +255,9 @@ MODULE qs_rho0_methods
             CALL get_rho_atom(rho_atom=rho_atom,cpc_h=cpc_h,cpc_s=cpc_s)
             nspins = SIZE(cpc_h)
             nsotot = SIZE(mpole_gau%Qlm_gg,1)
-            ALLOCATE(cpc_ah(nsotot,nsotot,nspins),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(cpc_ah(nsotot,nsotot,nspins))
             cpc_ah=0._dp
-            ALLOCATE(cpc_as(nsotot,nsotot,nspins),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(cpc_as(nsotot,nsotot,nspins))
             cpc_as=0._dp
             DO ispin = 1,nspins
               CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),qs_kind)
@@ -311,8 +307,7 @@ MODULE qs_rho0_methods
             rho0_h_tot = rho0_h_tot + sum1* harmonics%slm_int(iso)
          END DO  ! iso
          IF(paw_atom) THEN
-            DEALLOCATE(cpc_ah,cpc_as,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(cpc_ah,cpc_as)
          END IF
       END DO  ! iat
     END IF

@@ -198,8 +198,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, ispin, method, ndim, &
-                                                stat
+    INTEGER                                  :: handle, ispin, method, ndim
     LOGICAL                                  :: emd, failure
     REAL(dp)                                 :: max_eval, min_eval, norm2, &
                                                 scale, t
@@ -250,8 +249,7 @@ CONTAINS
          matrix_struct=rtp%ao_ao_fmstruct,&
          name="tmp_EVEC")
 
-    ALLOCATE(eigval_H(ndim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(eigval_H(ndim))
     CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp)
     CALL cp_fm_upper_to_full(tmp,eigvec_H)
 
@@ -289,8 +287,7 @@ CONTAINS
             rtp_control%eps_exp,method ,emd)
     END DO
 
-    DEALLOCATE(eigval_H,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(eigval_H)
 
     CALL copy_fm_to_dbcsr(S_inv_fm,S_inv)
     CALL cp_fm_release(S_inv_fm)

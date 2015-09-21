@@ -113,7 +113,6 @@ SUBROUTINE mpools_release(mpools)
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -131,8 +130,7 @@ SUBROUTINE mpools_release(mpools)
         IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
           CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
         END IF
-        DEALLOCATE(mpools, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(mpools)
      END IF
   END IF
   NULLIFY(mpools)
@@ -282,13 +280,11 @@ SUBROUTINE mpools_create(mpools)
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
-  ALLOCATE(mpools, stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(mpools)
   NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
        mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
        mpools%mosub_mosub_fm_pools)
@@ -327,7 +323,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     INTEGER                                  :: handle, ispin, max_nmo, &
                                                 min_nmo, nao, ncg, &
                                                 ncol_block, nmo, nrg, &
-                                                nrow_block, nspins, stat
+                                                nrow_block, nspins
     LOGICAL                                  :: failure, prepare_subset, &
                                                 should_rebuild
     TYPE(cp_fm_pool_type), POINTER           :: p_att
@@ -358,8 +354,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
         END IF
      END IF
      IF (.NOT.ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
-        ALLOCATE(mpools%ao_mo_fm_pools(nspins), stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mpools%ao_mo_fm_pools(nspins))
         DO ispin=1,nspins
            NULLIFY(mpools%ao_mo_fm_pools(ispin)%pool)
         END DO
@@ -371,8 +366,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
         END IF
      END IF
      IF (.NOT.ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
-        ALLOCATE(mpools%ao_ao_fm_pools(nspins), stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mpools%ao_ao_fm_pools(nspins))
         DO ispin=1,nspins
            NULLIFY(mpools%ao_ao_fm_pools(ispin)%pool)
         END DO
@@ -384,8 +378,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
         END IF
      END IF
      IF (.NOT.ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
-        ALLOCATE(mpools%mo_mo_fm_pools(nspins), stat=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(mpools%mo_mo_fm_pools(nspins))
         DO ispin=1,nspins
            NULLIFY(mpools%mo_mo_fm_pools(ispin)%pool)
         END DO
@@ -399,8 +392,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
           END IF
        END IF
        IF (.NOT.ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
-          ALLOCATE(mpools%ao_mosub_fm_pools(nspins), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mpools%ao_mosub_fm_pools(nspins))
           DO ispin=1,nspins
              NULLIFY(mpools%ao_mosub_fm_pools(ispin)%pool)
           END DO
@@ -412,8 +404,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
           END IF
        END IF
        IF (.NOT.ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
-          ALLOCATE(mpools%mosub_mosub_fm_pools(nspins), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(mpools%mosub_mosub_fm_pools(nspins))
           DO ispin=1,nspins
              NULLIFY(mpools%mosub_mosub_fm_pools(ispin)%pool)
           END DO

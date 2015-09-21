@@ -221,13 +221,11 @@ MODULE qs_local_rho_types
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(local_rho_set, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(local_rho_set)
 
     NULLIFY (local_rho_set%rho_atom_set)
     NULLIFY (local_rho_set%rho0_atom_set)
@@ -247,8 +245,6 @@ MODULE qs_local_rho_types
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(local_rho_set)) THEN
       IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
          CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
@@ -266,8 +262,7 @@ MODULE qs_local_rho_types
         CALL deallocate_rhoz(local_rho_set%rhoz_set)
       ENDIF
 
-      DEALLOCATE(local_rho_set,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(local_rho_set)
     END IF
 
   END SUBROUTINE local_rho_set_release

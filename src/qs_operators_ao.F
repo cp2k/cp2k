@@ -75,9 +75,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, &
-      jatom, jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, natom, &
-      ncoa, ncob, neighbor_list_id, nkind, nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, &
+      jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, natom, ncoa, &
+      ncob, neighbor_list_id, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -140,14 +140,12 @@ CONTAINS
     ldai = ncoset(maxlgto+1)
     CALL init_orbital_pointers(ldai)
 
-    ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3))
     rr_work(:,:,:) = 0.0_dp
     intab(:,:,:) = 0.0_dp
     work(:,:) = 0.0_dp
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -274,8 +272,7 @@ CONTAINS
 
     ! *** Release work storage ***
 
-    DEALLOCATE(intab,work,integral,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(intab,work,integral,basis_set_list)
 
 !   *** Print the spin orbit matrix, if requested ***
 
@@ -450,9 +447,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_ang_mom_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, &
-      jatom, jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, natom, &
-      ncoa, ncob, neighbor_list_id, nkind, nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, &
+      jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, natom, ncoa, &
+      ncob, neighbor_list_id, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -515,14 +512,12 @@ CONTAINS
     ldai = ncoset(maxlgto+1)
     CALL init_orbital_pointers(ldai)
 
-    ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3))
     rr_work(:,:,:) = 0.0_dp
     intab(:,:,:) = 0.0_dp
     work(:,:) = 0.0_dp
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -662,8 +657,7 @@ CONTAINS
 
     ! *** Release work storage ***
 
-    DEALLOCATE(intab,work,integral,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(intab,work,integral,basis_set_list)
 
 !   *** Print the spin orbit matrix, if requested ***
 
@@ -848,9 +842,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'p_xyz_ao', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, &
-      jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, maxl, ncoa, &
-      ncob, nkind, nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, &
+      jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, &
+      nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -910,21 +904,17 @@ CONTAINS
 
     ldab = ldwork
 
-    ALLOCATE(difab(ldab,ldab,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(difab(ldab,ldab,3))
     difab(1:ldab,1:ldab,1:3) = 0.0_dp
-    ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(work(ldwork,ldwork))
     work(1:ldwork,1:ldwork) = 0.0_dp
-    ALLOCATE (op_dip(3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (op_dip(3))
 
     DO i = 1, 3
        NULLIFY (op_dip(i)%block)
     END DO
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -1093,11 +1083,9 @@ CONTAINS
     DO i = 1,3
        NULLIFY(op_dip(i)%block)
     END DO
-    DEALLOCATE(op_dip, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(op_dip)
 
-    DEALLOCATE(difab,work,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(difab,work,basis_set_list)
 
     CALL timestop(handle)
 
@@ -1134,9 +1122,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, icol, ikind, imom, inode, irow, iset, istat, &
-      jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, M_dim, maxl, &
-      ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, imom, inode, irow, iset, jatom, &
+      jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, M_dim, maxl, ncoa, &
+      ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
@@ -1201,21 +1189,17 @@ CONTAINS
     M_dim = ncoset(order)-1
     CPASSERT(M_dim<=SIZE(op,1))
 
-    ALLOCATE(mab(ldab,ldab,M_dim),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mab(ldab,ldab,M_dim))
     mab(1:ldab,1:ldab,1:M_dim) = 0.0_dp
-    ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(work(ldwork,ldwork))
     work(1:ldwork,1:ldwork) = 0.0_dp
-    ALLOCATE (op_dip(M_dim),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (op_dip(M_dim))
 
     DO imom = 1, M_dim
       NULLIFY (op_dip(imom)%block)
     END DO
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
@@ -1349,11 +1333,9 @@ CONTAINS
     DO i = 1,3
        NULLIFY(op_dip(i)%block)
     END DO
-    DEALLOCATE(op_dip, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(op_dip)
 
-    DEALLOCATE(mab,work,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(mab,work,basis_set_list)
 
     CALL timestop(handle)
 
@@ -1414,9 +1396,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, icol, idir, ikind, imom, inode, ipgf, irow, &
-      iset, istat, j, jatom, jkind, jpgf, jset, last_jatom, lda_min, ldab, &
-      ldb_min, ldsa, ldsb, ldwork, M_dim, maxl, na, nb, ncoa, ncob, nda, ndb, &
-      nkind, nseta, nsetb, sgfa, sgfb
+      iset, j, jatom, jkind, jpgf, jset, last_jatom, lda_min, ldab, ldb_min, &
+      ldsa, ldsb, ldwork, M_dim, maxl, na, nb, ncoa, ncob, nda, ndb, nkind, &
+      nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -1496,20 +1478,15 @@ CONTAINS
     M_dim = ncoset(order)-1
     CPASSERT(M_dim<=SIZE(op,1))
 
-    ALLOCATE(mab(ldab,ldab,M_dim),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mab(ldab,ldab,M_dim))
     mab(1:ldab,1:ldab,1:M_dim) = 0.0_dp
-    ALLOCATE(difmab(ldab,ldab,M_dim,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(difmab(ldab,ldab,M_dim,3))
     difmab(1:ldab,1:ldab,1:M_dim,1:3) = 0.0_dp
 
-    ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(work(ldwork,ldwork))
     work(1:ldwork,1:ldwork) = 0.0_dp
-    ALLOCATE (op_dip(M_dim),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (op_dip_der(M_dim,3),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (op_dip(M_dim))
+    ALLOCATE (op_dip_der(M_dim,3))
 
     DO imom = 1, M_dim
        NULLIFY (op_dip(imom)%block)
@@ -1518,8 +1495,7 @@ CONTAINS
        END DO
     END DO
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
@@ -1624,8 +1600,7 @@ CPASSERT(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block))
 !                  rbc = pbc(rc,rb,cell)
 
              ALLOCATE(mab_tmp(npgfa(iset)*ncoset(la_max(iset)+1),&
-                      npgfb(jset)*ncoset(lb_max(jset)+1),ncoset(order)-1),STAT=istat)
-             CPASSERT(istat==0)
+                      npgfb(jset)*ncoset(lb_max(jset)+1),ncoset(order)-1))
 
              lda_min = MAX ( 0, la_min(iset)-1)
              ldb_min = MAX ( 0, lb_min(jset)-1)
@@ -1687,8 +1662,7 @@ CPASSERT(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block))
 
              END DO  ! imom
 
-             DEALLOCATE(mab_tmp,STAT=istat)
-             CPASSERT(istat==0)
+             DEALLOCATE(mab_tmp)
            END IF  !  >= dab
 
          END DO ! jset
@@ -1701,11 +1675,9 @@ CPASSERT(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block))
     DO i = 1,3
        NULLIFY(op_dip(i)%block)
     END DO
-    DEALLOCATE(op_dip,op_dip_der, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(op_dip,op_dip_der)
 
-    DEALLOCATE(mab,difmab,work,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(mab,difmab,work,basis_set_list)
 
     CALL timestop(handle)
 

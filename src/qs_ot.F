@@ -78,7 +78,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_new_preconditioner', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, ncoef
+    INTEGER                                  :: ncoef
     LOGICAL                                  :: failure, mixed_precision
 
     failure = .FALSE.
@@ -102,8 +102,7 @@ CONTAINS
        ENDIF
        IF (qs_ot_env%settings%do_ener) THEN
           ncoef = SIZE ( qs_ot_env % ener_gx)
-          ALLOCATE ( qs_ot_env%ener_dx ( ncoef ), STAT = istat )
-          CPASSERT(istat==0)
+          ALLOCATE ( qs_ot_env%ener_dx ( ncoef ))
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
     ENDIF
@@ -297,7 +296,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_lwdn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istat, k, n
+    INTEGER                                  :: handle, i, k, n
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig, fun
     TYPE(cp_dbcsr_type), POINTER             :: V, W
@@ -310,8 +309,7 @@ CONTAINS
     !
     V   => qs_ot_env%buf1_k_k_nosym ! a buffer
     W   => qs_ot_env%buf2_k_k_nosym ! a buffer
-    ALLOCATE(eig(k), fun(k), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(eig(k), fun(k))
     !
     CALL cp_dbcsr_syevd(P,V,eig,qs_ot_env%para_env,qs_ot_env%blacs_env)
     !
@@ -338,8 +336,7 @@ CONTAINS
        CALL cp_dbcsr_copy(SC,C_TMP)
     ENDIF
     !
-    DEALLOCATE(eig, fun, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(eig, fun)
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_ref_lwdn

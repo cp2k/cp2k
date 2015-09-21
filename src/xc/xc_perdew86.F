@@ -127,7 +127,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'p86_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, m, npoints, stat
+    INTEGER                                  :: handle, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
@@ -157,8 +157,7 @@ CONTAINS
     CALL p86_init(rho_cutoff)
     m = ABS(order)
 
-    ALLOCATE ( rs(npoints), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rs(npoints))
 
     CALL calc_rs_pw ( rho, rs, npoints )
     IF ( order>=0 ) THEN
@@ -216,8 +215,7 @@ CONTAINS
             message="derivatives bigger than 3 not implemented", &
             error_level=cp_failure_level)
     END IF
-    DEALLOCATE ( rs, STAT=stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rs)
     CALL timestop(handle)
 
   END SUBROUTINE p86_lda_eval

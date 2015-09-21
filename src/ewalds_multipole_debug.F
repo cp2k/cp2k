@@ -63,7 +63,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles', &
        routineP = "ewalds_multipole_debug"//':'//routineN
 
-  INTEGER                                  :: nparticles, stat
+  INTEGER                                  :: nparticles
   LOGICAL                                  :: failure
   LOGICAL, DIMENSION(3)                    :: task
   REAL(KIND=dp)                            :: e_neut, e_self, g_energy, &
@@ -89,26 +89,17 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   nparticles = SIZE(particle_set)
 
   ! Allocate charges, dipoles, quadrupoles
-  ALLOCATE(charges(nparticles),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(dipoles(3,nparticles),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(quadrupoles(3,3,nparticles),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(charges(nparticles))
+  ALLOCATE(dipoles(3,nparticles))
+  ALLOCATE(quadrupoles(3,3,nparticles))
 
   ! Allocate arrays for forces
-  ALLOCATE(r_forces(3,nparticles),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(g_forces(3,nparticles),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(e_field1(3,nparticles),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(e_field2(3,nparticles),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(g_pv(3,3),stat=stat)
-  CPASSERT(stat==0)
-  ALLOCATE(r_pv(3,3),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(r_forces(3,nparticles))
+  ALLOCATE(g_forces(3,nparticles))
+  ALLOCATE(e_field1(3,nparticles))
+  ALLOCATE(e_field2(3,nparticles))
+  ALLOCATE(g_pv(3,3))
+  ALLOCATE(r_pv(3,3))
 
   ! Debug CHARGES-CHARGES
   task(1) = .TRUE.
@@ -309,24 +300,15 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   CALL release_multi_type(multipoles)
 
 
-  DEALLOCATE(charges,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(dipoles,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(quadrupoles,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(r_forces,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(g_forces,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(e_field1,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(e_field2,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(g_pv,stat=stat)
-  CPASSERT(stat==0)
-  DEALLOCATE(r_pv,stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(charges)
+  DEALLOCATE(dipoles)
+  DEALLOCATE(quadrupoles)
+  DEALLOCATE(r_forces)
+  DEALLOCATE(g_forces)
+  DEALLOCATE(e_field1)
+  DEALLOCATE(e_field2)
+  DEALLOCATE(g_pv)
+  DEALLOCATE(r_pv)
   CALL delete_rng_stream(random_stream)
 
 CONTAINS
@@ -498,15 +480,14 @@ CONTAINS
       routineP = "ewalds_multipole_debug"//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: i, stat, isize, k, l, m
+    INTEGER                                  :: i, isize, k, l, m
     REAL(KIND=dp)                            :: dx, rvec(3), rvec1(3), rvec2(3), r2
 
     failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(SIZE(multipoles)==idim)
     ELSE
-       ALLOCATE(multipoles(idim),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(multipoles(idim))
        DO i = 1, idim
           NULLIFY(multipoles(i)%charge_typ)
        END DO
@@ -523,10 +504,8 @@ CONTAINS
        CASE("CHARGE")
           CPASSERT(PRESENT(charges))
           CPASSERT(ASSOCIATED(charges))
-          ALLOCATE(multipoles(i)%charge_typ(isize)%charge(1),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(multipoles(i)%charge_typ(isize)%pos(3,1),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(multipoles(i)%charge_typ(isize)%charge(1))
+          ALLOCATE(multipoles(i)%charge_typ(isize)%pos(3,1))
 
           multipoles(i)%charge_typ(isize)%charge(1)  = echarge
           multipoles(i)%charge_typ(isize)%pos(1:3,1) = 0.0_dp
@@ -535,10 +514,8 @@ CONTAINS
           dx = 1.0E-4_dp
           CPASSERT(PRESENT(dipoles))
           CPASSERT(ASSOCIATED(dipoles))
-          ALLOCATE(multipoles(i)%charge_typ(isize)%charge(2),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(multipoles(i)%charge_typ(isize)%pos(3,2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(multipoles(i)%charge_typ(isize)%charge(2))
+          ALLOCATE(multipoles(i)%charge_typ(isize)%pos(3,2))
           CALL random_numbers(rvec, random_stream)
           rvec = rvec/(2.0_dp*SQRT(DOT_PRODUCT(rvec,rvec)))*dx
           multipoles(i)%charge_typ(isize)%charge(1)  = echarge
@@ -551,10 +528,8 @@ CONTAINS
           dx = 1.0E-2_dp
           CPASSERT(PRESENT(quadrupoles))
           CPASSERT(ASSOCIATED(quadrupoles))
-          ALLOCATE(multipoles(i)%charge_typ(isize)%charge(4),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(multipoles(i)%charge_typ(isize)%pos(3,4),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(multipoles(i)%charge_typ(isize)%charge(4))
+          ALLOCATE(multipoles(i)%charge_typ(isize)%pos(3,4))
           CALL random_numbers(rvec1, random_stream)
           CALL random_numbers(rvec2, random_stream)
           rvec1 = rvec1/SQRT(DOT_PRODUCT(rvec1,rvec1))
@@ -610,19 +585,16 @@ CONTAINS
       routineP = "ewalds_multipole_debug"//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: i, stat, j
+    INTEGER                                  :: i, j
 
     failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        DO i = 1, SIZE(multipoles)
           DO j = 1, SIZE(multipoles(i)%charge_typ)
-             DEALLOCATE(multipoles(i)%charge_typ(j)%charge,stat=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(multipoles(i)%charge_typ(j)%pos,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(multipoles(i)%charge_typ(j)%charge)
+             DEALLOCATE(multipoles(i)%charge_typ(j)%pos)
           END DO
-          DEALLOCATE(multipoles(i)%charge_typ,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(multipoles(i)%charge_typ)
        END DO
     END IF
   END SUBROUTINE release_multi_type
@@ -645,59 +617,46 @@ CONTAINS
       routineP = "ewalds_multipole_debug"//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: i, stat, isize, jsize, jsize1, jsize2, j
+    INTEGER                                  :: i, isize, jsize, jsize1, jsize2, j
         TYPE(charge_mono_type), DIMENSION(:),&
          POINTER                             :: charge_typ_bk
 
     failure = .FALSE.
     IF (ASSOCIATED(charge_typ)) THEN
        isize = SIZE(charge_typ)
-       ALLOCATE(charge_typ_bk(1:isize),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(charge_typ_bk(1:isize))
        DO j = 1, isize
           jsize = SIZE(charge_typ(j)%charge)
-          ALLOCATE(charge_typ_bk(j)%charge(jsize),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(charge_typ_bk(j)%charge(jsize))
           jsize1 = SIZE(charge_typ(j)%pos,1)
           jsize2 = SIZE(charge_typ(j)%pos,2)
-          ALLOCATE(charge_typ_bk(j)%pos(jsize1,jsize2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(charge_typ_bk(j)%pos(jsize1,jsize2))
           charge_typ_bk(j)%pos    = charge_typ(j)%pos
           charge_typ_bk(j)%charge = charge_typ(j)%charge
        END DO
        DO j = 1, SIZE(charge_typ)
-          DEALLOCATE(charge_typ(j)%charge,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(charge_typ(j)%pos,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(charge_typ(j)%charge)
+          DEALLOCATE(charge_typ(j)%pos)
        END DO
-       DEALLOCATE(charge_typ,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charge_typ)
        ! Reallocate
-       ALLOCATE(charge_typ_bk(istart:iend),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(charge_typ_bk(istart:iend))
        DO i = istart, isize
           jsize = SIZE(charge_typ_bk(j)%charge)
-          ALLOCATE(charge_typ(j)%charge(jsize),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(charge_typ(j)%charge(jsize))
           jsize1 = SIZE(charge_typ_bk(j)%pos,1)
           jsize2 = SIZE(charge_typ_bk(j)%pos,2)
-          ALLOCATE(charge_typ(j)%pos(jsize1,jsize2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(charge_typ(j)%pos(jsize1,jsize2))
           charge_typ(j)%pos    = charge_typ_bk(j)%pos
           charge_typ(j)%charge = charge_typ_bk(j)%charge
        END DO
        DO j = 1, SIZE(charge_typ_bk)
-          DEALLOCATE(charge_typ_bk(j)%charge,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(charge_typ_bk(j)%pos,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(charge_typ_bk(j)%charge)
+          DEALLOCATE(charge_typ_bk(j)%pos)
        END DO
-       DEALLOCATE(charge_typ_bk,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(charge_typ_bk)
     ELSE
-       ALLOCATE(charge_typ(istart:iend), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(charge_typ(istart:iend))
     END IF
 
    END SUBROUTINE reallocate_charge_type

@@ -68,9 +68,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'krylov_space_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, ispin, istat, &
-                                                max_nmo, nao, nblock, ndim, &
-                                                nk, nmo, nspin
+    INTEGER                                  :: handle, ik, ispin, max_nmo, &
+                                                nao, nblock, ndim, nk, nmo, &
+                                                nspin
     LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -91,14 +91,10 @@ CONTAINS
         nblock =  krylov_space%nblock
         nspin = SIZE(mos,1)
 
-        ALLOCATE(krylov_space%mo_conv(nspin),STAT=istat)
-          CPASSERT(istat==0)
-        ALLOCATE(krylov_space%mo_refine(nspin),STAT=istat)
-          CPASSERT(istat==0)
-        ALLOCATE(krylov_space%chc_mat(nspin),STAT=istat)
-          CPASSERT(istat==0)
-        ALLOCATE(krylov_space%c_vec(nspin),STAT=istat)
-          CPASSERT(istat==0)
+        ALLOCATE(krylov_space%mo_conv(nspin))
+        ALLOCATE(krylov_space%mo_refine(nspin))
+        ALLOCATE(krylov_space%chc_mat(nspin))
+        ALLOCATE(krylov_space%c_vec(nspin))
         max_nmo = 0
         DO ispin = 1,nspin
            CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nao=nao, nmo=nmo)
@@ -116,11 +112,9 @@ CONTAINS
 
 
         !the use of max_nmo might not be ok, in this case allocate nspin matrices
-        ALLOCATE(krylov_space%c_eval(max_nmo),STAT=istat)
-          CPASSERT(istat==0)
+        ALLOCATE(krylov_space%c_eval(max_nmo))
 
-        ALLOCATE(krylov_space%v_mat(nk),STAT=istat)
-          CPASSERT(istat==0)
+        ALLOCATE(krylov_space%v_mat(nk))
 
         NULLIFY(fm_struct_tmp)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nblock,&
@@ -158,8 +152,7 @@ CONTAINS
         CALL cp_fm_create(krylov_space%block5_mat,matrix_struct=fm_struct_tmp,&
                 name="t_vec")
         CALL cp_fm_struct_release(fm_struct_tmp)
-        ALLOCATE(krylov_space%t_eval(ndim),STAT=istat)
-          CPASSERT(istat==0)
+        ALLOCATE(krylov_space%t_eval(ndim))
 
     ELSE
        !Nothing should be done
@@ -545,8 +538,8 @@ CONTAINS
                                                 rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: hand1, hand2, hand3, hand4, hand5, hand6, handle, i, ia, ib, &
-      ik, imo, imo_low, imo_up, info, istat, it, j, jt, liwork, lwork, &
-      nblock, ndim, nmo, nmo_converged, nmo_nc, nmob, num_blocks
+      ik, imo, imo_low, imo_up, info, it, j, jt, liwork, lwork, nblock, ndim, &
+      nmo, nmo_converged, nmo_nc, nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure, my_check_moconv_only
@@ -662,12 +655,9 @@ CONTAINS
 
        ! Allocation
         CALL timeset(routineN//"alloc",hand6)
-        ALLOCATE(a_block(nmob,nmob),STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(b_block(nmob,nmob),STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(t_mat(ndim,ndim),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(a_block(nmob,nmob))
+        ALLOCATE(b_block(nmob,nmob))
+        ALLOCATE(t_mat(ndim,ndim))
 
         NULLIFY(fm_struct_tmp)
       ! by forcing ncol_block=nmo, the needed part of the matrix is distributed on a subset of processes
@@ -689,8 +679,7 @@ CONTAINS
         CALL cp_fm_set_all(v_tmp,rzero)
         CALL cp_fm_struct_release(fm_struct_tmp)
         NULLIFY(fm_struct_tmp)
-        ALLOCATE(v_mat(krylov_space%nkrylov),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(v_mat(krylov_space%nkrylov))
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmob,&
                        ncol_block=nmob,&
                        para_env=c0%matrix_struct%para_env, &
@@ -822,26 +811,21 @@ CONTAINS
         CALL timeset(routineN//"_diag_tri",hand3)
         lwork = 1 + 6*ndim + 2*ndim**2 + 5000
         liwork = 5*ndim + 3
-        ALLOCATE(work(lwork),STAT=istat)
-        CPASSERT(istat==0)
-        ALLOCATE(iwork(liwork),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(work(lwork))
+        ALLOCATE(iwork(liwork))
 
         ! Diagonalize the block-tridiagonal matrix
         CALL dsyevd('V', 'U', ndim, t_mat(1,1),ndim,t_eval(1), &
              work(1), lwork, iwork(1), liwork, info)
-        DEALLOCATE(work,STAT=istat)
-        CPASSERT(istat==0)
-        DEALLOCATE(iwork,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(work)
+        DEALLOCATE(iwork)
         CALL timestop(hand3)
 
         CALL timeset(routineN//"_build_cnew",hand4)
 !        !Compute the refined vectors
 
         c2_tmp%local_data=0.0_dp
-        ALLOCATE(q_mat(nmob,ndim),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(q_mat(nmob,ndim))
         q_mat = 0.0_dp
         b_loc => c2_tmp%local_data
         DO ik = 1,krylov_space%nkrylov
@@ -868,8 +852,7 @@ CONTAINS
         END IF
         CALL mp_sum(q_mat, hc%matrix_struct%para_env%group)
 
-        ALLOCATE(itaken(ndim),STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE(itaken(ndim))
         itaken = 0
         DO it = 1,nmob
            vmax = 0.0_dp
@@ -884,10 +867,8 @@ CONTAINS
 
           CALL cp_fm_to_fm(c2_tmp,v_mat(1)%matrix,1,ik,it)
         END DO
-        DEALLOCATE(itaken,STAT=istat)
-        CPASSERT(istat==0)
-        DEALLOCATE(q_mat,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(itaken)
+        DEALLOCATE(q_mat)
 
        !Copy in the converged set to enlarge the converged subspace
         CALL cp_fm_to_fm(v_mat(1)%matrix,c0,nmob,1,(nmo_converged+imo_low))
@@ -900,17 +881,13 @@ CONTAINS
         CALL cp_fm_release(v_tmp)
         CALL cp_fm_release(b_mat)
 
-        DEALLOCATE(t_mat,STAT=istat)
-        CPASSERT(istat==0)
-        DEALLOCATE(a_block,STAT=istat)
-        CPASSERT(istat==0)
-        DEALLOCATE(b_block,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(t_mat)
+        DEALLOCATE(a_block)
+        DEALLOCATE(b_block)
         DO ik=1,krylov_space%nkrylov
            CALL cp_fm_release(v_mat(ik)%matrix)
         END DO
-        DEALLOCATE(v_mat,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(v_mat)
 
       END DO ! ib
 

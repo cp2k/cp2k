@@ -145,7 +145,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, k, n, nspin, &
-                                                output_unit, stat
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ener_nondiag, trace
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
@@ -165,24 +165,19 @@ CONTAINS
 
     nspin=SIZE(mo_array)
 
-    ALLOCATE(occupation_numbers(nspin),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(scaling_factor(nspin),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(occupation_numbers(nspin))
+    ALLOCATE(scaling_factor(nspin))
 
     IF (qs_ot_env(1)%settings%do_ener) THEN
-      ALLOCATE(expectation_values(nspin),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(expectation_values(nspin))
     ENDIF
 
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,occupation_numbers=occupation_numbers(ispin)%array)
-       ALLOCATE(scaling_factor(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(scaling_factor(ispin)%array(SIZE(occupation_numbers(ispin)%array)))
        scaling_factor(ispin)%array=2.0_dp*occupation_numbers(ispin)%array
        IF (qs_ot_env(1)%settings%do_ener) THEN
-         ALLOCATE(expectation_values(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(expectation_values(ispin)%array(SIZE(occupation_numbers(ispin)%array)))
        ENDIF
     ENDDO
 
@@ -277,8 +272,7 @@ CONTAINS
     ! this is kind of a hack so far (costly memory wise), we locally recreate the scaled matrix_hc, and
     ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
     ! to remove this.
-    ALLOCATE(matrix_dedc_scaled(SIZE(matrix_dedc)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(matrix_dedc_scaled(SIZE(matrix_dedc)))
     DO ispin=1,SIZE(matrix_dedc)
        ALLOCATE(matrix_dedc_scaled(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_dedc_scaled(ispin)%matrix)
@@ -344,27 +338,21 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,input,&
          "DFT%SCF%PRINT%PROGRAM_RUN_INFO")
     DO ispin=1,SIZE(scaling_factor)
-      DEALLOCATE(scaling_factor(ispin)%array,stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(scaling_factor(ispin)%array)
     ENDDO
-    DEALLOCATE(scaling_factor,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(scaling_factor)
     IF (qs_ot_env(1)%settings%do_ener) THEN
        DO ispin=1,SIZE(expectation_values)
-         DEALLOCATE(expectation_values(ispin)%array,stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(expectation_values(ispin)%array)
        ENDDO
-       DEALLOCATE(expectation_values,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(expectation_values)
     ENDIF
-    DEALLOCATE(occupation_numbers,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(occupation_numbers)
     DO ispin=1,SIZE(matrix_dedc_scaled)
        CALL cp_dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
        DEALLOCATE(matrix_dedc_scaled(ispin)%matrix)
     ENDDO
-    DEALLOCATE(matrix_dedc_scaled,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(matrix_dedc_scaled)
 
     CALL timestop(handle)
 

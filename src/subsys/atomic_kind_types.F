@@ -92,7 +92,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, stat
+    INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -105,15 +105,13 @@ CONTAINS
              CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
-             DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (atomic_kind_set(ikind)%atom_list)
           END IF
           CALL shell_release(atomic_kind_set(ikind)%shell)
 
           CALL damping_p_release(atomic_kind_set(ikind)%damping)
        END DO
-       DEALLOCATE (atomic_kind_set,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (atomic_kind_set)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind_set is not associated and "//&
@@ -365,7 +363,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, stat
+    INTEGER                                  :: n
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -381,11 +379,9 @@ CONTAINS
           n = SIZE(atom_list)
           IF (n > 0) THEN
              IF (ASSOCIATED(atomic_kind%atom_list)) THEN
-                DEALLOCATE (atomic_kind%atom_list,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (atomic_kind%atom_list)
              END IF
-             ALLOCATE (atomic_kind%atom_list(n),STAT=stat)
-             CPASSERT(stat==0)
+             ALLOCATE (atomic_kind%atom_list(n))
              atomic_kind%atom_list(:) = atom_list(:)
              atomic_kind%natom = n
           ELSE

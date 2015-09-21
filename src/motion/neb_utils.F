@@ -156,7 +156,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: dummy_char
     INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, &
       jtarg, n_rep, natom, neb_nr_replica, nr_replica_to_interpolate, nval, &
-      nvar, shell_index, stat
+      nvar, shell_index
     LOGICAL                                  :: check, explicit, failure, &
                                                 my_end, skip_vel_section
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distance
@@ -299,8 +299,7 @@ CPSourceFileRef,&
           END IF
        END IF
     END DO ! i_rep
-    ALLOCATE (distance(neb_nr_replica-1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (distance(neb_nr_replica-1))
     IF (input_nr_replica < neb_nr_replica) THEN
        ! Interpolate missing replicas
        nr_replica_to_interpolate = neb_nr_replica - input_nr_replica
@@ -352,8 +351,7 @@ CPSourceFileRef,&
        CALL neb_replica_distance(particle_set,coords,j,j+1,distance(j),iw,&
                                  rotate=neb_env%align_frames)
     END DO
-    DEALLOCATE (distance,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (distance)
 
     CALL timestop(handle)
 
@@ -388,8 +386,7 @@ CPSourceFileRef,&
       PARAMETER                              :: lab = (/"X","Y","Z"/)
 
     INTEGER                                  :: handle, i, irep, j, n_int, &
-                                                n_rep, n_rep_neb, nsize_wrk, &
-                                                stat
+                                                n_rep, n_rep_neb, nsize_wrk
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tangent, tmp_a, tmp_b
     REAL(KIND=dp), ALLOCATABLE, &
@@ -402,12 +399,9 @@ CPSourceFileRef,&
     n_rep     = rep_env%nrep
     nsize_wrk = coords%size_wrk(1)
     energies  = 0.0_dp
-    ALLOCATE(cvalues(n_int,n_rep),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Mmatrix_tmp(n_int*n_int,n_rep),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(Mmatrix(n_int*n_int,n_rep_neb),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cvalues(n_int,n_rep))
+    ALLOCATE(Mmatrix_tmp(n_int*n_int,n_rep))
+    ALLOCATE(Mmatrix(n_int*n_int,n_rep_neb))
     IF (output_unit>0) WRITE(output_unit,'(/,T2,A)')"NEB| Computing Energies and Forces"
     DO irep = 1, n_rep_neb, n_rep
        DO j = 0, n_rep-1
@@ -476,24 +470,19 @@ CPSourceFileRef,&
           END IF
        END DO
     END DO
-    DEALLOCATE(cvalues,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(Mmatrix_tmp,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cvalues)
+    DEALLOCATE(Mmatrix_tmp)
     IF (PRESENT(neb_env)) THEN
        ! First identify the image of the chain with the higher potential energy
        ! First and last point of the band are never considered
        neb_env%nr_HE_image = MAXLOC(energies(2:n_rep_neb-1),1)+1
-       ALLOCATE(tangent(nsize_wrk),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tangent(nsize_wrk))
        ! Then modify image forces accordingly to the scheme chosen for the
        ! calculation.
        neb_env%spring_energy = 0.0_dp
        IF (neb_env%optimize_end_points) THEN
-          ALLOCATE(tmp_a(SIZE(forces%wrk,1)),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(tmp_b(SIZE(forces%wrk,1)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(tmp_a(SIZE(forces%wrk,1)))
+          ALLOCATE(tmp_b(SIZE(forces%wrk,1)))
           tmp_a(:) = forces%wrk(:,1)
           tmp_b(:) = forces%wrk(:,SIZE(forces%wrk,2))
        END IF
@@ -505,20 +494,16 @@ CPSourceFileRef,&
        IF (neb_env%optimize_end_points) THEN
           forces%wrk(:,1)                  = tmp_a ! Image A
           forces%wrk(:,SIZE(forces%wrk,2)) = tmp_b ! Image B
-          DEALLOCATE(tmp_a,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(tmp_b,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(tmp_a)
+          DEALLOCATE(tmp_b)
        ELSE
           ! Nullify forces on the two end points images
           forces%wrk(:,1)                  = 0.0_dp ! Image A
           forces%wrk(:,SIZE(forces%wrk,2)) = 0.0_dp ! Image B
        END IF
-       DEALLOCATE(tangent,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tangent)
     END IF
-    DEALLOCATE(Mmatrix,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Mmatrix)
     CALL timestop(handle)
   END SUBROUTINE neb_calc_energy_forces
 
@@ -772,7 +757,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neb_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j, my_tag, nsize_wrk, stat
+    INTEGER                                  :: j, my_tag, nsize_wrk
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: distance1, distance2, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dtmp1, wrk
@@ -796,8 +781,7 @@ CPSourceFileRef,&
        RETURN
     END SELECT
     ! otherwise proceeed normally..
-    ALLOCATE (wrk(nsize_wrk),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (wrk(nsize_wrk))
     ! Spring Energy
     CALL neb_replica_distance(coords=coords,i0=i-1,i=i,distance=distance1,iw=iw,&
          rotate=.FALSE.)
@@ -808,8 +792,7 @@ CPSourceFileRef,&
        CALL cite_reference(Elber1987)
        ! Elastic band - Hamiltonian formulation according the original Karplus/Elber
        !                formulation
-       ALLOCATE(dtmp1(nsize_wrk),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dtmp1(nsize_wrk))
        ! derivatives of the spring
        tmp   = distance1-neb_env%avg_distance
        dtmp1(:) = 1.0_dp/distance1 * (coords%wrk(:,i)-coords%wrk(:,i-1))
@@ -827,8 +810,7 @@ CPSourceFileRef,&
        END DO
        forces%wrk(:,i)   = forces%wrk(:,i)   + wrk * tmp
        forces%wrk(:,i-1) = forces%wrk(:,i-1) - wrk * tmp
-       DEALLOCATE(dtmp1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dtmp1)
     CASE(do_b_neb)
        ! Bisection NEB
        CALL cite_reference(Jonsson1998)
@@ -859,8 +841,7 @@ CPSourceFileRef,&
     CASE(do_d_neb)
        ! Doubly NEB
        CALL cite_reference(Wales2004)
-       ALLOCATE(dtmp1(nsize_wrk),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dtmp1(nsize_wrk))
        dtmp1(:)        = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix)*tangent
        forces%wrk(:,i) = dtmp1
        tmp = SQRT(DOT_PRODUCT(dtmp1,dtmp1))
@@ -871,11 +852,9 @@ CPSourceFileRef,&
        tmp = DOT_PRODUCT(wrk,dtmp1)
        dtmp1(:) = neb_env%k*(wrk(:) - tmp*dtmp1(:))
        forces%wrk(:,i) = forces%wrk(:,i) + dtmp1(:)
-       DEALLOCATE(dtmp1,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dtmp1)
     END SELECT
-    DEALLOCATE(wrk,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wrk)
   END SUBROUTINE get_neb_force
 
 ! *****************************************************************************
@@ -997,7 +976,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: avg_distance, xtmp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1005,8 +984,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     IF (reparametrize_frames) THEN
-       ALLOCATE(tmp_coords(SIZE(coords,1),SIZE(coords,2)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(tmp_coords(SIZE(coords,1),SIZE(coords,2)))
        tmp_coords(:,:) = coords
        ! Smoothing
        DO i = 2, SIZE(coords,2)-1
@@ -1047,8 +1025,7 @@ CPSourceFileRef,&
                error_level=cp_warning_level)
        END SELECT
        sline = coords - tmp_coords + sline
-       DEALLOCATE(tmp_coords,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp_coords)
     END IF
   END SUBROUTINE reparametrize_images
 

@@ -237,7 +237,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
-    INTEGER                                  :: l, nshell, stat
+    INTEGER                                  :: l, nshell
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
@@ -249,11 +249,9 @@ CONTAINS
        IF (sep%natorb ==  1) nshell=1
        IF (sep%natorb ==  4) nshell=2
        IF (sep%natorb ==  9) nshell=3
-       ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (nq(0:3),lq(0:3),zet(0:3))
 
-       ALLOCATE (symbol(0:3),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (symbol(0:3))
 
        symbol=""
        nq=0
@@ -275,14 +273,10 @@ CONTAINS
           CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,sep%ngauss)
        END IF
 
-       DEALLOCATE (nq,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (lq,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (zet,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (symbol,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (nq)
+       DEALLOCATE (lq)
+       DEALLOCATE (zet)
+       DEALLOCATE (symbol)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer sep is not associated")

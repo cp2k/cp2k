@@ -144,15 +144,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    ALLOCATE (scf_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (scf_env)
     scf_env%ref_count = 1
     scf_env%print_count = 0
     last_scf_env_id = last_scf_env_id + 1
@@ -278,7 +277,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -325,36 +324,29 @@ CONTAINS
                 CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
                 DEALLOCATE (scf_env%ot_preconditioner(i)%preconditioner)
              END DO
-             DEALLOCATE (scf_env%ot_preconditioner,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (scf_env%ot_preconditioner)
           END IF
           IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
              DO i=1,SIZE(scf_env%qs_ot_env)
                 CALL qs_ot_destroy(scf_env%qs_ot_env(i))
              END DO
-             DEALLOCATE(scf_env%qs_ot_env, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(scf_env%qs_ot_env)
           END IF
           CALL qs_diis_b_release(scf_env%scf_diis_buffer)
           IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
-             DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(scf_env%outer_scf%variables)
           END IF
           IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
-             DEALLOCATE(scf_env%outer_scf%count,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(scf_env%outer_scf%count)
           END IF
           IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
-             DEALLOCATE(scf_env%outer_scf%gradient,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(scf_env%outer_scf%gradient)
           END IF
           IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
-             DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(scf_env%outer_scf%energy)
           END IF
           IF (ASSOCIATED(scf_env%cc_buffer)) THEN
-             DEALLOCATE(scf_env%cc_buffer,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(scf_env%cc_buffer)
           END IF
           IF (ASSOCIATED(scf_env%mixing_store)) THEN
              CALL mixing_storage_release(scf_env%mixing_store)
@@ -371,8 +363,7 @@ CONTAINS
           IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
              CALL fb_env_release(scf_env%filter_matrix_env)
           END IF
-          DEALLOCATE(scf_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(scf_env)
        END IF
     END IF
 
@@ -398,14 +389,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(krylov_space))
-    ALLOCATE(krylov_space, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(krylov_space)
 
 
     NULLIFY(krylov_space%c_eval,krylov_space%t_eval)
@@ -453,28 +442,23 @@ CONTAINS
 
     IF(ASSOCIATED(krylov_space)) THEN
 
-        DEALLOCATE(krylov_space%c_eval,STAT=stat)
-      CPASSERT(stat==0)
-        DEALLOCATE(krylov_space%t_eval,STAT=stat)
-      CPASSERT(stat==0)
+        DEALLOCATE(krylov_space%c_eval)
+        DEALLOCATE(krylov_space%t_eval)
 
         DO i = 1,SIZE(krylov_space%v_mat)
           CALL cp_fm_release(krylov_space%v_mat(i)%matrix)
         END DO
-        DEALLOCATE(krylov_space%v_mat,STAT=stat)
-      CPASSERT(stat==0)
+        DEALLOCATE(krylov_space%v_mat)
 
         DO i = 1,SIZE(krylov_space%mo_conv)
           CALL cp_fm_release(krylov_space%mo_conv(i)%matrix)
         END DO
-        DEALLOCATE(krylov_space%mo_conv,STAT=stat)
-      CPASSERT(stat==0)
+        DEALLOCATE(krylov_space%mo_conv)
 
         DO i = 1,SIZE(krylov_space%mo_refine)
           CALL cp_fm_release(krylov_space%mo_refine(i)%matrix)
         END DO
-        DEALLOCATE(krylov_space%mo_refine,STAT=stat)
-      CPASSERT(stat==0)
+        DEALLOCATE(krylov_space%mo_refine)
 
         DO i = 1,SIZE(krylov_space%chc_mat)
           CALL cp_fm_release(krylov_space%chc_mat(i)%matrix)
@@ -491,8 +475,7 @@ CONTAINS
         CALL cp_fm_release(krylov_space%block4_mat)
         CALL cp_fm_release(krylov_space%block5_mat)
 
-        DEALLOCATE(krylov_space,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(krylov_space)
 
       NULLIFY(krylov_space)
     END IF
@@ -517,15 +500,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'diag_subspace_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: do_mixing, failure
     TYPE(section_vals_type), POINTER         :: mixing_section
 
     failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(subspace_env))
-    ALLOCATE(subspace_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(subspace_env)
 
 
     NULLIFY(subspace_env%p_matrix_store)
@@ -602,8 +583,7 @@ CONTAINS
            CALL mixing_storage_release(subspace_env%mixing_store)
         END IF
 
-       DEALLOCATE(subspace_env, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(subspace_env)
     END IF
 
  END SUBROUTINE diag_subspace_env_release

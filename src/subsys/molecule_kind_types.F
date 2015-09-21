@@ -341,7 +341,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imolecule_kind, stat
+    INTEGER                                  :: imolecule_kind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -349,8 +349,7 @@ CONTAINS
       CALL deallocate_molecule_kind_set(molecule_kind_set)
     END IF
 
-    ALLOCATE (molecule_kind_set(nmolecule_kind),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (molecule_kind_set(nmolecule_kind))
 
     DO imolecule_kind=1,nmolecule_kind
       NULLIFY (molecule_kind_set(imolecule_kind)%atom_list)
@@ -417,7 +416,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imolecule_kind, j, &
-                                                nmolecule_kind, stat
+                                                nmolecule_kind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -428,98 +427,77 @@ CONTAINS
       DO imolecule_kind=1,nmolecule_kind
 
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%atom_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%ub_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%ub_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_kind_set)) THEN
            CALL ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%impr_kind_set)
               CALL impr_kind_dealloc_ref()  !This Subroutine doesn't deallocate anything, maybe needs to be implemented
            END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%opbend_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%opbend_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%opbend_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%opbend_kind_set)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%opbend_kind_set,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%opbend_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%colv_list)) THEN
            DO j = 1, SIZE(molecule_kind_set(imolecule_kind)%colv_list)
-              DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list(j)%i_atoms,STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list(j)%i_atoms)
            END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g3x3_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g4x6_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%g4x6_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%g4x6_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%vsite_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%vsite_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%vsite_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%fixd_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%fixd_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%fixd_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%torsion_kind_set)
               CALL torsion_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%torsion_kind_set(i))
            END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%shell_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%shell_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%shell_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%molecule_list)) THEN
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list,STAT=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list)
         ENDIF
       END DO
 
-      DEALLOCATE (molecule_kind_set,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE (molecule_kind_set)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
            "The pointer molecule_kind_set is not associated and cannot be deallocated")

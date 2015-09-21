@@ -54,13 +54,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(expns3))
-    ALLOCATE (expns3,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (expns3)
     expns3%core_core = 0.0_dp
     expns3%e1b       = 0.0_dp
     expns3%e2a       = 0.0_dp
@@ -80,13 +78,11 @@ CONTAINS
       routineN = 'semi_empirical_expns3_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(expns3)) THEN
-       DEALLOCATE (expns3,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (expns3)
     END IF
   END SUBROUTINE semi_empirical_expns3_release
 

@@ -133,7 +133,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, &
-      icol, ikind, img, irow, is, istat, jatom, jkind, natom, nimg, nmat
+      icol, ikind, img, irow, is, jatom, jkind, natom, nimg, nmat
     INTEGER, DIMENSION(3)                    :: cellind, periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
@@ -187,8 +187,7 @@ CONTAINS
     END IF
 
     natom = SIZE(mcharge)
-    ALLOCATE(gmcharge(natom,nmat),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(gmcharge(natom,nmat))
     gmcharge = 0._dp
 
     CALL get_qs_env(qs_env,&
@@ -203,8 +202,7 @@ CONTAINS
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
 
-    ALLOCATE(mcin(natom,1),mcout(natom,1),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mcin(natom,1),mcout(natom,1))
     mcin(:,1) = mcharge(:)
 
     DO i=1,nmat
@@ -213,8 +211,7 @@ CONTAINS
       gmcharge(:,i) = mcout(:,1)
     END DO
 
-    DEALLOCATE(mcin,mcout,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(mcin,mcout)
 
     IF ( calculate_forces .AND. use_virial ) THEN
        CALL cp_dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
@@ -324,8 +321,7 @@ CONTAINS
     END IF
 
     IF ( calculate_forces ) THEN
-      ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE (atom_of_kind(natom),kind_of(natom))
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                kind_of=kind_of,&
@@ -446,11 +442,9 @@ CONTAINS
     END IF
 
     IF ( calculate_forces ) THEN
-      DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE (atom_of_kind,kind_of)
     END IF
-    DEALLOCATE(gmcharge,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(gmcharge)
 
     CALL timestop(handle)
 
@@ -482,8 +476,8 @@ CONTAINS
 
     INTEGER                                  :: atom_i, atom_j, blk, &
                                                 ewald_type, handle, i, ia, &
-                                                iatom, ikind, istat, jatom, &
-                                                jkind, natom, nmat
+                                                iatom, ikind, jatom, jkind, &
+                                                natom, nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: failure, found, use_virial
@@ -526,8 +520,7 @@ CONTAINS
     END IF
 
     natom = SIZE(mcharge)
-    ALLOCATE(gmcharge(natom,nmat),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(gmcharge(natom,nmat))
     gmcharge = 0._dp
 
     CALL get_qs_env(qs_env,&
@@ -617,8 +610,7 @@ CONTAINS
     energy%qmmm_el = energy%qmmm_el + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
     !
     IF ( calculate_forces ) THEN
-       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (atom_of_kind(natom),kind_of(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,&
                                 atom_of_kind=atom_of_kind)
@@ -671,11 +663,9 @@ CONTAINS
     END IF
 
     IF ( calculate_forces ) THEN
-      DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE (atom_of_kind,kind_of)
     END IF
-    DEALLOCATE(gmcharge,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(gmcharge)
 
     CALL timestop(handle)
 
@@ -715,8 +705,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ig, ipart, &
-                                                j, n, npart, o_spline, p1, &
-                                                stat
+                                                j, n, npart, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: nd, npts
     LOGICAL                                  :: failure
@@ -754,15 +743,13 @@ CONTAINS
     npart = SIZE ( particle_set )
 
     n = o_spline
-    ALLOCATE ( rhos ( n, n, n ), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rhos ( n, n, n ))
 
     CALL rs_grid_create(rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
-    ALLOCATE ( center ( 3, npart ), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( center ( 3, npart ))
     CALL get_center ( particle_set, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -897,8 +884,7 @@ CONTAINS
     IF ( calculate_forces ) THEN
        ! move derivative of potential to real space grid and
        ! multiply by charge function in g-space
-       ALLOCATE ( drpot(1:3), STAT=stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( drpot(1:3))
        DO i = 1, 3
           CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
           CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
@@ -949,14 +935,11 @@ CONTAINS
          DO i = 1, 3
            CALL rs_grid_release(drpot(i)%rs_grid)
          END DO
-         DEALLOCATE ( drpot, STAT = stat )
-         CPASSERT(stat==0)
+         DEALLOCATE ( drpot)
        END IF
     END IF
-    DEALLOCATE ( rhos, STAT = stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( center, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rhos)
+    DEALLOCATE ( center)
 
     CALL timestop(handle)
 

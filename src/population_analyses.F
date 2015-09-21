@@ -89,7 +89,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, ispin, ndep, nsgf, &
-                                                nspin, stat
+                                                nspin
     LOGICAL                                  :: failure, print_gop
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -168,8 +168,7 @@ CONTAINS
        CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
        ! Provide an array to store the orbital populations for each spin
-       ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
-       CPASSERT(stat == 0)
+       ALLOCATE (orbpop(nsgf,nspin))
        orbpop(:,:) = 0.0_dp
 
        ! Write headline
@@ -243,8 +242,7 @@ CONTAINS
        CALL cp_fm_release(matrix=fm_work1)
        CALL cp_fm_release(matrix=fm_work2)
        IF (ASSOCIATED(orbpop)) THEN
-         DEALLOCATE (orbpop,STAT=stat)
-         CPASSERT(stat == 0)
+         DEALLOCATE (orbpop)
        END IF
 
     END IF
@@ -274,7 +272,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: blk, handle, iatom, ic, isgf, &
                                                 ispin, jatom, jsgf, natom, &
-                                                nsgf, nspin, sgfa, sgfb, stat
+                                                nsgf, nspin, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     LOGICAL                                  :: failure, found, print_gop
     REAL(KIND=dp)                            :: ps
@@ -332,15 +330,13 @@ CONTAINS
     ! Get the total number of contracted spherical Gaussian basis functions
     CALL get_atomic_kind_set(atomic_kind_set,natom=natom)
     CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
-    ALLOCATE (first_sgf_atom(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (first_sgf_atom(natom))
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf_atom)
 
     ! Provide an array to store the orbital populations for each spin
-    ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE (orbpop(nsgf,nspin))
     orbpop(:,:) = 0.0_dp
 
     ! Write headline
@@ -353,8 +349,7 @@ CONTAINS
     ! Create a DBCSR work matrix, if needed
     IF (print_level > 2) THEN
       sm_s => matrix_s(1,1)%matrix ! Overlap matrix in sparse format
-      ALLOCATE (sm_ps,STAT=stat)
-      CPASSERT(stat == 0)
+      ALLOCATE (sm_ps)
       headline = "MULLIKEN NET ATOMIC ORBITAL AND OVERLAP POPULATION MATRIX"
       CALL cp_dbcsr_init(sm_ps)
       CALL cp_dbcsr_copy(matrix_b=sm_ps,&
@@ -438,12 +433,10 @@ CONTAINS
     ! Release local working storage
     IF (ASSOCIATED(sm_ps)) CALL cp_dbcsr_deallocate_matrix(sm_ps)
     IF (ASSOCIATED(orbpop)) THEN
-      DEALLOCATE (orbpop,STAT=stat)
-      CPASSERT(stat == 0)
+      DEALLOCATE (orbpop)
     END IF
     IF (ALLOCATED(first_sgf_atom)) THEN
-      DEALLOCATE (first_sgf_atom,STAT=stat)
-      CPASSERT(stat == 0)
+      DEALLOCATE (first_sgf_atom)
     END IF
 
     IF (output_unit > 0) THEN

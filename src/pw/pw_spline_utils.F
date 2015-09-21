@@ -140,7 +140,7 @@ CONTAINS
       routineN = 'pw_spline2_interpolate_values_g', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: n_tot
     LOGICAL                                  :: failure
@@ -160,8 +160,7 @@ CONTAINS
     CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)),&
-         cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
-    CPASSERT(stat==0)
+         cosKVals(gbo(1,3):gbo(2,3)))
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
@@ -194,8 +193,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
 
     END DO
-    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_interpolate_values_g
@@ -220,7 +218,7 @@ CONTAINS
       routineN = 'pw_spline3_interpolate_values_g', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: n_tot
     LOGICAL                                  :: failure
@@ -241,8 +239,7 @@ CONTAINS
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),&
          cosJVals(gbo(1,2):gbo(2,2)),&
-         cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
-    CPASSERT(stat==0)
+         cosKVals(gbo(1,3):gbo(2,3)))
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
@@ -281,8 +278,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
 
     END DO
-    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_interpolate_values_g
@@ -303,7 +299,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_evaluate_values_g', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
@@ -326,8 +322,7 @@ CONTAINS
     CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
-         cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPASSERT(stat==0)
+         cosKVals(gbo(1,3):gbo(2,3)))
 
     coeff=twopi/n_tot(1)
     !$omp parallel do default(none) private(i) shared(gbo,cosIVals,coeff)
@@ -358,8 +353,7 @@ CONTAINS
 
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
-    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_evaluate_values_g
@@ -389,7 +383,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
@@ -417,8 +411,7 @@ CONTAINS
     CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
-         cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPASSERT(stat==0)
+         cosKVals(gbo(1,3):gbo(2,3)))
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(gbo,coeff,cosIVals)
@@ -449,8 +442,7 @@ CONTAINS
 
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
-    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_nn_smear_g
@@ -471,7 +463,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_evaluate_values_g', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
@@ -494,8 +486,7 @@ CONTAINS
     CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
-         cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPASSERT(stat==0)
+         cosKVals(gbo(1,3):gbo(2,3)))
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(coeff,cosIVals,gbo)
@@ -533,8 +524,7 @@ CONTAINS
 
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
-    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_evaluate_values_g
@@ -652,7 +642,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: inv9 = 1.0_dp/9.0_dp
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
@@ -675,8 +665,7 @@ CONTAINS
 
     ALLOCATE(csIVals(gbo(1,1):gbo(2,1)),&
          csJVals(gbo(1,2):gbo(2,2)),&
-         csKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPASSERT(stat==0)
+         csKVals(gbo(1,3):gbo(2,3)))
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
@@ -769,8 +758,7 @@ CONTAINS
        END DO
     END SELECT
 
-    DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(csIVals, csJVals, csKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_deriv_g
@@ -795,7 +783,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: inv16 = 1.0_dp/16.0_dp
 
-    INTEGER                                  :: handle, i, ii, j, k, stat
+    INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
@@ -816,8 +804,7 @@ CONTAINS
     CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(csIVals(bo(1,1):bo(2,1)),csJVals(bo(1,2):bo(2,2)),&
-         csKVals(bo(1,3):bo(2,3)), stat=stat)
-    CPASSERT(stat==0)
+         csKVals(bo(1,3):bo(2,3)))
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
@@ -910,8 +897,7 @@ CONTAINS
        END DO
     END SELECT
 
-    DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(csIVals, csJVals, csKVals)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_deriv_g
@@ -1167,8 +1153,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_work', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, jw, k, kw, myj, myk, &
-                                                stat
+    INTEGER                                  :: i, j, jw, k, kw, myj, myk
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: s
     LOGICAL                                  :: has_boundary, yderiv, zderiv
@@ -1188,8 +1173,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
   IF (has_boundary) THEN
      ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-          tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPASSERT(stat==0)
+          tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
      tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
      CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
           gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
@@ -1202,8 +1186,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
           u_boundary,pw_in%pw_grid%para%pos_of_x(&
           gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
           pw_in%pw_grid%para%group)
-     DEALLOCATE(tmp,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(tmp)
   END IF
 
   !$omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
@@ -1233,8 +1216,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
      END DO
   END DO
   IF (has_boundary) THEN
-     DEALLOCATE(l_boundary,u_boundary,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(l_boundary,u_boundary)
   END IF
 END SUBROUTINE pw_nn_compose_r_work
 
@@ -1439,7 +1421,7 @@ END SUBROUTINE pw_nn_compose_r
     INTEGER :: coarse_slice_size, f_shift(3), fi, fi_lb, fi_ub, fj, fk, &
       handle, handle2, i, ii, ij, ik, ip, j, k, my_lb, my_ub, n_procs, p, &
       p_lb, p_old, p_ub, rcv_tot_size, rest_b, s(3), send_tot_size, sf, &
-      shift, ss, stat, x, x_att, xx
+      shift, ss, x, x_att, xx
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcv_offset, rcv_size, &
                                                 real_rcv_size, send_offset, &
                                                 send_size, sent_size
@@ -1513,8 +1495,7 @@ END SUBROUTINE pw_nn_compose_r
        n_procs=coarse_coeffs_pw%pw_grid%para%group_size
        ALLOCATE(send_size(0:n_procs-1),send_offset(0:n_procs-1),&
             sent_size(0:n_procs-1),rcv_size(0:n_procs-1), &
-            rcv_offset(0:n_procs-1),real_rcv_size(0:n_procs-1), stat=stat)
-       CPASSERT(stat==0)
+            rcv_offset(0:n_procs-1),real_rcv_size(0:n_procs-1))
 
        ! ** rcv size count
 
@@ -1595,8 +1576,7 @@ END SUBROUTINE pw_nn_compose_r
           send_offset(ip)=send_tot_size
           send_tot_size=send_tot_size+send_size(ip)
        END DO
-       ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(send_buf(0:send_tot_size-1))
 
        rcv_tot_size=0
        DO ip=0,n_procs-1
@@ -1610,8 +1590,7 @@ END SUBROUTINE pw_nn_compose_r
 CPSourceFileRef,&
                failure)
        END IF
-       ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rcv_buf(0:rcv_tot_size-1))
 
        ! ** fill send buffer
 
@@ -1720,8 +1699,7 @@ CPSourceFileRef,&
 
        ALLOCATE(coarse_coeffs(coarse_bo(1,1):coarse_bo(2,1),&
             coarse_bo(1,2):coarse_bo(2,2),&
-            coarse_bo(1,3):coarse_bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+            coarse_bo(1,3):coarse_bo(2,3)))
 
        my_lb=MAX(coarse_gbo(1,1),coarse_bo(1,1))
        my_ub=MIN(coarse_gbo(2,1),coarse_bo(2,1))
@@ -1784,10 +1762,8 @@ CPSourceFileRef,&
        CPASSERT(sent_size(n_procs-1)==rcv_tot_size)
 
        ! dealloc
-       DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(send_buf,rcv_buf,real_rcv_size,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset)
+       DEALLOCATE(send_buf,rcv_buf,real_rcv_size)
        CALL timestop(handle2)
 
     END IF
@@ -2198,8 +2174,7 @@ CPSourceFileRef,&
     END DO
 
     IF (is_split) THEN
-       DEALLOCATE(coarse_coeffs,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(coarse_coeffs)
     END IF
     CALL timestop(handle)
   END SUBROUTINE add_coarse2fine
@@ -2255,7 +2230,7 @@ CPSourceFileRef,&
 
     INTEGER :: coarse_slice_size, f_shift(3), fi, fj, fk, handle, handle2, i, &
       ii, ij, ik, ip, j, k, n_procs, p, p_old, rcv_tot_size, rest_b, s(3), &
-      send_tot_size, ss, stat, x, x_att
+      send_tot_size, ss, x, x_att
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pp_lb, pp_ub, rcv_offset, &
                                                 rcv_size, real_rcv_size, &
                                                 send_offset, send_size, &
@@ -2314,8 +2289,7 @@ CPSourceFileRef,&
     IF (local_data) THEN
        ALLOCATE(coarse_coeffs(coarse_bo(1,1):coarse_bo(2,1),&
             coarse_bo(1,2):coarse_bo(2,2),&
-            coarse_bo(1,3):coarse_bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+            coarse_bo(1,3):coarse_bo(2,3)))
        coarse_coeffs=0._dp
     ELSE
        coarse_coeffs => coarse_coeffs_pw%cr3d
@@ -2769,8 +2743,7 @@ CPSourceFileRef,&
        ALLOCATE(send_size(0:n_procs-1),send_offset(0:n_procs-1),&
             sent_size(0:n_procs-1),rcv_size(0:n_procs-1), &
             rcv_offset(0:n_procs-1), pp_lb(0:n_procs-1),&
-            pp_ub(0:n_procs-1),real_rcv_size(0:n_procs-1),stat=stat)
-       CPASSERT(stat==0)
+            pp_ub(0:n_procs-1),real_rcv_size(0:n_procs-1))
 
        ! ** send size count
 
@@ -2844,16 +2817,14 @@ CPSourceFileRef,&
             "Error calculating send_tot_size "//&
 CPSourceFileRef,&
             failure)
-       ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(send_buf(0:send_tot_size-1))
 
        rcv_tot_size=0
        DO ip=0,n_procs-1
           rcv_offset(ip)=rcv_tot_size
           rcv_tot_size=rcv_tot_size+rcv_size(ip)
        END DO
-       ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rcv_buf(0:rcv_tot_size-1))
 
        ! ** fill send buffer
 
@@ -2882,8 +2853,7 @@ CPSourceFileRef,&
             failure)
 
     IF (local_data) THEN
-       DEALLOCATE(coarse_coeffs,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(coarse_coeffs)
     ELSE
        NULLIFY(coarse_coeffs)
     END IF
@@ -2957,12 +2927,9 @@ CPSourceFileRef,&
             failure)
 
        ! dealloc
-       DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(send_buf,rcv_buf,real_rcv_size, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(pp_ub,pp_lb,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset)
+       DEALLOCATE(send_buf,rcv_buf,real_rcv_size)
+       DEALLOCATE(pp_ub,pp_lb)
        CALL timestop(handle2)
     ELSE
        CPASSERT(.NOT.local_data)
@@ -2991,13 +2958,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(preconditioner,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(preconditioner)
     last_precond_id=last_precond_id+1
     preconditioner%id_nr=last_precond_id
     preconditioner%ref_count=1
@@ -3134,7 +3099,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -3144,8 +3108,7 @@ CPSourceFileRef,&
        preconditioner%ref_count=preconditioner%ref_count-1
        IF (preconditioner%ref_count==0) THEN
           CALL pw_pool_release(preconditioner%pool)
-          DEALLOCATE(preconditioner,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(preconditioner)
        END IF
     END IF
   END SUBROUTINE pw_spline_precond_release
@@ -3339,8 +3302,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: first_index, i, j, jw, k, kw, &
-                                                last_index, myj, myk, n_els, &
-                                                stat
+                                                last_index, myj, myk, n_els
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: s
     LOGICAL :: has_l_boundary, has_u_boundary, is_split, my_normalize, &
@@ -3377,8 +3339,7 @@ CPSourceFileRef,&
     IF (is_split) THEN
        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-            tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+            tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
@@ -3391,8 +3352,7 @@ CPSourceFileRef,&
             u_boundary,pw_in%pw_grid%para%pos_of_x(&
             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
             pw_in%pw_grid%para%group)
-       DEALLOCATE(tmp,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(tmp)
     END IF
 
     n_els=s(1)
@@ -3666,8 +3626,7 @@ CPSourceFileRef,&
     END DO
 
     IF (is_split) THEN
-       DEALLOCATE(l_boundary,u_boundary,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(l_boundary,u_boundary)
     END IF
   END SUBROUTINE pw_nn_compose_r_no_pbc
 

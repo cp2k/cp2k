@@ -157,7 +157,6 @@ SUBROUTINE p_proj_release(p_proj)
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -166,13 +165,10 @@ SUBROUTINE p_proj_release(p_proj)
      CPASSERT(p_proj%ref_count>0)
      p_proj%ref_count=p_proj%ref_count-1
      IF (p_proj%ref_count<1) THEN
-        DEALLOCATE(p_proj%atoms,stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(p_proj%proj_indexes,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(p_proj%atoms)
+        DEALLOCATE(p_proj%proj_indexes)
         p_proj%ref_count=0
-        DEALLOCATE(p_proj, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(p_proj)
      END IF
   END IF
 END SUBROUTINE p_proj_release
@@ -252,8 +248,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
           transpose=.TRUE.)
   END DO
 
-  DEALLOCATE(tmp_min, tmp_full, stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(tmp_min, tmp_full)
 
   CALL timestop(handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
@@ -283,7 +278,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
     INTEGER                                  :: handle, icol, irow, &
                                                 max_index, min_index, &
                                                 my_end_col, my_start_col, &
-                                                row_index, stat
+                                                row_index
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: keep_row
@@ -299,8 +294,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
   CPASSERT(full_m%ref_count>0)
   min_index=MINVAL(p_proj%proj_indexes)
   max_index=MAXVAL(p_proj%proj_indexes)
-  ALLOCATE(keep_row(min_index:max_index),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(keep_row(min_index:max_index))
 
   my_start_col=1
   IF (PRESENT(start_col)) my_start_col=start_col
@@ -327,8 +321,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
      END IF
   END DO
 
-  DEALLOCATE(keep_row,stat=stat)
-  CPASSERT(stat==0)
+  DEALLOCATE(keep_row)
 
   CALL timestop(handle)
 END SUBROUTINE p_proj_restrain_f

@@ -821,7 +821,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_build_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, just_energy_xc, &
                                                 my_print, use_virial
     REAL(KIND=dp)                            :: edisp
@@ -979,8 +979,7 @@ CONTAINS
                atomic_kind_set)
        ENDDO
        IF(ASSOCIATED(v_rspace_new)) THEN
-          DEALLOCATE(v_rspace_new,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(v_rspace_new)
        ENDIF
 
        ! *** LRIGPW forces
@@ -1404,7 +1403,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, imo, istat
+    INTEGER                                  :: handle, imo
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
     TYPE(cp_fm_type), POINTER                :: weighted_vectors
@@ -1418,8 +1417,7 @@ CONTAINS
     CALL cp_fm_to_fm(mo_set%mo_coeff,weighted_vectors)
 
     ! scale every column with the occupation
-    ALLOCATE(eigocc(mo_set%homo),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(eigocc(mo_set%homo))
 
     DO imo=1,mo_set%homo
        eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
@@ -1463,7 +1461,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ncol_block, &
                                                 ncol_global, nrow_block, &
-                                                nrow_global, stat
+                                                nrow_global
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
@@ -1490,13 +1488,11 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct_tmp)
 
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers )
-    ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
     scaling_factor=2.0_dp*occupation_numbers
     CALL copy_dbcsr_to_fm(mo_deriv,weighted_vectors)
     CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
-    DEALLOCATE(scaling_factor,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(scaling_factor)
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of
     ! internally in qs_core_hamiltonian
@@ -1525,13 +1521,11 @@ CONTAINS
        CALL cp_dbcsr_sm_fm_multiply(s_matrix,weighted_vectors,&
                                  gradient, ncol_global)
 
-       ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
        scaling_factor=2.0_dp*occupation_numbers
        CALL copy_dbcsr_to_fm(mo_deriv,weighted_vectors)
        CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
-       DEALLOCATE(scaling_factor,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(scaling_factor)
 
        WRITE(*,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient)

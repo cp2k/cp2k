@@ -144,7 +144,7 @@ CONTAINS
       iparticle, iprint, itype, iunit, iuptrans, iupvolume, iw, jbox, jdum, &
       molecule_type, molecule_type_swap, molecule_type_target, nchain_total, &
       nmol_types, nmoves, nnstep, nstart, nstep, source, start_atom, &
-      start_atom_swap, start_atom_target, start_mol, stat
+      start_atom_swap, start_atom_target, start_mol
     CHARACTER(LEN=default_string_length)     :: unit_str
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
@@ -197,24 +197,15 @@ CONTAINS
     NULLIFY(moves,move_updates,test_moves,root_section)
 
     ! allocate a whole bunch of stuff based on how many boxes we have
-    ALLOCATE (force_env(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (bias_env(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (cell(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (particles_old(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (oldsys(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (averages(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (mc_par(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (pmvol_box(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (pmhmc_box(1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (force_env(1:nboxes))
+    ALLOCATE (bias_env(1:nboxes))
+    ALLOCATE (cell(1:nboxes))
+    ALLOCATE (particles_old(1:nboxes))
+    ALLOCATE (oldsys(1:nboxes))
+    ALLOCATE (averages(1:nboxes))
+    ALLOCATE (mc_par(1:nboxes))
+    ALLOCATE (pmvol_box(1:nboxes))
+    ALLOCATE (pmhmc_box(1:nboxes))
 
     DO ibox=1,nboxes
        CALL get_mc_env ( mc_env(ibox)%mc_env, &
@@ -251,10 +242,8 @@ CONTAINS
          atom_names=atom_names,mass=mass)
 
     ! allocate some stuff based on the number of molecule types we have
-    ALLOCATE (moves(1:nmol_types,1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (move_updates(1:nmol_types,1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (moves(1:nmol_types,1:nboxes))
+    ALLOCATE (move_updates(1:nmol_types,1:nboxes))
 
     IF(nboxes .GT. 1) THEN
        DO ibox=2,nboxes
@@ -280,8 +269,7 @@ CONTAINS
     ENDIF
 
     ! allocate the particle positions array for broadcasting
-    ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes))
 
     ! figure out what the default write unit is
     iw = cp_logger_get_default_io_unit(logger)
@@ -349,8 +337,7 @@ CONTAINS
        ! find the bias energy of the initial run
        IF(lbias) THEN
           ! determine the atom names of every particle
-          ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (atom_names_box(1:nunits_tot(ibox)))
 
           atom_number=1
           DO imolecule=1,SUM(nchains(:,ibox))
@@ -377,8 +364,7 @@ CONTAINS
              last_bias_energy(ibox)=0.0E0_dp
           ENDIF
           bias_energy(ibox)=last_bias_energy(ibox)
-          DEALLOCATE(atom_names_box,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(atom_names_box)
        ENDIF
        lnew_bias_env=.FALSE.
 
@@ -533,8 +519,7 @@ CONTAINS
              DO ibox=1,nboxes
                 CALL force_env_release(bias_env(ibox)%force_env)
                 ! determine the atom names of every particle
-                ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
-                CPASSERT(stat==0)
+                ALLOCATE (atom_names_box(1:nunits_tot(ibox)))
                 start_mol=1
                 DO jbox=1,ibox-1
                    start_mol=start_mol+SUM(nchains(:,jbox))
@@ -573,8 +558,7 @@ CONTAINS
                    last_bias_energy(ibox)=0.0E0_dp
                 ENDIF
                 bias_energy(ibox)=last_bias_energy(ibox)
-                DEALLOCATE(atom_names_box,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(atom_names_box)
              ENDDO
           ENDIF
 
@@ -1001,8 +985,7 @@ CONTAINS
                 ! now fold the coordinates...don't do this anywhere but here, because
                 ! we can get screwed up with the mc_molecule_info stuff (like in swap move)...
                 ! this is kind of ugly, with allocated and deallocating every time
-                   ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)),STAT=stat)
-                   CPASSERT(stat==0)
+                   ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)))
 
                    DO iunit=1,nunits_tot(ibox)
                       r_temp(1:3,iunit)=&
@@ -1033,8 +1016,7 @@ CONTAINS
                       ENDDO
                    ENDIF
 
-                   DEALLOCATE (r_temp,STAT=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE (r_temp)
                 ENDIF
              ENDIF
           ENDDO
@@ -1151,30 +1133,18 @@ CONTAINS
        CALL mc_averages_release(averages(ibox)%averages)
     ENDDO
 
-    DEALLOCATE(pmhmc_box,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(pmvol_box,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r_old,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(force_env,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(bias_env,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (cell,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (particles_old,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (oldsys,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (averages,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (moves,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (move_updates,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (mc_par,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pmhmc_box)
+    DEALLOCATE(pmvol_box)
+    DEALLOCATE(r_old)
+    DEALLOCATE(force_env)
+    DEALLOCATE(bias_env)
+    DEALLOCATE (cell)
+    DEALLOCATE (particles_old)
+    DEALLOCATE (oldsys)
+    DEALLOCATE (averages)
+    DEALLOCATE (moves)
+    DEALLOCATE (move_updates)
+    DEALLOCATE (mc_par)
 
     ! end the timing
     CALL timestop(handle)
@@ -1209,7 +1179,7 @@ CONTAINS
     INTEGER :: current_division, end_atom, group, ibin, idivision, iparticle, &
       iprint, itemp, iunit, ivirial, iw, nbins, nchain_total, &
       nintegral_divisions, nmol_types, nvirial, nvirial_temps, source, &
-      start_atom, stat
+      start_atom
     INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
     INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: failure, ionode, loverlap
@@ -1239,10 +1209,8 @@ CONTAINS
     ! better statistics
 
     nintegral_divisions=3
-    ALLOCATE (virial_cutoffs(1:nintegral_divisions),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (virial_stepsize(1:nintegral_divisions),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (virial_cutoffs(1:nintegral_divisions))
+    ALLOCATE (virial_stepsize(1:nintegral_divisions))
     virial_cutoffs(1)=8.0 ! first distance, in bohr
     virial_cutoffs(2)=13.0 ! second distance, in bohr
     virial_cutoffs(3)=22.0 ! maximum distance, in bohr
@@ -1258,16 +1226,11 @@ CONTAINS
     iw = cp_logger_get_default_io_unit(logger)
 
     ! allocate a whole bunch of stuff based on how many boxes we have
-    ALLOCATE (force_env(1:1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (cell(1:1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (particles(1:1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (subsys(1:1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (mc_par(1:1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (force_env(1:1))
+    ALLOCATE (cell(1:1))
+    ALLOCATE (particles(1:1))
+    ALLOCATE (subsys(1:1))
+    ALLOCATE (mc_par(1:1))
 
     CALL get_mc_env ( mc_env(1)%mc_env, &
          mc_par = mc_par(1)%mc_par,&
@@ -1295,8 +1258,7 @@ CONTAINS
          mass=mass)
 
     nvirial_temps=SIZE(virial_temps)
-    ALLOCATE (BETA(1:nvirial_temps),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (BETA(1:nvirial_temps))
 
     DO itemp=1,nvirial_temps
        BETA(itemp) = 1 / virial_temps(itemp) / boltzmann * joule
@@ -1323,8 +1285,7 @@ CONTAINS
     END IF
 
     ! store the coordinates of the molecules in an array so we can work with it
-    ALLOCATE (r_old(1:3,1:nunits_tot(1)),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (r_old(1:3,1:nunits_tot(1)))
 
     DO iparticle=1,nunits_tot(1)
        r_old(1:3,iparticle)=&
@@ -1350,8 +1311,7 @@ CONTAINS
 
     ! we'll compute the average potential, and then integrate that, as opposed to
     ! integrating every orientation and then averaging
-    ALLOCATE (mayer(1:nvirial_temps,1:nbins),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (mayer(1:nvirial_temps,1:nbins))
 
     mayer(:,:)=0.0_dp
 
@@ -1486,26 +1446,16 @@ CONTAINS
     ENDDO
 
     ! deallocate some stuff
-    DEALLOCATE(mc_par,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(subsys,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(force_env,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(particles,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(cell,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(virial_cutoffs,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(virial_stepsize,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(r_old,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mayer,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(BETA,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mc_par)
+    DEALLOCATE(subsys)
+    DEALLOCATE(force_env)
+    DEALLOCATE(particles)
+    DEALLOCATE(cell)
+    DEALLOCATE(virial_cutoffs)
+    DEALLOCATE(virial_stepsize)
+    DEALLOCATE(r_old)
+    DEALLOCATE(mayer)
+    DEALLOCATE(BETA)
 
   END SUBROUTINE mc_compute_virial
 

@@ -110,14 +110,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(dg_type), POINTER                   :: dg
 
     NULLIFY ( dg )
     failure=.FALSE.
-    ALLOCATE ( ewald_pw, stat=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( ewald_pw)
     NULLIFY ( ewald_pw % pw_big_pool )
     NULLIFY ( ewald_pw % pw_small_pool )
     NULLIFY ( ewald_pw % rs_desc )
@@ -142,7 +140,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -156,8 +154,7 @@ CONTAINS
           CALL rs_grid_release_descriptor ( ewald_pw % rs_desc)
           CALL pw_poisson_release ( ewald_pw % poisson_env)
           CALL dg_release ( ewald_pw % dg)
-          DEALLOCATE (  ewald_pw , stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  ewald_pw )
        END IF
     END IF
     NULLIFY ( ewald_pw )
@@ -190,7 +187,7 @@ CONTAINS
 
     INTEGER                                  :: bo(2,3), ewald_type, gmax(3), &
                                                 handle, npts_s( 3 ), ns_max, &
-                                                o_spline, output_unit, stat
+                                                o_spline, output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, &
                                                 cutoff_radius, epsilon, norm
@@ -357,14 +354,12 @@ CONTAINS
     END SELECT
     ! Poisson Environment
     IF (ASSOCIATED(ewald_pw%poisson_env)) THEN
-       ALLOCATE(pw_pools(1),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(pw_pools(1))
        pw_pools(1)%pool => ewald_pw%pw_big_pool
        CALL pw_poisson_read_parameters(poisson_section, poisson_params)
        CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_params,&
             use_level=1,pw_pools=pw_pools)
-       DEALLOCATE(pw_pools,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(pw_pools)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ewald_pw_init

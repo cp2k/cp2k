@@ -605,22 +605,15 @@ CONTAINS
        END IF
     END DO
 
-    DEALLOCATE(namearray1,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(namearray2,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(na,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(am,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ac,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(namearray1)
+    DEALLOCATE(namearray2)
+    DEALLOCATE(na)
+    DEALLOCATE(am)
+    DEALLOCATE(ac)
     IF(ASSOCIATED(ba)) &
-         DEALLOCATE(ba,STAT=stat)
-    CPASSERT(stat==0)
+         DEALLOCATE(ba)
     IF(ASSOCIATED(bb)) &
-         DEALLOCATE(bb,STAT=stat)
-    CPASSERT(stat==0)
+         DEALLOCATE(bb)
 
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -646,8 +639,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: label, string, strtmp, strtmp2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(5)                           :: avail_section
-    INTEGER                                  :: handle, istat, itemp, iw, &
-                                                natom, newsize
+    INTEGER                                  :: handle, itemp, iw, natom, &
+                                                newsize
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: pfactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
@@ -773,8 +766,7 @@ CONTAINS
                conv_factor=1.0_dp)
        END IF
     END IF
-    DEALLOCATE(velocity,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(velocity)
 
     CALL reallocate(atom_info%id_molname,1,natom)
     CALL reallocate(atom_info%id_resname,1,natom)

@@ -44,13 +44,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (ASSOCIATED(dftb_parameter)) &
             CALL deallocate_dftb_atom_param(dftb_parameter)
 
-    ALLOCATE (dftb_parameter,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (dftb_parameter)
 
     dftb_parameter % defined = .FALSE.
     dftb_parameter % name = ""
@@ -81,11 +78,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     CPASSERT(ASSOCIATED(dftb_parameter))
-    DEALLOCATE (dftb_parameter,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (dftb_parameter)
 
   END SUBROUTINE deallocate_dftb_atom_param
 

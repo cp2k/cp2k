@@ -120,7 +120,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name_string
     INTEGER                                  :: handle, iblkcol, ihalo, &
                                                 ikind, max_nhalos, &
-                                                nblkcols_total, nhalos, stat
+                                                nblkcols_total, nhalos
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, &
                                                 dummy_halo_atoms, ntfns, &
                                                 row_blk_size
@@ -152,8 +152,7 @@ CONTAINS
                            nblkcols_total=nblkcols_total, &
                            row_blk_size=row_blk_size, &
                            distribution=dbcsr_dist)
-    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(col_blk_size(nblkcols_total))
     col_blk_size = 0
     DO iblkcol = 1, nblkcols_total
        atomic_kind => particle_set(iblkcol)%atomic_kind
@@ -168,8 +167,7 @@ CONTAINS
     ! the filter matrix is non-square and is always non-symmetric
     symmetry_string = dbcsr_type_no_symmetry
     ! create empty filter matrix
-    ALLOCATE(filter_mat, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(filter_mat)
     CALL cp_dbcsr_init(filter_mat)
     CALL cp_dbcsr_create(matrix=filter_mat, &
                          name=name_string, &
@@ -178,8 +176,7 @@ CONTAINS
                          row_blk_size=row_blk_size, &
                          col_blk_size=col_blk_size, &
                          nze=0)
-    DEALLOCATE(col_blk_size, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(col_blk_size)
 
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
@@ -188,8 +185,7 @@ CONTAINS
 
     ! create dummy empty atomic halo
     CALL fb_atomic_halo_create(dummy_atomic_halo)
-    ALLOCATE(dummy_halo_atoms(0), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dummy_halo_atoms(0))
     CALL fb_atomic_halo_set(atomic_halo=dummy_atomic_halo, &
                             owner_atom=0, &
                             owner_id_in_halo=0, &
@@ -287,7 +283,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name_string
     INTEGER :: handle, iblkcol, ihalo, ikind, natoms_global, natoms_in_halo, &
-      nblkcols_total, nblks_recv, nhalos, nmax, stat
+      nblkcols_total, nblks_recv, nhalos, nmax
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, ntfns, &
                                                 row_blk_size
     LOGICAL                                  :: check_ok, failure
@@ -324,8 +320,7 @@ CONTAINS
                            nblkcols_total=nblkcols_total, &
                            row_blk_size=row_blk_size, &
                            distribution=dbcsr_dist)
-    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(col_blk_size(nblkcols_total))
     col_blk_size = 0
     DO iblkcol = 1, nblkcols_total
        atomic_kind => particle_set(iblkcol)%atomic_kind
@@ -338,8 +333,7 @@ CONTAINS
     CALL compress(name_string)
     CALL uppercase(name_string)
     ! create empty filter matrix (it is always non-symmetric as it is non-square)
-    ALLOCATE(filter_mat, STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(filter_mat)
     CALL cp_dbcsr_init(filter_mat)
     CALL cp_dbcsr_create(matrix=filter_mat, &
                          name=name_string, &
@@ -348,8 +342,7 @@ CONTAINS
                          row_blk_size=row_blk_size, &
                          col_blk_size=col_blk_size, &
                          nze=0)
-    DEALLOCATE(col_blk_size, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(col_blk_size)
 
     ! get all the blocks required for constructing atomic matrics, and
     ! store it in a fb_matrix_data object
@@ -558,8 +551,7 @@ CONTAINS
     ! obtain row and col block size data for filter matrix
     row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
     natoms_global = SIZE(particle_set)
-    ALLOCATE(col_block_size_data(natoms_global), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(col_block_size_data(natoms_global))
     DO jatom_global = 1, natoms_global
        atomic_kind => particle_set(jatom_global)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=jkind)
@@ -567,14 +559,10 @@ CONTAINS
     END DO
 
     ! allocate temporary arrays for send
-    ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_sizes(numprocs))
+    ALLOCATE(send_disps(numprocs))
+    ALLOCATE(send_pair_count(numprocs))
+    ALLOCATE(send_pair_disps(numprocs))
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(com_pairs_send, &
                                              numprocs, &
@@ -585,18 +573,13 @@ CONTAINS
                                              send_pair_count, &
                                              send_pair_disps)
     ! allocate send buffer
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(send_buf(SUM(send_sizes)))
 
     ! allocate temporary array for recv
-    ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_sizes(numprocs))
+    ALLOCATE(recv_disps(numprocs))
+    ALLOCATE(recv_pair_count(numprocs))
+    ALLOCATE(recv_pair_disps(numprocs))
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(com_pairs_recv, &
                                              numprocs, &
@@ -607,8 +590,7 @@ CONTAINS
                                              recv_pair_count, &
                                              recv_pair_disps)
     ! allocate recv buffer
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(recv_buf(SUM(recv_sizes)))
 
     ! ----------------------------------------------------------------------
     ! Construct atomic filter matrix for this atomic_halo
@@ -630,8 +612,7 @@ CONTAINS
                                atomic_H_blk_row_start, &
                                atomic_H_blk_col_start)
 
-    ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix))
     CALL fb_atmatrix_construct(H_mat, &
                                atomic_halo, &
                                para_env, &
@@ -650,8 +631,7 @@ CONTAINS
                                ncols_atmatrix, &
                                atomic_S_blk_row_start, &
                                atomic_S_blk_col_start)
-    ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix))
     CALL fb_atmatrix_construct(S_mat, &
                                atomic_halo, &
                                para_env, &
@@ -660,8 +640,7 @@ CONTAINS
                                atomic_S_blk_col_start)
 
     ! construct the atomic filter matrix
-    ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix))
     ! calculate atomic filter matrix only if it is non-zero sized
     IF (nrows_atmatrix > 0 .AND. ncols_atmatrix > 0) THEN
        CALL fb_fltrmat_build_atomic_fltrmat(atomic_H, &
@@ -677,8 +656,7 @@ CONTAINS
     ! ----------------------------------------------------------------------
 
     ! preconstruct iatom_global to iatom_in_halo map
-    ALLOCATE(ind_in_halo(natoms_global), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ind_in_halo(natoms_global))
     ind_in_halo = 0
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
@@ -731,18 +709,12 @@ CONTAINS
        END DO ! ipair
     END DO  ! ipe
 
-    DEALLOCATE(atomic_H, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_H_blk_row_start, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_S, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_S_blk_row_start, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_filter_mat, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(ind_in_halo, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atomic_H)
+    DEALLOCATE(atomic_H_blk_row_start)
+    DEALLOCATE(atomic_S)
+    DEALLOCATE(atomic_S_blk_row_start)
+    DEALLOCATE(atomic_filter_mat)
+    DEALLOCATE(ind_in_halo)
 
     ! ----------------------------------------------------------------------
     ! Do communication
@@ -756,16 +728,11 @@ CONTAINS
 
     CALL timestop(handle_mpi)
 
-    DEALLOCATE(send_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_disps, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(send_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(send_buf)
+    DEALLOCATE(send_sizes)
+    DEALLOCATE(send_disps)
+    DEALLOCATE(send_pair_count)
+    DEALLOCATE(send_pair_disps)
 
     ! ----------------------------------------------------------------------
     ! Unpack the recv buffer and add the blocks to correct parts of
@@ -789,14 +756,10 @@ CONTAINS
     END DO ! ipe
 
     ! cleanup rest of the temporary arrays
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_sizes, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_count, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(recv_buf)
+    DEALLOCATE(recv_sizes)
+    DEALLOCATE(recv_pair_count)
+    DEALLOCATE(recv_pair_disps)
 
     CALL fb_com_atom_pairs_release(com_pairs_send)
     CALL fb_com_atom_pairs_release(com_pairs_recv)
@@ -882,8 +845,7 @@ CONTAINS
     ! obtain row and col block size data for filter matrix
     row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
     natoms_global = SIZE(particle_set)
-    ALLOCATE(col_block_size_data(natoms_global), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(col_block_size_data(natoms_global))
     DO jatom_global = 1, natoms_global
        atomic_kind => particle_set(jatom_global)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=jkind)
@@ -909,8 +871,7 @@ CONTAINS
                                ncols_atmatrix, &
                                atomic_H_blk_row_start, &
                                atomic_H_blk_col_start)
-    ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix))
     CALL fb_atmatrix_construct_2(H_mat_data, &
                                  atomic_halo, &
                                  atomic_H, &
@@ -928,8 +889,7 @@ CONTAINS
                                ncols_atmatrix, &
                                atomic_S_blk_row_start, &
                                atomic_S_blk_col_start)
-    ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix))
     CALL fb_atmatrix_construct_2(S_mat_data, &
                                  atomic_halo, &
                                  atomic_S, &
@@ -937,8 +897,7 @@ CONTAINS
                                  atomic_S_blk_col_start)
 
     ! construct the atomic filter matrix
-    ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix))
     ! calculate atomic filter matrix only if it is non-zero sized
     IF (nrows_atmatrix > 0 .AND. ncols_atmatrix > 0) THEN
        CALL fb_fltrmat_build_atomic_fltrmat(atomic_H, &
@@ -957,8 +916,7 @@ CONTAINS
                             owner_id_in_halo=jatom_in_halo)
     nrows_blk_max = MAXVAL(row_block_size_data)
     ncols_blk_max = MAXVAL(ntfns)
-    ALLOCATE(mat_blk(nrows_blk_max,ncols_blk_max), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mat_blk(nrows_blk_max,ncols_blk_max))
     mat_blk(:,:) = 0.0_dp
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
@@ -1002,20 +960,14 @@ CONTAINS
        ! DEALLOCATE(mat_blk, STAT=stat)
        ! CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END DO ! iatom_in_halo
-    DEALLOCATE(mat_blk, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mat_blk)
 
     ! clean up
-    DEALLOCATE(atomic_H, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_H_blk_row_start, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_S, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_S_blk_row_start, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_filter_mat, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(atomic_H)
+    DEALLOCATE(atomic_H_blk_row_start)
+    DEALLOCATE(atomic_S)
+    DEALLOCATE(atomic_S_blk_row_start)
+    DEALLOCATE(atomic_filter_mat)
 
     CALL timestop(handle)
 
@@ -1053,7 +1005,7 @@ CONTAINS
 
     INTEGER :: dest, handle, iatom_global, iatom_in_halo, iatom_stored, &
       itask, jatom_global, jatom_stored, natoms_in_halo, nblkrows_total, &
-      ntasks_send, src, stat
+      ntasks_send, src
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
@@ -1103,8 +1055,7 @@ CONTAINS
     ntasks_send = natoms_in_halo
 
     ! allocate send tasks
-    ALLOCATE(tasks_send(TASK_N_RECORDS,ntasks_send), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tasks_send(TASK_N_RECORDS,ntasks_send))
 
     ! Get the total number of atoms, this can be obtained from the
     ! total number of block rows in the DBCSR filter matrix.  We
@@ -1207,7 +1158,7 @@ CONTAINS
 
     INTEGER :: dest, handle, iatom_global, iatom_in_halo, iatom_stored, &
       ihalo, itask, jatom_global, jatom_stored, natoms_in_halo, &
-      nblkrows_total, nhalos, ntasks_send, src, stat
+      nblkrows_total, nhalos, ntasks_send, src
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
@@ -1258,8 +1209,7 @@ CONTAINS
     END DO ! ihalo
 
     ! allocate send tasks
-    ALLOCATE(tasks_send(TASK_N_RECORDS,ntasks_send), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(tasks_send(TASK_N_RECORDS,ntasks_send))
 
     ! Get the total number of atoms. This can be obtained from the
     ! total number of block rows in the DBCSR filter matrix.  We
@@ -1363,7 +1313,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle_dgemm, &
                                                 handle_dsygv, ii, info, jj, &
-                                                mat_dim, stat, work_array_size
+                                                mat_dim, work_array_size
     LOGICAL                                  :: check_ok, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, filter_function, &
                                                 work
@@ -1388,17 +1338,13 @@ CONTAINS
     mat_dim = SIZE(atomic_H, 1)
 
     ! diagonalise using LAPACK
-    ALLOCATE(eigenvalues(mat_dim), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(eigenvalues(mat_dim))
     ! get optimal work array size
-    ALLOCATE(work(1), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(1))
     ! dsygv will overwrite part of atomic_H and atomic_S, thus need to copy them
-    ALLOCATE(atomic_S_copy(SIZE(atomic_S,1),SIZE(atomic_S,2)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(atomic_S_copy(SIZE(atomic_S,1),SIZE(atomic_S,2)))
     atomic_S_copy(:,:) = atomic_S(:,:)
-    ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)))
     eigenvectors(:,:) = atomic_H(:,:)
 
     CALL timeset("fb_atomic_filter_dsygv", handle_dsygv)
@@ -1418,10 +1364,8 @@ CONTAINS
                info)
     work_array_size = NINT(work(1))
     ! now allocate work array
-    DEALLOCATE(work, STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(work(work_array_size), STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
+    ALLOCATE(work(work_array_size))
     work = 0.0_dp
     ! do calculation
     atomic_S_copy(:,:) = atomic_S(:,:)
@@ -1447,26 +1391,21 @@ CONTAINS
 
     CALL timestop(handle_dsygv)
 
-    DEALLOCATE(work, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(atomic_S_copy, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
+    DEALLOCATE(atomic_S_copy)
 
     ! first get the filter function
-    ALLOCATE(filter_function(mat_dim), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(filter_function(mat_dim))
     filter_function = 0.0_dp
     CALL fb_fltrmat_fermi_dirac_mu(filter_function, &
                                    eigenvalues, &
                                    filter_temp, &
                                    fermi_level)
-    DEALLOCATE(eigenvalues, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(eigenvalues)
 
     ! atomic_H has the eigenvectors, construct the version of it
     ! filtered through the filter function
-    ALLOCATE(filtered_eigenvectors(mat_dim,mat_dim), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(filtered_eigenvectors(mat_dim,mat_dim))
     DO jj = 1, mat_dim
        DO ii = 1, mat_dim
           filtered_eigenvectors(ii,jj) = &
@@ -1474,8 +1413,7 @@ CONTAINS
        END DO ! ii
     END DO ! jj
 
-    DEALLOCATE(filter_function, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(filter_function)
 
     CALL timeset("fb_atomic_filter_dgemm", handle_dgemm)
 
@@ -1506,10 +1444,8 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(filtered_eigenvectors, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(eigenvectors, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(filtered_eigenvectors)
+    DEALLOCATE(eigenvectors)
 
     CALL timestop(handle)
 

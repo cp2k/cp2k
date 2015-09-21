@@ -187,19 +187,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(sep))
-    ALLOCATE (sep,STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (sep%beta(0:3),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (sep%sto_exponents(0:3),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (sep%zn(0:3),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (sep)
+    ALLOCATE (sep%beta(0:3))
+    ALLOCATE (sep%sto_exponents(0:3))
+    ALLOCATE (sep%zn(0:3))
     NULLIFY(sep%basis)
     NULLIFY(sep%w)
     NULLIFY(sep%w_mpole)
@@ -219,7 +214,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -227,30 +222,24 @@ CONTAINS
        CALL deallocate_sto_basis_set(sep%basis)
        CALL semi_empirical_mpole_p_release(sep%w_mpole)
        IF (ASSOCIATED(sep%beta)) THEN
-          DEALLOCATE (sep%beta,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sep%beta)
        END IF
        IF (ASSOCIATED(sep%sto_exponents)) THEN
-          DEALLOCATE (sep%sto_exponents,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sep%sto_exponents)
        END IF
        IF (ASSOCIATED(sep%zn)) THEN
-          DEALLOCATE (sep%zn,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sep%zn)
        END IF
        IF (ASSOCIATED(sep%w)) THEN
-          DEALLOCATE (sep%w,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sep%w)
        END IF
        IF (ASSOCIATED(sep%expns3_int)) THEN
           DO i = 1, SIZE(sep%expns3_int)
              CALL semi_empirical_expns3_release(sep%expns3_int(i)%expns3)
           END DO
-          DEALLOCATE (sep%expns3_int,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (sep%expns3_int)
        END IF
-       DEALLOCATE (sep,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (sep)
     END IF
 
   END SUBROUTINE semi_empirical_release
@@ -561,13 +550,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(rotmat))
-    ALLOCATE (rotmat,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (rotmat)
 
   END SUBROUTINE rotmat_create
 
@@ -581,13 +568,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(rotmat)) THEN
-       DEALLOCATE (rotmat,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (rotmat)
     END IF
 
   END SUBROUTINE rotmat_release
@@ -662,13 +647,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(se_taper))
-    ALLOCATE(se_taper, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(se_taper)
     NULLIFY(se_taper%taper)
     NULLIFY(se_taper%taper_cou)
     NULLIFY(se_taper%taper_exc)
@@ -696,7 +679,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -706,8 +688,7 @@ CONTAINS
        CALL taper_release(se_taper%taper_lrc)
        CALL taper_release(se_taper%taper_add)
 
-       DEALLOCATE(se_taper, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(se_taper)
     END IF
   END SUBROUTINE se_taper_release
 

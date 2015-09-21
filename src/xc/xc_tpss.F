@@ -168,7 +168,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ii, non_coer, &
-                                                npoints, stat, unit_nr
+                                                npoints, unit_nr
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
@@ -197,8 +197,7 @@ CONTAINS
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
        dummy=> rho
     END IF
@@ -261,8 +260,7 @@ CONTAINS
     END IF
 
     IF (cp_debug) THEN
-       DEALLOCATE(dummy,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dummy)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -290,7 +288,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ii, non_coer, &
-                                                npoints, stat, unit_nr
+                                                npoints, unit_nr
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
@@ -319,8 +317,7 @@ CONTAINS
     ! meaningful default for the arrays we don't need: let us make compiler
     ! and debugger happy...
     IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
     ELSE
        dummy=> rhoa
     END IF
@@ -405,8 +402,7 @@ CONTAINS
     END IF
 
     IF (cp_debug) THEN
-       DEALLOCATE(dummy,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dummy)
     ELSE
        NULLIFY(dummy)
     END IF

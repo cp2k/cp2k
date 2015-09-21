@@ -72,13 +72,11 @@ CONTAINS
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: my_desc
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(derivative, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(derivative)
 
     derivative%ref_count = 1
     derivative%id_nr     = derivative_id_nr
@@ -126,7 +124,6 @@ END SUBROUTINE xc_derivative_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -143,14 +140,11 @@ END SUBROUTINE xc_derivative_retain
           END IF
        END IF
        IF (ASSOCIATED(derivative%deriv_data)) THEN
-          DEALLOCATE(derivative%deriv_data, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(derivative%deriv_data)
        END IF
-       DEALLOCATE(derivative%split_desc, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(derivative%split_desc)
 
-       DEALLOCATE(derivative, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(derivative)
     END IF
     NULLIFY(derivative)
 

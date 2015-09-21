@@ -154,12 +154,10 @@ CONTAINS
      CALL section_vals_val_get(stm_section,"REF_ENERGY",r_val=ref_energy,explicit=use_ref_energy)
      CALL section_vals_val_get(stm_section,"TH_TORB", n_rep_val=n_rep)
      IF(n_rep==0) THEN
-        ALLOCATE (stm_th_torb(1), STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE (stm_th_torb(1))
         stm_th_torb(1) = 0
      ELSE
-        ALLOCATE (stm_th_torb(n_rep), STAT=istat)
-        CPASSERT(istat==0)
+        ALLOCATE (stm_th_torb(n_rep))
        DO irep = 1,n_rep
           CALL section_vals_val_get(stm_section,"TH_TORB",&
                i_rep_val=irep,i_val=stm_th_torb(irep))
@@ -181,8 +179,7 @@ CONTAINS
                             in_space = RECIPROCALSPACE)
 
      nspin = SIZE(mos,1)
-     ALLOCATE(nadd_unocc(nspin),STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE(nadd_unocc(nspin))
      nadd_unocc=0
      IF(ASSOCIATED(unoccupied_orbs)) THEN
        DO ispin =1,nspin
@@ -190,10 +187,8 @@ CONTAINS
        END DO
      END IF
 
-     ALLOCATE(mo_arrays(nspin), STAT=istat)
-          CPASSERT(istat==0)
-     ALLOCATE(evals(nspin),STAT=istat)
-          CPASSERT(istat==0)
+     ALLOCATE(mo_arrays(nspin))
+     ALLOCATE(evals(nspin))
      ALLOCATE(occupation(nspin),STAT=istat)
      DO ispin=1,nspin
           IF(nadd_unocc(ispin)==0) THEN
@@ -228,28 +223,21 @@ CONTAINS
                     output_unit, append_cube)
      DO ispin = 1,nspin
        IF(nadd_unocc(ispin)>0) THEN
-            DEALLOCATE(evals(ispin)%array,STAT=istat)
-          CPASSERT(istat==0)
-            DEALLOCATE(occupation(ispin)%array,STAT=istat)
-          CPASSERT(istat==0)
+            DEALLOCATE(evals(ispin)%array)
+            DEALLOCATE(occupation(ispin)%array)
             CALL cp_fm_release( mo_arrays(ispin)%matrix)
        END IF
      END DO
-     DEALLOCATE(mo_arrays,STAT=istat)
-        CPASSERT(istat==0)
-     DEALLOCATE(evals,STAT=istat)
-        CPASSERT(istat==0)
-     DEALLOCATE(occupation,STAT=istat)
-          CPASSERT(istat==0)
+     DEALLOCATE(mo_arrays)
+     DEALLOCATE(evals)
+     DEALLOCATE(occupation)
 
      CALL cp_dbcsr_deallocate_matrix(stm_density_ao)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)
 
-     DEALLOCATE (stm_th_torb, STAT=istat)
-     CPASSERT(istat==0)
-     DEALLOCATE (nadd_unocc, STAT=istat)
-     CPASSERT(istat==0)
+     DEALLOCATE (stm_th_torb)
+     DEALLOCATE (nadd_unocc)
 
     CALL timestop(handle)
 

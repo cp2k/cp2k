@@ -83,7 +83,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_var_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: neb_nr_replica, stat
+    INTEGER                                  :: neb_nr_replica
     LOGICAL                                  :: allocate_all, failure
 
     failure = .FALSE.
@@ -91,26 +91,22 @@ CONTAINS
     allocate_all = .FALSE.
     IF (PRESENT(full_allocation)) allocate_all = full_allocation
     neb_nr_replica = neb_env%number_of_replica
-    ALLOCATE(neb_var, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(neb_var)
     NULLIFY(neb_var%xyz, neb_var%int, neb_var%wrk, neb_var%Mmatrix)
     IF (allocate_all) THEN
-       ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica))
        neb_var%xyz = 0.0_dp
     END IF
     IF (neb_env%use_colvar) THEN
        neb_var%in_use = do_band_collective
        CPASSERT(neb_env%nsize_int>0)
-       ALLOCATE(neb_var%int(neb_env%nsize_int, neb_nr_replica),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(neb_var%int(neb_env%nsize_int, neb_nr_replica))
        neb_var%int = 0.0_dp
        neb_var%wrk => neb_var%int
     ELSE
        neb_var%in_use = do_band_cartesian
        IF (.NOT.allocate_all) THEN
-          ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica))
           neb_var%xyz = 0.0_dp
        END IF
        neb_var%wrk => neb_var%xyz
@@ -132,22 +128,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_var_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPASSERT(ASSOCIATED(neb_var))
     IF (ASSOCIATED(neb_var%xyz)) THEN
-       DEALLOCATE(neb_var%xyz,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(neb_var%xyz)
     END IF
     IF (neb_var%in_use==do_band_collective) THEN
-       DEALLOCATE(neb_var%int,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(neb_var%int)
     END IF
     NULLIFY(neb_var%wrk)
-    DEALLOCATE(neb_var, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(neb_var)
 
   END SUBROUTINE neb_var_release
 

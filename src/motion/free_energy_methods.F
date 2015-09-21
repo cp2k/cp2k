@@ -315,21 +315,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_tmp_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    ALLOCATE(fe_env%cg_data(ng_points),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(fe_env%cg_data(ng_points))
     DO i = 1, ng_points
-       ALLOCATE(fe_env%cg_data(i)%avg(ncolvar),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(fe_env%cg_data(i)%var(ncolvar,ncolvar),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(fe_env%cg_data(i)%avg(ncolvar))
+       ALLOCATE(fe_env%cg_data(i)%var(ncolvar,ncolvar))
     END DO
     IF (PRESENT(wrk)) THEN
-       ALLOCATE(wrk(ng_points),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(wrk(ng_points))
     END IF
   END SUBROUTINE create_tmp_data
 
@@ -350,21 +346,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_tmp_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     DO i = 1, ng_points
-       DEALLOCATE(fe_env%cg_data(i)%avg,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(fe_env%cg_data(i)%var,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(fe_env%cg_data(i)%avg)
+       DEALLOCATE(fe_env%cg_data(i)%var)
     END DO
-    DEALLOCATE(fe_env%cg_data,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(fe_env%cg_data)
     IF (PRESENT(wrk)) THEN
-       DEALLOCATE(wrk,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(wrk)
     END IF
   END SUBROUTINE destroy_tmp_data
 
@@ -552,7 +544,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ic, ncolvar, &
-                                                ng_points, stat
+                                                ng_points
     LOGICAL                                  :: failure, test_passed
     REAL(KIND=dp)                            :: max_error_avg, max_error_std
     REAL(KIND=dp), DIMENSION(:), POINTER     :: avg_std, avgmx
@@ -570,14 +562,10 @@ CONTAINS
        ! and check if we converged..
        CALL create_tmp_data(fe_env,ng_points=ng_points,ncolvar=ncolvar)
        CALL create_csg_data(fe_env,ng_points,output_unit)
-       ALLOCATE(covmx(ncolvar,ncolvar),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(avgmx(ncolvar),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(cov_std(ncolvar*(ncolvar+1)/2,ncolvar*(ncolvar+1)/2),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(avg_std(ncolvar),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(covmx(ncolvar,ncolvar))
+       ALLOCATE(avgmx(ncolvar))
+       ALLOCATE(cov_std(ncolvar*(ncolvar+1)/2,ncolvar*(ncolvar+1)/2))
+       ALLOCATE(avg_std(ncolvar))
        covmx = 0.0_dp
        avgmx = 0.0_dp
        DO i = 1, ng_points
@@ -622,14 +610,10 @@ CONTAINS
                (ic,avgmx(ic),SQRT(ABS(avg_std(ic))),ic=1,ncolvar)
        END IF
        CALL destroy_tmp_data(fe_env,ng_points=ng_points)
-       DEALLOCATE(covmx,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(avgmx,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cov_std,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(avg_std,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(covmx)
+       DEALLOCATE(avgmx)
+       DEALLOCATE(cov_std)
+       DEALLOCATE(avg_std)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ui_check_convergence
@@ -657,7 +641,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_avg_std_errors', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind, j, k, nvar, stat
+    INTEGER                                  :: i, ind, j, k, nvar
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     REAL(KIND=dp), DIMENSION(:), POINTER     :: awrk, eig, tmp
@@ -666,10 +650,8 @@ CONTAINS
     failure = .FALSE.
     ! Averages
     nvar = ncolvar
-    ALLOCATE(wrk(nvar,nvar),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(eig(nvar),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wrk(nvar,nvar))
+    ALLOCATE(eig(nvar))
     fac = REAL(SIZE(fe_env%cg_data),KIND=dp)
     wrk = 0.0_dp
     eig = 0.0_dp
@@ -692,20 +674,14 @@ CONTAINS
     DO i = 1, nvar
        avg_std(i) = eig(i)
     END DO
-    DEALLOCATE(wrk,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(eig,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wrk)
+    DEALLOCATE(eig)
     ! Standard Deviations
     nvar = ncolvar*(ncolvar+1)/2
-    ALLOCATE(wrk(nvar,nvar),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(eig(nvar),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(awrk(nvar),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(tmp(nvar),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wrk(nvar,nvar))
+    ALLOCATE(eig(nvar))
+    ALLOCATE(awrk(nvar))
+    ALLOCATE(tmp(nvar))
     wrk = 0.0_dp
     eig = 0.0_dp
     ind = 0
@@ -746,14 +722,10 @@ CONTAINS
           cov_std(j,i) = cov_std(i,j)
        END DO
     END DO
-    DEALLOCATE(wrk,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(eig,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(awrk,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(tmp,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wrk)
+    DEALLOCATE(eig)
+    DEALLOCATE(awrk)
+    DEALLOCATE(tmp)
 
   END SUBROUTINE compute_avg_std_errors
 

@@ -91,8 +91,8 @@ CONTAINS
 
     INTEGER                                  :: bo(2), handle, ia, iat, &
                                                 iatom, idir, ikind, ir, &
-                                                ispin, istat, mepos, myfun, &
-                                                na, natom, nr, nspins, num_pe
+                                                ispin, mepos, myfun, na, &
+                                                natom, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: epr_xc, failure, gradient_f, &
@@ -375,45 +375,37 @@ CONTAINS
       CALL mp_sum(energy%exc1,para_env%group)
 
       IF (ASSOCIATED(rho_h)) THEN
-        DEALLOCATE (rho_h,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (rho_h)
       END IF
 
       IF (ASSOCIATED(rho_s)) THEN
-        DEALLOCATE (rho_s,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (rho_s)
       END IF
 
       IF (ASSOCIATED(vxc_h)) THEN
-        DEALLOCATE (vxc_h,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (vxc_h)
       END IF
 
       IF (ASSOCIATED(vxc_s)) THEN
-        DEALLOCATE (vxc_s,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (vxc_s)
       END IF
 
       IF (gradient_f) THEN
 
         IF (ASSOCIATED(drho_h)) THEN
-          DEALLOCATE (drho_h,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (drho_h)
         END IF
 
         IF (ASSOCIATED(drho_s)) THEN
-          DEALLOCATE (drho_s,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (drho_s)
         END IF
 
         IF (ASSOCIATED(vxg_h)) THEN
-          DEALLOCATE (vxg_h,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (vxg_h)
         END IF
 
         IF (ASSOCIATED(vxg_s)) THEN
-          DEALLOCATE (vxg_s,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (vxg_s)
         END IF
 
       END IF
@@ -421,23 +413,19 @@ CONTAINS
       IF (tau_f) THEN
 
         IF (ASSOCIATED(tau_h)) THEN
-          DEALLOCATE (tau_h,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (tau_h)
         END IF
 
         IF (ASSOCIATED(tau_s)) THEN
-          DEALLOCATE (tau_s,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (tau_s)
         END IF
 
         IF (ASSOCIATED(vtau_h)) THEN
-          DEALLOCATE (vtau_h,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (vtau_h)
         END IF
 
         IF (ASSOCIATED(vtau_s)) THEN
-          DEALLOCATE (vtau_s,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (vtau_s)
         END IF
 
       END IF
@@ -468,7 +456,7 @@ CONTAINS
 
     INTEGER                                  :: atom, excitations, handle, &
                                                 iatom, ikind, ir, na, natom, &
-                                                nr, nspins, res_etype, stat
+                                                nr, nspins, res_etype
     INTEGER, DIMENSION(2)                    :: local_loop_limit
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -622,11 +610,9 @@ CONTAINS
       END IF
 
       ALLOCATE (rho_h(1:na,1:nspins),rho1_h(1:na,1:nspins), &
-                rho_s(1:na,1:nspins),rho1_s(1:na,1:nspins),STAT=stat)
-      CPASSERT(stat==0)
+                rho_s(1:na,1:nspins),rho1_s(1:na,1:nspins))
 
-      ALLOCATE (vxc_h(1:na,1:nr,1:nspins), vxc_s(1:na,1:nr,1:nspins),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (vxc_h(1:na,1:nr,1:nspins), vxc_s(1:na,1:nr,1:nspins))
       vxc_h = 0.0_dp
       vxc_s = 0.0_dp
 
@@ -634,11 +620,9 @@ CONTAINS
 
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
-                  drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins), stat=stat)
-         CPASSERT(stat==0)
+                  drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins))
 
-         ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins), stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins))
          vxg_h = 0.0_dp
          vxg_s = 0.0_dp
       END IF
@@ -716,14 +700,11 @@ CONTAINS
       END DO
 
       ! some cleanup
-      DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s, stat=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s)
       NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
-         DEALLOCATE(drho_h, drho_s, vxg_h, vxg_s, stat=stat)
-         CPASSERT(stat==0)
-         DEALLOCATE(drho1_h, drho1_s, stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(drho_h, drho_s, vxg_h, vxg_s)
+         DEALLOCATE(drho1_h, drho1_s)
          NULLIFY(drho_h, drho_s, drho1_h, drho1_s, vxg_h, vxc_s)
       END IF
 
@@ -1016,8 +997,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "vx",na*nr*dp_size)
 
-    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm))
 
     NULLIFY (int_hh,int_ss)
 
@@ -1125,8 +1105,7 @@ CONTAINS
    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h")
 
-   DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-   CPASSERT(istat==0)
+   DEALLOCATE(cg_list,cg_n_list)
 
    CALL timestop(handle)
 
@@ -1213,8 +1192,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gVXCg_h,gVXCg_s",12*na*maxl*dp_size)
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
-             dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm),STAT=istat)
-    CPASSERT(istat==0)
+             dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm))
 
     NULLIFY(int_hh,int_ss)
 
@@ -1417,8 +1395,7 @@ CONTAINS
     DEALLOCATE(g1,g2,gg,dgg,matso_h,matso_s,gVXCg_h,gVXCg_s,gVXGg_h,gVXGg_s,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
-    DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list)
 
     CALL timestop(handle)
 
@@ -1443,9 +1420,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: dmax_iso_not0_local, handle, ic, icg, ipgf1, ipgf2, iset1, &
-      iset2, iso, iso1, iso2, ispin, istat, l1, l2, lmax12, lmax_expansion, &
-      lmin12, m1, m2, max_iso_not0, max_iso_not0_local, max_s_harm, maxiso, &
-      maxl, maxso, mm1, mm2, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
+      iset2, iso, iso1, iso2, ispin, l1, l2, lmax12, lmax_expansion, lmin12, &
+      m1, m2, max_iso_not0, max_iso_not0_local, max_s_harm, maxiso, maxl, &
+      maxso, mm1, mm2, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
@@ -1486,18 +1463,14 @@ CONTAINS
 
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
-    ALLOCATE(g1(nr),g2(nr),gg(nr),dd(nr),gr(nr),ww(na),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(fgr(nr,0:maxl,0:maxl),dgr(nr,0:lmax_expansion),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(g1(nr),g2(nr),gg(nr),dd(nr),gr(nr),ww(na))
+    ALLOCATE(fgr(nr,0:maxl,0:maxl),dgr(nr,0:lmax_expansion))
 
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
-             dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm),STAT=istat)
-    CPASSERT(istat==0)
+             dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm))
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
-             matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPASSERT(istat==0)
+             matso_s(nsoset(maxl),nsoset(maxl)))
 
     NULLIFY(int_hh,int_ss)
     CALL get_rho_atom(rho_atom=rho_atom,ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
@@ -1507,10 +1480,8 @@ CONTAINS
 
     DO ispin=1,nspins
       maxiso = SIZE(harmonics%slm,2)
-      ALLOCATE(vth(nr,maxiso),vts(nr,maxiso),STAT=istat)
-      CPASSERT(istat==0)
-      ALLOCATE(dvth(nr,maxiso),dvts(nr,maxiso),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(vth(nr,maxiso),vts(nr,maxiso))
+      ALLOCATE(dvth(nr,maxiso),dvts(nr,maxiso))
       DO iso=1,maxiso
          ww(1:na) = harmonics%slm(1:na,iso)
          vth(1:nr,iso) = MATMUL(ww(1:na),vtau_h(1:na,1:nr,ispin))
@@ -1627,18 +1598,13 @@ CONTAINS
         END DO ! iset2
         m1 = m1 + maxso
       END DO  ! iset1
-      DEALLOCATE(vth,vts,dvth,dvts,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(vth,vts,dvth,dvts)
     END DO ! ispin
 
-    DEALLOCATE(matso_h,matso_s,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(g1,g2,gg,dd,gr,ww,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(fgr,dgr,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(matso_h,matso_s)
+    DEALLOCATE(g1,g2,gg,dd,gr,ww)
+    DEALLOCATE(fgr,dgr)
+    DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list)
 
     vtau_h = 2._dp*vtau_h
     vtau_s = 2._dp*vtau_s

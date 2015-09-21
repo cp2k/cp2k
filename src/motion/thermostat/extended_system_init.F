@@ -83,7 +83,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ind, j, stat
+    INTEGER                                  :: handle, i, ind, j
     LOGICAL                                  :: explicit, failure, restart
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
@@ -102,24 +102,20 @@ CONTAINS
     ! first allocating the npt_info_type if requested
     SELECT CASE ( simpar % ensemble )
     CASE ( npt_i_ensemble, npe_i_ensemble )
-       ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( npt_info ( 1, 1 ))
        npt_info  ( :, : ) % eps = LOG ( cell % deth ) / 3.0_dp
        temp = simpar % temp_baro_ext
 
     CASE ( npt_f_ensemble, npe_f_ensemble )
-       ALLOCATE ( npt_info ( 3, 3 ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( npt_info ( 3, 3 ))
        temp = simpar % temp_baro_ext
 
     CASE ( nph_uniaxial_ensemble )
-       ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( npt_info ( 1, 1 ))
        temp = simpar% temp_baro_ext
 
     CASE (  nph_uniaxial_damped_ensemble )
-       ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( npt_info ( 1, 1 ))
        temp = simpar % temp_baro_ext
 
     CASE  DEFAULT
@@ -191,7 +187,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, restart
     REAL(KIND=dp)                            :: temp
 
@@ -204,8 +200,7 @@ CONTAINS
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ))
        CALL set_yoshida_coef ( nhc, simpar % dt )
     END IF
 
@@ -263,7 +258,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_slow', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, restart
 
     CALL timeset(routineN,handle)
@@ -277,8 +272,7 @@ CONTAINS
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ))
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
@@ -332,7 +326,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_fast', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, restart
 
     CALL timeset(routineN,handle)
@@ -346,8 +340,7 @@ CONTAINS
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ))
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
@@ -403,7 +396,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, restart
 
     CALL timeset(routineN,handle)
@@ -417,8 +410,7 @@ CONTAINS
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ))
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
@@ -475,7 +467,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, restart
 
     CALL timeset(routineN,handle)
@@ -487,8 +479,7 @@ CONTAINS
     restart = .FALSE.
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
-       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ))
        CALL set_yoshida_coef ( nhc, simpar % dt )
     END IF
 
@@ -740,7 +731,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icount, j, number, &
-                                                stat, tot_rn
+                                                tot_rn
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, dum, temp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
@@ -763,8 +754,7 @@ CONTAINS
     CASE DEFAULT
        tot_rn = nhc%glob_num_nhc*nhc%nhc_len
 
-       ALLOCATE(array_of_rn( tot_rn), STAT = stat)
-       CPASSERT(stat==0)
+       ALLOCATE(array_of_rn( tot_rn))
        array_of_rn(:) = 0.0_dp
     END SELECT
 
@@ -823,8 +813,7 @@ CONTAINS
              nhc % nvt(j,i) % eta = 0.0_dp
           END DO
        END DO
-       DEALLOCATE ( array_of_rn, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( array_of_rn)
 
        number = nhc%glob_num_nhc
        CALL get_nhc_energies(nhc, dum, akin, para_env)

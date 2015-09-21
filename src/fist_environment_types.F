@@ -441,13 +441,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(fist_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(fist_env)
     CALL init_fist_env(fist_env,para_env=para_env)
   END SUBROUTINE fist_env_create
 
@@ -485,7 +483,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -506,8 +503,7 @@ CONTAINS
           CALL section_vals_release(fist_env%input)
           CALL exclusion_release(fist_env%exclusions)
 
-          DEALLOCATE(fist_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fist_env)
        END IF
     END IF
     NULLIFY(fist_env)

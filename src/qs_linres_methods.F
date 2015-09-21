@@ -157,8 +157,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat, istate, &
-                                                nmoloc(2), output_unit
+    INTEGER                                  :: ispin, istate, nmoloc(2), &
+                                                output_unit
     LOGICAL                                  :: failure, my_centers_only
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_localized
@@ -193,8 +193,7 @@ CONTAINS
     CALL qs_loc_control_init(qs_loc_env,loc_section,do_homo=.TRUE.)
     CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control)
 
-    ALLOCATE(mos_localized(nspins),stat=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mos_localized(nspins))
     DO ispin = 1,nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL  cp_fm_create(mos_localized(ispin)%matrix,mo_coeff%matrix_struct)
@@ -270,9 +269,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_solver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, istat, iter, &
-                                                maxnmo, maxnmo_o, nao, ncol, &
-                                                nmo, nspins, output_unit
+    INTEGER                                  :: handle, ispin, iter, maxnmo, &
+                                                maxnmo_o, nao, ncol, nmo, &
+                                                nspins, output_unit
     LOGICAL                                  :: failure, restart
     REAL(dp)                                 :: norm_res, t1, t2
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
@@ -335,8 +334,7 @@ CONTAINS
     !
     ! allocate the vectors
     ALLOCATE(alpha(nspins),beta(nspins),tr_pAp(nspins),tr_rz0(nspins),tr_rz00(nspins),tr_rz1(nspins),&
-             r(nspins),p(nspins),z(nspins),Ap(nspins),mo_coeff_array(nspins),STAT=istat)
-    CPASSERT(istat==0)
+             r(nspins),p(nspins),z(nspins),Ap(nspins),mo_coeff_array(nspins))
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
        mo_coeff_array(ispin)%matrix => mo_coeff
@@ -360,8 +358,7 @@ CONTAINS
     !
     !
     ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
-    ALLOCATE(chc(nspins),Sc(nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(chc(nspins),Sc(nspins))
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo)
        CALL cp_fm_create(Sc(ispin)%matrix,mo_coeff%matrix_struct)
@@ -642,8 +639,7 @@ CONTAINS
        CALL cp_fm_release(chc(ispin)%matrix)
     ENDDO
     CALL cp_fm_release(buf)
-    DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz00,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz00,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,"PRINT%PROGRAM_RUN_INFO")
     !
@@ -880,7 +876,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, ncol, ns, &
-                                                nspins, stat
+                                                nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 lr_triplet, lsd
@@ -967,8 +963,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
          pw_pools=pw_pools, poisson_env=poisson_env)
-    ALLOCATE(v_rspace_new(nspins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(v_rspace_new(nspins))
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
          use_data = COMPLEXDATA1D,&
          in_space = RECIPROCALSPACE)
@@ -1061,8 +1056,7 @@ CONTAINS
                              section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
                              auxbas_pw_pool)
 
-       ALLOCATE(v_xc(nspins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(v_xc(nspins))
        DO ispin=1, nspins
           NULLIFY(v_xc(ispin)%pw)
           CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
@@ -1083,8 +1077,7 @@ CONTAINS
        DO ispin=1,nspins
           v_rspace_new(ispin)%pw => v_xc(ispin)%pw
        END DO
-       DEALLOCATE(v_xc,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(v_xc)
 
        IF(gapw) CALL calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft=.FALSE.,&
                                                  do_triplet=lr_triplet)
@@ -1094,8 +1087,7 @@ CONTAINS
        DO ispin=1,SIZE(rho1_r_pw)
           CALL pw_release(rho1_r_pw(ispin)%pw)
        END DO
-       DEALLOCATE(rho1_r_pw, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(rho1_r_pw)
 
        !-------------------------------!
        ! Add both hartree and xc terms !
@@ -1228,8 +1220,7 @@ CONTAINS
        DO ispin=1,nspins
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
        END DO
-       DEALLOCATE(v_rspace_new, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(v_rspace_new)
 
     END IF
 
@@ -1320,7 +1311,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins, stat
+    INTEGER                                  :: ispin, nspins
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -1347,8 +1338,7 @@ CONTAINS
     CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool)
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
-       ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(kpp1_env%v_rspace(nspins))
        DO ispin=1,nspins
           CALL pw_pool_create_pw(auxbas_pw_pool, &
                kpp1_env%v_rspace(ispin)%pw,&
@@ -1369,16 +1359,14 @@ CONTAINS
     IF(.NOT.ASSOCIATED(kpp1_env%deriv_set)) THEN
 
        IF (nspins==1.AND.lr_triplet) THEN
-          ALLOCATE(my_rho_r(2),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(my_rho_r(2))
           DO ispin=1,2
              CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
                   use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
              my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
           END DO
        ELSE
-          ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(my_rho_r(SIZE(rho_r)))
           DO ispin=1,SIZE(rho_r)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
              CALL pw_retain(my_rho_r(ispin)%pw)
@@ -1401,8 +1389,7 @@ CONTAINS
        DO ispin=1,SIZE(my_rho_r)
           CALL pw_release(my_rho_r(ispin)%pw)
        ENDDO
-       DEALLOCATE(my_rho_r,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(my_rho_r)
     ENDIF
 
   END SUBROUTINE kpp1_check_i_alloc
@@ -1541,9 +1528,9 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle, my_pos, my_status
     INTEGER                                  :: handle, i, i_block, ia, ie, &
-                                                ispin, istat, j, max_block, &
-                                                nao, nmo, nspins, &
-                                                output_unit, rst_unit
+                                                ispin, j, max_block, nao, &
+                                                nmo, nspins, output_unit, &
+                                                rst_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1605,8 +1592,7 @@ CONTAINS
        ! use the scalapack block size as a default for buffering columns
        CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block)
-       ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(vecbuffer(nao,max_block))
 
        IF(PRESENT(ind)) THEN
          IF(rst_unit>0) WRITE(rst_unit) ind,ivec,nspins,nao
@@ -1631,8 +1617,7 @@ CONTAINS
           ENDDO
        ENDDO
 
-       DEALLOCATE (vecbuffer,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (vecbuffer)
 
        CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
             "PRINT%RESTART")
@@ -1707,9 +1692,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle
-    INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, istat, iv, &
-      iv1, ivec_tmp, j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, &
-      nspins, nspins_tmp, output_unit, rst_unit, source
+    INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, iv, iv1, &
+      ivec_tmp, j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, &
+      nspins_tmp, output_unit, rst_unit, source
     LOGICAL                                  :: failure, file_exists
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1786,8 +1771,7 @@ CONTAINS
        CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block)
 
-       ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(vecbuffer(nao,max_block))
        !
        ! read headers
        IF(PRESENT(ind)) THEN
@@ -1845,8 +1829,7 @@ CONTAINS
                  "Restart file: didnt find ",TRIM(filename)
        ENDIF
 
-       DEALLOCATE(vecbuffer,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(vecbuffer)
 
     ENDIF
 

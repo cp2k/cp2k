@@ -348,7 +348,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ihis, ivec, n, &
                                                 nhistory, nvariables, nvec, &
-                                                outer_scf_ihistory, stat
+                                                outer_scf_ihistory
     LOGICAL                                  :: failure, is_constraint
     REAL(kind=dp)                            :: alpha
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: extrapolation
@@ -367,8 +367,7 @@ CONTAINS
 
     nvariables=SIZE(outer_scf_history,1)
     nhistory=SIZE(outer_scf_history,2)
-    ALLOCATE(extrapolation(nvariables),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(extrapolation(nvariables))
     CPASSERT(nhistory>0)
 
     ! add the current version of qs_env to the history
@@ -422,8 +421,7 @@ CONTAINS
        CPASSERT(.FALSE.)
     END SELECT
 
-    DEALLOCATE(extrapolation,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(extrapolation)
 
     CALL timestop(handle)
 

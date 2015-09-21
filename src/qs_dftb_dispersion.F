@@ -113,8 +113,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, atom_b, handle, &
-                                                iatom, ikind, istat, jatom, &
-                                                jkind, natom, nkind
+                                                iatom, ikind, jatom, jkind, &
+                                                natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: define_kind
@@ -169,16 +169,14 @@ CONTAINS
                           particle_set=particle_set,&
                           force=force)
           natom = SIZE (particle_set)
-          ALLOCATE (atom_of_kind(natom),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (atom_of_kind(natom))
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
        ELSE
           use_virial = .FALSE.
        END IF
        nkind = SIZE(atomic_kind_set)
-       ALLOCATE (define_kind(nkind),rc_kind(nkind),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (define_kind(nkind),rc_kind(nkind))
        DO ikind=1,nkind
           CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a)
           CALL get_dftb_atom_param(dftb_kind_a,defined=define_kind(ikind),rcdisp=rc_kind(ikind))
@@ -263,8 +261,7 @@ CONTAINS
        CALL neighbor_list_iterator_release(nl_iterator)
 
        IF(calculate_forces) THEN
-          DEALLOCATE (atom_of_kind,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (atom_of_kind)
        END IF
 
        ! set dispersion energy

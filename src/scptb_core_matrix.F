@@ -79,8 +79,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, icor, ikind, &
-      inode, irow, istat, j, jatom, jkind, l, li, ll, natom, nder, nimg, &
-      nkind, nspins
+      inode, irow, j, jatom, jkind, l, li, ll, natom, nder, nimg, nkind, &
+      nspins
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
@@ -156,8 +156,7 @@ CONTAINS
     IF (calculate_forces) THEN
        ! forces are not yet supported for k-points
        nder = 1
-       ALLOCATE (atom_of_kind(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (atom_of_kind(natom))
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        CALL get_qs_env(qs_env,&
                        rho=rho,&
@@ -227,10 +226,8 @@ CONTAINS
 
     !The band energy elements will be added to the kinetic energy.
 
-    ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (umt(100,nkind),hmt(100,nkind),kk(nkind,nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind))
+    ALLOCATE (umt(100,nkind),hmt(100,nkind),kk(nkind,nkind))
     umt = 0._dp
     hmt = 0._dp
     DO ikind=1,nkind
@@ -342,14 +339,11 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (scptb_kind_param,scptb_defined,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE (umt,hmt,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (scptb_kind_param,scptb_defined)
+    DEALLOCATE (umt,hmt)
 
     IF (calculate_forces) THEN
-       DEALLOCATE (atom_of_kind,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (atom_of_kind)
        IF (nspins == 2) THEN
           DO ic=1,nimg
              CALL cp_dbcsr_add(matrix_p(1,ic)%matrix, matrix_p(2,ic)%matrix, &

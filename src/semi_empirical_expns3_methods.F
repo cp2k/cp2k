@@ -50,7 +50,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, itype, j, nkinds, stat
+    INTEGER                                  :: i, itype, j, nkinds
     LOGICAL                                  :: check, failure
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
 
@@ -62,8 +62,7 @@ CONTAINS
           CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
           check = .NOT.ASSOCIATED(sepi%expns3_int)
           CPASSERT(check)
-          ALLOCATE(sepi%expns3_int(nkinds),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(sepi%expns3_int(nkinds))
           DO j = 1, nkinds
              NULLIFY(sepi%expns3_int(j)%expns3)
              CALL semi_empirical_expns3_create(sepi%expns3_int(j)%expns3)

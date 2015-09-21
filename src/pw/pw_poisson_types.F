@@ -203,7 +203,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dim, i, ig, iz, n, nz, stat
+    INTEGER                                  :: dim, i, ig, iz, n, nz
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, g3d, gg, gxy, gz, j0g, &
                                                 j1g, k0g, k1g, rlength, &
@@ -215,8 +215,7 @@ CONTAINS
 
     failure = .FALSE.
     CPASSERT(.NOT.(ASSOCIATED(green)))
-    ALLOCATE(green, stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(green)
     green%p3m=.FALSE.
     green%special_dimension = 0
     green%radius = 0.0_dp
@@ -330,8 +329,7 @@ CONTAINS
           green%p3m_order = poisson_params%ewald_o_spline
           green%p3m_alpha = poisson_params%ewald_alpha
           n=green % p3m_order
-          ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ), stat = stat )
-          CPASSERT(stat==0)
+          ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ))
           CALL spme_coeff_calculate ( n,  green%p3m_coeff )
           CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
                in_space=RECIPROCALSPACE)
@@ -494,7 +492,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: can_give_back, failure
 
     failure = .FALSE.
@@ -523,8 +520,7 @@ CONTAINS
                DEALLOCATE ( gftype % p3m_bm2 )
           IF (ASSOCIATED(gftype % p3m_coeff)) &
                DEALLOCATE ( gftype % p3m_coeff )
-          DEALLOCATE(gftype, stat=stat)
-          CPASSERT(stat == 0)
+          DEALLOCATE(gftype)
        END IF
     END IF
     NULLIFY(gftype)
@@ -545,7 +541,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: b_m, exp_m, sum_m
-    INTEGER                                  :: dim, ierr, j, k, l, n, pt
+    INTEGER                                  :: dim, j, k, l, n, pt
     INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: lb, ub
     LOGICAL                                  :: failure
@@ -564,17 +560,14 @@ CONTAINS
     IF (ASSOCIATED(gftype % p3m_bm2)) THEN
        IF (LBOUND(gftype % p3m_bm2,2)/=MINVAL(lb(:)).OR.&
             UBOUND(gftype % p3m_bm2,2)/=MAXVAL(ub(:))) THEN
-          DEALLOCATE(gftype % p3m_bm2,stat=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(gftype % p3m_bm2)
        END IF
     END IF
     IF (.NOT.ASSOCIATED(gftype % p3m_bm2)) THEN
-       ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb(:)):MAXVAL(ub(:)) ), STAT = ierr )
-       CPASSERT(ierr==0)
+       ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb(:)):MAXVAL(ub(:)) ))
     END IF
 
-    ALLOCATE ( m_assign ( 0:n-2 ), STAT = ierr )
-    CPASSERT(ierr==0)
+    ALLOCATE ( m_assign ( 0:n-2 ))
     m_assign = 0.0_dp
     DO k = 0, n-2
        j = -(n-1) + 2 * k
@@ -601,8 +594,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE ( m_assign, STAT = ierr )
-    CPASSERT(ierr==0)
+    DEALLOCATE ( m_assign)
   END SUBROUTINE influence_factor
 
 ! *****************************************************************************
@@ -654,14 +646,12 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(poisson_env))
-    ALLOCATE(poisson_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(poisson_env)
     last_poisson_id=last_poisson_id+1
     poisson_env%id_nr=last_poisson_id
     poisson_env%ref_count=1
@@ -714,7 +704,6 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -733,8 +722,7 @@ END SUBROUTINE calc_p3m_charge
           CALL pw_grid_release(poisson_env%dct_pw_grid)
           CALL pw_grid_release(poisson_env%dct_aux_pw_grid)
           CALL rs_grid_release(poisson_env%diel_rs_grid)
-          DEALLOCATE(poisson_env,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(poisson_env)
 
        END IF
     END IF

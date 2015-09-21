@@ -120,8 +120,7 @@ CONTAINS
 
     INTEGER                                  :: first_atom, handle, i, &
                                                 imolecule, iw, last_atom, &
-                                                natom, output_unit, &
-                                                qm_mol_num, stat
+                                                natom, output_unit, qm_mol_num
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
     LOGICAL                                  :: detected_link, failure
@@ -148,8 +147,7 @@ CONTAINS
             qm_mol_num =qm_mol_num+1
     END DO
     !
-    ALLOCATE(qm_molecule_index(qm_mol_num), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(qm_molecule_index(qm_mol_num))
     qm_mol_num    = 0
     DO imolecule=1,SIZE(molecule_set)
        IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule

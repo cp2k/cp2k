@@ -519,7 +519,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, handle, handle2, i, &
-                                                irep, isec, j, nhc_len, stat, &
+                                                irep, isec, j, nhc_len, &
                                                 tot_nhcneed
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     INTEGER, POINTER                         :: itimes
@@ -626,46 +626,38 @@ CONTAINS
           CALL section_vals_val_set(work_section,"AVE_PXX",r_val=averages%avepxx)
           ! Virial averages
           IF (ASSOCIATED(averages%virial)) THEN
-             ALLOCATE(buffer(9),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(9))
              buffer = RESHAPE(averages%virial%pv_total,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_TOT",r_vals_ptr=buffer)
 
-             ALLOCATE(buffer(9),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(9))
              buffer = RESHAPE(averages%virial%pv_virial,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_VIR",r_vals_ptr=buffer)
 
-             ALLOCATE(buffer(9),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(9))
              buffer = RESHAPE(averages%virial%pv_kinetic,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_KIN",r_vals_ptr=buffer)
 
-             ALLOCATE(buffer(9),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(9))
              buffer = RESHAPE(averages%virial%pv_constraint,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_CNSTR",r_vals_ptr=buffer)
 
-             ALLOCATE(buffer(9),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(9))
              buffer = RESHAPE(averages%virial%pv_xc,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_XC",r_vals_ptr=buffer)
 
-             ALLOCATE(buffer(9),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(9))
              buffer = RESHAPE(averages%virial%pv_fock_4c,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_FOCK_4C",r_vals_ptr=buffer)
           END IF
           ! Colvars averages
           IF (SIZE(averages%avecolvar)>0) THEN
-             ALLOCATE(buffer(SIZE(averages%avecolvar)),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(SIZE(averages%avecolvar)))
              buffer = averages%avecolvar
              CALL section_vals_val_set(work_section,"AVE_COLVARS",r_vals_ptr=buffer)
           END IF
           IF (SIZE(averages%aveMmatrix)>0) THEN
-             ALLOCATE(buffer(SIZE(averages%aveMmatrix)),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(buffer(SIZE(averages%aveMmatrix)))
              buffer = averages%aveMmatrix
              CALL section_vals_val_set(work_section,"AVE_MMATRIX",r_vals_ptr=buffer)
           END IF
@@ -708,14 +700,10 @@ CONTAINS
           nhc         => thermostat_baro%nhc
           nhc_len     = SIZE(nhc%nvt,1)
           tot_nhcneed = nhc%glob_num_nhc
-          ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-          CPASSERT(stat==0)
-          ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPASSERT(stat==0)
+          ALLOCATE(eta(tot_nhcneed*nhc_len))
+          ALLOCATE(veta(tot_nhcneed*nhc_len))
+          ALLOCATE(fnhc(tot_nhcneed*nhc_len))
+          ALLOCATE(mnhc(tot_nhcneed*nhc_len))
           counter = 0
           DO i=1,SIZE(nhc%nvt,1)
              DO j=1,SIZE(nhc%nvt,2)
@@ -739,10 +727,8 @@ CONTAINS
     ! BAROSTAT
     CALL timeset(routineN//"_NPT",handle2)
     IF (ASSOCIATED(npt)) THEN
-       ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
-       CPASSERT(stat==0)
-       ALLOCATE(mnhc(SIZE(npt,1)*SIZE(npt,2)), STAT = stat)
-       CPASSERT(stat==0)
+       ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)))
+       ALLOCATE(mnhc(SIZE(npt,1)*SIZE(npt,2)))
        counter = 0
        DO i=1,SIZE(npt,1)
           DO j=1,SIZE(npt,2)
@@ -829,8 +815,7 @@ CONTAINS
        END IF
        ! Multiple Walkers
        IF (meta_env%do_multiple_walkers) THEN
-          ALLOCATE(walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(walkers_status(meta_env%multiple_walkers%walkers_tot_nr))
           walkers_status = meta_env%multiple_walkers%walkers_status
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"MULTIPLE_WALKERS")
           CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status)
@@ -857,8 +842,7 @@ CONTAINS
                                             3,particles%els,angstrom)
              ! Update Collective Variables
              IF (coords%in_use == do_band_collective) THEN
-                ALLOCATE (wrk(coords%size_wrk(1)),stat=stat)
-                CPASSERT(stat==0)
+                ALLOCATE (wrk(coords%size_wrk(1)))
                 wrk = coords%wrk(:,isec)
                 CALL section_vals_val_set(replica_section,"COLLECTIVE",r_vals_ptr=wrk,&
                      i_rep_section=isec)
@@ -918,8 +902,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ibead, &
-                                                inos, istat
+    INTEGER                                  :: handle, i, iatom, ibead, inos
     LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: pint_section, tmpsec
@@ -941,8 +924,7 @@ CONTAINS
 
     ! update bead coordinates in the global input structure
     NULLIFY(r_vals)
-    ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(r_vals(pint_env%p*pint_env%ndim))
 
     i=1
     CALL pint_u2x(pint_env)
@@ -957,8 +939,7 @@ CONTAINS
 
     ! update bead velocities in the global input structure
     NULLIFY(r_vals)
-    ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(r_vals(pint_env%p*pint_env%ndim))
     i=1
     CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v)
     DO iatom=1, pint_env%ndim
@@ -984,8 +965,7 @@ CONTAINS
 
       ! update thermostat coordinates in the global input structure
       NULLIFY(r_vals)
-      ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos))
       i=1
       DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
@@ -1000,8 +980,7 @@ CONTAINS
 
       ! update thermostat velocities in the global input structure
       NULLIFY(r_vals)
-      ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos))
       i=1
       DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
@@ -1044,8 +1023,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: err_str, stmp
     INTEGER                                  :: handle, i, itmp, iweight, &
-                                                msglen, nsteps, offset, &
-                                                reqlen, status
+                                                msglen, nsteps, offset, reqlen
     INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
     LOGICAL                                  :: explicit, failure, lbf
     REAL(kind=dp)                            :: bf, bu, rtmp
@@ -1080,15 +1058,13 @@ CONTAINS
     ! allocate the buffer to be passed and fill it with local coords at each proc
     NULLIFY(real_msg)
     msglen = SIZE(helium%pos)
-    ALLOCATE(real_msg(msglen),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(real_msg(msglen))
     real_msg(:) = PACK( helium%pos, .TRUE. )
 
     ! allocate the buffer for message passing
     NULLIFY(real_msg_gather)
     msglen = SIZE(helium%pos) * logger%para_env%num_pe
-    ALLOCATE(real_msg_gather(msglen),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(real_msg_gather(msglen))
 
     ! pass the message from all processors to logger%para_env%source
     real_msg_gather(:) = 0.0_dp
@@ -1106,8 +1082,7 @@ CONTAINS
     NULLIFY(real_msg_gather)
 
     ! DEALLOCATE since this array is only used locally
-    DEALLOCATE(real_msg,STAT=status)
-    CPASSERT(status==0)
+    DEALLOCATE(real_msg)
 
     !
     ! save permutation state
@@ -1115,8 +1090,7 @@ CONTAINS
     ! allocate the buffer for message passing
     NULLIFY(int_msg_gather)
     msglen = SIZE(helium%permutation) * logger%para_env%num_pe
-    ALLOCATE(int_msg_gather(msglen),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(int_msg_gather(msglen))
 
     ! pass the message from all processors to logger%para_env%source
     int_msg_gather(:) = 0
@@ -1139,8 +1113,7 @@ CONTAINS
     ! pack RNG state on each processor to the local array
     NULLIFY(real_msg)
     msglen = 40
-    ALLOCATE(real_msg(msglen),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(real_msg(msglen))
     CALL get_rng_stream(helium%rng_stream_uniform,bg=bg,cg=cg,ig=ig,&
          buffer=bu,buffer_filled=lbf)
     offset = 0
@@ -1172,8 +1145,7 @@ CONTAINS
     ! logger%para_env%source
     NULLIFY(real_msg_gather)
     msglen = SIZE(real_msg)*logger%para_env%num_pe
-    ALLOCATE(real_msg_gather(msglen),STAT=status)
-    CPASSERT(status==0)
+    ALLOCATE(real_msg_gather(msglen))
     real_msg_gather(:) = 0.0_dp
     CALL mp_gather(real_msg,real_msg_gather,logger%para_env%source,logger%para_env%group)
 
@@ -1188,8 +1160,7 @@ CONTAINS
     NULLIFY(real_msg_gather)
 
     ! DEALLOCATE since this array is only used locally
-    DEALLOCATE(real_msg,STAT=status)
-    CPASSERT(status==0)
+    DEALLOCATE(real_msg)
 
     IF (helium%solute_present) THEN
       !
@@ -1213,8 +1184,7 @@ CONTAINS
       ! allocate the buffer to be saved and fill it with forces
       ! forces should be the same on all processors, but we don't check that here
       NULLIFY(real_msg_gather)
-      ALLOCATE(real_msg_gather(msglen),STAT=status)
-      CPASSERT(status==0)
+      ALLOCATE(real_msg_gather(msglen))
       real_msg_gather(:) = PACK( helium%force_avrg, .TRUE. )
 
       ! update forces in the global input structure
@@ -1274,8 +1244,7 @@ CONTAINS
       ! update the densities in the global input structure
       NULLIFY(real_msg)
       msglen = SIZE(helium%rho_inst)
-      ALLOCATE(real_msg(msglen),STAT=status)
-      CPASSERT(status==0)
+      ALLOCATE(real_msg(msglen))
       real_msg(:) = PACK( helium%rho_inst, .TRUE. )
       CALL section_vals_val_set(helium%input, &
            "MOTION%PINT%HELIUM%RHO%CUBE_DATA%_DEFAULT_KEYWORD_", &
@@ -1397,7 +1366,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: i, my_index, stat
+    INTEGER                                  :: i, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
@@ -1407,30 +1376,25 @@ CONTAINS
 
     failure = .FALSE.
     ! Thermostat Energies
-    ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(csvr%glob_num_csvr))
 
-    ALLOCATE(thermo_energy(csvr%loc_num_csvr),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermo_energy(csvr%loc_num_csvr))
     DO i = 1,csvr%loc_num_csvr
        thermo_energy(i) = csvr%nvt(i)%thermostat_energy
     END DO
     CALL get_kin_energies (csvr%map_info,csvr%loc_num_csvr,&
                csvr%glob_num_csvr,thermo_energy,&
                dum, para_env, array_kin=work)
-    DEALLOCATE(thermo_energy,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(thermo_energy)
 
     ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY")
     CALL dump_csvr_energy_info(work, csvr%glob_num_csvr, work_section)
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (work)
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT")
-    ALLOCATE (dwork(rng_record_length,csvr%glob_num_csvr),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (dwork(rng_record_length,csvr%glob_num_csvr))
     dwork = 0
     DO i=1,csvr%loc_num_csvr
        my_index = csvr%map_info%index(i)
@@ -1448,8 +1412,7 @@ CONTAINS
        CALL communication_thermo_low2(dwork, rng_record_length, csvr%glob_num_csvr, para_env)
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork)
-    DEALLOCATE (dwork,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (dwork)
 
   END SUBROUTINE dump_csvr_restart_info
 
@@ -1471,7 +1434,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_al_restart_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: t_array, work
@@ -1480,10 +1443,8 @@ CONTAINS
     failure = .FALSE.    
 
     ! chi and mass
-    ALLOCATE(work(al%glob_num_al),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(t_array(al%loc_num_al),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(al%glob_num_al))
+    ALLOCATE(t_array(al%loc_num_al))
 
     ! copy chi into temporary
     DO i = 1,al%loc_num_al
@@ -1511,10 +1472,8 @@ CONTAINS
     work_section => section_vals_get_subs_vals(al_section,"MASS")
     CALL dump_csvr_energy_info(work, al%glob_num_al, work_section)
 
-    DEALLOCATE (t_array,STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (t_array)
+    DEALLOCATE (work)
 
   END SUBROUTINE dump_al_restart_info
 
@@ -1536,7 +1495,7 @@ CONTAINS
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: counter, glob_num, i, iproc, &
-                                                j, loc_num, stat
+                                                j, loc_num
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
     INTEGER, DIMENSION(:), POINTER           :: gle_per_proc, index
     LOGICAL                                  :: failure
@@ -1549,31 +1508,26 @@ CONTAINS
     failure = .FALSE.
 
     ! Thermostat Energies
-    ALLOCATE(work(gle%glob_num_gle),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(thermo_energy(gle%loc_num_gle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(gle%glob_num_gle))
+    ALLOCATE(thermo_energy(gle%loc_num_gle))
     DO i = 1,gle%loc_num_gle
        thermo_energy(i) = gle%nvt(i)%thermostat_energy
     END DO
     CALL get_kin_energies (gle%map_info,gle%loc_num_gle,&
                gle%glob_num_gle,thermo_energy,&
                dum, para_env, array_kin=work)
-    DEALLOCATE(thermo_energy,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(thermo_energy)
 
     ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(gle_section,"THERMOSTAT_ENERGY")
     CALL dump_csvr_energy_info(work, gle%glob_num_gle, work_section)
-    DEALLOCATE (work,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (work)
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(gle_section,"RNG_INIT")
     glob_num = gle%glob_num_gle
     loc_num = gle%loc_num_gle
-    ALLOCATE (dwork(rng_record_length,glob_num),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (dwork(rng_record_length,glob_num))
     dwork = 0
     DO i=1,loc_num
        j = gle%map_info%index(i)
@@ -1591,18 +1545,15 @@ CONTAINS
        CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env)
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork)
-    DEALLOCATE (dwork,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (dwork)
 
-    ALLOCATE ( gle_per_proc(para_env%num_pe),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( gle_per_proc(para_env%num_pe))
     gle_per_proc(:) = 0
     CALL mp_allgather(gle%loc_num_gle,gle_per_proc,para_env%group)
 
     ! Thermostat S variable info for restart
     NULLIFY(s_tmp)
-    ALLOCATE (s_tmp((gle%ndim)*gle%glob_num_gle),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (s_tmp((gle%ndim)*gle%glob_num_gle))
     s_tmp=0.0_dp
 
     NULLIFY(work,index)
@@ -1637,16 +1588,12 @@ CONTAINS
     work_section => section_vals_get_subs_vals(gle_section,"S")
     CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=s_tmp)
     ELSE
-      DEALLOCATE(s_tmp,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(s_tmp)
     END IF
 
-    DEALLOCATE(gle_per_proc, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE ( work, STAT = stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( index, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE(gle_per_proc)
+    DEALLOCATE ( work)
+    DEALLOCATE ( index)
 
   END SUBROUTINE dump_gle_restart_info
 
@@ -1859,7 +1806,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, Nlist, stat
+    INTEGER                                  :: ik, irk, Nlist
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_c
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -1885,8 +1832,7 @@ CONTAINS
        Nlist = cp_sll_val_get_length(vals)
     END IF
     DO irk=1,nsize/nfield
-       ALLOCATE (my_c(nfield),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (my_c(nfield))
        IF (nfield == 3) THEN
           my_c(1:3) = get_particle_pos_or_vel(irk,particle_set,array(1:narray))
           my_c(1:3) = my_c(1:3)*conv_factor
@@ -2000,7 +1946,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, lsize, Nlist, stat
+    INTEGER                                  :: ik, irk, lsize, Nlist
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ss_val
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -2027,8 +1973,7 @@ CONTAINS
     END IF
     lsize = SIZE(meta_env%hills_env%ss_history,1)
     DO irk=1,meta_env%hills_env%n_hills
-       ALLOCATE(ss_val(lsize),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ss_val(lsize))
        ! Always stored in A.U.
        ss_val = meta_env%hills_env%ss_history(:,irk)
        CALL val_create(my_val,r_vals_ptr=ss_val)
@@ -2074,7 +2019,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, lsize, Nlist, stat
+    INTEGER                                  :: ik, irk, lsize, Nlist
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ds_val
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -2101,8 +2046,7 @@ CONTAINS
     END IF
     lsize = SIZE(meta_env%hills_env%delta_s_history,1)
     DO irk=1,meta_env%hills_env%n_hills
-       ALLOCATE(ds_val(lsize),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ds_val(lsize))
        ! Always stored in A.U.
        ds_val = meta_env%hills_env%delta_s_history(:,irk)
        CALL val_create(my_val,r_vals_ptr=ds_val)

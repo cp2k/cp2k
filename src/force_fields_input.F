@@ -977,8 +977,8 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: i, ir, isec, istat, n_items, &
-                                                n_rep, np1, np2
+    INTEGER                                  :: i, ir, isec, n_items, n_rep, &
+                                                np1, np2
     LOGICAL                                  :: explicit_poly1, &
                                                 explicit_poly2, failure
     REAL(KIND=dp)                            :: a, b, c, eval_error, r1, r2, &
@@ -1139,12 +1139,10 @@ CPSourceFileRef,&
       nonbonded%pot(start+isec)%pot%rcutsq = rcut*rcut
 
       IF (ASSOCIATED(coeff1)) THEN
-        DEALLOCATE (coeff1,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (coeff1)
       END IF
       IF (ASSOCIATED(coeff2)) THEN
-        DEALLOCATE (coeff2,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE (coeff2)
       END IF
       CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,n_rep_val=n_rep)
       IF (n_rep == 1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
@@ -1433,8 +1431,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length)     :: atm_name
     INTEGER                                  :: isec, isec_damp, n_damp, &
-                                                n_items, start_damp, stat, &
-                                                tmp_damp
+                                                n_items, start_damp, tmp_damp
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: tmp_section
 
@@ -1452,8 +1449,7 @@ CPSourceFileRef,&
 
     IF (n_damp > 0) THEN
       failure=.FALSE.
-      ALLOCATE (damping_list(1:n_damp),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (damping_list(1:n_damp))
     ENDIF
 
 ! *** Reads DIPOLE sections *****

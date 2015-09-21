@@ -56,8 +56,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: auxbas_grid, Ilevel, pw_mode, &
-                                                stat
+    INTEGER                                  :: auxbas_grid, Ilevel, pw_mode
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: Maxdr, Mindr
     TYPE(pw_grid_type), POINTER              :: el_struct
@@ -77,8 +76,7 @@ CONTAINS
        IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
           CALL pw_pools_dealloc(qmmm_env%aug_pools)
        END IF
-       ALLOCATE(qmmm_env%aug_pools(SIZE(pw_pools)),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qmmm_env%aug_pools(SIZE(pw_pools)))
        !
        DO Ilevel = 1, SIZE(pw_pools)
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
@@ -128,7 +126,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: pw_mode_loc, stat
+    INTEGER                                  :: pw_mode_loc
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
     LOGICAL                                  :: failure
 
@@ -186,8 +184,7 @@ CONTAINS
             pw_grid_out % para % yzq,&
             pw_grid_out % para % nyzray,&
             pw_grid_out % para % bo)
-    ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)))
     pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
     pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
     pw_grid_out%para%pos_of_x => pos_of_x

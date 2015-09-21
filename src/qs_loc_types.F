@@ -173,15 +173,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(qs_loc_env))
 
-    ALLOCATE(qs_loc_env,STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(qs_loc_env)
 
     qs_loc_env%ref_count = 1
     qs_loc_env%tag_mo=""
@@ -213,7 +211,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, j
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -232,8 +230,7 @@ CONTAINS
        DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
           CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
        END DO
-       DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(qs_loc_env%moloc_coeff)
     END IF
 
     IF(ASSOCIATED(qs_loc_env%op_fm_set)) THEN
@@ -242,8 +239,7 @@ CONTAINS
              CALL cp_fm_release(qs_loc_env%op_fm_set(j,i)%matrix)
           END DO
        END DO
-       DEALLOCATE(qs_loc_env%op_fm_set,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(qs_loc_env%op_fm_set)
     END IF
 
     IF(ASSOCIATED(qs_loc_env%op_sm_set)) THEN
@@ -252,12 +248,10 @@ CONTAINS
              CALL cp_dbcsr_deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix)
           ENDDO
        END DO
-       DEALLOCATE(qs_loc_env%op_sm_set,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(qs_loc_env%op_sm_set)
     END IF
 
-    DEALLOCATE(qs_loc_env,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(qs_loc_env)
 
   END SUBROUTINE qs_loc_env_destroy
 
@@ -330,14 +324,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(localized_wfn_control))
-    ALLOCATE(localized_wfn_control,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(localized_wfn_control)
 
     localized_wfn_control%ref_count= 1
     localized_wfn_control%nloc_states=0
@@ -368,7 +360,6 @@ CONTAINS
       routineN = 'localized_wfn_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -377,20 +368,16 @@ CONTAINS
        localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
        IF (localized_wfn_control%ref_count==0) THEN
           IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
-               DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
-               CPASSERT(istat==0)
+               DEALLOCATE(localized_wfn_control%loc_states)
           ENDIF
           IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) THEN
-               DEALLOCATE(localized_wfn_control%centers_set(1)%array,STAT=istat)
-               CPASSERT(istat==0)
+               DEALLOCATE(localized_wfn_control%centers_set(1)%array)
           ENDIF
           IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) THEN
-               DEALLOCATE(localized_wfn_control%centers_set(2)%array,STAT=istat)
-               CPASSERT(istat==0)
+               DEALLOCATE(localized_wfn_control%centers_set(2)%array)
           ENDIF
           localized_wfn_control%ref_count=0
-          DEALLOCATE(localized_wfn_control,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(localized_wfn_control)
        ENDIF
     END IF
   END SUBROUTINE localized_wfn_control_release
@@ -525,7 +512,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -559,8 +546,7 @@ CONTAINS
          DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
             CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
          END DO
-         DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(qs_loc_env%moloc_coeff)
          NULLIFY(qs_loc_env%moloc_coeff)
        END IF
        qs_loc_env%moloc_coeff => moloc_coeff

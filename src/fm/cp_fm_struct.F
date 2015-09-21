@@ -155,8 +155,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 CPSourceFileRef)
 #endif
 
-  ALLOCATE(fmstruct,stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(fmstruct)
 
   fmstruct%nrow_block=optimal_blacs_row_block_size
   fmstruct%ncol_block=optimal_blacs_col_block_size
@@ -220,8 +219,7 @@ CPSourceFileRef)
   END IF
 
   ALLOCATE(fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1)-1)),&
-       fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
-  CPASSERT(stat==0)
+       fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)))
   IF (.NOT.PRESENT(template_fmstruct)) &
        fmstruct%first_p_pos=(/0,0/)
   IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
@@ -340,7 +338,6 @@ SUBROUTINE cp_fm_struct_release(fmstruct)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -352,23 +349,18 @@ SUBROUTINE cp_fm_struct_release(fmstruct)
         CALL cp_blacs_env_release(fmstruct%context)
         CALL cp_para_env_release(fmstruct%para_env)
         IF (ASSOCIATED(fmstruct%row_indices)) THEN
-           DEALLOCATE(fmstruct%row_indices,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(fmstruct%row_indices)
         ENDIF
         IF (ASSOCIATED(fmstruct%col_indices)) THEN
-           DEALLOCATE(fmstruct%col_indices,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(fmstruct%col_indices)
         END IF
         IF (ASSOCIATED(fmstruct%nrow_locals)) THEN
-           DEALLOCATE(fmstruct%nrow_locals,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(fmstruct%nrow_locals)
         END IF
         IF (ASSOCIATED(fmstruct%ncol_locals)) THEN
-           DEALLOCATE(fmstruct%ncol_locals,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(fmstruct%ncol_locals)
         END IF
-        DEALLOCATE(fmstruct, stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(fmstruct)
      END IF
   END IF
   NULLIFY(fmstruct)
@@ -567,7 +559,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&
        routineP=moduleN//':'//routineN
-  INTEGER i,nprow,npcol,myprow,mypcol, stat
+  INTEGER i,nprow,npcol,myprow,mypcol
 #if defined(__SCALAPACK)
   INTEGER , EXTERNAL :: indxl2g
 #endif
@@ -604,8 +596,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
     IF (.NOT.ASSOCIATED(row_indices)) THEN
        ! the max should go away
        ALLOCATE(fmstruct%row_indices &
-            (MAX(fmstruct%nrow_locals(myprow),1)),stat=stat)
-       CPASSERT(stat==0)
+            (MAX(fmstruct%nrow_locals(myprow),1)))
        row_indices => fmstruct%row_indices
 #ifdef __SCALAPACK
        DO i=1,SIZE(row_indices)
@@ -626,8 +617,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
     col_indices => fmstruct%col_indices
     IF (.NOT.ASSOCIATED(col_indices)) THEN
        ALLOCATE(fmstruct%col_indices &
-            (MAX(fmstruct%ncol_locals(mypcol),1)),stat=stat)
-       CPASSERT(stat==0)
+            (MAX(fmstruct%ncol_locals(mypcol),1)))
        col_indices => fmstruct%col_indices
 #ifdef __SCALAPACK
        DO i=1,SIZE(col_indices)

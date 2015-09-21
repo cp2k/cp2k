@@ -195,7 +195,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -209,8 +209,7 @@ CONTAINS
       CALL hfx_release(mp2_env%ri_rpa%x_data)
     END IF
 
-    DEALLOCATE(mp2_env,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(mp2_env)
 
     CALL timestop(handle)
 
@@ -226,7 +225,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -235,8 +234,7 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(mp2_env))
 
-    ALLOCATE(mp2_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mp2_env)
 
     NULLIFY(mp2_env%ri_rpa%x_data)
 

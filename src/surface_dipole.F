@@ -67,7 +67,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, idir_surfdip, &
                                                 ilayer_min, ilow, irho, &
-                                                ispin, isurf, iup, jsurf, stat
+                                                ispin, isurf, iup, jsurf
     INTEGER, DIMENSION(3)                    :: ngrid
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
@@ -147,8 +147,7 @@ CONTAINS
       ilow = wf_r%pw%pw_grid%bounds(1,idir_surfdip)
       iup = wf_r%pw%pw_grid%bounds(2,idir_surfdip)
 
-      ALLOCATE (rhoavsurf(ilow:iup),stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE (rhoavsurf(ilow:iup))
       rhoavsurf = 0.0_dp
 
       bo => wf_r%pw%pw_grid%bounds_local
@@ -214,8 +213,7 @@ CONTAINS
         dip_hh = dip_hh + rhoavsurf(irho)*hh*dip_fac
      END DO 
 
-     DEALLOCATE(rhoavsurf,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(rhoavsurf)
 
 !    Calculation of the dipole potential as a function of the perpendicular coordinate
      CALL pw_zero(vdip_r%pw)

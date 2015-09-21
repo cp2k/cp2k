@@ -111,7 +111,7 @@ CONTAINS
 
     CHARACTER(LEN=2), ALLOCATABLE, &
       DIMENSION(:)                           :: element
-    INTEGER                                  :: i, ierr, ik, iounit, natom
+    INTEGER                                  :: i, ik, iounit, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype
     LOGICAL                                  :: failure, inv, spez, symmo
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight, zeff
@@ -129,8 +129,7 @@ CONTAINS
           ! do nothing
        CASE ("GAMMA")
           kpoint%nkp = 1
-          ALLOCATE(kpoint%xkp(3,1),kpoint%wkp(1),STAT=ierr)
-          CPASSERT(ierr==0)
+          ALLOCATE(kpoint%xkp(3,1),kpoint%wkp(1))
           kpoint%xkp(1:3,1) = 0.0_dp
           kpoint%wkp(1) = 1.0_dp
        CASE ("MONKHORST-PACK","MACDONALD")
@@ -139,8 +138,7 @@ CONTAINS
           IF(kpoint%full_grid) THEN
              ! we set up a random molecule to avoid any possible symmetry
              natom = 10
-             ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-             CPASSERT(ierr==0)
+             ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom))
              DO i=1,natom
                 atype(i) = i
                 coord(1,i) = SIN(i*0.12345_dp)
@@ -149,8 +147,7 @@ CONTAINS
              END DO
           ELSE
              natom = SIZE(particle_set)
-             ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-             CPASSERT(ierr==0)
+             ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom))
              DO i=1,natom
                 CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,kind_number=atype(i))
                 coord(1:3,i) = particle_set(i)%r(1:3)
@@ -180,8 +177,7 @@ CONTAINS
           symmo = (crys_sym%isy ==1)
 
           CALL release_csym_type(crys_sym)
-          DEALLOCATE(coord,zeff,weight,atype,element,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(coord,zeff,weight,atype,element)
 
        CASE ("GENERAL")
           ! do nothing
@@ -237,8 +233,10 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3*default_string_length)   :: message
-    INTEGER :: comm_cart, comm_inter_kp, comm_kp, ierr, igr, ik, ikk, ngr, &
-      niogrp, nkp, nkp_grp, nkp_loc, npe, unit_nr
+    INTEGER                                  :: comm_cart, comm_inter_kp, &
+                                                comm_kp, igr, ik, ikk, ngr, &
+                                                niogrp, nkp, nkp_grp, &
+                                                nkp_loc, npe, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(2)                    :: rdim
@@ -261,8 +259,7 @@ CPSourceFileRef,&
     npe = para_env%num_pe
     IF(npe == 1) THEN
        ! only one process availabe -> owns all kpoints
-       ALLOCATE(kp_env(nkp),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE(kp_env(nkp))
        DO ik=1,nkp
           NULLIFY(kp_env(ik)%kpoint_env)
           CALL kpoint_env_create(kp_env(ik)%kpoint_env)
@@ -272,8 +269,7 @@ CPSourceFileRef,&
           kp%xkp(1:3) = kpoint%xkp(1:3,ik)
           kp%is_local = .TRUE.
        END DO
-       ALLOCATE(kpoint%kp_dist(2,1),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE(kpoint%kp_dist(2,1))
        kpoint%kp_dist(1,1) = 1
        kpoint%kp_dist(2,1) = nkp
        kpoint%kp_range(1) = 1
@@ -348,15 +344,13 @@ CPSourceFileRef,&
        kpoint%para_env_inter_kp => para_env_inter_kp
 
        ! distribution of kpoints
-       ALLOCATE(kpoint%kp_dist(2,nkp_grp),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE(kpoint%kp_dist(2,nkp_grp))
        DO igr = 1,nkp_grp
           kpoint%kp_dist(1:2,igr) = get_limit(nkp,nkp_grp,igr-1)
        END DO
        ! local kpoints
        kpoint%kp_range(1:2) = kpoint%kp_dist(1:2,para_env_inter_kp%mepos+1)
-       ALLOCATE(kp_env(nkp_loc),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE(kp_env(nkp_loc))
        DO ik=1,nkp_loc
           NULLIFY(kp_env(ik)%kpoint_env)
           ikk = kpoint%kp_range(1) + ik -1
@@ -398,7 +392,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ic, ierr, ik, is, nao, nc, &
+    INTEGER                                  :: ic, ik, is, nao, nc, &
                                                 nelectron, nkp_loc, nmo, nspin
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flexible_electron_count, &
@@ -428,8 +422,7 @@ CPSourceFileRef,&
           ! allocate the mo sets, correct number of kpoints (local), real/complex, spin
           DO ik=1,nkp_loc
              kp => kpoint%kp_env(ik)%kpoint_env
-             ALLOCATE(kp%mos(nc,nspin),STAT=ierr)
-             CPASSERT(ierr==0)
+             ALLOCATE(kp%mos(nc,nspin))
              DO is=1,nspin
                 CALL get_mo_set(mos(is)%mo_set,nao=nao,nmo=nmo,nelectron=nelectron,&
                      n_el_f=n_el_f,maxocc=maxocc,flexible_electron_count=flexible_electron_count)
@@ -470,11 +463,9 @@ CPSourceFileRef,&
                       CALL cp_fm_release(kp%pmat(ic,is)%matrix)
                    END DO
                 END DO
-                DEALLOCATE(kp%pmat,STAT=ierr)
-                CPASSERT(ierr==0)
+                DEALLOCATE(kp%pmat)
              END IF
-             ALLOCATE(kp%pmat(nc,nspin),STAT=ierr)
-             CPASSERT(ierr==0)
+             ALLOCATE(kp%pmat(nc,nspin))
              DO is=1,nspin
                 DO ic=1,nc
                    CALL cp_fm_create(kp%pmat(ic,is)%matrix,matrix_struct)
@@ -487,11 +478,9 @@ CPSourceFileRef,&
                       CALL cp_fm_release(kp%wmat(ic,is)%matrix)
                    END DO
                 END DO
-                DEALLOCATE(kp%wmat,STAT=ierr)
-                CPASSERT(ierr==0)
+                DEALLOCATE(kp%wmat)
              END IF
-             ALLOCATE(kp%wmat(nc,nspin),STAT=ierr)
-             CPASSERT(ierr==0)
+             ALLOCATE(kp%wmat(nc,nspin))
              DO is=1,nspin
                 DO ic=1,nc
                    CALL cp_fm_create(kp%wmat(ic,is)%matrix,matrix_struct)
@@ -729,8 +718,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, ikpgr, ispin, kplocal, &
-                                                nb, nelectron, nkp, nmo, &
-                                                nspin, stat
+                                                nb, nelectron, nkp, nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, mu, nel
@@ -752,8 +740,7 @@ CPSourceFileRef,&
        CALL get_mo_set(kp%mos(1,2)%mo_set,nmo=nb)
        CPASSERT(nmo==nb)
     END IF
-    ALLOCATE(weig(nmo,nkp,nspin),wocc(nmo,nkp,nspin),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(weig(nmo,nkp,nspin),wocc(nmo,nkp,nspin))
     weig = 0.0_dp
     wocc = 0.0_dp
     CALL get_kpoint_info(kpoint,kp_range=kp_range)
@@ -794,8 +781,7 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    DEALLOCATE(weig,wocc,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(weig,wocc)
 
   END SUBROUTINE kpoint_set_mo_occupation
 
@@ -924,8 +910,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: bcntxt, iatom, ic, icell, &
                                                 icol, ik, ikk, irow, ispin, &
-                                                jatom, nc, nimg, nkp, nspin, &
-                                                stat
+                                                jatom, nc, nimg, nkp, nspin
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_symmetric, failure, found, &
@@ -943,8 +928,7 @@ CPSourceFileRef,&
     failure = .FALSE.
 
     ! work storage
-    ALLOCATE(rpmat,cpmat,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(rpmat,cpmat)
     CALL cp_dbcsr_init(rpmat)
     CALL cp_dbcsr_init(cpmat)
     CALL cp_dbcsr_create(rpmat,template=tempmat,matrix_type=dbcsr_type_symmetric)

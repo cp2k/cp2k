@@ -84,7 +84,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check, explicit, failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: barostat_section
@@ -100,8 +99,7 @@ CONTAINS
         simpar%ensemble == npe_i_ensemble .OR. &
         simpar%ensemble == nph_uniaxial_ensemble .OR. &
         simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-       ALLOCATE(barostat, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(barostat)
        last_barostat_id_nr = last_barostat_id_nr + 1
        barostat%id_nr      = last_barostat_id_nr
        barostat%ref_count  =  1
@@ -174,7 +172,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'release_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check, failure
 
     failure =.FALSE.
@@ -184,12 +181,10 @@ CPSourceFileRef,&
        barostat%ref_count=barostat%ref_count-1
        IF (barostat%ref_count<1) THEN
           IF ( ASSOCIATED ( barostat%npt ) ) THEN
-             DEALLOCATE (barostat%npt , stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (barostat%npt )
           END IF
           NULLIFY(barostat%section)
-          DEALLOCATE(barostat, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(barostat)
        END IF
     END IF
 

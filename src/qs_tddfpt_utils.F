@@ -168,8 +168,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n_cols, n_lumos, n_orbits, &
-                                                n_rows, n_spins, oo, spin, &
-                                                stat, vo
+                                                n_rows, n_spins, oo, spin, vo
     LOGICAL                                  :: failure
     REAL(KIND=DP)                            :: evd
     REAL(KIND=DP), ALLOCATABLE, &
@@ -246,8 +245,7 @@ CONTAINS
           END DO
        END DO
 
-       ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits))
        CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
                                 start_col=1, n_cols=n_lumos)
 
@@ -300,7 +298,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, n_ev, n_spins, occ, &
-                                                output_unit, spin, stat, virt
+                                                output_unit, spin, virt
     INTEGER, DIMENSION(2)                    :: nhomos, nlumos, nrows
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: contribution, &
@@ -328,8 +326,7 @@ CONTAINS
     n_ev      = t_control%n_ev
     n_spins   = dft_control%nspins
 
-    ALLOCATE(S_lumos(n_spins), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(S_lumos(n_spins))
 
     DO spin=1, n_spins
        nrows(spin) = t_control%lumos(spin)%matrix%matrix_struct%nrow_global
@@ -342,8 +339,7 @@ CONTAINS
     END DO
 
     ALLOCATE(homo_coeff_col(MAXVAL(nrows(1:n_spins)),1), &
-             lumo_coeff_col(MAXVAL(nrows(1:n_spins)),1), stat=stat)
-    CPASSERT(stat==0)
+             lumo_coeff_col(MAXVAL(nrows(1:n_spins)),1))
     DO i=1, n_ev
        IF (output_unit>0) THEN
           WRITE (output_unit,'(A,I3,5X,F15.6)') "  excited state : ", i, t_env%evals(i)*evolt
@@ -389,11 +385,9 @@ CONTAINS
     DO spin=1, n_spins
        CALL cp_fm_release(S_lumos(spin)%matrix)
     END DO
-    DEALLOCATE(homo_coeff_col, lumo_coeff_col, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(homo_coeff_col, lumo_coeff_col)
 
-    DEALLOCATE(S_lumos, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(S_lumos)
 
   END SUBROUTINE find_contributions
 

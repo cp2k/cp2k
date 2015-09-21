@@ -293,12 +293,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    ALLOCATE(fist_nonbond_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(fist_nonbond_env)
     NULLIFY(fist_nonbond_env%potparm14)
     NULLIFY(fist_nonbond_env%potparm)
     NULLIFY(fist_nonbond_env%rlist_cut)
@@ -348,7 +346,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idim, jdim, natom_types, stat
+    INTEGER                                  :: idim, jdim, natom_types
     LOGICAL                                  :: check, use_potparm, &
                                                 use_potparm14
     REAL(KIND=dp)                            :: fac, rcut, rlow
@@ -392,12 +390,9 @@ CONTAINS
           check = (SIZE(potparm%pot,1)==natom_types)
           CPASSERT(check)
        END IF
-       ALLOCATE ( fist_nonbond_env%rlist_cut(natom_types, natom_types), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE ( fist_nonbond_env%rlist_lowsq(natom_types, natom_types), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE ( fist_nonbond_env%ij_kind_full_fac(natom_types, natom_types), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE ( fist_nonbond_env%rlist_cut(natom_types, natom_types))
+       ALLOCATE ( fist_nonbond_env%rlist_lowsq(natom_types, natom_types))
+       ALLOCATE ( fist_nonbond_env%ij_kind_full_fac(natom_types, natom_types))
        fist_nonbond_env%ij_kind_full_fac = 1.0_dp
        DO idim = 1, natom_types
           DO jdim = idim, natom_types
@@ -491,7 +486,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -507,58 +501,45 @@ CONTAINS
           ! Release potparm14
           CALL pair_potential_pp_release ( fist_nonbond_env%potparm14)
           IF (ASSOCIATED(fist_nonbond_env%r_last_update)) THEN
-             DEALLOCATE (fist_nonbond_env%r_last_update,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%r_last_update)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%r_last_update_pbc)) THEN
-             DEALLOCATE (fist_nonbond_env%r_last_update_pbc,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%r_last_update_pbc)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-             DEALLOCATE (fist_nonbond_env%charges,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%charges)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
-             DEALLOCATE (fist_nonbond_env%eam_data,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%eam_data)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%quip_data)) THEN
              IF (ASSOCIATED(fist_nonbond_env%quip_data%force)) THEN
-                DEALLOCATE (fist_nonbond_env%quip_data%force,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (fist_nonbond_env%quip_data%force)
              ENDIF
              IF (ASSOCIATED(fist_nonbond_env%quip_data%use_indices)) THEN
-                DEALLOCATE (fist_nonbond_env%quip_data%use_indices,STAT=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE (fist_nonbond_env%quip_data%use_indices)
              ENDIF
-             DEALLOCATE (fist_nonbond_env%quip_data,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%quip_data)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
-             DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rcore_last_update_pbc)) THEN
-             DEALLOCATE (fist_nonbond_env%rcore_last_update_pbc,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%rcore_last_update_pbc)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%cell_last_update)) THEN
              CALL cell_release(fist_nonbond_env%cell_last_update)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%ij_kind_full_fac)) THEN
-             DEALLOCATE (fist_nonbond_env%ij_kind_full_fac,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%ij_kind_full_fac)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rlist_cut)) THEN
-             DEALLOCATE (fist_nonbond_env%rlist_cut,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%rlist_cut)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rlist_lowsq)) THEN
-             DEALLOCATE (fist_nonbond_env%rlist_lowsq,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (fist_nonbond_env%rlist_lowsq)
           ENDIF
-          DEALLOCATE(fist_nonbond_env, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(fist_nonbond_env)
        END IF
     END IF
   END SUBROUTINE fist_nonbond_env_release

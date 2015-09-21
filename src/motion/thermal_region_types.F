@@ -54,15 +54,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermal_regions', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check, failure
 
     failure = .FALSE.
     check = .NOT.ASSOCIATED(thermal_regions)
     CPASSERT(check)
 
-    ALLOCATE(thermal_regions,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermal_regions)
     thermal_regions%ref_count =  1
     thermal_regions%nregions = 0
     NULLIFY(thermal_regions%thermal_region)
@@ -103,7 +101,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermal_regions', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ireg, stat
+    INTEGER                                  :: ireg
     LOGICAL                                  :: check, failure
 
     failure =.FALSE.
@@ -115,18 +113,14 @@ CONTAINS
        IF (thermal_regions%ref_count<1) THEN
           IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
             DO ireg = 1,SIZE(thermal_regions%thermal_region)
-              DEALLOCATE(thermal_regions%thermal_region(ireg)%part_index,STAT=stat)
-              CPASSERT(stat==0)
+              DEALLOCATE(thermal_regions%thermal_region(ireg)%part_index)
             END DO
-            DEALLOCATE(thermal_regions%thermal_region,STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(thermal_regions%thermal_region)
           END IF
           IF (ASSOCIATED(thermal_regions%do_langevin)) THEN
-             DEALLOCATE(thermal_regions%do_langevin, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(thermal_regions%do_langevin)
           END IF
-          DEALLOCATE(thermal_regions, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(thermal_regions)
        END IF
     END IF
 

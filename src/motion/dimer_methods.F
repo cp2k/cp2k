@@ -202,8 +202,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'remove_rot_transl_component', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dof, handle, i, j, natoms, &
-                                                stat
+    INTEGER                                  :: dof, handle, i, j, natoms
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: norm, norm_gradient_old
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D, mat
@@ -224,8 +223,7 @@ CONTAINS
                mass_weighted=.FALSE., natoms=natoms)
 
           ! Orthogonalize gradient with respect to the full set of Roto-Trasl vectors
-          ALLOCATE(D(3*natoms,dof),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(D(3*natoms,dof))
           ! Check First orthogonality in the first element of the basis set
           DO i = 1, dof
              D(:,i) = mat(:,i)
@@ -238,10 +236,8 @@ CONTAINS
              norm = DOT_PRODUCT(gradient,D(:,i))
              gradient = gradient - norm * D(:,i)
           END DO
-          DEALLOCATE(D, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mat, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(D)
+          DEALLOCATE(mat)
        END IF
     END IF
     CALL timestop(handle)

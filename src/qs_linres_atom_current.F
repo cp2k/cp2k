@@ -111,9 +111,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iac, iat, iatom, ibc, idir2, ii, iii, ikind, &
-      ispin, istat, jatom, jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, &
-      mepos, n_cont_a, n_cont_b, nat, natom, nkind, nsatbas, nsgfa, nsgfb, &
-      nso, nsoctot, nspins, num_pe, output_unit
+      ispin, jatom, jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, mepos, &
+      n_cont_a, n_cont_b, nat, natom, nkind, nsatbas, nsgfa, nsgfb, nso, &
+      nsoctot, nspins, num_pe, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL :: den_found, dista, distab, distb, failure, is_not_associated, &
@@ -204,8 +204,7 @@ CONTAINS
              c_matrix(max_nsgf,max_nsgf),d_matrix(max_nsgf,max_nsgf),&
              a_block(nspins),b_block(nspins),c_block(nspins),d_block(nspins),&
              jp_RARnu(nspins),jp2_RARnu(nspins),PC1(max_nsgf*max_gau),&
-             CPC(max_gau*max_gau),STAT=istat)
-    CPASSERT(istat==0)
+             CPC(max_gau*max_gau))
     !
     ! Reset CJC coefficients and local density arrays
     DO ikind = 1 ,nkind
@@ -237,8 +236,7 @@ CONTAINS
     ENDDO ! ikind
     !
     ! Three centers
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -260,8 +258,7 @@ CONTAINS
        DO ispin = 1,nspins
           NULLIFY(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef)
           ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),&
-                   jp2_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat)
-          CPASSERT(istat==0)
+                   jp2_RARnu(ispin)%r_coef(nsgfa,nsgfb))
        ENDDO
 
        ! Take the block \mu\nu of jpab, jpab_ii and jpab_iii
@@ -435,14 +432,12 @@ CONTAINS
 
        ENDDO ! kkind
        DO ispin = 1,nspins
-          DEALLOCATE(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef)
        ENDDO
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE(basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(basis_set_list)
     !
     ! parallel sum up
     nbr_dbl = 0.0_dp
@@ -464,8 +459,7 @@ CONTAINS
        mepos  = para_env%mepos
        bo = get_limit(nat,num_pe,mepos)
        !
-       ALLOCATE(zero_coeff(nsoctot,nsoctot),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(zero_coeff(nsoctot,nsoctot))
        DO iat = 1,nat
           iatom = atom_list(iat)
           is_not_associated = .NOT.ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(1)%r_coef)
@@ -528,8 +522,7 @@ CONTAINS
           ENDDO ! ispin
        ENDDO ! iat
        !
-       DEALLOCATE(zero_coeff,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(zero_coeff)
        !
     ENDDO ! ikind
     !
@@ -542,8 +535,7 @@ CONTAINS
     !
     ! clean up
     DEALLOCATE(a_matrix,b_matrix,c_matrix,d_matrix,PC1,CPC,a_block,b_block,c_block,d_block,&
-               jp_RARnu,jp2_RARnu,STAT=istat)
-    CPASSERT(istat==0)
+               jp_RARnu,jp2_RARnu)
     !
     CALL timestop(handle)
     !
@@ -566,11 +558,11 @@ CONTAINS
 
     INTEGER :: damax_iso_not0, damax_iso_not0_local, handle, i1, i2, iat, &
       iatom, icg, ikind, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, &
-      iso1_first, iso1_last, iso2, iso2_first, iso2_last, ispin, istat, l, &
-      l_iso, llmax, lmax12, lmax_expansion, lmin12, m1s, m2s, m_iso, &
-      max_iso_not0, max_iso_not0_local, max_max_iso_not0, max_nso, &
-      max_s_harm, maxl, maxlgto, maxso, mepos, n1s, n2s, na, natom, &
-      natom_tot, nkind, nr, nset, nspins, num_pe, size1, size2
+      iso1_first, iso1_last, iso2, iso2_first, iso2_last, ispin, l, l_iso, &
+      llmax, lmax12, lmax_expansion, lmin12, m1s, m2s, m_iso, max_iso_not0, &
+      max_iso_not0_local, max_max_iso_not0, max_nso, max_s_harm, maxl, &
+      maxlgto, maxso, mepos, n1s, n2s, na, natom, natom_tot, nkind, nr, nset, &
+      nspins, num_pe, size1, size2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dacg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dacg_list
     INTEGER, DIMENSION(2)                    :: bo
@@ -631,8 +623,7 @@ CONTAINS
     nspins = dft_control%nspins
     !
     natom_tot = SIZE(jrho1_atom_set,1)
-    ALLOCATE(is_set_to_0(natom_tot,nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(is_set_to_0(natom_tot,nspins))
     is_set_to_0(:,:) = .FALSE.
 
     !
@@ -687,8 +678,7 @@ CONTAINS
                 cjc_iii_h_block(max_nso,max_nso),cjc_iii_s_block(max_nso,max_nso),&
                 cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
                 dacg_list(2,nsoset(maxl)**2,max_s_harm),dacg_n_list(max_s_harm),&
-                gauge_h(nr),gauge_s(nr),STAT=istat)
-       CPASSERT(istat==0)
+                gauge_h(nr),gauge_s(nr))
        !
        ! Compute the gauge
        SELECT CASE(current_env%gauge)
@@ -1104,13 +1094,11 @@ CONTAINS
        !
        DEALLOCATE(cjc0_h_block,cjc0_s_block,cjc_h_block,cjc_s_block,cjc_ii_h_block,cjc_ii_s_block,&
                   cjc_iii_h_block,cjc_iii_s_block,g1,g2,gg,gg_lm1,dgg_1,gauge_h,gauge_s,&
-                  cg_list,cg_n_list,dacg_list,dacg_n_list,STAT=istat)
-       CPASSERT(istat==0)
+                  cg_list,cg_n_list,dacg_list,dacg_n_list)
     ENDDO ! ikind
     !
     !
-    DEALLOCATE(is_set_to_0,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(is_set_to_0)
     !
     CALL timestop(handle)
     !
@@ -1147,7 +1135,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
-                                                iso, max_max_iso_not0, na, nr, istat
+                                                iso, max_max_iso_not0, na, nr
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part, scale
     REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
@@ -1195,8 +1183,7 @@ CONTAINS
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     max_max_iso_not0 = MAX(harmonics%max_iso_not0,harmonics%damax_iso_not0)
-    ALLOCATE(g(3,nr,na),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(g(3,nr,na))
     !------------------------------------------------------------------
     !
     Fr_h => jrho1_atom%jrho_h(ispin)%r_coef
@@ -1289,8 +1276,7 @@ CONTAINS
        ENDDO ! iso
     ENDDO ! ir
     !
-    DEALLOCATE(g,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(g)
     !
   CONTAINS
     !
@@ -1360,8 +1346,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, iatom, ikind, ispin, &
-                                                istat, jatom, natm_gauge, &
-                                                natm_tot, natom, nkind, nspins
+                                                jatom, natm_gauge, natm_tot, &
+                                                natom, nkind, nspins
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: do_igaim, failure, gapw, &
@@ -1407,8 +1393,7 @@ CONTAINS
     nspins = dft_control%nspins
 
     natm_tot = SIZE(particle_set)
-    ALLOCATE(ratom(3,natm_tot),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ratom(3,natm_tot))
 
     IF (gapw) THEN
        DO ikind = 1,nkind
@@ -1454,8 +1439,7 @@ CONTAINS
        END DO !ikind
     END IF
 
-    DEALLOCATE(ratom,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(ratom)
 
   END SUBROUTINE calculate_jrho_atom
 

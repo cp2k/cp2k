@@ -102,13 +102,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_simpar_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(simpar))
-    ALLOCATE(simpar, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(simpar)
   END SUBROUTINE create_simpar_type
 
 ! *****************************************************************************
@@ -122,13 +120,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_simpar_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(ASSOCIATED(simpar))
-    DEALLOCATE(simpar, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(simpar)
   END SUBROUTINE release_simpar_type
 
 END MODULE simpar_types

@@ -93,7 +93,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
-      nRotTrM, nvib, output_unit, prep, proc_dist_type, stat
+      nRotTrM, nvib, output_unit, prep, proc_dist_type
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
     LOGICAL                                  :: calc_intens, &
                                                 do_mode_tracking, failure, &
@@ -161,18 +161,13 @@ CONTAINS
           something_frozen = SIZE(particles).NE.SIZE(Mlist)
           natoms=SIZE(Mlist)
           ncoord=natoms*3
-          ALLOCATE(Clist(ncoord), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(mass(natoms), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(pos0(ncoord), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(Hessian(ncoord,ncoord),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(Clist(ncoord))
+          ALLOCATE(mass(natoms))
+          ALLOCATE(pos0(ncoord))
+          ALLOCATE(Hessian(ncoord,ncoord))
           IF(calc_intens)THEN
              description='[DIPOLE]'
-             ALLOCATE(tmp_dip(ncoord,3,2),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(tmp_dip(ncoord,3,2))
              tmp_dip=0._dp
           END IF
           Clist = 0
@@ -194,8 +189,7 @@ CONTAINS
           !
           IF (something_frozen) THEN
              nRotTrM = 0
-             ALLOCATE(RotTrM(natoms*3,nRotTrM),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(RotTrM(natoms*3,nRotTrM))
           ELSE
              CALL rot_ana(particles,RotTrM,nRotTrM,print_section,&
                   keep_rotations,mass_weighted=.TRUE.,natoms=natoms)
@@ -348,25 +342,17 @@ CONTAINS
              END DO
           END DO
           nvib = ncoord-nRotTrM
-          ALLOCATE(H_eigval1(ncoord),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(H_eigval2(SIZE(D,2)),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(Hint1(ncoord,ncoord),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(Hint2(SIZE(D,2),SIZE(D,2)),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(rmass(SIZE(D,2)),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(konst(SIZE(D,2)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(H_eigval1(ncoord))
+          ALLOCATE(H_eigval2(SIZE(D,2)))
+          ALLOCATE(Hint1(ncoord,ncoord))
+          ALLOCATE(Hint2(SIZE(D,2),SIZE(D,2)))
+          ALLOCATE(rmass(SIZE(D,2)))
+          ALLOCATE(konst(SIZE(D,2)))
           IF(calc_intens)THEN
-             ALLOCATE(dip_deriv(3,SIZE(D,2)),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(dip_deriv(3,SIZE(D,2)))
              dip_deriv=0.0_dp
           END IF
-          ALLOCATE(intensities(SIZE(D,2)),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(intensities(SIZE(D,2)))
           intensities=  0._dp
           Hint1(:,:) = Hessian
           CALL diamat_all(Hint1,H_eigval1)
@@ -427,38 +413,23 @@ CONTAINS
              END IF
           END IF
           ! Deallocate working arrays
-          DEALLOCATE(Clist,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Mlist,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(H_eigval1,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(H_eigval2,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Hint1,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Hint2,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(rmass,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(konst,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(mass, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pos0, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(D,stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(Hessian,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(Clist)
+          DEALLOCATE(Mlist)
+          DEALLOCATE(H_eigval1)
+          DEALLOCATE(H_eigval2)
+          DEALLOCATE(Hint1)
+          DEALLOCATE(Hint2)
+          DEALLOCATE(rmass)
+          DEALLOCATE(konst)
+          DEALLOCATE(mass)
+          DEALLOCATE(pos0)
+          DEALLOCATE(D)
+          DEALLOCATE(Hessian)
           IF(calc_intens)THEN
-             DEALLOCATE(dip_deriv,stat=stat)
-             CPASSERT(stat==0)
-             DEALLOCATE(tmp_dip,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dip_deriv)
+             DEALLOCATE(tmp_dip)
           END IF
-          DEALLOCATE(intensities,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(intensities)
           CALL f_env_rm_defaults(f_env,ierr)
        END IF
     END IF
@@ -482,8 +453,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ii, ikind, j, &
                                                 ndim, nfixed_atoms, &
-                                                nfixed_atoms_total, nkind, &
-                                                stat
+                                                nfixed_atoms_total, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifixd_list, work
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -517,14 +487,11 @@ CONTAINS
     END DO
     ndim = SIZE(particle_set)-nfixed_atoms_total
     CPASSERT(ndim>=0)
-    ALLOCATE(Ilist(ndim),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(Ilist(ndim))
 
     IF (nfixed_atoms_total/=0) THEN
-       ALLOCATE(ifixd_list(nfixed_atoms_total),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(work(nfixed_atoms_total),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(ifixd_list(nfixed_atoms_total))
+       ALLOCATE(work(nfixed_atoms_total))
        nfixed_atoms_total = 0
        DO ikind = 1, nkind
           molecule_kind => molecule_kind_set(ikind)
@@ -552,10 +519,8 @@ CONTAINS
              Ilist(ndim) = i
           END IF
        END DO Loop_count
-       DEALLOCATE(ifixd_list,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(work,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(ifixd_list)
+       DEALLOCATE(work)
     ELSE
        i    = 1
        ndim = 0
@@ -648,7 +613,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ifound, iseq, j, &
-                                                nvib, stat
+                                                nvib
     LOGICAL                                  :: failure, my_full
     REAL(KIND=dp)                            :: norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
@@ -661,10 +626,8 @@ CONTAINS
     IF (PRESENT(full)) my_full = full
     ! Generate the missing vectors of the orthogonal basis set
     nvib = 3*natoms-dof
-    ALLOCATE(work(3*natoms),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(D(3*natoms,3*natoms),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(work(3*natoms))
+    ALLOCATE(D(3*natoms,3*natoms))
     ! Check First orthogonality in the first element of the basis set
     DO i = 1, dof
        D(:,i) = mat(:,i)
@@ -696,20 +659,15 @@ CONTAINS
     END DO
     CPASSERT(dof+ifound==3*natoms)
     IF (my_full) THEN
-       ALLOCATE(Dout(3*natoms,3*natoms),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Dout(3*natoms,3*natoms))
        Dout = D
     ELSE
-       ALLOCATE(Dout(3*natoms,nvib),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(Dout(3*natoms,nvib))
        Dout = D(:,dof+1:)
     END IF
-    DEALLOCATE(work,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(D,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(mat,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(work)
+    DEALLOCATE(D)
+    DEALLOCATE(mat)
     CALL timestop(handle)
   END SUBROUTINE build_D_matrix
 

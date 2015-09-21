@@ -68,7 +68,7 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     CHARACTER(len=2), ALLOCATABLE            :: elem_symbol(:)
     INTEGER                                  :: i, iat, iat_use, ikind, &
                                                 jkind, n_atoms, n_atoms_use, &
-                                                output_unit, stat
+                                                output_unit
     LOGICAL                                  :: do_parallel, failure
     LOGICAL, ALLOCATABLE                     :: use_atom(:)
     REAL(kind=dp)                            :: lattice(3,3), virial(3,3)
@@ -155,8 +155,7 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     ! get quip_data to save force, virial info
     CALL fist_nonbond_env_get ( fist_nonbond_env, quip_data=quip_data)
     IF (.NOT. ASSOCIATED(quip_data)) THEN
-       ALLOCATE(quip_data,STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(quip_data)
        CALL fist_nonbond_env_set (fist_nonbond_env,  quip_data=quip_data)
        NULLIFY(quip_data%use_indices, quip_data%force)
     ENDIF

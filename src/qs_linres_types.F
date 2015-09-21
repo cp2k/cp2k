@@ -245,14 +245,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
      failure =.FALSE.
 
      CPASSERT(.NOT.ASSOCIATED(linres_control))
-     ALLOCATE (linres_control,STAT=istat)
-     CPASSERT(istat==0)
+     ALLOCATE (linres_control)
      linres_control%ref_count=1
      NULLIFY(linres_control%qs_loc_env)
      linres_control%property            = HUGE(0)!is that used?
@@ -281,7 +279,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
      failure =.FALSE.
@@ -293,8 +290,7 @@ CONTAINS
          IF(ASSOCIATED(linres_control%qs_loc_env)) THEN
            CALL qs_loc_env_release(linres_control%qs_loc_env)
          END IF
-         DEALLOCATE(linres_control,STAT=istat)
-         CPASSERT(istat==0)
+         DEALLOCATE(linres_control)
        END IF
      END IF
      NULLIFY(linres_control)
@@ -921,13 +917,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_nablavks_atom_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat
+    INTEGER                                  :: iat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    ALLOCATE(nablavks_atom_set(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(nablavks_atom_set(natom))
 
     DO iat = 1,natom
        NULLIFY(nablavks_atom_set(iat)%nablavks_vec_rad_h)
@@ -947,7 +942,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iat, idir, istat, n, natom
+    INTEGER                                  :: i, iat, idir, n, natom
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -961,21 +956,16 @@ CONTAINS
              n = SIZE(nablavks_atom_set(iat)%nablavks_vec_rad_h,2)
              DO i=1,n
                 DO idir = 1,3
-                   DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef,STAT=istat)
-                   CPASSERT(istat==0)
-                   DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef,STAT=istat)
-                   CPASSERT(istat==0)
+                   DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef)
+                   DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef)
                 ENDDO
              ENDDO
           ENDIF
-          DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
-          CPASSERT(istat==0)
-          DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h)
+          DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s)
        ENDIF
     ENDDO
-    DEALLOCATE(nablavks_atom_set, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(nablavks_atom_set)
   END SUBROUTINE deallocate_nablavks_atom_set
 
 ! *****************************************************************************
@@ -992,13 +982,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat
+    INTEGER                                  :: iat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
-    ALLOCATE(jrho_atom_set(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(jrho_atom_set(natom))
 
     DO iat = 1,natom
        NULLIFY(jrho_atom_set(iat)%cjc0_h)
@@ -1141,8 +1130,7 @@ CONTAINS
           CPASSERT(istat==0)
        END IF
     END DO
-    DEALLOCATE(jrho_atom_set,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(jrho_atom_set)
 
   END SUBROUTINE deallocate_jrho_atom_set
 
@@ -1516,8 +1504,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_nablavks_atom_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iat, iatom, idir, ikind, ispin, istat, max_iso_not0, &
-      maxso, na, nat, natom, nkind, nr, nset, nsotot
+    INTEGER                                  :: handle, iat, iatom, idir, &
+                                                ikind, ispin, max_iso_not0, &
+                                                maxso, na, nat, natom, nkind, &
+                                                nr, nset, nsotot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -1558,18 +1548,14 @@ CONTAINS
           iatom = atom_list(iat)
           !*** allocate the radial density for each LM,for each atom ***
 
-            ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_h(3,nspins),STAT=istat)
-            CPASSERT(istat==0)
-            ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_s(3,nspins),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_h(3,nspins))
+            ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_s(3,nspins))
             DO ispin = 1,nspins
               DO idir = 1,3
                 NULLIFY(nablavks_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef)
                 NULLIFY(nablavks_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef)
-                ALLOCATE(nablavks_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef(nr,na),STAT=istat)
-                CPASSERT(istat==0)
-                ALLOCATE(nablavks_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef(nr,na),STAT=istat)
-                CPASSERT(istat==0)
+                ALLOCATE(nablavks_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef(nr,na))
+                ALLOCATE(nablavks_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef(nr,na))
               END DO
             END DO  ! ispin
        END DO  ! iat

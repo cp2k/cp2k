@@ -108,8 +108,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, k, &
-                                                my_solver_type
+    INTEGER                                  :: handle, k, my_solver_type
     LOGICAL :: failure, my_convert_precond_to_dbcsr, my_mixed_precision, &
       needs_full_spectrum, needs_homo, use_mo_coeff_b
     REAL(KIND=dp)                            :: energy_homo
@@ -173,8 +172,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     energy_homo=0.0_dp
     IF (needs_full_spectrum) THEN
-       ALLOCATE(eigenvalues_ot(k),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(eigenvalues_ot(k))
        ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
        !                  the case of non-equivalent MOs but also for the derivate
        ! we could already have all eigenvalues e.g. full_all and we could skip this
@@ -223,8 +221,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
 
     IF (needs_full_spectrum) THEN
-      DEALLOCATE(eigenvalues_ot,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(eigenvalues_ot)
     ENDIF
 
     CALL timestop(handle)
@@ -249,7 +246,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_preconditioner', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: ispin
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
 
@@ -263,8 +260,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
             CALL destroy_preconditioner(preconditioner(ispin)%preconditioner)
             DEALLOCATE(preconditioner(ispin)%preconditioner)
          ENDDO
-         DEALLOCATE(preconditioner,stat=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(preconditioner)
        CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_full_single_inverse) ! these are 'independent'
          ! do nothing
        CASE DEFAULT
@@ -276,11 +272,9 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     IF (.NOT.ASSOCIATED(preconditioner)) THEN
          SELECT CASE(prec_type)
          CASE(ot_precond_full_all,ot_precond_full_single_inverse)
-            ALLOCATE(preconditioner(nspins), stat=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(preconditioner(nspins))
          CASE DEFAULT
-            ALLOCATE(preconditioner(1), stat=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(preconditioner(1))
          END SELECT
          DO ispin=1,SIZE(preconditioner)
             ALLOCATE(preconditioner(ispin)%preconditioner)

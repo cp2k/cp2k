@@ -189,8 +189,7 @@ CONTAINS
     END IF
     IF (.NOT. ASSOCIATED(rep_env)) RETURN
 
-    ALLOCATE(pint_env,STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pint_env)
     last_pint_id=last_pint_id+1
     pint_env%id_nr=last_pint_id
     pint_env%ref_count=1
@@ -247,8 +246,7 @@ CONTAINS
            pint_env%tv_t(pint_env%nnos,pint_env%p,pint_env%ndim),  &
            pint_env%tv_old(pint_env%nnos,pint_env%p,pint_env%ndim),&
            pint_env%tv_new(pint_env%nnos,pint_env%p,pint_env%ndim),&
-           pint_env%tf(pint_env%nnos,pint_env%p,pint_env%ndim), STAT=stat)
-        CPASSERT(stat==0)
+           pint_env%tf(pint_env%nnos,pint_env%p,pint_env%ndim))
         pint_env%tx       = 0._dp
         pint_env%tv       = 0._dp
         pint_env%tv_t     = 0._dp
@@ -275,8 +273,7 @@ CONTAINS
                            extended_precision=.TRUE.,&
                            seed=seed)
 
-    ALLOCATE(pint_env%e_pot_bead(pint_env%p),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pint_env%e_pot_bead(pint_env%p))
     pint_env%e_pot_bead=0._dp
     pint_env%e_pot_h=0._dp
     pint_env%e_kin_beads=0._dp
@@ -329,8 +326,7 @@ CONTAINS
        wrong_input=pint_env%nrespa*twopi/(SQRT(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10
        CPASSERT(wrong_input)
     END IF
-    ALLOCATE(pint_env%mass(pint_env%ndim),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pint_env%mass(pint_env%ndim))
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
          f_env=f_env,failure=failure)
     CALL force_env_get(force_env=f_env%force_env,subsys=subsys)
@@ -350,8 +346,7 @@ CONTAINS
 
     ALLOCATE(pint_env%Q(pint_env%p),&
          pint_env%mass_beads(pint_env%p,pint_env%ndim),&
-         pint_env%mass_fict(pint_env%p,pint_env%ndim),STAT=stat)
-    CPASSERT(stat==0)
+         pint_env%mass_fict(pint_env%p,pint_env%ndim))
     IF (pint_env%transform == transformation_stage) THEN
        CALL staging_init_masses(pint_env%staging_env,mass=pint_env%mass,&
             mass_beads=pint_env%mass_beads,mass_fict=pint_env%mass_fict,&
@@ -366,8 +361,7 @@ CONTAINS
     gle_section => section_vals_get_subs_vals(input,"MOTION%PINT%GLE")
     CALL section_vals_get(gle_section, explicit=explicit)
     IF(explicit) THEN
-      ALLOCATE(pint_env%gle,stat=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(pint_env%gle)
       CALL gle_init(pint_env%gle, dt=pint_env%dt/pint_env%nrespa, temp=pint_env%kT,&
            section=gle_section)
       IF (pint_env%pimd_thermostat==thermostat_none .AND. pint_env%gle%ndim .GT. 0) THEN
@@ -446,7 +440,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -465,62 +458,38 @@ CONTAINS
         END IF
         CALL delete_rng_stream(pint_env%randomG)
 
-        DEALLOCATE(pint_env%mass,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%e_pot_bead,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(pint_env%mass)
+        DEALLOCATE(pint_env%e_pot_bead)
 
-        DEALLOCATE(pint_env%x,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%v,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%f,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%external_f,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%mass_beads,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%mass_fict,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%ux,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%uv,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%uv_t,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%uv_new,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%uf,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%uf_h,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%rtmp_ndim,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(pint_env%rtmp_natom,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(pint_env%x)
+        DEALLOCATE(pint_env%v)
+        DEALLOCATE(pint_env%f)
+        DEALLOCATE(pint_env%external_f)
+        DEALLOCATE(pint_env%mass_beads)
+        DEALLOCATE(pint_env%mass_fict)
+        DEALLOCATE(pint_env%ux)
+        DEALLOCATE(pint_env%uv)
+        DEALLOCATE(pint_env%uv_t)
+        DEALLOCATE(pint_env%uv_new)
+        DEALLOCATE(pint_env%uf)
+        DEALLOCATE(pint_env%uf_h)
+        DEALLOCATE(pint_env%rtmp_ndim)
+        DEALLOCATE(pint_env%rtmp_natom)
 
         IF(pint_env%pimd_thermostat==thermostat_nose) THEN
-          DEALLOCATE(pint_env%tx,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pint_env%tv,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pint_env%tv_t,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pint_env%tv_old,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pint_env%tv_new,STAT=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE(pint_env%tf,STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(pint_env%tx)
+          DEALLOCATE(pint_env%tv)
+          DEALLOCATE(pint_env%tv_t)
+          DEALLOCATE(pint_env%tv_old)
+          DEALLOCATE(pint_env%tv_new)
+          DEALLOCATE(pint_env%tf)
         ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
           CALL gle_dealloc(pint_env%gle)
         END IF
 
-        DEALLOCATE(pint_env%Q,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(pint_env%Q)
 
-        DEALLOCATE(pint_env,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(pint_env)
 
       END IF
     END IF
@@ -545,7 +514,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ib, idim, stat
+    INTEGER                                  :: i, ib, idim
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: c, e_h, err
     REAL(kind=dp), ALLOCATABLE, &
@@ -563,8 +532,7 @@ CONTAINS
   logger => cp_get_default_logger()
    CALL pint_create(pint_env,input,input_declaration,para_env)
   IF (ASSOCIATED(pint_env)) THEN
-     ALLOCATE(x1(pint_env%ndim,pint_env%p),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(x1(pint_env%ndim,pint_env%p))
      x1(:,:)=pint_env%x
      CALL pint_x2u(pint_env)
      pint_env%x=0._dp
@@ -773,7 +741,7 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: msg, tmp
     INTEGER                                  :: ia, ib, ic, idim, input_seed, &
-                                                istat, n_rep_val
+                                                n_rep_val
     LOGICAL                                  :: done_init, done_levy, &
                                                 done_rand, explicit, failure, &
                                                 levycorr, ltmp
@@ -807,8 +775,7 @@ CONTAINS
     IF ( ltmp ) THEN
 
       NULLIFY(bx)
-      ALLOCATE(bx(3*pint_env%p), STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(bx(3*pint_env%p))
       NULLIFY (rng_gaussian)
       CALL section_vals_val_get(pint_env%input,&
            "MOTION%PINT%INIT%LEVY_SEED",i_val=input_seed)
@@ -861,8 +828,7 @@ CONTAINS
       END IF
 
       CALL delete_rng_stream(rng_gaussian)
-      DEALLOCATE(bx, STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(bx)
       done_levy = .TRUE.
     END IF
 

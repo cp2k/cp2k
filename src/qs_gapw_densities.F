@@ -55,8 +55,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'prepare_gapw_den', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, ispin, istat, &
-                                                natom, nspins, output_unit
+    INTEGER                                  :: handle, ikind, ispin, natom, &
+                                                nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, my_do_rho0, paw_atom
     REAL(dp)                                 :: rho0_h_tot, tot_rs_int
@@ -124,8 +124,7 @@ CONTAINS
     nspins = dft_control%nspins
 
     rho0_h_tot = 0.0_dp
-    ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins))
     rho1_h_tot = 0.0_dp
     rho1_s_tot = 0.0_dp
 
@@ -178,8 +177,7 @@ CONTAINS
        qs_charges%total_rho0_hard_lebedev = 0.0_dp
     END IF
 
-   DEALLOCATE(rho1_h_tot,rho1_s_tot,STAT=istat)
-   CPASSERT(istat==0)
+   DEALLOCATE(rho1_h_tot,rho1_s_tot)
 
    CALL timestop(handle)
 

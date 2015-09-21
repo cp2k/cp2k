@@ -92,7 +92,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -103,18 +103,15 @@ CONTAINS
        CPASSERT(spline_env%ref_count>0)
        spline_env%ref_count=spline_env%ref_count-1
        IF (spline_env%ref_count<1) THEN
-          DEALLOCATE (  spline_env % spltab, stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  spline_env % spltab)
           DO i = 1, SIZE (  spline_env % spl_pp )
              spl_p => spline_env % spl_pp ( i ) % spl_p
              CALL spline_data_p_release ( spl_p)
           END DO
-          DEALLOCATE (  spline_env % spl_pp, stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  spline_env % spl_pp)
           NULLIFY ( spline_env % spltab )
           NULLIFY ( spline_env % spl_pp )
-          DEALLOCATE (  spline_env , stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  spline_env )
        END IF
     END IF
 
@@ -131,7 +128,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -141,17 +137,14 @@ CONTAINS
        spline_data%ref_count=spline_data%ref_count-1
        IF (spline_data%ref_count<1) THEN
           IF ( ASSOCIATED ( spline_data%y)) THEN
-             DEALLOCATE (spline_data%y,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (spline_data%y)
              NULLIFY (spline_data%y)
           END IF
           IF ( ASSOCIATED ( spline_data%y2)) THEN
-             DEALLOCATE (spline_data%y2,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (spline_data%y2)
              NULLIFY (spline_data%y2)
           END IF
-          DEALLOCATE (  spline_data, stat = stat )
-          CPASSERT(stat==0)
+          DEALLOCATE (  spline_data)
        END IF
     END IF
   END SUBROUTINE spline_data_release
@@ -168,7 +161,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, release_kind
 
     failure=.FALSE.
@@ -180,8 +173,7 @@ CONTAINS
           release_kind = release_kind .AND.(.NOT.ASSOCIATED(spl_p(i)%spline_data))
        END DO
        IF (release_kind) THEN
-          DEALLOCATE(spl_p, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(spl_p)
        END IF
     END IF
 
@@ -267,16 +259,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, isize, j, ntab, &
-                                                stat
+    INTEGER                                  :: handle, i, isize, j, ntab
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
-    ALLOCATE(spline_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(spline_env)
     NULLIFY ( spline_env % spl_pp )
     NULLIFY ( spline_env % spltab )
     spline_env%ref_count=1
@@ -288,17 +278,14 @@ CONTAINS
     ELSE
        ntab = ( ntype * ntype + ntype ) / 2
     END IF
-    ALLOCATE ( spline_env % spl_pp( ntab ),  stat=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( spline_env % spl_pp( ntab ))
 
-    ALLOCATE ( spline_env % spltab ( ntype, ntype ), stat=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( spline_env % spltab ( ntype, ntype ))
 
     DO i = 1, ntab
        NULLIFY (spline_env%spl_pp( i )%spl_p)
        isize = 1
-       ALLOCATE(spline_env%spl_pp(i)%spl_p(isize), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(spline_env%spl_pp(i)%spl_p(isize))
        DO j = 1, SIZE(spline_env%spl_pp(i)%spl_p)
           CALL spline_data_create (spline_env%spl_pp(i)%spl_p(j)%spline_data)
        END DO
@@ -321,15 +308,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, nsized, nsizes, stat
+    INTEGER                                  :: i, nsized, nsizes
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(ASSOCIATED(spl_p_source))
     nsizes = SIZE(spl_p_source)
     IF (.NOT.ASSOCIATED(spl_p_dest)) THEN
-       ALLOCATE(spl_p_dest(nsizes), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(spl_p_dest(nsizes))
        DO i = 1, nsizes
           NULLIFY(spl_p_dest(i)%spline_data)
        END DO
@@ -358,7 +344,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -374,13 +359,11 @@ CONTAINS
     spline_data_dest%x1        = spline_data_source%x1
     spline_data_dest%xn        = spline_data_source%xn
     IF (ASSOCIATED(spline_data_source%y)) THEN
-       ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)))
        spline_data_dest%y = spline_data_source%y
     END IF
     IF (ASSOCIATED(spline_data_source%y2)) THEN
-       ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)))
        spline_data_dest%y2 = spline_data_source%y2
     END IF
   END SUBROUTINE spline_data_copy
@@ -396,13 +379,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(spline_data, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(spline_data)
     spline_data%ref_count=1
     last_spline_data_id_nr=last_spline_data_id_nr+1
     spline_data%id_nr = last_spline_data_id_nr
@@ -421,26 +402,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(spline_factor)) THEN
        IF (ASSOCIATED(spline_factor%rscale)) THEN
-          DEALLOCATE(spline_factor%rscale,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(spline_factor%rscale)
        END IF
        IF (ASSOCIATED(spline_factor%fscale)) THEN
-          DEALLOCATE(spline_factor%fscale,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(spline_factor%fscale)
        END IF
        IF (ASSOCIATED(spline_factor%dscale)) THEN
-          DEALLOCATE(spline_factor%dscale,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(spline_factor%dscale)
        END IF
-       DEALLOCATE (spline_factor, stat=stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (spline_factor)
     END IF
   END SUBROUTINE spline_factor_release
 
@@ -455,19 +431,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(spline_factor))
-    ALLOCATE(spline_factor, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(spline_factor%rscale(1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(spline_factor%fscale(1),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(spline_factor%dscale(1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(spline_factor)
+    ALLOCATE(spline_factor%rscale(1))
+    ALLOCATE(spline_factor%fscale(1))
+    ALLOCATE(spline_factor%dscale(1))
     spline_factor%rscale = 1.0_dp
     spline_factor%fscale = 1.0_dp
     spline_factor%dscale = 1.0_dp

@@ -295,7 +295,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, param, stat
+    INTEGER                                  :: handle, npoints, param
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, scale_ec, &
@@ -321,8 +321,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
   ! meaningful default for the arrays we don't need: let us make compiler
   ! and debugger happy...
   IF (cp_debug) THEN
-     ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
   ELSE
      dummy=> rho
   END IF
@@ -404,8 +403,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 !$omp end parallel
 
   IF (cp_debug) THEN
-     DEALLOCATE(dummy,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(dummy)
   ELSE
      NULLIFY(dummy)
   END IF
@@ -1387,7 +1385,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints, param, stat
+    INTEGER                                  :: handle, npoints, param
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, scale_ec, &
@@ -1416,8 +1414,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
   ! meaningful default for the arrays we don't need: let us make compiler
   ! and debugger happy...
   IF (cp_debug) THEN
-     ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
   ELSE
      dummy=> rhoa
   END IF
@@ -1520,8 +1517,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 !$omp end parallel
 
   IF (cp_debug) THEN
-     DEALLOCATE(dummy,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(dummy)
   ELSE
      NULLIFY(dummy)
   END IF

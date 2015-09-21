@@ -153,7 +153,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, j, size1, &
-                                                size2, stat
+                                                size2
     LOGICAL                                  :: check_debug, check_efield, &
                                                 check_forces, do_task(3), &
                                                 failure
@@ -230,30 +230,24 @@ CONTAINS
     IF (do_efield) THEN
        IF (PRESENT(efield0)) THEN
           size1 = SIZE(efield0)
-          ALLOCATE (efield0_sr(size1), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE (efield0_lr(size1), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (efield0_sr(size1))
+          ALLOCATE (efield0_lr(size1))
           efield0_sr = 0.0_dp
           efield0_lr = 0.0_dp
        END IF
        IF (PRESENT(efield1)) THEN
           size1 = SIZE(efield1,1)
           size2 = SIZE(efield1,2)
-          ALLOCATE (efield1_sr(size1,size2), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE (efield1_lr(size1,size2), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (efield1_sr(size1,size2))
+          ALLOCATE (efield1_lr(size1,size2))
           efield1_sr = 0.0_dp
           efield1_lr = 0.0_dp
        END IF
        IF (PRESENT(efield2)) THEN
           size1 = SIZE(efield2,1)
           size2 = SIZE(efield2,2)
-          ALLOCATE (efield2_sr(size1,size2), stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE (efield2_lr(size1,size2), stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE (efield2_sr(size1,size2))
+          ALLOCATE (efield2_lr(size1,size2))
           efield2_sr = 0.0_dp
           efield2_lr = 0.0_dp
        END IF
@@ -314,26 +308,20 @@ CONTAINS
        IF (PRESENT(efield0)) THEN
           efield0 = efield0_sr + efield0_lr
           CALL mp_sum(efield0, group)
-          DEALLOCATE (efield0_sr, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (efield0_lr, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (efield0_sr)
+          DEALLOCATE (efield0_lr)
        END IF
        IF (PRESENT(efield1)) THEN
           efield1 = efield1_sr + efield1_lr
           CALL mp_sum(efield1, group)
-          DEALLOCATE (efield1_sr, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (efield1_lr, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (efield1_sr)
+          DEALLOCATE (efield1_lr)
        END IF
        IF (PRESENT(efield2)) THEN
           efield2 = efield2_sr + efield2_lr
           CALL mp_sum(efield2, group)
-          DEALLOCATE (efield2_sr, stat=stat)
-          CPASSERT(stat==0)
-          DEALLOCATE (efield2_lr, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (efield2_sr)
+          DEALLOCATE (efield2_lr)
        END IF
     END IF
     CALL timestop(handle)
@@ -708,7 +696,7 @@ CONTAINS
       DIMENSION(:, :)                        :: summe_st
     INTEGER :: gpt, group, handle, iparticle, iparticle_kind, &
       iparticle_local, lp, mp, nnodes, node, np, nparticle_kind, &
-      nparticle_local, stat
+      nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2
@@ -746,14 +734,12 @@ CONTAINS
     ENDDO
     CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 
-    ALLOCATE (summe_ef(1:pw_grid%ngpts_cut), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (summe_ef(1:pw_grid%ngpts_cut))
     summe_ef = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     ! Stress Tensor
     IF (do_stress) THEN
        pv_tmp = 0.0_dp
-       ALLOCATE (summe_st(3,1:pw_grid%ngpts_cut), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (summe_st(3,1:pw_grid%ngpts_cut))
        summe_st = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     END IF
 
@@ -968,8 +954,7 @@ CONTAINS
     energy = energy * pref
 
     CALL structure_factor_deallocate (exp_igr)
-    DEALLOCATE (summe_ef, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (summe_ef)
     IF (do_stress) THEN
        pv_tmp = pv_tmp * pref
        ! Symmetrize the tensor
@@ -982,8 +967,7 @@ CONTAINS
        pv(3,1) = pv(1,3)
        pv(3,2) = pv(2,3)
        pv(3,3) = pv(3,3) +  pv_tmp(3,3)
-       DEALLOCATE (summe_st, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (summe_st)
     END IF
     IF (do_forces) THEN
        forces  = 2.0_dp * forces  * pref

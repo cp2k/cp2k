@@ -56,8 +56,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, &
-      L3, my_rank, my_stride(3), np, num_pe, rank(2), source, stat, tag, U1, &
-      U2, U3
+      L3, my_rank, my_stride(3), np, num_pe, rank(2), source, tag, U1, U2, U3
     LOGICAL                                  :: failure, my_zero_tails
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
 
@@ -130,8 +129,7 @@ CPSourceFileRef,&
     U2=pw%pw_grid%bounds(2,2)
     U3=pw%pw_grid%bounds(2,3)
 
-    ALLOCATE(buf(L3:U3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buf(L3:U3))
 
     my_rank     = pw%pw_grid%para%my_pos
     gid         = pw%pw_grid%para%group

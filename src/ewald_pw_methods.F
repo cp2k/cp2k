@@ -70,7 +70,7 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ewald_type, o_spline, stat
+    INTEGER                                  :: ewald_type, o_spline
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha
     REAL(KIND=dp), DIMENSION(3, 3)           :: old_cell_hmat
@@ -135,14 +135,12 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
      CPASSERT(.FALSE.)
   END SELECT
   IF (ASSOCIATED(poisson_env)) THEN
-     ALLOCATE(pw_pools(1),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(pw_pools(1))
      pw_pools(1)%pool => pw_big_pool
      CALL pw_poisson_read_parameters(poisson_section, poisson_params)
      CALL pw_poisson_set(poisson_env,cell_hmat=cell_hmat,parameters=poisson_params,&
           use_level=1,pw_pools=pw_pools)
-     DEALLOCATE(pw_pools,stat=stat)
-     CPASSERT(stat==0)
+     DEALLOCATE(pw_pools)
   END IF
 
 END SUBROUTINE ewald_pw_grid_update

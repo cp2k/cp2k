@@ -234,10 +234,9 @@ CONTAINS
     COMPLEX(KIND=dp)                         :: dzeta, zeta
     COMPLEX(KIND=dp), DIMENSION(3)           :: dggamma, dzphase, ggamma, &
                                                 zphase
-    INTEGER                                  :: i, iat, iatom, ikind, istat, &
-                                                ix, j, nat, natom, natorb, &
-                                                nkind, nspin, reference, &
-                                                unit_nr
+    INTEGER                                  :: i, iat, iatom, ikind, ix, j, &
+                                                nat, natom, natorb, nkind, &
+                                                nspin, reference, unit_nr
     LOGICAL                                  :: do_berry, found
     REAL(KIND=dp) :: charge_tot, ci(3), dci(3), dipole(3), dipole_deriv(3), &
       drcc(3), dria(3), dtheta, gvec(3), q, rcc(3), ria(3), tcharge(2), &
@@ -292,8 +291,7 @@ CONTAINS
        nspin = SIZE(matrix_p)
        nkind = SIZE(atomic_kind_set)
        ! net charges
-       ALLOCATE (ncharge(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (ncharge(natom))
        ncharge = 0.0_dp
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
@@ -378,8 +376,7 @@ CONTAINS
           CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set)
           CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
           CALL get_se_param(se_kind,natorb=natorb)
-          ALLOCATE (mom(natorb,natorb,3),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (mom(natorb,natorb,3))
           mom = 0.0_dp
           CALL atomic_moments(mom,basis_set)
           DO iatom=1,nat
@@ -398,8 +395,7 @@ CONTAINS
                 END IF
              END DO
           END DO
-          DEALLOCATE (mom,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE (mom)
        END DO
        IF(unit_nr>0)THEN
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
@@ -423,8 +419,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atomic_moments', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iset, istat, jset, ncoa, &
-                                                ncob, nm, nset, sgfa, sgfb
+    INTEGER                                  :: i, iset, jset, ncoa, ncob, &
+                                                nm, nset, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgf, nsgf
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf
     REAL(KIND=dp), ALLOCATABLE, &
@@ -452,8 +448,7 @@ CONTAINS
       ncoa = npgf(iset)*ncoset(la_max(iset))
       nm = MAX(nm,ncoa)
     END DO
-    ALLOCATE (mab(nm,nm,4),work(nm,nm),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (mab(nm,nm,4),work(nm,nm))
 
     DO iset=1,nset
       ncoa = npgf(iset)*ncoset(la_max(iset))
@@ -473,8 +468,7 @@ CONTAINS
         END DO
       END DO
     END DO
-    DEALLOCATE (mab,work,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (mab,work)
 
   END SUBROUTINE atomic_moments
 ! *****************************************************************************
@@ -498,9 +492,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: ana
     CHARACTER(LEN=default_string_length)     :: aname
-    INTEGER                                  :: i, iat, iatom, ikind, istat, &
-                                                j, nat, natom, natorb, nkind, &
-                                                nspin, unit_nr
+    INTEGER                                  :: i, iat, iatom, ikind, j, nat, &
+                                                natom, natorb, nkind, nspin, &
+                                                unit_nr
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
@@ -534,8 +528,7 @@ CONTAINS
                                     middle_name="",log_filename=.FALSE.)
        CALL qs_rho_get(rho, rho_ao=matrix_p)
        nspin = SIZE(matrix_p)
-       ALLOCATE (charges(natom,nspin),mcharge(natom),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE (charges(natom,nspin),mcharge(natom))
        charges = 0.0_dp
        mcharge = 0.0_dp
        ! calculate atomic charges
@@ -605,8 +598,7 @@ CONTAINS
 
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN")
 
-       DEALLOCATE (charges,mcharge,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE (charges,mcharge)
     END IF
 
     ! Compute the Lowdin charges

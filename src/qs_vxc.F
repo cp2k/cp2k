@@ -224,16 +224,14 @@ CONTAINS
        CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool,auxbas_pw_pool=auxbas_pw_pool)
        uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid,xc_pw_pool%pw_grid)
 
-       ALLOCATE(rho_r(dft_control%nspins),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(rho_r(dft_control%nspins))
        IF (.not.uf_grid) THEN
           DO ispin=1,dft_control%nspins
              rho_r(ispin)%pw => rho_struct_r(ispin)%pw
           END DO
 
           IF (tau_r_valid) THEN
-             ALLOCATE(tau(dft_control%nspins),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(tau(dft_control%nspins))
              DO ispin=1,dft_control%nspins
                 tau(ispin)%pw => tau_struct_r(ispin)%pw
              END DO
@@ -242,16 +240,14 @@ CONTAINS
           ! for gradient corrected functional the density in g space might
           ! be useful so if we have it, we pass it in
           IF ( rho_g_valid ) THEN
-             ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-             CPASSERT(stat==0)
+             ALLOCATE(rho_g(dft_control%nspins))
              DO ispin=1,dft_control%nspins
                 rho_g(ispin)%pw => rho_struct_g(ispin)%pw
              END DO
           END IF
        ELSE
           CPASSERT(rho_g_valid)
-          ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(rho_g(dft_control%nspins))
           DO ispin=1,dft_control%nspins
              CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
                   in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
@@ -369,22 +365,18 @@ CONTAINS
        ! we have pw data for the xc, qs_ks requests coeff structure, here we transfer
        ! pw -> coeff
        IF (ASSOCIATED(my_vxc_rho)) THEN
-          ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(vxc_rho(dft_control%nspins))
           DO ispin=1,dft_control%nspins
              vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
           END DO
-          DEALLOCATE(my_vxc_rho,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(my_vxc_rho)
        END IF
        IF (ASSOCIATED(my_vxc_tau)) THEN
-          ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(vxc_tau(dft_control%nspins))
           DO ispin=1,dft_control%nspins
              vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
           END DO
-          DEALLOCATE(my_vxc_tau,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(my_vxc_tau)
        END IF
 
        ! compute again the xc but now for Exc(m,o) and the opposite sign
@@ -440,8 +432,7 @@ CONTAINS
                   my_vxc_rho(1)%pw%cr3d ! 1=m
              CALL pw_release(my_vxc_rho(1)%pw)
              CALL pw_release(my_vxc_rho(2)%pw)
-             DEALLOCATE(my_vxc_rho,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(my_vxc_rho)
           ENDIF
 
           DO ispin=1,2
@@ -511,8 +502,7 @@ CONTAINS
                      my_vxc_rho(1)%pw%cr3d
                 CALL pw_release(my_vxc_rho(1)%pw)
                 CALL pw_release(my_vxc_rho(2)%pw)
-                DEALLOCATE(my_vxc_rho,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(my_vxc_rho)
              ENDIF
           ENDDO
 
@@ -617,16 +607,14 @@ CONTAINS
           END IF
 
        END IF
-       DEALLOCATE(rho_r,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(rho_r)
        IF (ASSOCIATED(rho_g)) THEN
           IF (uf_grid) THEN
              DO ispin=1,SIZE(rho_g)
                 CALL pw_pool_give_back_pw(xc_pw_pool,rho_g(ispin)%pw)
              END DO
           END IF
-          DEALLOCATE(rho_g,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(rho_g)
        END IF
        IF (ASSOCIATED(tau)) THEN
           IF (uf_grid) THEN
@@ -634,8 +622,7 @@ CONTAINS
                 CALL pw_pool_give_back_pw(xc_pw_pool,tau(ispin)%pw)
              END DO
           END IF
-          DEALLOCATE(tau,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(tau)
        END IF
 
     END IF

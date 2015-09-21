@@ -170,19 +170,13 @@ MODULE qs_rho_atom_methods
     my_dCG       => harmonics%my_dCG
     my_CG_dxyz   => harmonics%my_CG_dxyz
 
-    ALLOCATE(CPCH_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(CPCS_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(CPCH_sphere(nsoset(maxl),nsoset(maxl)))
+    ALLOCATE(CPCS_sphere(nsoset(maxl),nsoset(maxl)))
     ALLOCATE(g1(nr),g2(nr),gg0(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),&
-             gg_lm1(nr,0:2*maxl),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(erf_zet12(nr),vgg(nr,0:2*maxl,0:indso(1,max_iso_not0)),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(done_vgg(0:2*maxl,0:indso(1,max_iso_not0)),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(dd(nr),int1(nr),int2(nr),STAT=istat)
-    CPASSERT(istat==0)
+             gg_lm1(nr,0:2*maxl))
+    ALLOCATE(erf_zet12(nr),vgg(nr,0:2*maxl,0:indso(1,max_iso_not0)))
+    ALLOCATE(done_vgg(0:2*maxl,0:indso(1,max_iso_not0)))
+    ALLOCATE(dd(nr),int1(nr),int2(nr))
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
              dacg_list(2,nsoset(maxl)**2,max_s_harm),dacg_n_list(max_s_harm),&
              dbcg_list(2,nsoset(maxl)**2,max_s_harm),dbcg_n_list(max_s_harm),&
@@ -469,12 +463,9 @@ MODULE qs_rho_atom_methods
 
     END DO  ! iat
 
-    DEALLOCATE(CPCH_sphere,CPCS_sphere,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(g1,g2,gg0,gg,gg_lm1,dgg,vgg,done_vgg,erf_zet12,int1,int2,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(cg_list,cg_n_list,dacg_list,dacg_n_list,dbcg_list,dbcg_n_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(CPCH_sphere,CPCS_sphere)
+    DEALLOCATE(g1,g2,gg0,gg,gg_lm1,dgg,vgg,done_vgg,erf_zet12,int1,int2)
+    DEALLOCATE(cg_list,cg_n_list,dacg_list,dacg_n_list,dbcg_list,dbcg_n_list)
 
     CALL timestop(handle)
 
@@ -571,8 +562,7 @@ MODULE qs_rho_atom_methods
        CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
     END IF
 
-    ALLOCATE(p_block_spin(nspins),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(p_block_spin(nspins))
     DO ispin = 1,nspins
       NULLIFY(p_block_spin(ispin)%r_coef)
     END DO
@@ -611,8 +601,7 @@ MODULE qs_rho_atom_methods
       ENDDO  ! i
     END DO ! ikind
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -752,8 +741,7 @@ MODULE qs_rho_atom_methods
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    ALLOCATE (kind_of(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (kind_of(natom))
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     DO iatom = 1,natom
@@ -772,8 +760,7 @@ MODULE qs_rho_atom_methods
 
     END DO
 
-    DEALLOCATE(PC1,CPC,p_block_spin,p_matrix,kind_of,basis_set_list,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(PC1,CPC,p_block_spin,p_matrix,kind_of,basis_set_list)
 
     CALL timestop(handle)
 
@@ -792,10 +779,9 @@ MODULE qs_rho_atom_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'init_rho_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, la, &
-      lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, &
-      max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, natom, nr, nspins, &
-      quadrature
+    INTEGER :: handle, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, &
+      lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
+      maxl, maxlgto, maxs, mm, mp, na, nat, natom, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
@@ -839,8 +825,7 @@ MODULE qs_rho_atom_methods
     CALL clebsch_gordon_init ( lcleb )
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
 
-    ALLOCATE(rga(lcleb,2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rga(lcleb,2))
     DO lc1 = 0,maxlgto
       DO  iso1=nsoset(lc1-1)+1,nsoset(lc1)
         l1 = indso(1,iso1)
@@ -887,8 +872,7 @@ MODULE qs_rho_atom_methods
         ENDDO  ! lc2
       ENDDO    ! iso1
     ENDDO      ! lc1
-    DEALLOCATE(rga,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rga)
     CALL clebsch_gordon_deallocate()
 
 !   *** initialize the Lebedev grids ***
@@ -1010,14 +994,10 @@ MODULE qs_rho_atom_methods
           iatom = atom_list(iat)
           !       *** allocate the radial density for each LM,for each atom ***
 
-          ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins),STAT=istat)
-          CPASSERT(istat==0)
-          ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins),STAT=istat)
-          CPASSERT(istat==0)
-          ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins),STAT=istat)
-          CPASSERT(istat==0)
-          ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins))
+          ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins))
+          ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins))
 
           istat = 0
           DO ispin = 1,nspins

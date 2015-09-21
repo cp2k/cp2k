@@ -116,10 +116,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_scp_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, i, iatom, &
-                                                ierr, ii, ikind, j, jj, l, &
-                                                lmaxscp, natom_of_kind, ni, &
-                                                nj, npme, stat
+    INTEGER                                  :: atom_a, handle, i, iatom, ii, &
+                                                ikind, j, jj, l, lmaxscp, &
+                                                natom_of_kind, ni, nj, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: defined, failure, use_virial
     REAL(KIND=dp)                            :: alpha, dvol, eps_rho_rspace, &
@@ -175,13 +174,11 @@ CONTAINS
        IF (.NOT.defined) CYCLE
 
        ni = ncoset(lmaxscp)
-       ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(hab(ni,1),pab(ni,1))
        pab = 0._dp
        hab = 0._dp
 
-       ALLOCATE(cores(natom_of_kind),STAT=ierr)
-       CPASSERT(ierr==0)
+       ALLOCATE(cores(natom_of_kind))
        cores = 0
        npme = 0
 
@@ -258,8 +255,7 @@ CONTAINS
          END IF
        END DO
 
-       DEALLOCATE(cores,hab,pab,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(cores,hab,pab)
 
     END DO
 
@@ -282,7 +278,7 @@ CONTAINS
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 j, lppl, n, natom_of_kind, &
-                                                ni, npme, stat
+                                                ni, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -340,8 +336,7 @@ CONTAINS
        IF ( lppl <= 0 ) CYCLE
 
        ni = ncoset(2*lppl-2)
-       ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(hab(ni,1),pab(ni,1))
        pab = 0._dp
 
        CALL reallocate ( cores, 1, natom_of_kind )
@@ -447,15 +442,13 @@ CONTAINS
          END IF
        END DO
 
-       DEALLOCATE(hab,pab,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(hab,pab)
 
     END DO
 
     CALL rs_grid_release(rs_v)
 
-    DEALLOCATE(cores,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cores)
 
     CALL timestop(handle)
 
@@ -476,7 +469,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, &
                                                 iexp_nlcc, ikind, ithread, j, &
                                                 n, natom, nc, nexp_nlcc, ni, &
-                                                npme, nthread, stat
+                                                npme, nthread
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
     LOGICAL                                  :: failure, nlcc, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -544,8 +537,7 @@ CONTAINS
          nthread = 1
          ithread=0
 
-         ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(hab(ni,1),pab(ni,1))
          pab = 0._dp
 
          CALL reallocate ( cores, 1, natom )
@@ -649,8 +641,7 @@ CONTAINS
            END IF
          END DO
 
-         DEALLOCATE(hab,pab,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(hab,pab)
 
       END DO
 
@@ -658,8 +649,7 @@ CONTAINS
 
     CALL rs_grid_release(rs_v)
 
-    DEALLOCATE(cores,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cores)
 
     CALL timestop(handle)
 
@@ -679,8 +669,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                j, natom, natom_of_kind, &
-                                                npme, stat
+                                                j, natom, natom_of_kind, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, paw_atom, &
                                                 skip_fcore, use_virial
@@ -718,12 +707,9 @@ CONTAINS
     failure = .FALSE.
     IF(.NOT. skip_fcore) THEN
         NULLIFY(pw_env)
-        ALLOCATE (cores(1),STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE (hab(1,1),STAT=stat)
-        CPASSERT(stat==0)
-        ALLOCATE (pab(1,1),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE (cores(1))
+        ALLOCATE (hab(1,1))
+        ALLOCATE (pab(1,1))
 
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
@@ -829,8 +815,7 @@ CONTAINS
 
         CALL rs_grid_release(rs_v)
 
-        DEALLOCATE (hab,pab,cores,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE (hab,pab,cores)
 
     END IF
 
@@ -861,7 +846,7 @@ CONTAINS
 
     INTEGER :: atom_a, dir, group_size, handle, i, iatom, igrid_level, ikind, &
       ipgf, iset, m1, maxco, maxsgf_set, my_pos, na1, natom_of_kind, ncoa, &
-      nkind, nseta, offset, sgfa, stat
+      nkind, nseta, offset, sgfa
     INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgf_seta
@@ -1063,19 +1048,16 @@ CONTAINS
              ENDIF
           ENDIF
 
-          DEALLOCATE (work_i, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE (work_i)
           IF (calculate_forces) THEN
-             DEALLOCATE (work_f, STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (work_f)
           ENDIF
 
        END DO
 
       CALL mp_sum(int_res(ikind)%v_int,para_env%group)
      
-      DEALLOCATE (hab,pab,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE (hab,pab)
     END DO
 
     DO i=1,SIZE(rs_v)

@@ -178,7 +178,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, nao, nmo
+    INTEGER                                  :: handle, nao, nmo
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
 
@@ -187,8 +187,7 @@ CONTAINS
     failure = .FALSE.
 
     CALL cp_cfm_get_info(amatrix,nrow_global=nao)
-    ALLOCATE (evals(nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (evals(nao))
     ! Cholesky decompose S=U(T)U
     CALL cp_cfm_cholesky_decompose(bmatrix)
     ! Invert to get U^(-1)
@@ -204,8 +203,7 @@ CONTAINS
     CALL cp_cfm_to_cfm(work,eigenvectors,nmo)
     eigenvalues(1:nmo) = evals(1:nmo)
 
-    DEALLOCATE (evals,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (evals)
 
     CALL timestop(handle)
 

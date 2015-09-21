@@ -114,8 +114,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_operators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iao, icenter, idir, ii, iii, ispin, istat, istate, j, &
-      nao, natom, nbr_center(2), nmo, nsgf, nspins, nstates(2), output_unit
+    INTEGER :: handle, iao, icenter, idir, ii, iii, ispin, istate, j, nao, &
+      natom, nbr_center(2), nmo, nsgf, nspins, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: failure
@@ -189,21 +189,17 @@ CONTAINS
                          psi0_order=psi0_order,&
                          nstates=nstates)
 
-    ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(vecbuf_c0(1,nao))
     DO idir = 1,3
        NULLIFY(vecbuf_Rmdc0(idir)%array)
-       ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao))
     ENDDO
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
     natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
@@ -230,8 +226,7 @@ CONTAINS
 
     !
     ! prepare for allocation
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     !
     !
@@ -437,14 +432,11 @@ CONTAINS
 
     DEALLOCATE(row_blk_sizes)
 
-    DEALLOCATE (first_sgf,last_sgf,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE (first_sgf,last_sgf)
 
-    DEALLOCATE(vecbuf_c0,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(vecbuf_c0)
     DO idir = 1,3
-       DEALLOCATE(vecbuf_Rmdc0(idir)%array,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(vecbuf_Rmdc0(idir)%array)
     END DO
 
     CALL timestop(handle)
@@ -685,9 +677,9 @@ CONTAINS
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(DP)                              :: zdet, zdeta
-    INTEGER                                  :: handle, i, idim, ispin, &
-                                                istat, nao, nmo, nspins, &
-                                                output_unit, tmp_dim, z
+    INTEGER                                  :: handle, i, idim, ispin, nao, &
+                                                nmo, nspins, output_unit, &
+                                                tmp_dim, z
     LOGICAL                                  :: do_raman, failure
     REAL(dp)                                 :: kvec(3), maxocc
     TYPE(cell_type), POINTER                 :: cell
@@ -753,16 +745,11 @@ CONTAINS
     !
 
     ! initialize all work matrices needed
-    ALLOCATE ( opvec(2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( inv_mat(3, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
-    ALLOCATE ( inv_work(2,3, dft_control%nspins ), STAT = istat )
-    CPASSERT(istat==0)
+    ALLOCATE ( opvec(2, dft_control%nspins ))
+    ALLOCATE ( op_fm_set( 2, dft_control%nspins ))
+    ALLOCATE ( eigrmat( dft_control%nspins ))
+    ALLOCATE ( inv_mat(3, dft_control%nspins ))
+    ALLOCATE ( inv_work(2,3, dft_control%nspins ))
 
     ! A bit to allocate for the wavefunction
     DO ispin = 1, dft_control%nspins
@@ -869,16 +856,11 @@ CONTAINS
 
 
 
-    DEALLOCATE ( inv_work, STAT = istat )
-    CPASSERT(istat==0)
-    DEALLOCATE ( opvec, STAT = istat )
-    CPASSERT(istat==0)
-    DEALLOCATE ( op_fm_set, STAT = istat )
-    CPASSERT(istat==0)
-    DEALLOCATE ( eigrmat, STAT = istat )
-    CPASSERT(istat==0)
-    DEALLOCATE ( inv_mat, STAT = istat )
-    CPASSERT(istat==0)
+    DEALLOCATE ( inv_work)
+    DEALLOCATE ( opvec)
+    DEALLOCATE ( op_fm_set)
+    DEALLOCATE ( eigrmat)
+    DEALLOCATE ( inv_mat)
 
 
 

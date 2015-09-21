@@ -158,7 +158,7 @@ CONTAINS
 
     INTEGER :: act_nx, act_ny, aint_precond, handle, i, iii, is, j, js, k, &
       ks, Lg_loc_max, Lg_loc_min, max_iter, my_i, my_j, my_k, n1, n2, n3, &
-      n_extra, NLg_loc, nxlim, nylim, nzlim, precond_kind, stat
+      n_extra, NLg_loc, nxlim, nylim, nzlim, precond_kind
     INTEGER, DIMENSION(2, 3)                 :: gbo
     LOGICAL                                  :: success
     REAL(KIND=dp)                            :: dr1, dr2, dr3, eps_r, eps_x, &
@@ -196,18 +196,12 @@ CONTAINS
     !NB parallelization
     iii = 0
      !NB allocate temporaries for Cos refactoring
-     ALLOCATE(cos_gx(SIZE(Lg),gbo(1,1):gbo(2,1)),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(sin_gx(SIZE(Lg),gbo(1,1):gbo(2,1)),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(cos_gy(SIZE(Lg),gbo(1,2):gbo(2,2)),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(sin_gy(SIZE(Lg),gbo(1,2):gbo(2,2)),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(cos_gz(SIZE(Lg),gbo(1,3):gbo(2,3)),stat=stat)
-     CPASSERT(stat==0)
-     ALLOCATE(sin_gz(SIZE(Lg),gbo(1,3):gbo(2,3)),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(cos_gx(SIZE(Lg),gbo(1,1):gbo(2,1)))
+     ALLOCATE(sin_gx(SIZE(Lg),gbo(1,1):gbo(2,1)))
+     ALLOCATE(cos_gy(SIZE(Lg),gbo(1,2):gbo(2,2)))
+     ALLOCATE(sin_gy(SIZE(Lg),gbo(1,2):gbo(2,2)))
+     ALLOCATE(cos_gz(SIZE(Lg),gbo(1,3):gbo(2,3)))
+     ALLOCATE(sin_gz(SIZE(Lg),gbo(1,3):gbo(2,3)))
      !NB precalculate Cos(gx*xs1) etc for Cos refactoring
      DO k=gbo(1,3), gbo(2,3)
        my_k  = k-gbo(1,3)
@@ -253,10 +247,8 @@ CONTAINS
        act_nx = MIN(gbo(2,1),nxlim)-gbo(1,1)+1
        act_ny = MIN(gbo(2,2),nylim)-gbo(1,2)+1
        !NB temporaries for DGEMM use
-       ALLOCATE(lhs(act_nx,NLg_loc),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(rhs(act_ny,NLg_loc),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(lhs(act_nx,NLg_loc))
+       ALLOCATE(rhs(act_ny,NLg_loc))
 
        ! do cos(gx) cos(gy+gz) term
        DO i=gbo(1,1), gbo(2,1)
@@ -291,23 +283,15 @@ CONTAINS
        END DO
 
        !NB deallocate temporaries for DGEMM use
-       DEALLOCATE(lhs,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(rhs,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(lhs)
+       DEALLOCATE(rhs)
        !NB deallocate temporaries for Cos refactoring
-       DEALLOCATE(cos_gx,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(sin_gx,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cos_gy,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(sin_gy,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(cos_gz,stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE(sin_gz,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(cos_gx)
+       DEALLOCATE(sin_gx)
+       DEALLOCATE(cos_gy)
+       DEALLOCATE(sin_gy)
+       DEALLOCATE(cos_gz)
+       DEALLOCATE(sin_gz)
        !NB parallelization
     ELSE ! no work for this node, just zero contribution
        grid%cr3d(gbo(1,1):nxlim,gbo(1,2):nylim,gbo(1,3):nzlim) = 0.0_dp

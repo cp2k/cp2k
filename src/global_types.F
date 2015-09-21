@@ -98,14 +98,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(globenv))
-    ALLOCATE(globenv,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(globenv)
     last_globenv_id=last_globenv_id+1
     globenv%id_nr=last_globenv_id
     globenv%ref_count=1
@@ -152,7 +150,6 @@ SUBROUTINE globenv_release(globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -164,8 +161,7 @@ SUBROUTINE globenv_release(globenv)
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
           CALL delete_rng_stream(globenv%gaussian_rng_stream)
         END IF
-        DEALLOCATE(globenv,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(globenv)
      END IF
   END IF
   NULLIFY(globenv)

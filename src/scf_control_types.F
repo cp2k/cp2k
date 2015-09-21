@@ -157,15 +157,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    ALLOCATE (scf_control,STAT=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE (scf_control)
 
 
     ! Load the default values
@@ -302,7 +301,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -312,13 +310,10 @@ CONTAINS
       scf_control%ref_count = scf_control%ref_count - 1
       IF (scf_control%ref_count < 1) THEN
         IF (ASSOCIATED(scf_control%smear%list)) THEN
-           DEALLOCATE(scf_control%smear%list,stat=stat)
-           CPASSERT(stat==0)
+           DEALLOCATE(scf_control%smear%list)
         ENDIF
-        DEALLOCATE(scf_control%smear,stat=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(scf_control,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(scf_control%smear)
+        DEALLOCATE(scf_control)
       END IF
     END IF
 
@@ -506,13 +501,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_smear', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(smear))
-    ALLOCATE(smear,stat=stat)
-    CPASSERT(stat == 0)
+    ALLOCATE(smear)
     smear%do_smear = .FALSE.
     smear%method = smear_energy_window
     smear%electronic_temperature = 0.0_dp
@@ -534,7 +527,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
@@ -557,8 +549,7 @@ CONTAINS
             CALL section_vals_val_get(smear_section,"LIST",&
                                       r_vals=r_vals)
             CPASSERT(ASSOCIATED(r_vals))
-            ALLOCATE(smear%list(SIZE(r_vals)),stat=stat)
-            CPASSERT(stat==0)
+            ALLOCATE(smear%list(SIZE(r_vals)))
             smear%list=r_vals
          END IF
          CALL section_vals_val_get(smear_section,"FIXED_MAGNETIC_MOMENT",&

@@ -120,15 +120,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure, my_local
 
     failure =.FALSE.
     my_local=.FALSE.
     IF (PRESENT(local)) my_local = local
     CPASSERT(.NOT.ASSOCIATED(pw_grid))
-    ALLOCATE(pw_grid,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pw_grid)
     pw_grid % bounds = 0
     pw_grid % cutoff = 0.0_dp
     pw_grid % grid_span = FULLSPACE
@@ -598,7 +596,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat, handle, ires, n(3)
+    INTEGER                                  :: handle, ires, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecut
@@ -629,8 +627,7 @@ CONTAINS
     ! yz_mask counts the number of g-vectors orthogonal to the yz plane
     ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
     ! these are not mapped indices !
-    ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
-    CPASSERT(allocstat==0)
+    ALLOCATE ( yz_mask ( n(2), n(3) ))
     CALL pw_grid_count ( cell_h_inv, pw_grid, ecut, yz_mask )
 
     ! Check if reference grid is compatible
@@ -660,8 +657,7 @@ CONTAINS
 
     CALL pw_grid_remap ( pw_grid, yz_mask)
 
-    DEALLOCATE ( yz_mask , STAT=allocstat )
-    CPASSERT(allocstat == 0)
+    DEALLOCATE ( yz_mask )
 
     CALL cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
     !
@@ -858,9 +854,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blocked_local, coor( 2 ), gmax, handle, i, i1, i2, ierr, ip, &
-      ipl, ipp, itmp, j, l, lby, lbz, lo( 2 ), m, n, np, ns, nx, ny, nz, &
-      rsd( 2 )
+    INTEGER :: blocked_local, coor( 2 ), gmax, handle, i, i1, i2, ip, ipl, &
+      ipp, itmp, j, l, lby, lbz, lo( 2 ), m, n, np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pemap
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: axis_dist_all
@@ -909,8 +904,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
             pw_grid % para % rs_pos, &
             pw_grid % para % rs_mpo )
        pw_grid%para%group_size = 1
-       ALLOCATE (pw_grid%para%bo(2,3,0:0,3),STAT=ierr)
-       CPASSERT(ierr == 0)
+       ALLOCATE (pw_grid%para%bo(2,3,0:0,3))
        DO i=1,3
           pw_grid%para%bo(1,1:3,0,i) = 1
           pw_grid%para%bo(2,1:3,0,i) = pw_grid%npts(1:3)
@@ -1014,8 +1008,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
             - pw_grid % bounds_local ( 1, : ) + 1
 
        !..the third distribution is needed for the second step in the FFT
-       ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
-       CPASSERT(ierr == 0)
+       ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ))
        rsd = pw_grid % para % rs_dims
 
        IF (PRESENT(bounds_local)) THEN
@@ -1067,11 +1060,9 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        !..find the g space distribution
        pw_grid % ngpts_cut_local = 0
 
-       ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ), STAT = ierr )
-       CPASSERT(ierr == 0)
+       ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ))
 
-       ALLOCATE ( pw_grid % para % yzq ( ny, nz ), STAT = ierr )
-       CPASSERT(ierr == 0)
+       ALLOCATE ( pw_grid % para % yzq ( ny, nz ))
 
        IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
             .OR. .NOT. blocking ) THEN
@@ -1090,8 +1081,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
           i1 = SIZE ( yz_mask, 1 )
           i2 = SIZE ( yz_mask, 2 )
-          ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
-          CPASSERT(ierr == 0)
+          ALLOCATE ( yz_index(2,i1*i2))
           CALL order_mask ( yz_mask, yz_index)
           DO i = 1, i1*i2
              lo(1) = yz_index(1,i)
@@ -1114,8 +1104,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
              END IF
           END DO
 
-          DEALLOCATE ( yz_index, STAT = ierr )
-          CPASSERT(ierr == 0)
+          DEALLOCATE ( yz_index)
 
           ! Count the total number of rays on each processor
           pw_grid % para % nyzray = 0
@@ -1129,8 +1118,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
           ! Allocate mapping array (y:z, nray, nproc)
           ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
-          ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-          CPASSERT(ierr == 0)
+          ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ))
 
           ! Fill mapping array, recalculate nyzray for convenience
           pw_grid % para % nyzray = 0
@@ -1197,12 +1185,10 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
           ! Allocate mapping array (y:z, nray, nproc)
           ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
-          ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-          CPASSERT(ierr == 0)
+          ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ))
           pw_grid % para % yzp = 0
 
-          ALLOCATE ( pemap(0:np-1), STAT = ierr )
-          CPASSERT(ierr == 0)
+          ALLOCATE ( pemap(0:np-1))
           pemap = 0
           pemap(pw_grid % para % my_pos) = pw_grid % para % rs_mpo
           CALL mp_sum(pemap,pw_grid % para % group)
@@ -1224,8 +1210,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
              CPASSERT(ns == pw_grid%para%nyzray(ip))
           END DO
 
-          DEALLOCATE ( pemap, STAT = ierr )
-          CPASSERT(ierr == 0)
+          DEALLOCATE ( pemap)
 
        END IF
 
@@ -1811,12 +1796,9 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     failure = .FALSE.
 
-    ALLOCATE ( pw_grid % g ( 3, ng ), STAT = allocstat )
-    CPASSERT(allocstat == 0)
-    ALLOCATE ( pw_grid % gsq ( ng ), STAT = allocstat )
-    CPASSERT(allocstat == 0)
-    ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    ALLOCATE ( pw_grid % g ( 3, ng ))
+    ALLOCATE ( pw_grid % gsq ( ng ))
+    ALLOCATE ( pw_grid % g_hat ( 3, ng ))
 
     nmaps = 1
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
@@ -1891,8 +1873,8 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_sort', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat, handle, i, ig, ih, &
-                                                ip, is, it, ng, ngr
+    INTEGER                                  :: handle, i, ig, ih, ip, is, &
+                                                it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: int_tmp
     LOGICAL                                  :: failure, g_found
@@ -1905,16 +1887,14 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     failure = .FALSE.
 
     ng = SIZE ( pw_grid % gsq  )
-    ALLOCATE ( idx ( ng ), STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    ALLOCATE ( idx ( ng ))
 
     ! grids are (locally) ordered by length of G-vectors
     CALL sort ( pw_grid % gsq, ng, idx )
     ! within shells order wrt x,y,z
     CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx)
 
-    ALLOCATE ( real_tmp ( 3, ng ), STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    ALLOCATE ( real_tmp ( 3, ng ))
     DO i=1,ng
        real_tmp(1,i)= pw_grid % g (1,idx (i))
        real_tmp(2,i)= pw_grid % g (2,idx (i))
@@ -1925,11 +1905,9 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        pw_grid % g (2,i)=real_tmp(2,i)
        pw_grid % g (3,i)=real_tmp(3,i)
     ENDDO
-    DEALLOCATE ( real_tmp, STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    DEALLOCATE ( real_tmp)
 
-    ALLOCATE ( int_tmp ( 3, ng ), STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    ALLOCATE ( int_tmp ( 3, ng ))
     DO i=1,ng
        int_tmp(1,i)= pw_grid % g_hat (1,idx (i))
        int_tmp(2,i)= pw_grid % g_hat (2,idx (i))
@@ -1940,11 +1918,9 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        pw_grid % g_hat (2,i)=int_tmp(2,i)
        pw_grid % g_hat (3,i)=int_tmp(3,i)
     ENDDO
-    DEALLOCATE ( int_tmp, STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    DEALLOCATE ( int_tmp)
 
-    DEALLOCATE ( idx, STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    DEALLOCATE ( idx)
 
     ! check if ordering is compatible to reference grid
     IF ( PRESENT ( ref_grid ) ) THEN
@@ -1957,8 +1933,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                                "G space sorting not compatible")
           END IF
        ELSE
-          ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
-          CPASSERT(allocstat == 0)
+          ALLOCATE ( pw_grid%gidx(1:ngr))
           pw_grid%gidx = 0
           ! first try as many trivial associations as possible
           it = 0
@@ -2135,7 +2110,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     CHARACTER(len=*), PARAMETER :: routineN = 'redist', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, info, n1, n2, n3, ns
+    INTEGER                                  :: i, ii, n1, n2, n3, ns
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indl
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: slen
@@ -2144,10 +2119,8 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     IF ( s2 <= s1 ) RETURN
     ns = s2 - s1 + 1
-    ALLOCATE ( indl ( ns ), STAT = info )
-    CPASSERT(info == 0)
-    ALLOCATE ( slen ( ns ), STAT = info )
-    CPASSERT(info == 0)
+    ALLOCATE ( indl ( ns ))
+    ALLOCATE ( slen ( ns ))
 
     DO i = s1, s2
        ii = idx ( i )
@@ -2164,10 +2137,8 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     END DO
     idx ( s1:s2 ) = indl ( 1:ns )
 
-    DEALLOCATE ( indl, STAT = info )
-    CPASSERT(info == 0)
-    DEALLOCATE ( slen, STAT = info )
-    CPASSERT(info == 0)
+    DEALLOCATE ( indl)
+    DEALLOCATE ( slen)
 
   END SUBROUTINE redist
 
@@ -2355,20 +2326,16 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        pw_grid%ref_count=pw_grid%ref_count-1
        IF (pw_grid%ref_count==0) THEN
           IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
-             DEALLOCATE ( pw_grid % gidx, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % gidx)
           END IF
           IF ( ASSOCIATED ( pw_grid % g ) ) THEN
-             DEALLOCATE ( pw_grid % g, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % g)
           END IF
           IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
-             DEALLOCATE ( pw_grid % gsq, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % gsq)
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
-             DEALLOCATE ( pw_grid % g_hat, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % g_hat)
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hatmap ) ) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2380,49 +2347,38 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
              CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % grays ) ) THEN
-             DEALLOCATE ( pw_grid % grays, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % grays)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
-             DEALLOCATE ( pw_grid % mapl % pos, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % mapl % pos)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
-             DEALLOCATE ( pw_grid % mapm % pos, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % mapm % pos)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
-             DEALLOCATE ( pw_grid % mapn % pos, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % mapn % pos)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
-             DEALLOCATE ( pw_grid % mapl % neg, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % mapl % neg)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
-             DEALLOCATE ( pw_grid % mapm % neg, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % mapm % neg)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
-             DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % mapn % neg)
           END IF
           IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
-             DEALLOCATE ( pw_grid % para % bo, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % para % bo)
           END IF
           IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
              IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
-                DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
-                CPASSERT(stat==0)
+                DEALLOCATE ( pw_grid % para % yzp)
              END IF
              IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
-                DEALLOCATE ( pw_grid % para % yzq, STAT = stat )
-                CPASSERT(stat==0)
+                DEALLOCATE ( pw_grid % para % yzq)
              END IF
              IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
-                DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
-                CPASSERT(stat==0)
+                DEALLOCATE ( pw_grid % para % nyzray)
              END IF
           END IF
           ! also release groups
@@ -2430,13 +2386,11 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
           IF (PRODUCT(pw_grid % para % rs_dims) /= 0 ) &
                CALL mp_comm_free ( pw_grid % para % rs_group )
           IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
-             DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % para % pos_of_x)
           END IF
 
           IF(ASSOCIATED(pw_grid)) THEN
-             DEALLOCATE(pw_grid, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(pw_grid)
           END IF
        END IF
     END IF

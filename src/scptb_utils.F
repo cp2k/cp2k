@@ -81,7 +81,7 @@ CONTAINS
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
     CHARACTER(LEN=default_string_length)     :: iname
     INTEGER                                  :: i, ikind, is, l, nkind, &
-                                                nshell, output_unit, stat
+                                                nshell, output_unit
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
     LOGICAL                                  :: failure, print_info
     REAL(KIND=dp)                            :: a, c, d, eff, r, rmax, rmin
@@ -145,13 +145,11 @@ CONTAINS
          NULLIFY(sto_basis)
          CALL allocate_sto_basis_set (sto_basis)
          nshell = SUM(scptb_parameter%norb)
-         ALLOCATE (nq(nshell),lq(nshell),zet(nshell),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE (nq(nshell),lq(nshell),zet(nshell))
          nq=0
          lq=0
          zet=0._dp
-         ALLOCATE (symbol(nshell),STAT=stat)
-         CPASSERT(stat==0)
+         ALLOCATE (symbol(nshell))
          symbol=""
          is=0
          !Aggregate all the electron shell parameters into arrays
@@ -177,8 +175,7 @@ CONTAINS
             CALL add_basis_set_to_container(qs_kind%basis_sets,gto_basis,"ORB")
          END IF
 
-         DEALLOCATE (nq,lq,zet,symbol,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE (nq,lq,zet,symbol)
 
          CALL deallocate_sto_basis_set (sto_basis)
          !throw away the STO basis set, since from now on we use the GTO

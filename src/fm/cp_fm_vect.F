@@ -39,7 +39,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -48,8 +48,7 @@ CONTAINS
        DO i=1,SIZE(matrixes)
           CALL cp_fm_release(matrixes(i)%matrix)
        END DO
-       DEALLOCATE(matrixes,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(matrixes)
     END IF
   END SUBROUTINE cp_fm_vect_dealloc
 
@@ -71,13 +70,12 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
-  ALLOCATE(copy(SIZE(matrixes)),stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(copy(SIZE(matrixes)))
   DO i=1,SIZE(matrixes)
      copy(i)%matrix => matrixes(i)%matrix
      CALL cp_fm_retain(matrixes(i)%matrix)

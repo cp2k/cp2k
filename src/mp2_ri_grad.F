@@ -171,10 +171,9 @@ MODULE mp2_ri_grad
       routineP = moduleN//':'//routineN
 
     INTEGER :: alpha, atom_a, beta, dimen, dir, handle, handle2, handle3, i, &
-      iatom, igrid_level, ikind, iorb, ipgf, iset, istat, itmp(2), L_counter, &
-      lb(3), LLL, location(3), my_P_end, my_P_size, my_P_start, na1, na2, &
-      natom, ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual, &
-      virtual_beta
+      iatom, igrid_level, ikind, iorb, ipgf, iset, itmp(2), L_counter, lb(3), &
+      LLL, location(3), my_P_end, my_P_size, my_P_start, na1, na2, natom, &
+      ncoa, nkind, nseta, offset, sgfa, tp(3), ub(3), virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
@@ -249,18 +248,15 @@ MODULE mp2_ri_grad
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    ALLOCATE (kind_of(natom),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (kind_of(natom))
+    ALLOCATE (atom_of_kind(natom))
     CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
     itmp=get_limit(dimen_RI,para_env_sub%num_pe,para_env_sub%mepos)
     my_P_start=itmp(1)
     my_P_end=itmp(2)
     my_P_size=itmp(2)-itmp(1)+1
-    ALLOCATE(G_PQ_local(dimen_RI,my_group_L_size),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(G_PQ_local(dimen_RI,my_group_L_size))
 
     G_PQ_local=0.0_dp
     IF (.NOT. alpha_beta) THEN
@@ -269,17 +265,14 @@ MODULE mp2_ri_grad
        G_PQ_local(my_P_start:my_P_end,1:my_group_L_size)= &
        0.50_dp*(mp2_env%ri_grad%Gamma_PQ + mp2_env%ri_grad%Gamma_PQ_beta)
     ENDIF
-    DEALLOCATE(mp2_env%ri_grad%Gamma_PQ,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(mp2_env%ri_grad%Gamma_PQ)
     IF (alpha_beta) THEN
-       DEALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta)
     ENDIF
     CALL mp_sum(G_PQ_local,para_env_sub%group)
 
     ! deallocate here PQ_half, maybe usefull in the future
-    DEALLOCATE(mp2_env%ri_grad%PQ_half,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(mp2_env%ri_grad%PQ_half)
 
     ! create matrix holding the back transformation (G_P_inu)
     ALLOCATE(matrix_P_inu%matrix)
@@ -334,8 +327,7 @@ MODULE mp2_ri_grad
     !                    name="matrix_P_munu")   
 
     ! wave function vector and supporting stuff
-    ALLOCATE(wf_vector(dimen_RI),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(wf_vector(dimen_RI))
     NULLIFY(psi_L%pw)
     CALL pw_pool_create_pw(auxbas_pw_pool,psi_L%pw,&
                            use_data=REALDATA3D,&
@@ -648,12 +640,10 @@ MODULE mp2_ri_grad
 
       ! release the actual gamma_P_ia
       CALL cp_dbcsr_release(G_P_ia(L_counter)%matrix)
-      DEALLOCATE(G_P_ia(L_counter)%matrix,STAT=stat)
-      CPASSERT(stat==0)
+      DEALLOCATE(G_P_ia(L_counter)%matrix)
       IF (alpha_beta) THEN
          CALL cp_dbcsr_release(G_P_ia_beta(L_counter)%matrix)
-         DEALLOCATE(G_P_ia_beta(L_counter)%matrix,STAT=stat)
-         CPASSERT(stat==0)
+         DEALLOCATE(G_P_ia_beta(L_counter)%matrix)
       ENDIF
       CALL timestop(handle3)
 
@@ -883,11 +873,9 @@ MODULE mp2_ri_grad
     END DO
     CALL timestop(handle2)
 
-    DEALLOCATE(G_PQ_local,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(G_PQ_local)
 
-    DEALLOCATE(wf_vector,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(wf_vector)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw)
 
     IF (alpha_beta) THEN
@@ -903,28 +891,22 @@ MODULE mp2_ri_grad
     END IF
 
     CALL cp_dbcsr_release(matrix_P_inu%matrix)
-    DEALLOCATE(matrix_P_inu%matrix,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(matrix_P_inu%matrix)
 
     CALL cp_dbcsr_release(matrix_P_munu_nosym%matrix)
-    DEALLOCATE(matrix_P_munu_nosym%matrix,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(matrix_P_munu_nosym%matrix)
 
     CALL cp_dbcsr_release(matrix_P_munu%matrix)
-    DEALLOCATE(matrix_P_munu%matrix,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(matrix_P_munu%matrix)
 
     ! release the full gamma_P_ia structure
-    DEALLOCATE(G_P_ia,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(G_P_ia)
 
     ! Release G_P_ia_beta and and matrix_P_inu_beta
     IF (alpha_beta) THEN
         CALL cp_dbcsr_release(matrix_P_inu_beta%matrix)
-        DEALLOCATE(matrix_P_inu_beta%matrix,STAT=stat)
-        CPASSERT(stat==0)
-        DEALLOCATE(G_P_ia_beta,STAT=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(matrix_P_inu_beta%matrix)
+        DEALLOCATE(G_P_ia_beta)
     ENDIF
 
     DEALLOCATE(kind_of)
@@ -950,8 +932,7 @@ MODULE mp2_ri_grad
 
     ! release Lag_mu_i_1
     CALL cp_dbcsr_release(Lag_mu_i_1%matrix)
-    DEALLOCATE(Lag_mu_i_1%matrix,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Lag_mu_i_1%matrix)
 
     NULLIFY(L2_nu_a, fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
@@ -963,8 +944,7 @@ MODULE mp2_ri_grad
 
     ! release Lag_nu_a_2
     CALL cp_dbcsr_release(Lag_nu_a_2%matrix)
-    DEALLOCATE(Lag_nu_a_2%matrix,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(Lag_nu_a_2%matrix)
 
     ! The same for the beta Lagrangians
     IF (alpha_beta) THEN
@@ -981,8 +961,7 @@ MODULE mp2_ri_grad
  
        ! release Lag_mu_i_1
        CALL cp_dbcsr_release(Lag_mu_i_1_beta%matrix)
-       DEALLOCATE(Lag_mu_i_1_beta%matrix,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Lag_mu_i_1_beta%matrix)
  
        NULLIFY(L2_nu_a_beta, fm_struct_tmp)
        CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
@@ -994,8 +973,7 @@ MODULE mp2_ri_grad
  
        ! release Lag_nu_a_2
        CALL cp_dbcsr_release(Lag_nu_a_2_beta%matrix)
-       DEALLOCATE(Lag_nu_a_2_beta%matrix,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(Lag_nu_a_2_beta%matrix)
     ENDIF
 
     ! Set the factor to multiply P_ij (depends on the open or closed shell)
@@ -1058,7 +1036,7 @@ MODULE mp2_ri_grad
       proc_send_ex
     INTEGER :: proc_send_static, proc_send_sub, proc_shift, rec_col_size, &
       rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, &
-      send_prow, send_row_size, size_rec_buffer, size_send_buffer, stat
+      send_prow, send_row_size, size_rec_buffer, size_send_buffer
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, &
       map_send_size, pos_info, pos_info_ex, proc_2_send_pos, proc_map_ex, &
       req_send, sub_proc_map
@@ -1098,14 +1076,12 @@ MODULE mp2_ri_grad
     CALL cp_fm_set_all(L_mu_q, 0.0_dp)
 
     ! create all information array
-    ALLOCATE(pos_info(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pos_info(0:para_env%num_pe-1))
     pos_info=0
     pos_info(para_env%mepos)=para_env_sub%mepos
     CALL mp_sum(pos_info,para_env%group)
 
-    ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
     sub_proc_map=0
     DO i=0,para_env_sub%num_pe-1
       sub_proc_map(i)=i
@@ -1126,8 +1102,7 @@ MODULE mp2_ri_grad
     nprow =L_mu_q%matrix_struct%context%num_pe(1)
     npcol =L_mu_q%matrix_struct%context%num_pe(2)
 
-    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1))
     grid_2_mepos=0
     grid_2_mepos(myprow,mypcol)=para_env%mepos
     CALL mp_sum(grid_2_mepos,para_env%group)
@@ -1145,15 +1120,13 @@ MODULE mp2_ri_grad
     nprow_1i =L1_mu_i%matrix_struct%context%num_pe(1)
     npcol_1i =L1_mu_i%matrix_struct%context%num_pe(2)
     
-    ALLOCATE(mepos_2_grid_1i(0:para_env_sub%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid_1i(0:para_env_sub%num_pe-1,2))
     mepos_2_grid_1i=0
     mepos_2_grid_1i(para_env_sub%mepos,1)=myprow_1i
     mepos_2_grid_1i(para_env_sub%mepos,2)=mypcol_1i
     CALL mp_sum(mepos_2_grid_1i,para_env_sub%group)
 
-    ALLOCATE(sizes_1i(2,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes_1i(2,0:para_env_sub%num_pe-1))
     sizes_1i=0
     sizes_1i(1,para_env_sub%mepos)=nrow_local_1i
     sizes_1i(2,para_env_sub%mepos)=ncol_local_1i
@@ -1172,15 +1145,13 @@ MODULE mp2_ri_grad
     nprow_2a =L2_nu_a%matrix_struct%context%num_pe(1)
     npcol_2a =L2_nu_a%matrix_struct%context%num_pe(2)
 
-    ALLOCATE(mepos_2_grid_2a(0:para_env_sub%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid_2a(0:para_env_sub%num_pe-1,2))
     mepos_2_grid_2a=0
     mepos_2_grid_2a(para_env_sub%mepos,1)=myprow_2a
     mepos_2_grid_2a(para_env_sub%mepos,2)=mypcol_2a
     CALL mp_sum(mepos_2_grid_2a,para_env_sub%group)
 
-    ALLOCATE(sizes_2a(2,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes_2a(2,0:para_env_sub%num_pe-1))
     sizes_2a=0
     sizes_2a(1,para_env_sub%mepos)=nrow_local_2a
     sizes_2a(2,para_env_sub%mepos)=ncol_local_2a
@@ -1206,13 +1177,11 @@ MODULE mp2_ri_grad
       proc_map_ex(-i-1)=para_env_exchange%num_pe-i-1
       proc_map_ex(para_env_exchange%num_pe+i)=i
     END DO
-    ALLOCATE(pos_info_ex(0:para_env%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pos_info_ex(0:para_env%num_pe-1))
     pos_info_ex=0
     pos_info_ex(para_env%mepos)=para_env_exchange%mepos
     CALL mp_sum(pos_info_ex,para_env%group)
-    ALLOCATE(sizes(2,0:para_env_exchange%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes(2,0:para_env_exchange%num_pe-1))
     sizes=0
     sizes(1,para_env_exchange%mepos)=nrow_local
     sizes(2,para_env_exchange%mepos)=ncol_local
@@ -1223,10 +1192,8 @@ MODULE mp2_ri_grad
     ! matrix L1_mu_i
     max_row_size=MAXVAL(sizes_1i(1,:))
     max_col_size=MAXVAL(sizes_1i(2,:))
-    ALLOCATE(row_indeces_info_1i(2,max_row_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(col_indeces_info_1i(2,max_col_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(row_indeces_info_1i(2,max_row_size,0:para_env_sub%num_pe-1))
+    ALLOCATE(col_indeces_info_1i(2,max_col_size,0:para_env_sub%num_pe-1))
     row_indeces_info_1i=0
     col_indeces_info_1i=0
     ! row
@@ -1255,10 +1222,8 @@ MODULE mp2_ri_grad
     ! matrix L2_nu_a
     max_row_size=MAXVAL(sizes_2a(1,:))
     max_col_size=MAXVAL(sizes_2a(2,:))
-    ALLOCATE(row_indeces_info_2a(2,max_row_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(col_indeces_info_2a(2,max_col_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(row_indeces_info_2a(2,max_row_size,0:para_env_sub%num_pe-1))
+    ALLOCATE(col_indeces_info_2a(2,max_col_size,0:para_env_sub%num_pe-1))
     row_indeces_info_2a=0
     col_indeces_info_2a=0
     ! row
@@ -1287,8 +1252,7 @@ MODULE mp2_ri_grad
 
     ! 1) define the map for sending data in the subgroup starting with L1_mu_i
     CALL timeset(routineN//"_subinfo",handle2)
-    ALLOCATE(map_send_size(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_send_size(0:para_env_sub%num_pe-1))
     map_send_size=0
     DO jjB=1, ncol_local_1i
       ! j_global=col_indices_1i(jjB)
@@ -1322,8 +1286,7 @@ MODULE mp2_ri_grad
       END DO
     END DO
     ! and exchange data in order to create map_rec_size
-    ALLOCATE(map_rec_size(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(map_rec_size(0:para_env_sub%num_pe-1))
     map_rec_size=0
     CALL mp_alltoall(map_send_size,map_rec_size,1,para_env_sub%group)
     CALL timestop(handle2)
@@ -1339,11 +1302,9 @@ MODULE mp2_ri_grad
       END IF
     END DO
     ! allocate the structure that will hold the messages to be sent
-    ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_send(number_of_send))
     send_counter=0
-    ALLOCATE(proc_2_send_pos(0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(proc_2_send_pos(0:para_env_sub%num_pe-1))
     proc_2_send_pos=0
     DO proc_shift=0, para_env_sub%num_pe-1
       proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
@@ -1351,8 +1312,7 @@ MODULE mp2_ri_grad
       IF(map_send_size(proc_send)>0) THEN
         send_counter=send_counter+1
         ! allocate the sending buffer (msg)
-        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer))
         buffer_send(send_counter)%msg=0.0_dp
         buffer_send(send_counter)%proc=proc_send
         proc_2_send_pos(proc_send)=send_counter
@@ -1361,8 +1321,7 @@ MODULE mp2_ri_grad
     ! loop over the locally held data and fill the buffer_send
     ! for doing that we need an array that keep track if the 
     ! sequential increase of the index for each message
-    ALLOCATE(iii_vet(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(iii_vet(number_of_send))
     iii_vet=0
     DO jjB=1, ncol_local_1i
       ! j_global=col_indices_1i(jjB)
@@ -1383,8 +1342,7 @@ MODULE mp2_ri_grad
       END DO
     END DO
     ! release the local data of L1_mu_i
-    DEALLOCATE(L1_mu_i%local_data,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(L1_mu_i%local_data)
     ! and the same for L2_nu_a
     DO jjB=1, ncol_local_2a
       ! j_global=col_indices_2a(jjB)+homo
@@ -1404,8 +1362,7 @@ MODULE mp2_ri_grad
         buffer_send(send_counter)%msg(iii)=L2_nu_a%local_data(iiB,jjB)
       END DO
     END DO
-    DEALLOCATE(L2_nu_a%local_data,STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(L2_nu_a%local_data)
     DEALLOCATE(proc_2_send_pos)
     DEALLOCATE(iii_vet)
     CALL timestop(handle2)
@@ -1421,8 +1378,7 @@ MODULE mp2_ri_grad
         number_of_rec=number_of_rec+1
       END IF
     END DO
-    ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_rec(number_of_rec))
     rec_counter=0
     DO proc_shift=0, para_env_sub%num_pe-1
       proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
@@ -1430,8 +1386,7 @@ MODULE mp2_ri_grad
       IF(map_rec_size(proc_receive)>0) THEN
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
-        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPASSERT(stat==0)
+        ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer))
         buffer_rec(rec_counter)%msg=0.0_dp
         buffer_rec(rec_counter)%proc=proc_receive
         ! post the message to be received (not need to send to myself)
@@ -1442,8 +1397,7 @@ MODULE mp2_ri_grad
       END IF
     END DO
     ! send messages
-    ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(req_send(number_of_send))
     req_send=mp_request_null
     send_counter=0
     DO proc_shift=0, para_env_sub%num_pe-1
@@ -1468,13 +1422,11 @@ MODULE mp2_ri_grad
     !    subgroup
     CALL timeset(routineN//"_Bcyclic",handle2)
     ! first allocata new structure
-    ALLOCATE(buffer_cyclic(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(buffer_cyclic(0:para_env_exchange%num_pe-1))
     DO iproc=0, para_env_exchange%num_pe-1
       rec_row_size=sizes(1,iproc)
       rec_col_size=sizes(2,iproc)
-      ALLOCATE(buffer_cyclic(iproc)%msg(rec_row_size,rec_col_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(buffer_cyclic(iproc)%msg(rec_row_size,rec_col_size))
       buffer_cyclic(iproc)%msg=0.0_dp
     END DO
     ! now collect data from other member of the subgroup and fill 
@@ -1574,10 +1526,8 @@ MODULE mp2_ri_grad
     proc_receive_static=proc_map_ex(para_env_exchange%mepos-1)
     max_row_size=MAXVAL(sizes(1,:))
     max_col_size=MAXVAL(sizes(2,:))
-    ALLOCATE(mat_send(max_row_size,max_col_size),STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(mat_rec(max_row_size,max_col_size),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mat_send(max_row_size,max_col_size))
+    ALLOCATE(mat_rec(max_row_size,max_col_size))
     mat_send=0.0_dp
     mat_send(1:nrow_local,1:ncol_local)=buffer_cyclic(para_env_exchange%mepos)%msg(:,:)
     DEALLOCATE(buffer_cyclic(para_env_exchange%mepos)%msg)
@@ -1756,31 +1706,26 @@ MODULE mp2_ri_grad
     END DO
     ! deallocate the local P_ij
     IF (.NOT. alpha_beta) THEN
-       DEALLOCATE(mp2_env%ri_grad%P_ij,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(mp2_env%ri_grad%P_ij)
     ELSE
-       DEALLOCATE(mp2_env%ri_grad%P_ij_beta,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(mp2_env%ri_grad%P_ij_beta)
     ENDIF
  
     ! send around the sub_group the local data and check if we 
     ! have to update our block with external elements
-    ALLOCATE(mepos_2_grid(0:para_env_sub%num_pe-1,2),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mepos_2_grid(0:para_env_sub%num_pe-1,2))
     mepos_2_grid=0
     mepos_2_grid(para_env_sub%mepos,1)=myprow
     mepos_2_grid(para_env_sub%mepos,2)=mypcol
     CALL mp_sum(mepos_2_grid,para_env_sub%group)
 
-    ALLOCATE(sizes(2,0:para_env_sub%num_pe-1),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(sizes(2,0:para_env_sub%num_pe-1))
     sizes=0
     sizes(1,para_env_sub%mepos)=nrow_local
     sizes(2,para_env_sub%mepos)=ncol_local
     CALL mp_sum(sizes,para_env_sub%group)
 
-    ALLOCATE(ab_rec(nrow_local,ncol_local),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ab_rec(nrow_local,ncol_local))
     DO proc_shift=1, para_env_sub%num_pe-1
       proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
       proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
@@ -1791,8 +1736,7 @@ MODULE mp2_ri_grad
       send_row_size=sizes(1,proc_send)
       send_col_size=sizes(2,proc_send)
 
-      ALLOCATE(ab_send(send_row_size,send_col_size),STAT=stat)
-      CPASSERT(stat==0)
+      ALLOCATE(ab_send(send_row_size,send_col_size))
       ab_send=0.0_dp
 
       ! first loop over row since in this way we can cycle
@@ -1842,11 +1786,9 @@ MODULE mp2_ri_grad
 
     ! deallocate the local P_ab'
     IF (.NOT. alpha_beta) THEN
-       DEALLOCATE(mp2_env%ri_grad%P_ab,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(mp2_env%ri_grad%P_ab)
     ELSE
-       DEALLOCATE(mp2_env%ri_grad%P_ab_beta,STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(mp2_env%ri_grad%P_ab_beta)
     ENDIF
     CALL timestop(handle2)
 

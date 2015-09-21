@@ -79,8 +79,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_zmp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: extunit, handle, ierr, ir, &
-                                                nr, z
+    INTEGER                                  :: extunit, handle, ir, nr, z
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: int1, int2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: deltarho, rho_dum, vxc, vxc1, &
@@ -92,8 +91,7 @@ CONTAINS
 
     nr = atom%basis%grid%nr
     z  = atom%z
-    ALLOCATE(rho(nr,1),vxc(nr),vxc1(nr),vxc2(nr),rho_dum(nr),deltarho(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(rho(nr,1),vxc(nr),vxc1(nr),vxc2(nr),rho_dum(nr),deltarho(nr))
     CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO")
     !Vxc1 
     int1=integrate_grid(ext_density,atom%basis%grid)
@@ -132,8 +130,7 @@ CONTAINS
 
     IF(PRESENT(xcmat)) CALL numpot_matrix(xcmat%op,vxc,atom%basis,0)
 
-    DEALLOCATE(rho,vxc,vxc1,vxc2,rho_dum,deltarho,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(rho,vxc,vxc1,vxc2,rho_dum,deltarho)
 
     CALL timestop(handle)
 
@@ -158,7 +155,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_ext_vxc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: extunit, handle, ierr, ir, nr
+    INTEGER                                  :: extunit, handle, ir, nr
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
@@ -166,8 +163,7 @@ CONTAINS
     failure = .FALSE.
     nr = atom%basis%grid%nr
 
-    ALLOCATE(rho(nr,1),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(rho(nr,1))
 
     CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO")
 
@@ -188,8 +184,7 @@ CONTAINS
     atom%energy%exc = fourpi*integrate_grid(vxc,rho(:,1),atom%basis%grid)
     IF(PRESENT(xcmat)) CALL numpot_matrix(xcmat%op,vxc,atom%basis,0)
 
-    DEALLOCATE(rho,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(rho)
 
     CALL timestop(handle)
 
@@ -208,8 +203,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lda', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: deriv_order, handle, i, ierr, &
-                                                l, myfun, n1, n2, n3, nr, &
+    INTEGER                                  :: deriv_order, handle, i, l, &
+                                                myfun, n1, n2, n3, nr, &
                                                 nspins, unit_nr
     INTEGER, DIMENSION(2, 3)                 :: bounds
     LOGICAL                                  :: failure, lsd, nlcc
@@ -272,24 +267,21 @@ CONTAINS
 
         NULLIFY(rho,drho,tau)
         IF ( needs%rho ) THEN
-          ALLOCATE(rho(nr,1),STAT=ierr)
-          CPASSERT(ierr==0)
+          ALLOCATE(rho(nr,1))
           CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO")
           IF ( nlcc ) THEN
             CALL atom_core_density(rho(:,1),atom%potential%gth_pot,typ="RHO",rr=atom%basis%grid%rad)
           END IF
         END IF
         IF ( needs%norm_drho ) THEN
-          ALLOCATE(drho(nr,1),STAT=ierr)
-          CPASSERT(ierr==0)
+          ALLOCATE(drho(nr,1))
           CALL atom_density(drho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="DER")
           IF ( nlcc ) THEN
             CALL atom_core_density(drho(:,1),atom%potential%gth_pot,typ="DER",rr=atom%basis%grid%rad)
           END IF
         END IF
         IF ( needs%tau ) THEN
-          ALLOCATE(tau(nr,1),STAT=ierr)
-          CPASSERT(ierr==0)
+          ALLOCATE(tau(nr,1))
           CALL atom_density(tau(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
                             typ="KIN",rr=atom%basis%grid%rad2)
         END IF
@@ -320,15 +312,13 @@ CONTAINS
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",allocate_deriv=.FALSE.)
           CALL xc_derivative_get(deriv,deriv_data=xcpot)
           CALL numpot_matrix(xcmat%op,xcpot(:,1,1),atom%basis,0)
-          DEALLOCATE(rho,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(rho)
         END IF
         IF ( needs%norm_drho ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",allocate_deriv=.FALSE.)
           CALL xc_derivative_get(deriv,deriv_data=xcpot)
           CALL numpot_matrix(xcmat%op,xcpot(:,1,1),atom%basis,1)
-          DEALLOCATE(drho,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(drho)
         END IF
         IF ( needs%tau ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(tau)",allocate_deriv=.FALSE.)
@@ -336,8 +326,7 @@ CONTAINS
           n1 = SIZE(xcmat%op,1)
           n2 = SIZE(xcmat%op,2)
           n3 = SIZE(xcmat%op,3)
-          ALLOCATE(taumat(n1,n2,0:n3-1),STAT=ierr)
-          CPASSERT(ierr==0)
+          ALLOCATE(taumat(n1,n2,0:n3-1))
           taumat = 0._dp
 
           xcpot(:,1,1) = 0.5_dp * xcpot(:,1,1)
@@ -348,10 +337,8 @@ CONTAINS
             xcmat%op(:,:,l) = xcmat%op(:,:,l) + REAL(l*(l+1),dp)*taumat(:,:,l)
           END DO
 
-          DEALLOCATE(tau,STAT=ierr)
-          CPASSERT(ierr==0)
-          DEALLOCATE(taumat,STAT=ierr)
-          CPASSERT(ierr==0)
+          DEALLOCATE(tau)
+          DEALLOCATE(taumat)
         END IF
 
         ! Release the xc structure used to store the xc derivatives
@@ -364,8 +351,7 @@ CONTAINS
 
       ! we don't have an xc_section, use a default setup
       nr = atom%basis%grid%nr
-      ALLOCATE(rho(nr,1),exc(nr),vxc(nr),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(rho(nr,1),exc(nr),vxc(nr))
 
       CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO")
       IF ( nlcc ) THEN
@@ -376,8 +362,7 @@ CONTAINS
       atom%energy%exc = fourpi*integrate_grid(exc,atom%basis%grid)
       CALL numpot_matrix(xcmat%op,vxc,atom%basis,0)
 
-      DEALLOCATE(rho,exc,vxc,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(rho,exc,vxc)
 
     END IF
 
@@ -400,7 +385,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc_lsd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: deriv_order, handle, ierr, l, &
+    INTEGER                                  :: deriv_order, handle, l, &
                                                 myfun, n1, n2, n3, nr, nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
     LOGICAL                                  :: failure, lsd
@@ -458,20 +443,17 @@ CONTAINS
 
          NULLIFY(rho,drho,tau)
          IF ( needs%rho_spin ) THEN
-           ALLOCATE(rho(nr,2),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(rho(nr,2))
            CALL atom_density(rho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="RHO")
            CALL atom_density(rho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="RHO")
          END IF
          IF ( needs%norm_drho_spin ) THEN
-           ALLOCATE(drho(nr,2),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(drho(nr,2))
            CALL atom_density(drho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="DER")
            CALL atom_density(drho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="DER")
          END IF
          IF ( needs%tau_spin ) THEN
-           ALLOCATE(tau(nr,2),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(tau(nr,2))
            CALL atom_density(tau(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,&
                              typ="KIN",rr=atom%basis%grid%rad2)
            CALL atom_density(tau(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,&
@@ -498,8 +480,7 @@ CONTAINS
            deriv => xc_dset_get_derivative(deriv_set,"(rhob)",allocate_deriv=.FALSE.)
            CALL xc_derivative_get(deriv,deriv_data=xcpot)
            CALL numpot_matrix(xcmatb%op,xcpot(:,1,1),atom%basis,0)
-           DEALLOCATE(rho,STAT=ierr)
-           CPASSERT(ierr==0)
+           DEALLOCATE(rho)
          END IF
          IF ( needs%norm_drho_spin ) THEN
            ! drhoa
@@ -520,15 +501,13 @@ CONTAINS
              CALL numpot_matrix(xcmata%op,xcpot(:,1,1),atom%basis,1)
              CALL numpot_matrix(xcmatb%op,xcpot(:,1,1),atom%basis,1)
            END IF
-           DEALLOCATE(drho,STAT=ierr)
-           CPASSERT(ierr==0)
+           DEALLOCATE(drho)
          END IF
          IF ( needs%tau_spin ) THEN
            n1 = SIZE(xcmata%op,1)
            n2 = SIZE(xcmata%op,2)
            n3 = SIZE(xcmata%op,3)
-           ALLOCATE(taumat(n1,n2,0:n3-1),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(taumat(n1,n2,0:n3-1))
 
            deriv => xc_dset_get_derivative(deriv_set,"(tau_a)",allocate_deriv=.FALSE.)
            CALL xc_derivative_get(deriv,deriv_data=xcpot)
@@ -552,10 +531,8 @@ CONTAINS
              xcmatb%op(:,:,l) = xcmatb%op(:,:,l) + REAL(l*(l+1),dp)*taumat(:,:,l)
            END DO
 
-           DEALLOCATE(tau,STAT=ierr)
-           CPASSERT(ierr==0)
-           DEALLOCATE(taumat,STAT=ierr)
-           CPASSERT(ierr==0)
+           DEALLOCATE(tau)
+           DEALLOCATE(taumat)
          END IF
 
          ! Release the xc structure used to store the xc derivatives
@@ -568,8 +545,7 @@ CONTAINS
 
       ! we don't have an xc_section, use a default setup
       nr = atom%basis%grid%nr
-      ALLOCATE(rho(nr,2),exc(nr),vxca(nr),vxcb(nr),STAT=ierr)
-      CPASSERT(ierr==0)
+      ALLOCATE(rho(nr,2),exc(nr),vxca(nr),vxcb(nr))
 
       CALL atom_density(rho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="RHO")
       CALL atom_density(rho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="RHO")
@@ -579,8 +555,7 @@ CONTAINS
       CALL numpot_matrix(xcmata%op,vxca,atom%basis,0)
       CALL numpot_matrix(xcmatb%op,vxcb,atom%basis,0)
 
-      DEALLOCATE(rho,exc,vxca,vxcb,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(rho,exc,vxca,vxcb)
 
     END IF
 

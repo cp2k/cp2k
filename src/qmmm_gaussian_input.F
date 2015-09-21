@@ -150,7 +150,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: Ftarget, &
                                                 mm_potential_file_name, Units
     INTEGER                                  :: IRad, istart, Ival, j, Nog, &
-                                                Nval, output_unit, stat
+                                                Nval, output_unit
     LOGICAL                                  :: Found, Found_Radius
     REAL(KIND=dp)                            :: fconv, my_radius, Radius
     TYPE(cp_logger_type), POINTER            :: logger
@@ -215,10 +215,8 @@ CONTAINS
              istart = 2
           END IF
           NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
-          ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
-          CPASSERT(stat==0)
-          ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
-          CPASSERT(stat==0)
+          ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG))
+          ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG))
           IF (compatibility) THEN
              my_radius = qmmm_gaussian_fns(J)%pgf%Elp_Radius_corr
              qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
@@ -265,7 +263,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential_erf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: IRad, istart, Nog, Nval, stat
+    INTEGER                                  :: IRad, istart, Nog, Nval
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_radius, radius, rc
 
@@ -317,10 +315,8 @@ CONTAINS
           rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g16_rc*bohr)
        END SELECT
        NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
-       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG))
+       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG))
        IF (compatibility) THEN
           my_radius = qmmm_gaussian_fns(IRad)%pgf%Elp_Radius_corr
           qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
@@ -707,7 +703,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential_swave', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: IRad, istart, Nog, Nval, stat
+    INTEGER                                  :: IRad, istart, Nog, Nval
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: radius, rc
 
@@ -755,10 +751,8 @@ CONTAINS
           rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (s18_rc*bohr)
        END SELECT
        NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
-       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG))
+       ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG))
        SELECT CASE(num_geep_gauss)
        CASE(2)
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = s2_a1

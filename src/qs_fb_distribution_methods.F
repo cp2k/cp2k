@@ -124,7 +124,7 @@ CONTAINS
 
     INTEGER :: handle, i_common_set, iatom, ii, ipe, lb, lowest_cost_ind, &
       my_pe, n_common_sets, natoms, nhalo_atoms, nkinds, nprocs, &
-      owner_id_in_halo, pref_pe, stat, ub
+      owner_id_in_halo, pref_pe, ub
     INTEGER, ALLOCATABLE, DIMENSION(:) :: common_set_ids, local_atoms_all, &
       local_atoms_sizes, local_atoms_starts, pe, pos_in_preferred_list
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
@@ -173,12 +173,10 @@ CONTAINS
     my_pe = para_env%mepos + 1 ! counting from 1
 
     ! for each global atom, build atomic halo and get the associated cost
-    ALLOCATE(pair_radii(nkinds,nkinds), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pair_radii(nkinds,nkinds))
     CALL fb_build_pair_radii(rcut, nkinds, pair_radii)
     CALL fb_atomic_halo_create(atomic_halo)
-    ALLOCATE(cost_per_atom(natoms), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cost_per_atom(natoms))
     DO iatom = 1, natoms
        CALL fb_atomic_halo_init(atomic_halo)
        CALL fb_atomic_halo_build_halo_atoms(iatom, &
@@ -195,15 +193,12 @@ CONTAINS
        NULLIFY(halo_atoms)
        cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set)
     END DO
-    DEALLOCATE(pair_radii, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pair_radii)
     CALL fb_atomic_halo_release(atomic_halo)
 
     ! build the preferred_procs_set according to DBCSR mat H
-    ALLOCATE(preferred_procs_set(natoms), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(common_set_ids(natoms), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(preferred_procs_set(natoms))
+    ALLOCATE(common_set_ids(natoms))
     CALL fb_build_preferred_procs(mat_ks(1)%matrix, &
                                   natoms, &
                                   preferred_procs_set, &
@@ -213,13 +208,11 @@ CONTAINS
     ! for each atomic halo, construct distribution_element, and assign
     ! the element to a processors using preferred_procs_set in a
     ! round-robin manner
-    ALLOCATE(dist(nprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dist(nprocs))
     DO ipe = 1, nprocs
        CALL fb_distribution_init(dist=dist(ipe))
     END DO
-    ALLOCATE(pos_in_preferred_list(n_common_sets), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pos_in_preferred_list(n_common_sets))
     pos_in_preferred_list(:) = 0
     DO iatom = 1, natoms
        element%id = iatom
@@ -232,22 +225,17 @@ CONTAINS
        CALL fb_distribution_add(dist(ipe), element)
     END DO
 
-    DEALLOCATE(pos_in_preferred_list, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(common_set_ids, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(cost_per_atom, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pos_in_preferred_list)
+    DEALLOCATE(common_set_ids)
+    DEALLOCATE(cost_per_atom)
 
     ! sort processors according to the overall cost of their assigned
     ! corresponding distribution
-    ALLOCATE(cost_per_proc(nprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(cost_per_proc(nprocs))
     DO ipe = 1, nprocs
        cost_per_proc(ipe) = dist(ipe)%cost
     END DO
-    ALLOCATE(pe(nprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(pe(nprocs))
     CALL sort(cost_per_proc, nprocs, pe)
     ! now that cost_per_proc is sorted, ipe's no longer give mpi
     ! ranks, the correct one to use should be pe(ipe)
@@ -256,8 +244,7 @@ CONTAINS
     ! distributed
     average_cost = SUM(cost_per_proc) / REAL(nprocs, dp)
 
-    DEALLOCATE(cost_per_proc, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(cost_per_proc)
 
     ! loop over the processors, starting with the highest cost, move
     ! atoms one by one:
@@ -320,27 +307,21 @@ CONTAINS
        END DO redistribute ! while
     END DO ! ipe
 
-    DEALLOCATE(pe, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(pe)
     DO ii = 1, SIZE(preferred_procs_set)
        CALL fb_preferred_procs_list_release(preferred_procs_set(ii))
     END DO
-    DEALLOCATE(preferred_procs_set, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(preferred_procs_set)
 
     ! generate local atoms from dist
-    ALLOCATE(local_atoms_all(natoms), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(local_atoms_starts(nprocs), STAT=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(local_atoms_sizes(nprocs), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(local_atoms_all(natoms))
+    ALLOCATE(local_atoms_starts(nprocs))
+    ALLOCATE(local_atoms_sizes(nprocs))
     CALL fb_distribution_to_local_atoms(dist, &
                                         local_atoms_all, &
                                         local_atoms_starts, &
                                         local_atoms_sizes)
-    ALLOCATE(local_atoms(local_atoms_sizes(my_pe)), STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(local_atoms(local_atoms_sizes(my_pe)))
     lb = local_atoms_starts(my_pe)
     ub = local_atoms_starts(my_pe) + local_atoms_sizes(my_pe) - 1
     local_atoms(1:local_atoms_sizes(my_pe)) = local_atoms_all(lb:ub)
@@ -351,17 +332,13 @@ CONTAINS
     ! write out info
     CALL fb_distribution_write_info(dist, scf_section)
 
-    DEALLOCATE(local_atoms_all, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(local_atoms_starts, STAT=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(local_atoms_sizes, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(local_atoms_all)
+    DEALLOCATE(local_atoms_starts)
+    DEALLOCATE(local_atoms_sizes)
     DO ipe = 1, SIZE(dist)
        CALL fb_distribution_release(dist(ipe))
     END DO
-    DEALLOCATE(dist, STAT=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(dist)
 
     CALL timestop(handle)
 
@@ -492,7 +469,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_build_preferred_procs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icol, nprows, pcol, prow, stat
+    INTEGER                                  :: icol, nprows, pcol, prow
     INTEGER, DIMENSION(:), POINTER           :: col_dist
     LOGICAL                                  :: check_ok, failure
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
@@ -512,11 +489,9 @@ CONTAINS
 
     DO icol = 1, natoms
        IF (ASSOCIATED(preferred_procs_set(icol)%list)) THEN
-          DEALLOCATE(preferred_procs_set(icol)%list, STAT=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(preferred_procs_set(icol)%list)
        END IF
-       ALLOCATE(preferred_procs_set(icol)%list(nprows), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(preferred_procs_set(icol)%list(nprows))
        pcol = col_dist(icol)
        ! dbcsr prow and pcol counts from 0
        DO prow = 0, nprows-1
@@ -546,13 +521,11 @@ CONTAINS
       routineN = 'fb_preferred_procs_list_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(preferred_procs_list%list)) THEN
-       DEALLOCATE(preferred_procs_list%list, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(preferred_procs_list%list)
     END IF
   END SUBROUTINE fb_preferred_procs_list_release
 
@@ -622,20 +595,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax, stat
+    INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     my_nmax = 0
     IF (PRESENT(nmax)) my_nmax = nmax
     IF (ASSOCIATED(dist%list)) THEN
-       DEALLOCATE(dist%list, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dist%list)
     END IF
     NULLIFY(dist%list)
     IF (my_nmax .GT. 0) THEN
-       ALLOCATE(dist%list(my_nmax), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dist%list(my_nmax))
        DO ii = 1, SIZE(dist%list)
           dist%list(ii)%id = 0
           dist%list(ii)%cost = 0.0_dp
@@ -659,7 +630,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_resize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax, stat
+    INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: failure
     TYPE(fb_distribution_element), &
       DIMENSION(:), POINTER                  :: new_list
@@ -667,12 +638,10 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        my_nmax = MAX(nmax, 1)
-       ALLOCATE(dist%list(my_nmax), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(dist%list(my_nmax))
     ELSE
        my_nmax = MAX(nmax, dist%nelements)
-       ALLOCATE(new_list(my_nmax), STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(new_list(my_nmax))
        DO ii = 1, SIZE(new_list)
           new_list(ii)%id = 0
           new_list(ii)%cost = 0.0_dp
@@ -680,8 +649,7 @@ CONTAINS
        DO ii = 1, dist%nelements
           new_list(ii) = dist%list(ii)
        END DO
-       DEALLOCATE(dist%list, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dist%list)
        dist%list => new_list
     END IF
   END SUBROUTINE fb_distribution_resize
@@ -897,13 +865,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(dist%list)) THEN
-       DEALLOCATE(dist%list, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(dist%list)
     END IF
   END SUBROUTINE fb_distribution_release
 

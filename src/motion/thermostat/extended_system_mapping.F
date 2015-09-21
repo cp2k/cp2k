@@ -67,7 +67,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_barostat_mapping', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, number, stat
+    INTEGER                                  :: handle, i, number
     LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -93,8 +93,7 @@ CONTAINS
 
        CALL init_baro_map_info(map_info, number, nhc%loc_num_nhc)
 
-       ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%loc_num_nhc), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%loc_num_nhc))
        ! Now that we know how many there are stick this into nhc % nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, nhc%loc_num_nhc
@@ -153,7 +152,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, imap, j, &
-                                                natoms_local, stat, &
+                                                natoms_local, &
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
@@ -215,10 +214,8 @@ CONTAINS
           nhc % nvt ( i, : ) % nkt = simpar % temp_ext
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_atom_list)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp
@@ -267,8 +264,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_adiabatic_thermostat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nkind, number, &
-                                                region, stat
+    INTEGER                                  :: handle, nkind, number, region
     LOGICAL                                  :: do_shell, failure
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -289,8 +285,7 @@ CONTAINS
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local,&
        simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
        sum_of_thermostats)
-    ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nhc%nvt(nhc%nhc_len,number))
 
     ! Now that we know how many there are stick this into nhc%nkt
     ! (number of degrees of freedom times k_B T for the first thermostat
@@ -331,7 +326,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, imap, j, &
-                                                natoms_local, stat, &
+                                                natoms_local, &
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
@@ -390,10 +385,8 @@ CONTAINS
           nhc % nvt ( i, : ) % nkt = simpar % temp_slow
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_atom_list)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp
@@ -433,7 +426,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, imap, j, &
-                                                natoms_local, stat, &
+                                                natoms_local, &
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
@@ -492,10 +485,8 @@ CONTAINS
           nhc % nvt ( i, : ) % nkt = simpar % temp_fast
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_atom_list)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp
@@ -544,8 +535,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_nhc_thermostat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nkind, number, &
-                                                region, stat
+    INTEGER                                  :: handle, nkind, number, region
     LOGICAL                                  :: do_shell, failure
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -567,8 +557,7 @@ CONTAINS
        simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
        sum_of_thermostats)
 
-    ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (nhc%nvt(nhc%nhc_len,number))
 
     ! Now that we know how many there are stick this into nhc%nkt
     ! (number of degrees of freedom times k_B T for the first thermostat
@@ -607,7 +596,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, imap, j, &
-                                                nshell_local, stat, &
+                                                nshell_local, &
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
@@ -658,10 +647,8 @@ CONTAINS
           nhc % nvt ( i, : ) % nkt = simpar%temp_sh_ext
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
-       DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE ( massive_shell_list, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE (deg_of_freedom)
+       DEALLOCATE ( massive_shell_list)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp

@@ -153,14 +153,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: do_langevin, failure
 
     failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(meta_env))
-    ALLOCATE(meta_env,stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(meta_env)
     NULLIFY(meta_env%multiple_walkers,&
             meta_env%metadyn_section,&
             meta_env%time,&
@@ -186,23 +185,17 @@ CONTAINS
     meta_env%tempcontrol = .FALSE.
 
     ! Hills_env
-    ALLOCATE(meta_env%hills_env, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(meta_env%hills_env%invdt_history(0), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(meta_env%hills_env)
+    ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0))
+    ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0))
+    ALLOCATE(meta_env%hills_env%ww_history(0))
+    ALLOCATE(meta_env%hills_env%invdt_history(0))
     meta_env%hills_env%n_hills = 0
     meta_env%hills_env%energy = 0.0_dp
     meta_env%hills_env%restart = .TRUE.
 
     ! Colvar
-    ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(meta_env%metavar(n_colvar))
     DO i = 1, n_colvar
        NULLIFY(meta_env%metavar(i)%walls)
        meta_env%metavar(i)%mass       = -HUGE(0.0_dp)
@@ -226,8 +219,7 @@ CONTAINS
     CALL section_vals_val_get(metadyn_section,"MULTIPLE_WALKERS%_SECTION_PARAMETERS_",&
          l_val=meta_env%do_multiple_walkers)
     IF (meta_env%do_multiple_walkers) THEN
-       ALLOCATE(meta_env%multiple_walkers,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(meta_env%multiple_walkers)
 
        ! Walkers status and Walkers file name
        NULLIFY(meta_env%multiple_walkers%walkers_status,&
@@ -237,8 +229,7 @@ CONTAINS
 
     CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin)
     IF (do_langevin) THEN
-       ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (meta_env%rng(meta_env%n_colvar))
        DO i=1,meta_env%n_colvar
           NULLIFY(meta_env%rng(meta_env%n_colvar)%stream)
        END DO
@@ -300,7 +291,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -312,12 +303,10 @@ CONTAINS
           IF (ASSOCIATED(meta_env%metavar)) THEN
              DO i = 1, SIZE(meta_env%metavar)
                 IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
-                   DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
-                   CPASSERT(stat==0)
+                   DEALLOCATE(meta_env%metavar(i)%walls)
                 END IF
              END DO
-             DEALLOCATE(meta_env%metavar,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(meta_env%metavar)
           END IF
 
           ! Hills env
@@ -325,15 +314,12 @@ CONTAINS
           ! Walkers type
           IF (ASSOCIATED(meta_env%multiple_walkers)) THEN
              IF (ASSOCIATED(meta_env%multiple_walkers%walkers_status)) THEN
-                DEALLOCATE(meta_env%multiple_walkers%walkers_status,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(meta_env%multiple_walkers%walkers_status)
              END IF
              IF (ASSOCIATED(meta_env%multiple_walkers%walkers_file_name)) THEN
-                DEALLOCATE(meta_env%multiple_walkers%walkers_file_name,stat=stat)
-                CPASSERT(stat==0)
+                DEALLOCATE(meta_env%multiple_walkers%walkers_file_name)
              END IF
-             DEALLOCATE(meta_env%multiple_walkers,stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(meta_env%multiple_walkers)
           END IF
 
           ! Langevin on COLVARS
@@ -343,13 +329,11 @@ CONTAINS
                    CALL delete_rng_stream(meta_env%rng(i)%stream)
                 END IF
              END DO
-             DEALLOCATE (meta_env%rng,STAT=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE (meta_env%rng)
           ENDIF
           NULLIFY(meta_env%time)
           NULLIFY(meta_env%metadyn_section)
-          DEALLOCATE(meta_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(meta_env)
        END IF
     END IF
   END SUBROUTINE meta_env_release
@@ -365,29 +349,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hills_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(hills_env)) THEN
        IF (ASSOCIATED(hills_env%ss_history)) THEN
-          DEALLOCATE(hills_env%ss_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hills_env%ss_history)
        END IF
        IF (ASSOCIATED(hills_env%delta_s_history)) THEN
-          DEALLOCATE(hills_env%delta_s_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hills_env%delta_s_history)
        END IF
        IF (ASSOCIATED(hills_env%ww_history)) THEN
-          DEALLOCATE(hills_env%ww_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hills_env%ww_history)
        END IF
        IF (ASSOCIATED(hills_env%invdt_history)) THEN
-          DEALLOCATE(hills_env%invdt_history,stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(hills_env%invdt_history)
        END IF
-       DEALLOCATE(hills_env,stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(hills_env)
     END IF
   END SUBROUTINE hills_env_release
 

@@ -121,7 +121,7 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, ig, ipart, &
                                                 j, n, ncore, npart, nshell, &
-                                                o_spline, p1, p1_shell, stat
+                                                o_spline, p1, p1_shell
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: nd, npts
@@ -161,14 +161,12 @@ CONTAINS
     CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols)
 
     n = o_spline
-    ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rhos(n,n,n))
     CALL rs_grid_create (rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
-    ALLOCATE ( center(3, npart), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( center(3, npart))
     CALL get_center ( particle_set, box, center, npts, n )
     IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
        CPASSERT(ASSOCIATED(shell_particle_set))
@@ -176,11 +174,9 @@ CONTAINS
        nshell=SIZE(shell_particle_set)
        ncore =SIZE(core_particle_set)
        CPASSERT(nshell==ncore)
-       ALLOCATE ( shell_center ( 3, nshell ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( shell_center ( 3, nshell ))
        CALL get_center ( shell_particle_set, box, shell_center, npts, n )
-       ALLOCATE ( core_center ( 3, nshell ), STAT = stat )
-       CPASSERT(stat==0)
+       ALLOCATE ( core_center ( 3, nshell ))
        CALL get_center ( core_particle_set, box, core_center, npts, n )
     END IF
 
@@ -364,8 +360,7 @@ CONTAINS
     !--------END OF STRESS TENSOR CALCULATION -----------
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
-    ALLOCATE ( drpot(1:3), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( drpot(1:3))
     DO i = 1, 3
        CALL rs_grid_create( drpot(i)%rs_grid, rs_desc)
        CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
@@ -448,21 +443,16 @@ CONTAINS
       DO i = 1, 3
          CALL rs_grid_release ( drpot(i)%rs_grid)
       END DO
-      DEALLOCATE ( drpot, STAT = stat )
-      CPASSERT(stat==0)
+      DEALLOCATE ( drpot)
     END IF
 
-    DEALLOCATE ( rhos, STAT = stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( center, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rhos)
+    DEALLOCATE ( center)
     IF(ALLOCATED(shell_center)) THEN
-       DEALLOCATE ( shell_center, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( shell_center)
     END IF
     IF(ALLOCATED(core_center)) THEN
-       DEALLOCATE ( core_center, STAT = stat )
-       CPASSERT(stat==0)
+       DEALLOCATE ( core_center)
     END IF
     CALL timestop(handle)
 
@@ -500,8 +490,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, ipart, n, &
-                                                npart_a, npart_b, o_spline, &
-                                                p1, stat
+                                                npart_a, npart_b, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure
@@ -535,14 +524,12 @@ CONTAINS
     CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols)
 
     n = o_spline
-    ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rhos(n,n,n))
     CALL rs_grid_create (rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
-    ALLOCATE ( center(3, npart_a), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( center(3, npart_a))
     CALL get_center ( particle_set_a, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -558,8 +545,7 @@ CONTAINS
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
-    DEALLOCATE ( center, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( center)
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
@@ -582,8 +568,7 @@ CONTAINS
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
     !-------------- POTENTAIL AT ATOMIC POSITIONS -------
-    ALLOCATE ( center(3, npart_b), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( center(3, npart_b))
     CALL get_center ( particle_set_b, box, center, npts, n )
     rpot => rden
     phi_g%cc = phi_g%cc * green%p3m_charge%cr
@@ -607,10 +592,8 @@ CONTAINS
     CALL pw_pool_give_back_pw ( pw_pool, rhob_r)
     CALL rs_grid_release (rden)
 
-    DEALLOCATE ( rhos, STAT = stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( center, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rhos)
+    DEALLOCATE ( center)
     CALL timestop(handle)
 
   END SUBROUTINE spme_potential
@@ -649,8 +632,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ipart, n, &
-                                                npart_a, npart_b, o_spline, &
-                                                p1, stat
+                                                npart_a, npart_b, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure
@@ -688,14 +670,12 @@ CONTAINS
     CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols)
 
     n = o_spline
-    ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( rhos(n,n,n))
     CALL rs_grid_create (rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
-    ALLOCATE ( center(3, npart_a), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( center(3, npart_a))
     CALL get_center ( particle_set_a, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -711,8 +691,7 @@ CONTAINS
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
-    DEALLOCATE ( center, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( center)
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
@@ -742,8 +721,7 @@ CONTAINS
     !---------- END OF ELECTROSTATIC CALCULATION --------
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
-    ALLOCATE ( drpot(1:3), STAT=stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( drpot(1:3))
     DO i = 1, 3
        CALL rs_grid_create( drpot(i)%rs_grid, rs_desc)
        CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
@@ -753,8 +731,7 @@ CONTAINS
        CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs)
     END DO
     !----------------- FORCE CALCULATION ----------------
-    ALLOCATE ( center(3, npart_b), STAT = stat )
-    CPASSERT(stat==0)
+    ALLOCATE ( center(3, npart_b))
     CALL get_center ( particle_set_b, box, center, npts, n )
     ipart = 0
     DO
@@ -774,18 +751,15 @@ CONTAINS
       DO i = 1, 3
          CALL rs_grid_release ( drpot(i)%rs_grid)
       END DO
-      DEALLOCATE ( drpot, STAT = stat )
-      CPASSERT(stat==0)
+      DEALLOCATE ( drpot)
     END IF
     CALL pw_pool_give_back_pw ( pw_pool, phi_g)
     CALL pw_pool_give_back_pw ( pw_pool, rhob_g)
     CALL pw_pool_give_back_pw ( pw_pool, rhob_r)
     CALL rs_grid_release (rden)
 
-    DEALLOCATE ( rhos, STAT = stat )
-    CPASSERT(stat==0)
-    DEALLOCATE ( center, STAT = stat )
-    CPASSERT(stat==0)
+    DEALLOCATE ( rhos)
+    DEALLOCATE ( center)
     CALL timestop(handle)
 
   END SUBROUTINE spme_forces

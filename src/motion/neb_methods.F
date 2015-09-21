@@ -97,7 +97,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ierr, iw, iw2, nrep, &
                                                 output_unit, prep, &
-                                                proc_dist_type, stat
+                                                proc_dist_type
     LOGICAL                                  :: check, failure, row_force
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -146,8 +146,7 @@ CONTAINS
        CALL force_env_get(f_env%force_env,subsys=subsys)
        particle_set => subsys%particles%els
        ! Read NEB controlling parameters
-       ALLOCATE (neb_env,stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (neb_env)
        neb_env%force_env            => f_env%force_env
        neb_env%root_section         => input
        neb_env%force_env_section    => force_env_section
@@ -201,8 +200,7 @@ CONTAINS
        CALL neb_var_release(forces)
        CALL neb_var_release(vels)
        ! At the end let's destroy the environment of the BAND calculation
-       DEALLOCATE(neb_env, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(neb_env)
     END IF
     CALL rep_env_release(rep_env)
     CALL cp_print_key_finished_output(output_unit,logger,neb_section,&
@@ -242,7 +240,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, ic, is, istep, &
                                                 iw, max_steps, natom, &
-                                                shell_index, stat
+                                                shell_index
     LOGICAL                                  :: converged, failure, &
                                                 should_stop
     REAL(KIND=dp)                            :: dt
@@ -272,12 +270,9 @@ CONTAINS
     CALL section_vals_val_get(md_section,"MAX_STEPS",i_val=max_steps)
     ! Initial setup for MD
     CALL neb_var_create(Dcoords, neb_env)
-    ALLOCATE (mass(SIZE(coords%wrk,1),neb_env%number_of_replica),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (energies(neb_env%number_of_replica),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (distances(neb_env%number_of_replica-1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (mass(SIZE(coords%wrk,1),neb_env%number_of_replica))
+    ALLOCATE (energies(neb_env%number_of_replica))
+    ALLOCATE (distances(neb_env%number_of_replica-1))
     ! Setting up the mass array
     IF (neb_env%use_colvar) THEN
        mass(:,:) = 0.5_dp*dt/massunit
@@ -352,12 +347,9 @@ CONTAINS
        IF (converged) EXIT
     END DO md_opt_loop
 
-    DEALLOCATE (mass,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (energies,stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (distances,stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (mass)
+    DEALLOCATE (energies)
+    DEALLOCATE (distances)
     CALL neb_var_release(Dcoords)
     CALL cp_print_key_finished_output(iw,logger,neb_env%neb_section,&
          "REPLICA_INFO")
@@ -396,7 +388,7 @@ CONTAINS
 
     INTEGER                                  :: handle, istep, iw, iw2, &
                                                 max_sd_steps, max_steps, &
-                                                n_diis, stat
+                                                n_diis
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: check_diis, converged, &
                                                 diis_on, do_ls, failure, &
@@ -431,16 +423,11 @@ CONTAINS
     ! Allocate type for Line Search direction
     CALL neb_var_create(sline, neb_env, full_allocation=.TRUE.)
     ! Array of error vectors
-    ALLOCATE (err(PRODUCT(coords%size_wrk),n_diis),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (crr(PRODUCT(coords%size_wrk),n_diis),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (set_err(n_diis),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (energies(neb_env%number_of_replica),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE (distances(neb_env%number_of_replica-1),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (err(PRODUCT(coords%size_wrk),n_diis))
+    ALLOCATE (crr(PRODUCT(coords%size_wrk),n_diis))
+    ALLOCATE (set_err(n_diis))
+    ALLOCATE (energies(neb_env%number_of_replica))
+    ALLOCATE (distances(neb_env%number_of_replica-1))
     ! Initializing forces array
     CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
          output_unit, distances, neb_env%number_of_replica)
@@ -525,16 +512,11 @@ CONTAINS
        converged = check_convergence(neb_env, sline, forces)
        IF (converged) EXIT
     END DO
-    DEALLOCATE (energies, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (distances, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (err, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (crr, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE (set_err, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE (energies)
+    DEALLOCATE (distances)
+    DEALLOCATE (err)
+    DEALLOCATE (crr)
+    DEALLOCATE (set_err)
     CALL neb_var_release(sline)
     CALL timestop(handle)
   END SUBROUTINE neb_diis

@@ -854,7 +854,7 @@ END SUBROUTINE
     INTEGER                                  :: handle, i, i_hills, ih, &
                                                 intermeta_steps, iter_nr, iw, &
                                                 n_colvar, n_hills_start, &
-                                                n_step, stat
+                                                n_step
     LOGICAL                                  :: force_gauss
     REAL(KIND=dp)                            :: cut_func, dfunc, diff, dp2, &
                                                 frac, slow_growth, &
@@ -900,10 +900,8 @@ END SUBROUTINE
     force_gauss=.FALSE.
     IF ((hills_env%min_disp > 0.0_dp).AND.(hills_env%old_hill_number > 0).AND.&
         (intermeta_steps >= hills_env%min_nt_hills)) THEN
-       ALLOCATE (ddp(meta_env%n_colvar), stat=stat)
-       CPASSERT(stat==0)
-       ALLOCATE (local_last_hills(meta_env%n_colvar), stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE (ddp(meta_env%n_colvar))
+       ALLOCATE (local_last_hills(meta_env%n_colvar))
 
        local_last_hills(1:n_colvar) = hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
 
@@ -930,10 +928,8 @@ END SUBROUTINE
           CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
                                             "PRINT%PROGRAM_RUN_INFO")
        END IF
-       DEALLOCATE (ddp, stat=stat)
-       CPASSERT(stat==0)
-       DEALLOCATE (local_last_hills, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (ddp)
+       DEALLOCATE (local_last_hills)
     END IF
 
     !RG keep into account adaptive hills
@@ -1027,14 +1023,10 @@ END SUBROUTINE
     END IF
 
     ! Computes forces due to the hills: history dependent term
-    ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(diff_ss(meta_env%n_colvar), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(numf(meta_env%n_colvar), stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(denf(meta_env%n_colvar), stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(ddp(meta_env%n_colvar))
+    ALLOCATE(diff_ss(meta_env%n_colvar))
+    ALLOCATE(numf(meta_env%n_colvar))
+    ALLOCATE(denf(meta_env%n_colvar))
 
     hills_env%energy = 0.0_dp
     DO ih=1,n_colvar
@@ -1088,14 +1080,10 @@ END SUBROUTINE
           END IF
        ENDDO
     ENDDO
-    DEALLOCATE(ddp, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(diff_ss, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(numf, stat=stat)
-    CPASSERT(stat==0)
-    DEALLOCATE(denf, stat=stat)
-    CPASSERT(stat==0)
+    DEALLOCATE(ddp)
+    DEALLOCATE(diff_ss)
+    DEALLOCATE(numf)
+    DEALLOCATE(denf)
 
     CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS")
 

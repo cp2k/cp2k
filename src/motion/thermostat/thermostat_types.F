@@ -112,7 +112,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermostats', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check, failure
 
     failure =.FALSE.
@@ -120,22 +119,17 @@ CONTAINS
     CPASSERT(check)
 
     ! Preliminary allocation for thermostats
-    ALLOCATE(thermostats, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermostats)
     last_thermostats_id_nr = last_thermostats_id_nr + 1
     thermostats%id_nr = last_thermostats_id_nr
     thermostats%ref_count =  1
 
     ! Thermostats Info
-    ALLOCATE(thermostats%thermostat_info_part, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermostats%thermostat_info_part)
+    ALLOCATE(thermostats%thermostat_info_shell)
 !cjm
-    ALLOCATE(thermostats%thermostat_info_fast, stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(thermostats%thermostat_info_slow, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermostats%thermostat_info_fast)
+    ALLOCATE(thermostats%thermostat_info_slow)
 !cjm
 
     NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
@@ -190,7 +184,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostats', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check, failure
 
     failure =.FALSE.
@@ -224,8 +217,7 @@ CONTAINS
           IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
              CALL release_thermostat_type(thermostats%thermostat_coef)
           END IF
-          DEALLOCATE(thermostats, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(thermostats)
        END IF
     END IF
   END SUBROUTINE release_thermostats
@@ -251,7 +243,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: region, stat
+    INTEGER                                  :: region
     LOGICAL                                  :: failure, skip_region_loc
     TYPE(section_vals_type), POINTER         :: al_section, csvr_section, &
                                                 gle_section, nose_section
@@ -259,8 +251,7 @@ CONTAINS
     failure = .FALSE.
     skip_region_loc = .FALSE.
     IF (PRESENT(skip_region)) skip_region_loc = skip_region
-    ALLOCATE(thermostat, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(thermostat)
     last_thermostat_id_nr = last_thermostat_id_nr + 1
     thermostat%id_nr = last_thermostat_id_nr
     thermostat%ref_count =  1
@@ -276,26 +267,22 @@ CONTAINS
     IF (.NOT.skip_region_loc) CALL section_vals_val_get(section,"REGION",i_val=region)
     IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
        nose_section => section_vals_get_subs_vals(section,"NOSE")
-       ALLOCATE(thermostat%nhc, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(thermostat%nhc)
        CALL lnhc_init(thermostat%nhc, nose_section)
        thermostat%nhc%region = region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
        csvr_section => section_vals_get_subs_vals(section,"CSVR")
-       ALLOCATE(thermostat%csvr, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(thermostat%csvr)
        CALL csvr_init(thermostat%csvr, simpar, csvr_section)
        thermostat%csvr%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
        al_section => section_vals_get_subs_vals(section,"AD_LANGEVIN")
-       ALLOCATE(thermostat%al, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(thermostat%al)
        CALL al_init(thermostat%al, simpar, al_section)
        thermostat%al%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
        gle_section => section_vals_get_subs_vals(section,"GLE")
-       ALLOCATE(thermostat%gle, stat=stat)
-       CPASSERT(stat==0)
+       ALLOCATE(thermostat%gle)
        CALL gle_init(thermostat%gle, dt=simpar%dt, temp=simpar%temp_ext, &
      section=gle_section)
        thermostat%gle%region=region
@@ -317,17 +304,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure =.FALSE.
     IF (ASSOCIATED(thermostat_info)) THEN
        IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
-          DEALLOCATE(thermostat_info%map_loc_thermo_gen, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(thermostat_info%map_loc_thermo_gen)
        END IF
-       DEALLOCATE(thermostat_info, stat=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE(thermostat_info)
     END IF
   END SUBROUTINE release_thermostat_info
 
@@ -344,7 +328,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: check, failure
 
     failure =.FALSE.
@@ -367,8 +350,7 @@ CONTAINS
           IF (ASSOCIATED(thermostat%gle)) THEN
              CALL gle_dealloc(thermostat%gle)
           END IF
-          DEALLOCATE(thermostat, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(thermostat)
        END IF
     END IF
   END SUBROUTINE release_thermostat_type

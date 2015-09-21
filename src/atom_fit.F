@@ -73,7 +73,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_density', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, n10
+    INTEGER                                  :: n10
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: co
     REAL(KIND=dp), DIMENSION(2)              :: x
@@ -81,8 +81,7 @@ CONTAINS
     TYPE(opt_state_type)                     :: ostate
 
     failure = .FALSE.
-    ALLOCATE(co(num_gto),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(co(num_gto))
     co = 0._dp
     NULLIFY(density)
     CALL create_opgrid(density,atom%basis%grid)
@@ -156,8 +155,7 @@ CONTAINS
       results(3:2+num_gto) = co(1:num_gto)
     END IF
 
-    DEALLOCATE(co,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(co)
 
   END SUBROUTINE atom_fit_density
 ! *****************************************************************************
@@ -179,8 +177,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, k, l, ll, m, n, &
-                                                n10, nl, nr
+    INTEGER                                  :: i, j, k, l, ll, m, n, n10, &
+                                                nl, nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
     LOGICAL                                  :: explicit, failure, mult
     REAL(KIND=dp)                            :: al, ear, fopt, pf, rk
@@ -198,18 +196,15 @@ CONTAINS
        CASE (GTO_BASIS)
          IF ( basis%geometrical ) THEN
            ostate%nvar = 2
-           ALLOCATE(x(2),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(x(2))
            x(1) = SQRT(basis%aval)
            x(2) = SQRT(basis%cval)
          ELSE
            ll = MAXVAL(basis%nprim(:))
-           ALLOCATE(xtob(ll,0:3),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(xtob(ll,0:3))
            xtob = 0
            ll = SUM(basis%nprim(:))
-           ALLOCATE(x(ll),STAT=ierr)
-           CPASSERT(ierr==0)
+           ALLOCATE(x(ll))
            x = 0._dp
            ll = 0
            DO l=0,3
@@ -235,12 +230,10 @@ CONTAINS
          END IF
        CASE (STO_BASIS)
          ll = MAXVAL(basis%nbas(:))
-         ALLOCATE(xtob(ll,0:3),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE(xtob(ll,0:3))
          xtob = 0
          ll = SUM(basis%nbas(:))
-         ALLOCATE(x(ll),STAT=ierr)
-         CPASSERT(ierr==0)
+         ALLOCATE(x(ll))
          x = 0._dp
          ll = 0
          DO l=0,3
@@ -262,8 +255,7 @@ CONTAINS
 
     n=SIZE(atom_info,1)
     m=SIZE(atom_info,2)
-    ALLOCATE(wem(n,m),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(wem(n,m))
     wem = 1._dp
     CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit)
     IF(explicit) THEN
@@ -285,8 +277,7 @@ CONTAINS
         atom_info(i,j)%atom%weight = wem(i,j)
       END DO
     END DO
-    DEALLOCATE(wem,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(wem)
 
     ostate%nf = 0
     ostate%iprint = 1
@@ -453,12 +444,10 @@ CONTAINS
        CALL atom_print_basis_file(basis)
     END IF
 
-    DEALLOCATE(x,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(x)
 
     IF ( ALLOCATED(xtob) ) THEN
-      DEALLOCATE(xtob,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(xtob)
     END IF
 
   END SUBROUTINE atom_fit_basis
@@ -480,8 +469,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, iw, j, k, l, m, n, &
-                                                n10, np
+    INTEGER                                  :: i, iw, j, k, l, m, n, n10, np
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
     INTEGER, DIMENSION(0:3)                  :: ncore
     LOGICAL                                  :: explicit, failure
@@ -518,11 +506,9 @@ CONTAINS
 
     n=SIZE(atom_info,1)
     m=SIZE(atom_info,2)
-    ALLOCATE(wem(n,m),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(wem(n,m))
     wem = 1._dp
-    ALLOCATE(pval(4,10,0:3,m,n),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(pval(4,10,0:3,m,n))
 
     CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit)
     IF(explicit) THEN
@@ -541,15 +527,12 @@ CONTAINS
 
     CALL open_file(file_name="POWELL_RESULT",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
 
-    ALLOCATE(xi(200),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(xi(200))
     !decide here what to optimize
     CALL get_pseudo_param(xi,ostate%nvar,ppot%gth_pot)
-    ALLOCATE(x(ostate%nvar),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(x(ostate%nvar))
     x(1:ostate%nvar) = xi(1:ostate%nvar)
-    DEALLOCATE(xi,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(xi)
 
     ostate%nf = 0
     ostate%iprint = 1
@@ -667,8 +650,7 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(wem,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(wem)
 
     WRITE(iunit,'(/," POWELL| Initial errors of target values")')
     CALL put_pseudo_param(x,ppot%gth_pot)
@@ -845,12 +827,10 @@ CONTAINS
       END DO
     END IF
 
-    DEALLOCATE(x,pval,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(x,pval)
 
     IF ( ALLOCATED(xtob) ) THEN
-      DEALLOCATE(xtob,STAT=ierr)
-      CPASSERT(ierr==0)
+      DEALLOCATE(xtob)
     END IF
 
     CALL close_file(unit_number=iw)
@@ -877,8 +857,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'density_fit', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, info, ip, &
-                                                ipiv(1000), iq, k, nr
+    INTEGER                                  :: i, info, ip, ipiv(1000), iq, &
+                                                k, nr
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, rk, zval
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: den, pe, uval
@@ -886,11 +866,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    ALLOCATE(pe(n),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(pe(n))
     nr = atom%basis%grid%nr
-    ALLOCATE (bf(nr,n),den(nr),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE (bf(nr,n),den(nr))
     bf =  0._dp
 
     DO i=1,n
@@ -906,8 +884,7 @@ CONTAINS
     zval = integrate_grid(density%op,atom%basis%grid)
 
     ! allocate vectors and matrices for overlaps
-    ALLOCATE(tval(n+1,1),uval(n),smat(n+1,n+1),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(tval(n+1,1),uval(n),smat(n+1,n+1))
     DO i=1,n
       uval(i) = (pi/pe(i))**1.5_dp
       tval(i,1) = integrate_grid(density%op,bf(:,i),atom%basis%grid)
@@ -936,11 +913,9 @@ CONTAINS
     den(:) = (den(:)-density%op(:))**2
     aerr = SQRT(integrate_grid(den,atom%basis%grid))
 
-    DEALLOCATE(pe,bf,den,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(pe,bf,den)
 
-    DEALLOCATE(tval,uval,smat,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(tval,uval,smat)
 
   END SUBROUTINE density_fit
 ! *****************************************************************************
@@ -962,8 +937,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'basis_fit', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: do_eric, do_erie, ierr, im, &
-                                                in, nm, nn, reltyp, zval
+    INTEGER                                  :: do_eric, do_erie, im, in, nm, &
+                                                nn, reltyp, zval
     LOGICAL                                  :: eri_c, eri_e, failure
     TYPE(atom_integrals), POINTER            :: atint
     TYPE(atom_potential_type), POINTER       :: pot
@@ -971,8 +946,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    ALLOCATE(atint,STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(atint)
 
     nn = SIZE(atom_info,1)
     nm = SIZE(atom_info,2)
@@ -1029,8 +1003,7 @@ CONTAINS
     CALL atom_ppint_release(atint)
     CALL atom_relint_release(atint)
 
-    DEALLOCATE(atint,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(atint)
 
   END SUBROUTINE basis_fit
 ! *****************************************************************************
@@ -1324,7 +1297,7 @@ CONTAINS
       yval = TANH(0.1_dp*xval)**2
     ELSE IF ( id==-1 ) THEN
       x1 = SQRT(xval)
-      CPASSERT(x1<1._dp)
+      CPASSERT(x1<=1._dp)
       x2 = 0.5_dp * LOG((1._dp+x1)/(1._dp-x1))
       yval = x2/0.1_dp
     ELSE
@@ -1352,7 +1325,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: t23 = 2._dp/3._dp
 
-    INTEGER                                  :: i, ierr, ig, ip, iw, j, n10
+    INTEGER                                  :: i, ig, ip, iw, j, n10
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1364,8 +1337,7 @@ CONTAINS
     ! at least one parameter to be optimized
     CPASSERT(num_pol*num_gau > 0)
 
-    ALLOCATE(co(num_pol+1,num_gau),x(num_pol*num_gau+num_gau),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(co(num_pol+1,num_gau),x(num_pol*num_gau+num_gau))
     co = 0._dp
 
     ! calculate density
@@ -1455,8 +1427,7 @@ CONTAINS
       results = x
     END IF
 
-    DEALLOCATE(co,x,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(co,x)
 
   END SUBROUTINE atom_fit_kgpot
 
@@ -1477,13 +1448,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kgpot_fit', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, ig, ip, n
+    INTEGER                                  :: i, ig, ip, n
     REAL(KIND=dp)                            :: pc, rc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pval
 
     n = kgpot%grid%nr
-    ALLOCATE(pval(n),STAT=ierr)
-    CPASSERT(ierr==0)
+    ALLOCATE(pval(n))
     pval = 0.0_dp
     DO i=1,n
        DO ig=1,ng
@@ -1498,8 +1468,7 @@ CONTAINS
     pval(1:n) = (pval(1:n) - kgpot%op(1:n))**2
     aerr = fourpi*SUM(pval(1:n)*kgpot%grid%wr(1:n))
 
-    DEALLOCATE(pval,STAT=ierr)
-    CPASSERT(ierr==0)
+    DEALLOCATE(pval)
 
   END SUBROUTINE kgpot_fit 
 

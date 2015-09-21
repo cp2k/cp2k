@@ -105,8 +105,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isize, j, k, n_rep_val, &
-                                                stat
+    INTEGER                                  :: i, isize, j, k, n_rep_val
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
@@ -115,8 +114,7 @@ CONTAINS
 
     failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(dimer_env))
-    ALLOCATE(dimer_env, stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dimer_env)
     logger => cp_get_default_logger()
     dimer_env%ref_count=1
     last_dimer_id=last_dimer_id+1
@@ -125,14 +123,10 @@ CONTAINS
     NULLIFY(dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p,&
          dimer_env%tsl%tls_vec)
     ! Allocate the working arrays
-    ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(dimer_env%rot%g0(natom*3),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(dimer_env%rot%g1(natom*3),stat=stat)
-    CPASSERT(stat==0)
-    ALLOCATE(dimer_env%rot%g1p(natom*3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dimer_env%nvec(natom*3))
+    ALLOCATE(dimer_env%rot%g0(natom*3))
+    ALLOCATE(dimer_env%rot%g1(natom*3))
+    ALLOCATE(dimer_env%rot%g1p(natom*3))
     ! Check if the dimer vector is available in the input or not..
     nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR")
     CALL section_vals_get(nvec_section, explicit=explicit)
@@ -186,8 +180,7 @@ CPSourceFileRef,&
     dimer_env%cg_rot%norm_h         = 1.0_dp
     dimer_env%cg_rot%norm_theta     = 0.0_dp
     dimer_env%cg_rot%norm_theta_old = 0.0_dp
-    ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3))
   END SUBROUTINE dimer_env_create
 
 ! *****************************************************************************
@@ -225,7 +218,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -235,29 +227,23 @@ CPSourceFileRef,&
        dimer_env%ref_count=dimer_env%ref_count-1
        IF (dimer_env%ref_count==0) THEN
           IF (ASSOCIATED(dimer_env%nvec)) THEN
-             DEALLOCATE(dimer_env%nvec, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dimer_env%nvec)
           END IF
           IF (ASSOCIATED(dimer_env%rot%g0)) THEN
-             DEALLOCATE(dimer_env%rot%g0, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dimer_env%rot%g0)
           END IF
           IF (ASSOCIATED(dimer_env%rot%g1)) THEN
-             DEALLOCATE(dimer_env%rot%g1, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dimer_env%rot%g1)
           END IF
           IF (ASSOCIATED(dimer_env%rot%g1p)) THEN
-             DEALLOCATE(dimer_env%rot%g1p, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dimer_env%rot%g1p)
           END IF
           IF (ASSOCIATED(dimer_env%cg_rot%nvec_old)) THEN
-             DEALLOCATE(dimer_env%cg_rot%nvec_old, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(dimer_env%cg_rot%nvec_old)
           END IF
           ! No need to deallocate tls_vec (just a pointer to aother local array)
           NULLIFY(dimer_env%tsl%tls_vec)
-          DEALLOCATE(dimer_env, stat=stat)
-          CPASSERT(stat==0)
+          DEALLOCATE(dimer_env)
        END IF
     END IF
   END SUBROUTINE dimer_env_release

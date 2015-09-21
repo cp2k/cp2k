@@ -89,7 +89,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'al_thermo_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -98,14 +98,12 @@ CONTAINS
     CPASSERT(ASSOCIATED(al))
     CPASSERT(.NOT.ASSOCIATED(al%nvt))
     
-    ALLOCATE ( al%nvt(al%loc_num_al),stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE ( al%nvt(al%loc_num_al))
     DO i = 1, al%loc_num_al
        al%nvt(i)%chi = 0.0_dp
     END DO
     ! Initialize the gaussian stream random number
-    ALLOCATE (seed(3,2,al%glob_num_al),STAT=stat)
-    CPASSERT(stat==0)
+    ALLOCATE (seed(3,2,al%glob_num_al))
 
   END SUBROUTINE al_thermo_create
 
@@ -120,15 +118,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'al_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(al)) THEN
        CALL al_thermo_dealloc(al%nvt)
        CALL release_map_info_type(al%map_info)
-       DEALLOCATE (al, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (al)
     ENDIF
 
   END SUBROUTINE al_dealloc
@@ -145,13 +141,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'al_thermo_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(nvt)) THEN
-       DEALLOCATE (nvt, STAT=stat)
-       CPASSERT(stat==0)
+       DEALLOCATE (nvt)
     ENDIF
   END SUBROUTINE al_thermo_dealloc
   

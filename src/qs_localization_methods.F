@@ -338,9 +338,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
-    INTEGER                                  :: dim2, handle, idim, istat, &
-                                                istate, jstate, nstate, &
-                                                unit_nr
+    INTEGER                                  :: dim2, handle, idim, istate, &
+                                                jstate, nstate, unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ct, st, t1, t2, theta, &
                                                 tolerance
@@ -355,11 +354,9 @@ CONTAINS
 
     dim2 = SIZE(zij,2)
     NULLIFY(rmat,c_rmat,c_zij)
-    ALLOCATE(c_zij(dim2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(c_zij(dim2))
     NULLIFY(mii,mij,mjj)
-    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2))
 
     CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct)
     CALL cp_fm_set_all ( rmat, 0._dp, 1._dp)
@@ -413,10 +410,8 @@ CONTAINS
        zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
        CALL cp_cfm_release( c_zij(idim)%matrix)
     ENDDO
-    DEALLOCATE(c_zij,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(mii,mij,mjj, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(c_zij)
+    DEALLOCATE(mii,mij,mjj)
     rmat % local_data = REAL ( c_rmat%local_data, dp )
     CALL cp_cfm_release( c_rmat)
     CALL rotate_orbitals ( rmat, vectors )
@@ -801,12 +796,9 @@ CONTAINS
 
     NULLIFY(diag_z,evals,evals_exp,mii,mij,mjj)
     dim2 = SIZE(zij,2)
-    ALLOCATE(diag_z(nrow_global,dim2),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(evals(nrow_global),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(evals_exp(nrow_global),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(diag_z(nrow_global,dim2))
+    ALLOCATE(evals(nrow_global))
+    ALLOCATE(evals_exp(nrow_global))
 
     CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct)
     CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct)
@@ -821,8 +813,7 @@ CONTAINS
 
     CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp)
     CALL cp_fm_set_all( mat_t, 0.0_dp)
-    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2))
     DO idim=1,dim2
        CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(1,idim) % matrix)
        CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(2,idim) % matrix)
@@ -982,9 +973,8 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: evals_exp
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: diag_z
-    INTEGER :: handle, i, icol, idim, irow, istat, line_search_count, &
-      line_searches, lsl, lsm, lsr, n, ncol_local, ndim, nrow_local, &
-      output_unit
+    INTEGER :: handle, i, icol, idim, irow, line_search_count, line_searches, &
+      lsl, lsm, lsr, n, ncol_local, ndim, nrow_local, output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, new_direction
     REAL(KIND=dp) :: a, b, beta_pr, c, denom, ds, ds_min, fa, fb, fc, nom, &
@@ -1021,8 +1011,7 @@ CONTAINS
     END IF
 
     ALLOCATE(evals(n),evals_exp(n),diag_z(n,ndim),fval(n),fvald(n))
-    ALLOCATE(c_zij(ndim), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(c_zij(ndim))
 
     ! create the three complex matrices Z
     DO idim=1,ndim
@@ -1435,8 +1424,7 @@ CONTAINS
     NULLIFY(mii,mij,mjj)
 
     dim2 = SIZE(zij,2)
-    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2))
 
     CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct)
     CALL cp_fm_set_all ( rmat, 0._dp, 1._dp)
@@ -1452,14 +1440,12 @@ CONTAINS
     ! number of processor pairs and number of permutations
     npair = (para_env%num_pe+1)/2
     nperm = para_env%num_pe - MOD( para_env%num_pe +1,2)
-    ALLOCATE(list_pair(2,npair),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(list_pair(2,npair))
 
     ! Distribution of the states (XXXXX safe against more pe than states ??? XXXXX)
     xstate = REAL(nstate,dp)/REAL(para_env%num_pe,dp)
     nblock_max = 0
-    ALLOCATE(ns_bound(0:para_env%num_pe-1,2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(ns_bound(0:para_env%num_pe-1,2))
     Xlow=0.0D0
     Xup=0.0D0
     DO ip=1,para_env%num_pe
@@ -1480,12 +1466,9 @@ CONTAINS
     ENDDO
 
     ! otbtain local part of the matrix (could be made faster, but is likely irrelevant).
-    ALLOCATE(z_ij_loc_re(nstate,nblock_max),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(z_ij_loc_im(nstate,nblock_max),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(cz_ij_loc(dim2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(z_ij_loc_re(nstate,nblock_max))
+    ALLOCATE(z_ij_loc_im(nstate,nblock_max))
+    ALLOCATE(cz_ij_loc(dim2))
     DO idim = 1,dim2
       DO ip=0,para_env%num_pe-1
         nblock=ns_bound(ip,2)-ns_bound(ip,1)+1
@@ -1493,8 +1476,7 @@ CONTAINS
         CALL cp_fm_get_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,ns_bound(ip,1),nstate,nblock)
         IF(para_env%mepos==ip) THEN
           ns_me = nblock
-          ALLOCATE (cz_ij_loc(idim)%c_array(nstate,ns_me),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE (cz_ij_loc(idim)%c_array(nstate,ns_me))
           DO i=1,ns_me
             DO j = 1,nstate
               cz_ij_loc(idim)%c_array(j,i) = CMPLX(z_ij_loc_re(j,i),z_ij_loc_im(j,i),dp)
@@ -1503,58 +1485,43 @@ CONTAINS
         END IF
       END DO ! ip
     END DO
-    DEALLOCATE(z_ij_loc_re,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(z_ij_loc_im,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(z_ij_loc_re)
+    DEALLOCATE(z_ij_loc_im)
 
 
     ! initialize rotation matrix
-    ALLOCATE(rotmat(nstate,2*nblock_max),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rotmat(nstate,2*nblock_max))
     rotmat=0.0_dp
     DO i =ns_bound(para_env%mepos,1),ns_bound(para_env%mepos,2)
        ii = i - ns_bound(para_env%mepos,1) + 1
        rotmat(i,ii) = 1.0_dp
     END DO
 
-    ALLOCATE(xyz_mix(dim2),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(xyz_mix_ns(dim2),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(zdiag_me(dim2),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(zdiag_all(dim2),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(xyz_mix(dim2))
+    ALLOCATE(xyz_mix_ns(dim2))
+    ALLOCATE(zdiag_me(dim2))
+    ALLOCATE(zdiag_all(dim2))
 
     ns_me = ns_bound(para_env%mepos,2) - ns_bound(para_env%mepos,1) +1
     IF(ns_me/=0) THEN
-      ALLOCATE(c_array_me(nstate,ns_me,dim2),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(c_array_me(nstate,ns_me,dim2))
       DO idim = 1,dim2
-         ALLOCATE(xyz_mix_ns(idim)%c_array(nstate,ns_me),STAT=istat)
-         CPASSERT(istat==0)
+         ALLOCATE(xyz_mix_ns(idim)%c_array(nstate,ns_me))
       END DO
-      ALLOCATE(gmat(nstate,ns_me),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(gmat(nstate,ns_me))
     END IF
 
     DO idim = 1,dim2
-       ALLOCATE(zdiag_me(idim)%c_array(nblock_max),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(zdiag_me(idim)%c_array(nblock_max))
        zdiag_me(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
-       ALLOCATE(zdiag_all(idim)%c_array(para_env%num_pe*nblock_max),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(zdiag_all(idim)%c_array(para_env%num_pe*nblock_max))
        zdiag_all(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
     END DO
-    ALLOCATE(rmat_recv(nblock_max*2,nblock_max),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(rmat_send(nblock_max*2,nblock_max),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rmat_recv(nblock_max*2,nblock_max))
+    ALLOCATE(rmat_send(nblock_max*2,nblock_max))
 
     ! buffer for message passing
-    ALLOCATE(rmat_recv_all(nblock_max*2,nblock_max,0:para_env%num_pe-1),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(rmat_recv_all(nblock_max*2,nblock_max,0:para_env%num_pe-1))
 
     IF(output_unit>0) THEN
       WRITE(output_unit,'(T10,A )') "Localization by iterative distributed Jacobi rotation"
@@ -1595,19 +1562,16 @@ CONTAINS
         ! if there is a non-zero block connecting two partners, jacobi-sweep it.
         IF(ns_partner*ns_me /= 0) THEN
 
-          ALLOCATE(rmat_loc(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(rmat_loc(ns_me+ns_partner,ns_me+ns_partner))
           rmat_loc = 0.0_dp
           DO i = 1, ns_me+ns_partner
             rmat_loc(i,i) = 1.0_dp
           END DO
 
-          ALLOCATE(c_array_partner(nstate,ns_partner,dim2),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(c_array_partner(nstate,ns_partner,dim2))
 
           DO idim = 1,dim2
-            ALLOCATE(xyz_mix(idim)%c_array(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
-            CPASSERT(istat==0)
+            ALLOCATE(xyz_mix(idim)%c_array(ns_me+ns_partner,ns_me+ns_partner))
             DO i = 1,ns_me
                c_array_me(1:nstate,i,idim) = cz_ij_loc(idim)%c_array(1:nstate,i)
             END DO
@@ -1718,8 +1682,7 @@ CONTAINS
              END DO
           END DO  ! idim
 
-          DEALLOCATE(c_array_partner,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(c_array_partner)
 
         ELSE ! save my data
           DO idim = 1,dim2
@@ -1834,11 +1797,9 @@ CONTAINS
         END DO ! ip
 
         IF(ns_partner*ns_me /= 0) THEN
-          DEALLOCATE(rmat_loc, STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(rmat_loc)
           DO idim = 1,dim2
-            DEALLOCATE(xyz_mix(idim)%c_array,STAT=istat)
-            CPASSERT(istat==0)
+            DEALLOCATE(xyz_mix(idim)%c_array)
           END DO
         END IF
 
@@ -1911,54 +1872,37 @@ CONTAINS
     END DO ! sweeps
 
     ! buffer for message passing
-    DEALLOCATE(rmat_recv_all,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rmat_recv_all)
 
-    DEALLOCATE(rmat_recv, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(rmat_send, STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rmat_recv)
+    DEALLOCATE(rmat_send)
     IF (ns_me>0) THEN
-       DEALLOCATE(c_array_me,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(c_array_me)
     ENDIF
     DO idim = 1,dim2
-      DEALLOCATE(zdiag_me(idim)%c_array, STAT=istat)
-      CPASSERT(istat==0)
-      DEALLOCATE(zdiag_all(idim)%c_array, STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(zdiag_me(idim)%c_array)
+      DEALLOCATE(zdiag_all(idim)%c_array)
     END DO
-    DEALLOCATE(zdiag_me, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(zdiag_all, STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(xyz_mix,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(zdiag_me)
+    DEALLOCATE(zdiag_all)
+    DEALLOCATE(xyz_mix)
     DO idim = 1,dim2
       IF(ns_me/=0) THEN
-        DEALLOCATE(xyz_mix_ns(idim)%c_array,STAT=istat)
-        CPASSERT(istat==0)
+        DEALLOCATE(xyz_mix_ns(idim)%c_array)
       ENDIF
     END DO
-    DEALLOCATE(xyz_mix_ns,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(xyz_mix_ns)
     IF(ns_me/=0) THEN
-      DEALLOCATE(gmat,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(gmat)
     ENDIF
-    DEALLOCATE(mii,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(mij,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(mjj,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(mii)
+    DEALLOCATE(mij)
+    DEALLOCATE(mjj)
 
     ilow1=ns_bound(para_env%mepos,1)
     ns_me=ns_bound(para_env%mepos,2)-ns_bound(para_env%mepos,1)+1
-    ALLOCATE(z_ij_loc_re(nstate,nblock_max),STAT=istat)
-    CPASSERT(istat==0)
-    ALLOCATE(z_ij_loc_im(nstate,nblock_max),STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE(z_ij_loc_re(nstate,nblock_max))
+    ALLOCATE(z_ij_loc_im(nstate,nblock_max))
     DO idim = 1,dim2
       DO ip = 0,para_env%num_pe-1
         z_ij_loc_re = 0.0_dp
@@ -1997,23 +1941,18 @@ CONTAINS
       CALL cp_fm_set_submatrix(rmat,z_ij_loc_re,1,ns_bound(ip,1),nstate,nblock)
     END DO
 
-    DEALLOCATE(z_ij_loc_re,STAT=istat)
-    CPASSERT(istat==0)
-    DEALLOCATE(z_ij_loc_im,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(z_ij_loc_re)
+    DEALLOCATE(z_ij_loc_im)
     DO idim = 1,dim2
-       DEALLOCATE(cz_ij_loc(idim)%c_array,STAT=istat)
-       CPASSERT(istat==0)
+       DEALLOCATE(cz_ij_loc(idim)%c_array)
     END DO
-    DEALLOCATE(cz_ij_loc,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(cz_ij_loc)
 
     CALL mp_sync(para_env%group)
     CALL rotate_orbitals ( rmat, vectors )
     CALL cp_fm_release ( rmat)
 
-    DEALLOCATE(rotmat,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(rotmat)
     DEALLOCATE(ns_bound, list_pair)
 
     CALL timestop(handle)

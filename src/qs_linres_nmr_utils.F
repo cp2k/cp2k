@@ -80,10 +80,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_path_length)       :: nics_file_name
-    INTEGER                                  :: handle, ini, ir, istat, j, &
-                                                n_mo(2), n_rep, nao, &
-                                                nat_print, natom, nmoloc, &
-                                                nspins, output_unit
+    INTEGER                                  :: handle, ini, ir, j, n_mo(2), &
+                                                n_rep, nao, nat_print, natom, &
+                                                nmoloc, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, gapw, my_end
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -143,8 +142,7 @@ CONTAINS
        CALL parser_create(parser,nics_file_name)
        CALL parser_get_next_line(parser,1)
        CALL parser_get_object(parser,nmr_env%n_nics)
-       ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics),STAT=istat)
-       CPASSERT(istat==0)
+       ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics))
        CALL parser_get_next_line(parser,2)
        DO j = 1,nmr_env%n_nics
           CALL parser_get_object(parser,label)
@@ -215,8 +213,7 @@ CONTAINS
        WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Conversion Chi to Shift",nmr_env%chi_SI2shiftppm
     ENDIF
 
-    ALLOCATE (nmr_env%do_calc_cs_atom(natom), STAT=istat)
-    CPASSERT(istat==0)
+    ALLOCATE (nmr_env%do_calc_cs_atom(natom))
     nmr_env%do_calc_cs_atom = 0
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -229,8 +226,7 @@ CONTAINS
                                  i_vals=bounds)
        nat_print = bounds(2) - bounds(1)  + 1
        IF(nat_print > 0) THEN
-          ALLOCATE(nmr_env%cs_atom_list(nat_print),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(nmr_env%cs_atom_list(nat_print))
           DO ir = 1,nat_print
              nmr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
              nmr_env%do_calc_cs_atom(bounds(1) + (ir-1)) = 1
@@ -257,8 +253,7 @@ CONTAINS
        ENDIF
 
        IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
-          ALLOCATE(nmr_env%cs_atom_list(natom),STAT=istat)
-          CPASSERT(istat==0)
+          ALLOCATE(nmr_env%cs_atom_list(natom))
           DO ir = 1,natom
              nmr_env%cs_atom_list(ir) = ir
           ENDDO
@@ -294,14 +289,12 @@ CONTAINS
     !
     ! Initialize the chemical shift tensor
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),&
-             nmr_env%chemical_shift_loc(3,3,natom),STAT=istat)
-    CPASSERT(istat==0)
+             nmr_env%chemical_shift_loc(3,3,natom))
     nmr_env%chemical_shift = 0.0_dp
     nmr_env%chemical_shift_loc = 0.0_dp
     IF(nmr_env%do_nics) THEN
        ALLOCATE(nmr_env%chemical_shift_nics_loc(3,3,nmr_env%n_nics),&
-                nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
-       CPASSERT(istat==0)
+                nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics))
        nmr_env%chemical_shift_nics_loc = 0.0_dp
        nmr_env%chemical_shift_nics = 0.0_dp
     ENDIF
@@ -327,7 +320,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -342,25 +334,20 @@ CONTAINS
        END IF
        !chemical_shift
        IF(ASSOCIATED(nmr_env%chemical_shift)) THEN
-          DEALLOCATE(nmr_env%chemical_shift,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(nmr_env%chemical_shift)
        END IF
        IF(ASSOCIATED(nmr_env%chemical_shift_loc)) THEN
-          DEALLOCATE(nmr_env%chemical_shift_loc,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(nmr_env%chemical_shift_loc)
        END IF
        ! nics
        IF(ASSOCIATED(nmr_env%r_nics)) THEN
-          DEALLOCATE(nmr_env%r_nics,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(nmr_env%r_nics)
        END IF
        IF(ASSOCIATED(nmr_env%chemical_shift_nics)) THEN
-          DEALLOCATE(nmr_env%chemical_shift_nics,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(nmr_env%chemical_shift_nics)
        END IF
        IF(ASSOCIATED(nmr_env%chemical_shift_nics_loc)) THEN
-          DEALLOCATE(nmr_env%chemical_shift_nics_loc,STAT=istat)
-          CPASSERT(istat==0)
+          DEALLOCATE(nmr_env%chemical_shift_nics_loc)
        END IF
     END IF  ! ref count
 
