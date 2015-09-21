@@ -399,7 +399,6 @@ CONTAINS
             CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
           CASE(do_ewald_none)
             CPABORT("Not allowed with SCPTB")
-            CPASSERT(.FALSE.)
           CASE(do_ewald_ewald)
             CALL cp_unimplemented_error(routineP,"Standard Ewald not implemented in SCPTB")
           CASE(do_ewald_pme)

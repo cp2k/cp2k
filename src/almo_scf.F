@@ -245,13 +245,11 @@ CONTAINS
              IF (nspins.eq.1) THEN
                 WRITE(*,*) "Domain ", idomain, " out of ", ndomains, ". Electrons = ", nelec
                 CPABORT("odd e- -- use unrestricted methods")
-                CPASSERT(.FALSE.)
              ENDIF
              almo_scf_env%nocc_of_domain(idomain,2)=nelec_b
              ! RZK-warning: open-shell procedures have not been tested yet
              ! Stop the program now
              CPABORT("Unrestricted ALMO methods are NYI")
-             CPASSERT(.FALSE.)
           ENDIF
        ENDDO
        DO ispin=1,nspins
@@ -285,7 +283,6 @@ CONTAINS
              ENDDO
           CASE DEFAULT
              CPABORT("illegal method for virtual space truncation")
-             CPASSERT(.FALSE.)
           END SELECT
        ENDDO ! spin
     ELSE ! domains are atomic
@@ -653,45 +650,38 @@ CONTAINS
     IF (almo_scf_env%deloc_truncate_virt.EQ.virt_number .AND. &
         almo_scf_env%deloc_virt_per_domain.LE.0) THEN
       CPABORT("specify a positive number of virtual orbitals")
-      CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%deloc_truncate_virt.EQ.virt_minimal) THEN
       CPABORT("VIRT TRUNCATION TO MINIMAL BASIS IS NIY")
-      CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%domain_layout_mos.NE.almo_domain_layout_molecular) THEN
       CPABORT("use MOLECULAR domains")
-      CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%domain_layout_aos.NE.almo_domain_layout_molecular) THEN
       CPABORT("use MOLECULAR domains")
-      CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%mat_distr_mos.NE.almo_mat_distr_molecular) THEN
       CPABORT("use MOLECULAR distr for MOs")
-      CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%mat_distr_aos==almo_mat_distr_molecular .AND. &
         almo_scf_env%domain_layout_aos==almo_domain_layout_atomic) THEN 
        CPABORT("AO blocks cannot be larger than domains")
-       CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%mat_distr_mos==almo_mat_distr_molecular .AND. &
         almo_scf_env%domain_layout_mos==almo_domain_layout_atomic) THEN 
        CPABORT("MO blocks cannot be larger than domains")
-       CPASSERT(.FALSE.)
     ENDIF
 
     IF (almo_scf_env%quencher_r1_factor.gt.almo_max_cutoff_multiplier) THEN
-       CPABORT("XALMO_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier")
-       CPABORT("increase the hard-coded almo_max_cutoff_multiplier")
-       CPASSERT(.FALSE.)
+       CALL cp_abort(routineP,__LINE__,&
+          "XALMO_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier"//&
+          "increase the hard-coded almo_max_cutoff_multiplier")
     ENDIF
 
     CALL timestop(handle)
@@ -1168,7 +1158,6 @@ CONTAINS
        ELSE
           
           CPABORT("Other algorithms do not exist")
-          CPASSERT(.FALSE.)
        
        ENDIF
 
@@ -1189,7 +1178,6 @@ CONTAINS
        ELSE
 
           CPABORT("Other algorithms do not exist")
-          CPASSERT(.FALSE.)
        
        ENDIF
 
@@ -1198,7 +1186,6 @@ CONTAINS
        IF (almo_scf_env%xalmo_update_algorithm.eq.almo_scf_diag) THEN
           
           CPABORT("Should not be here: convergence will fail!")
-          CPASSERT(.FALSE.)
           
           almo_scf_env%perturbative_delocalization=.FALSE.
           DO ispin=1,almo_scf_env%nspins
@@ -1237,7 +1224,6 @@ CONTAINS
     CASE DEFAULT
 
        CPABORT("Illegal delocalization method")
-       CPASSERT(.FALSE.)
     
     END SELECT
     
@@ -1246,7 +1232,6 @@ CONTAINS
        
        IF (almo_scf_env%deloc_truncate_virt.ne.virt_full) THEN
           CPABORT("full scf is NYI for truncated virtual space")
-          CPASSERT(.FALSE.)
        ENDIF
        
        CALL almo_scf_xalmo_pcg(qs_env=qs_env,&

@@ -631,7 +631,6 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
        optimizer_type=optimizer_pcg
     CASE DEFAULT
        CPABORT("No default values allowed")
-       CPASSERT(.FALSE.)
     END SELECT
 
     NULLIFY (keyword)

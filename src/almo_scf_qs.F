@@ -210,7 +210,6 @@ CONTAINS
              END IF
           ELSE
              CPABORT("Illegal distribution")
-             CPASSERT(.FALSE.)
           ENDIF
           
        ELSE ! this dimension is not AO
@@ -247,13 +246,11 @@ CONTAINS
                 ENDIF
              ELSE
                 CPABORT("Illegal distribution")
-                CPASSERT(.FALSE.)
              ENDIF
              
           ELSE
  
              CPABORT("Illegal dimension")
-             CPASSERT(.FALSE.)
              
           ENDIF ! end choosing dim size (occ, virt)
       
@@ -1036,7 +1033,6 @@ CONTAINS
    
                          ! ao domains are atomic / electron groups are molecular
                          CPABORT("Illegal: atomic domains and molecular groups")
-                         CPASSERT(.FALSE.)
    
                       ENDIF
                    
@@ -1047,7 +1043,6 @@ CONTAINS
    
                          ! ao domains are molecular / electron groups are atomic
                          CPABORT("Illegal: molecular domains and atomic groups")
-                         CPASSERT(.FALSE.)
    
                       ELSE 
                          
@@ -1070,7 +1065,6 @@ CONTAINS
                       
                       IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
                          CPABORT("weird... max_domain_neighbors is exceeded")
-                         CPASSERT(.FALSE.)
                       ENDIF
                       almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                       almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1104,7 +1098,6 @@ CONTAINS
                          ! ao domains are atomic / electron groups are molecular
                          ! overlap_between_atom_and_molecule(atom=domain_row,molecule=domain_col)
                          CPABORT("atomic domains and molecular groups - NYI")
-                         CPASSERT(.FALSE.)
    
                       ENDIF
                    
@@ -1116,7 +1109,6 @@ CONTAINS
                          ! ao domains are molecular / electron groups are atomic
                          ! overlap_between_atom_and_molecule(atom=domain_col,molecule=domain_row)
                          CPABORT("molecular domains and atomic groups - NYI")
-                         CPASSERT(.FALSE.)
    
                       ELSE 
                          
@@ -1175,7 +1167,6 @@ CONTAINS
                       IF (ABS(p_new_block(1,1)).gt.ABS(almo_scf_env%eps_filter)) THEN
                          IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
                             CPABORT("weird... max_domain_neighbors is exceeded")
-                            CPASSERT(.FALSE.)
                          ENDIF
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1225,7 +1216,6 @@ CONTAINS
                          ! ao domains are atomic / electron groups are molecular
                          !distance_between_atom_and_molecule(atom=domain_row,molecule=domain_col)
                          CPABORT("atomic domains and molecular groups - NYI")
-                         CPASSERT(.FALSE.)
    
                       ENDIF
                    
@@ -1237,7 +1227,6 @@ CONTAINS
                          ! ao domains are molecular / electron groups are atomic
                          !distance_between_atom_and_molecule(atom=domain_col,molecule=domain_row)
                          CPABORT("molecular domains and atomic groups - NYI")
-                         CPASSERT(.FALSE.)
    
                       ELSE 
                          
@@ -1304,8 +1293,8 @@ CONTAINS
                          !   iblock_col, iblock_row, contact1_radius,&
                          !   contact2_radius, r0, r1, distance, p_new_block(1,1)
                       ELSE
-! remove the intermediate values from the quencher temporarily
-CPASSERT(.FALSE.)
+                         ! remove the intermediate values from the quencher temporarily
+                         CPASSERT(.FALSE.)
                          p_new_block(:,:) = 1.0_dp/(1.0_dp+EXP((r1-r0)/(r0-distance)+(r1-r0)/(r1-distance)))
                          !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTER-BLOCKS: ",&
                          !   iblock_col, iblock_row, contact1_radius,&
@@ -1315,7 +1304,6 @@ CPASSERT(.FALSE.)
                       IF (ABS(p_new_block(1,1)).gt.ABS(almo_scf_env%eps_filter)) THEN
                          IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
                             CPABORT("weird... max_domain_neighbors is exceeded")
-                            CPASSERT(.FALSE.)
                          ENDIF
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1347,7 +1335,6 @@ CPASSERT(.FALSE.)
        nblks=cp_dbcsr_get_num_blocks(almo_scf_env%quench_t(ispin))
        IF (nblks.ne.domain_map_local_entries) THEN
           CPABORT("number of blocks is wrong")
-          CPASSERT(.FALSE.)
        ENDIF
 
        ! communicate local parts of the domain map
@@ -1438,7 +1425,6 @@ CPASSERT(.FALSE.)
              ELSE
                 ! should not be here - all records must be inserted
                 CPABORT("all records must be inserted")
-                CPASSERT(.FALSE.)
              ENDIF
           ENDDO
           max_neig_fails=.FALSE.

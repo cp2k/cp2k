@@ -22,6 +22,8 @@
                                              cp_rm_default_logger,&
                                              cp_to_string
   USE cp_error_handling,               ONLY: cp_debug,&
+                                             cp_abort,&
+                                             cp_warn,&
                                              cp_assertion_failed,&
                                              cp_internal_error,&
                                              cp_assert,&
@@ -30,8 +32,7 @@
                                              cp_caller_error,&
                                              cp_wrong_args_error,&
                                              cp_unimplemented_error_nr,&
-                                             cp__a,cp__b,cp__w,&
-                                             cp_error_message
+                                             cp__a,cp__b,cp__w
 
 ! The following macros are here to facilitate the use of error handling
 ! proposed in cp_error_handling.

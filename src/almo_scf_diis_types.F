@@ -107,7 +107,6 @@ CONTAINS
     
     IF( max_length.le.0 ) THEN
        CPABORT("DIIS: max_length is less than zero")
-       CPASSERT(.FALSE.)
     END IF
 
     diis_env%diis_env_type=diis_env_dbcsr
@@ -176,7 +175,6 @@ CONTAINS
     
     IF( max_length.le.0 ) THEN
        CPABORT("DIIS: max_length is less than zero")
-       CPASSERT(.FALSE.)
     END IF
 
     diis_env%diis_env_type=diis_env_domain
@@ -245,16 +243,13 @@ CONTAINS
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.(PRESENT(var).AND.PRESENT(err)) ) THEN
           CPABORT("provide DBCSR matrices")
-          CPASSERT(.FALSE.)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.(PRESENT(d_var).AND.PRESENT(d_err)) ) THEN
           CPABORT("provide domain submatrices")
-          CPASSERT(.FALSE.)
        ENDIF
     ELSE
        CPABORT("illegal DIIS ENV type")
-       CPASSERT(.FALSE.)
     ENDIF
 
     in_point=diis_env%in_point
@@ -380,16 +375,13 @@ CONTAINS
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.PRESENT(extr_var) ) THEN
           CPABORT("provide DBCSR matrix")
-          CPASSERT(.FALSE.)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.PRESENT(d_extr_var) ) THEN
           CPABORT("provide domain submatrices")
-          CPASSERT(.FALSE.)
        ENDIF
     ELSE
        CPABORT("illegal DIIS ENV type")
-       CPASSERT(.FALSE.)
     ENDIF
 
     ! Prepare data
@@ -418,7 +410,6 @@ CONTAINS
                   diis_env%buffer_length+1,eigenvalues,WORK,LWORK,INFO)
           IF( INFO.NE.0 ) THEN
              CPABORT("DSYEV failed")
-             CPASSERT(.FALSE.)
           END IF
           DEALLOCATE(WORK)
 
@@ -510,16 +501,13 @@ CONTAINS
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.(PRESENT(A).AND.PRESENT(B)) ) THEN
           CPABORT("provide DBCSR matrices")
-          CPASSERT(.FALSE.)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.(PRESENT(d_A).AND.PRESENT(d_B)) ) THEN
           CPABORT("provide domain submatrices")
-          CPASSERT(.FALSE.)
        ENDIF
     ELSE
        CPABORT("illegal DIIS ENV type")
-       CPASSERT(.FALSE.)
     ENDIF
 
     SELECT CASE(diis_env%error_type)
@@ -536,7 +524,6 @@ CONTAINS
        ENDIF
     CASE DEFAULT
        CPABORT("Vector type is unknown")
-       CPASSERT(.FALSE.)
     END SELECT
 
     almo_scf_diis_error_overlap=trace

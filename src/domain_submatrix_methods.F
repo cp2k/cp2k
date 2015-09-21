@@ -1189,7 +1189,6 @@ CONTAINS
     ndomains2=SIZE(submatrix)
     IF (ndomains2.ne.ndomains) THEN
        CPABORT("wrong submatrix size")
-       CPASSERT(.FALSE.)
     ENDIF
     CALL release_submatrices(submatrix)
     submatrix(:)%nnodes=nNodes
@@ -1341,7 +1340,6 @@ CONTAINS
                       ELSE IF (matrix_type==dbcsr_type_no_symmetry) THEN
                       ELSE
                          CPABORT("matrix type is NYI")
-                         CPASSERT(.FALSE.)
                       ENDIF
                    ENDIF
                 ENDIF
@@ -1419,7 +1417,6 @@ CONTAINS
 
     IF (ndomains.ne.ndomains2) THEN
        CPABORT("domain mismatch")
-       CPASSERT(.FALSE.)
     ENDIF
 
     nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(&
@@ -1432,7 +1429,6 @@ CONTAINS
     matrix_type=cp_dbcsr_get_matrix_type(matrix)
     IF (matrix_type.ne.dbcsr_type_no_symmetry) THEN
        CPABORT("only non-symmetric matrices so far")
-       CPASSERT(.FALSE.)
     ENDIF
    
     ! remove all blocks from the dbcsr matrix   
@@ -1460,7 +1456,6 @@ CONTAINS
           
              IF (submatrix(idomain)%nbcols.ne.1) THEN
                 CPABORT("corrupt submatrix structure")
-                CPASSERT(.FALSE.)
              ENDIF
 
              row = submatrix(idomain)%dbcsr_row(irow_subm)
@@ -1468,7 +1463,6 @@ CONTAINS
 
              IF (col.ne.idomain) THEN
                 CPABORT("corrupt submatrix structure")
-                CPASSERT(.FALSE.)
              ENDIF
 
              transp=.FALSE.

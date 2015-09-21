@@ -37,7 +37,6 @@ MODULE cp_error_handling
                                              cp_logger_type,&
                                              cp_to_string
   USE message_passing,                 ONLY: mp_abort
-  USE termination,                     ONLY: print_message
   USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
@@ -47,14 +46,12 @@ MODULE cp_error_handling
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
   !API parameters var
-  PUBLIC :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
-       cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
-       cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
-  !API public routines
-  PUBLIC :: cp_assert, cp_unimplemented_error, cp__a, cp__b, cp__w
+  PUBLIC :: cp_debug, cp_assertion_failed, cp_internal_error, cp_wrong_args_error,&
+            cp_precondition_failed, cp_unimplemented_error_nr, cp_caller_error
 
-  !API
-  PUBLIC :: cp_error_message
+  !API public routines
+  PUBLIC :: cp_assert, cp_unimplemented_error, cp_abort, cp_warn
+  PUBLIC :: cp__a, cp__b, cp__w
 
 #ifdef FD_DEBUG
   !! global variable to turn on/off the debugging, as i am lazy I use the
@@ -86,28 +83,6 @@ MODULE cp_error_handling
 
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief a subroutine that call just stop, useful because all the failures
-!>      fails calling this routine: the right point to set a breakpoint
-!> \param fromWhere 'module:routine' that called this function
-!> \param message an error message
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 2.2002
-! *****************************************************************************
-  SUBROUTINE cp_error_common_stop(fromWhere,message)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
-
-    INTEGER                                  :: unit_nr
-
-    unit_nr = cp_logger_get_default_unit_nr()
-    CALL print_message("ERROR in "//TRIM(ADJUSTL(fromWhere))//&
-                       TRIM(ADJUSTL(message)),unit_nr,2,2,2)
-    CALL mp_abort()
-
-  END SUBROUTINE cp_error_common_stop
 
 ! *****************************************************************************
 !> \brief writes an error message of level level, subject to control of error
@@ -222,6 +197,41 @@ CONTAINS
   END SUBROUTINE cp_unimplemented_error
 
 ! *****************************************************************************
+!> \brief Abort program with error message
+!> \param fromWhere ...
+!> \param lineNr ...
+!> \param message ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cp_abort(fromWhere,lineNr,message)
+    CHARACTER(len=*), INTENT(in)             :: fromWhere
+    INTEGER, INTENT(in)                      :: lineNr
+    CHARACTER(len=*), INTENT(in)             :: message
+
+    CALL cp_assert(.FALSE.,level=cp_failure_level,&
+         error_nr=cp_assertion_failed,&
+         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         message=message)
+  END SUBROUTINE cp_abort
+
+! *****************************************************************************
+!> \brief Signal a warning
+!> \param fromWhere ...
+!> \param lineNr ...
+!> \param message ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cp_warn(fromWhere,lineNr,message)
+    CHARACTER(len=*), INTENT(in)             :: fromWhere
+    INTEGER, INTENT(in)                      :: lineNr
+    CHARACTER(len=*), INTENT(in)             :: message
+
+    CALL cp_error_message(level=cp_warning_level,&
+         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         message=message)
+  END SUBROUTINE cp_warn
+
+! *****************************************************************************
 !> \brief CPASSERT handler
 !> \param fromWhere ...
 !> \param lineNr ...
@@ -249,10 +259,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: lineNr
     CHARACTER(len=*), INTENT(in)             :: message
 
-    CALL cp_assert(.FALSE.,level=cp_failure_level,&
-         error_nr=cp_assertion_failed,&
-         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
-         message=message)
+    CALL cp_abort(fromWhere,lineNr,message)
   END SUBROUTINE cp__b
 
 ! *****************************************************************************
@@ -267,9 +274,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: lineNr
     CHARACTER(len=*), INTENT(in)             :: message
 
-    CALL cp_error_message(level=cp_warning_level,&
-         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
-         message=message)
+    CALL cp_warn(fromWhere,lineNr,message)
   END SUBROUTINE cp__w
 
 END MODULE cp_error_handling

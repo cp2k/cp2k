@@ -753,7 +753,6 @@ CONTAINS
     IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular .AND. &
         almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN
        CPABORT("a domain must be located entirely on a CPU")
-       CPASSERT(.FALSE.)
     ENDIF
 
     ndomains=almo_scf_env%ndomains
@@ -818,7 +817,6 @@ CONTAINS
              CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
              IF( INFO.NE.0 ) THEN
                 CPABORT("DSYEV failed")
-                CPASSERT(.FALSE.)
              END IF
 
 !WRITE (*,*) "Domain", idomain ,"OCC energies", eigenvalues( 1:almo_scf_env%nocc_of_domain(idomain,ispin) )
@@ -828,7 +826,6 @@ CONTAINS
              IF ( almo_scf_env%domain_t(idomain,ispin)%ncols.NE.&
                 almo_scf_env%nocc_of_domain(idomain,ispin) ) THEN
                 CPABORT("wrong domain structure")
-                CPASSERT(.FALSE.)
              END IF
              CALL copy_submatrices(almo_scf_env%domain_t(idomain,ispin),&
                      subm_t(idomain),.FALSE.)
@@ -906,7 +903,6 @@ CONTAINS
     IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular .AND. &
         almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN
        CPABORT("a domain must be located entirely on a CPU")
-       CPASSERT(.FALSE.)
     ENDIF
 
     DO ispin=1,almo_scf_env%nspins
@@ -953,7 +949,6 @@ CONTAINS
    
           IF (.NOT.block_needed) THEN
              CPABORT("off-diagonal block found")
-             CPASSERT(.FALSE.)
           ENDIF
    
           IF (block_needed) THEN
@@ -975,7 +970,6 @@ CONTAINS
              CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
              IF( INFO.NE.0 ) THEN
                 CPABORT("DSYEV failed")
-                CPASSERT(.FALSE.)
              END IF
 
              !!! RZK-warning                                               !!!
@@ -1771,7 +1765,6 @@ CONTAINS
        ELSE
           IF (.NOT.PRESENT(sig_inv_template)) THEN
              CPABORT("PROGRAMMING ERROR: provide either template or sig_inv")
-             CPASSERT(.FALSE.)
           ENDIF
           ! compute inverse overlap of the projector orbitals
           CALL cp_dbcsr_init(tmp_sig)
@@ -2091,11 +2084,9 @@ CONTAINS
 
     IF (.NOT.PRESENT(operator2).AND.operator2_required) THEN
        CPABORT("SECOND OPERATOR IS REQUIRED")
-       CPASSERT(.FALSE.)
     ENDIF
     IF (.NOT.PRESENT(matrix_trimmer).AND.matrix_trimmer_required) THEN
        CPABORT("TRIMMER MATRIX IS REQUIRED")
-       CPASSERT(.FALSE.)
     ENDIF
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
@@ -2132,7 +2123,6 @@ CONTAINS
 !CALL print_submatrices(subm_out,GroupID)                   
     ELSE
        CPABORT("ILLEGAL ACTION")
-       CPASSERT(.FALSE.)
     ENDIF
 
     CALL construct_dbcsr_from_submatrices(matrix_out,subm_out,dpattern)
@@ -2221,15 +2211,12 @@ CONTAINS
 
     IF (.NOT.PRESENT(subm_s_inv).AND.matrix_s_inv_required) THEN
        CPABORT("S_inv SUBMATRICES ARE REQUIRED")
-       CPASSERT(.FALSE.)
     ENDIF
     IF (.NOT.PRESENT(subm_r_down).AND.matrix_r_required) THEN
        CPABORT("R SUBMATRICES ARE REQUIRED")
-       CPASSERT(.FALSE.)
     ENDIF
     IF (.NOT.PRESENT(matrix_trimmer).AND.matrix_trimmer_required) THEN
        CPABORT("TRIMMER MATRIX IS REQUIRED")
-       CPASSERT(.FALSE.)
     ENDIF
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
@@ -2641,7 +2628,6 @@ CONTAINS
     IF ( INFO.NE.0 ) THEN
        WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
        CPABORT("DSYEV failed")
-       CPASSERT(.FALSE.)
     END IF
     DEALLOCATE(WORK)
    
@@ -2730,13 +2716,11 @@ CONTAINS
           use_ranges=.TRUE.
           IF (.NOT.PRESENT(range2)) THEN
              CPABORT("SPECIFY TWO RANGES")
-             CPASSERT(.FALSE.)
           ENDIF
        ELSE
           use_ranges=.FALSE.
           IF ((.NOT.PRESENT(range1_thr)).OR.(.NOT.PRESENT(range2_thr))) THEN
              CPABORT("SPECIFY TWO THRESHOLDS")
-             CPASSERT(.FALSE.)
           ENDIF
        ENDIF
     ENDIF
@@ -2755,12 +2739,10 @@ CONTAINS
        CALL DPOTRF('L', N, Ainv, N, INFO )
        IF( INFO.NE.0 ) THEN
           CPABORT("DPOTRF failed")
-          CPASSERT(.FALSE.)
        END IF
        CALL DPOTRI('L', N, Ainv, N, INFO )
        IF( INFO.NE.0 ) THEN
           CPABORT("DPOTRI failed")
-          CPASSERT(.FALSE.)
        END IF
        ! complete the matrix
        DO ii=1,N
@@ -2786,7 +2768,6 @@ CONTAINS
        IF ( INFO.NE.0 ) THEN
           WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
           CPABORT("DSYEV failed")
-          CPASSERT(.FALSE.)
        END IF
        DEALLOCATE(WORK)
 
@@ -2836,7 +2817,6 @@ CONTAINS
     CASE DEFAULT
 
        CPABORT("Illegal method selected for matrix inversion")
-       CPASSERT(.FALSE.)
 
     END SELECT
 
@@ -3507,7 +3487,6 @@ CONTAINS
     IF( INFO.NE.0 ) THEN
        WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
        CPABORT("DSYEV failed")
-       CPASSERT(.FALSE.)
     END IF
     DEALLOCATE(WORK)
 

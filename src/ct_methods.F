@@ -93,55 +93,45 @@ CONTAINS
     ! check if all input is in place and flags are consistent
     IF (cts_env%update_q.AND.(.NOT.cts_env%update_p)) THEN
        CPABORT("q-update is possible only with p-update")
-       CPASSERT(.FALSE.)
     ENDIF
 
     IF (cts_env%tensor_type.eq.tensor_up_down) THEN
        CPABORT("riccati is not implemented for biorthogonal basis")
-       CPASSERT(.FALSE.)
     ENDIF
 
     IF (.NOT.ASSOCIATED(cts_env%matrix_ks)) THEN
        CPABORT("KS matrix is not associated")
-       CPASSERT(.FALSE.)
     ENDIF
 
     IF (cts_env%use_virt_orbs.AND.(.NOT.cts_env%use_occ_orbs)) THEN
        CPABORT("virtual orbs can be used only with occupied orbs")
-       CPASSERT(.FALSE.)
     ENDIF
 
     IF (cts_env%use_occ_orbs) THEN
      IF (.NOT.ASSOCIATED(cts_env%matrix_t)) THEN
        CPABORT("T matrix is not associated")
-       CPASSERT(.FALSE.)
      ENDIF
      IF (.NOT.ASSOCIATED(cts_env%matrix_qp_template)) THEN
        CPABORT("QP template is not associated")
-       CPASSERT(.FALSE.)
      ENDIF
      IF (.NOT.ASSOCIATED(cts_env%matrix_pq_template)) THEN
        CPABORT("PQ template is not associated")
-       CPASSERT(.FALSE.)
      ENDIF
     ENDIF
 
     IF (cts_env%use_virt_orbs) THEN
      IF (.NOT.ASSOCIATED(cts_env%matrix_v)) THEN
        CPABORT("V matrix is not associated")
-       CPASSERT(.FALSE.)
      ENDIF
     ELSE
      IF (.NOT.ASSOCIATED(cts_env%matrix_p)) THEN
        CPABORT("P matrix is not associated")
-       CPASSERT(.FALSE.)
      ENDIF
     ENDIF
 
     IF (cts_env%tensor_type.NE.tensor_up_down.AND.&
        cts_env%tensor_type.NE.tensor_orthogonal) THEN
        CPABORT("illegal tensor flag")
-       CPASSERT(.FALSE.)
     ENDIF
 
     ! start real calculations
@@ -283,11 +273,7 @@ CONTAINS
              !   CALL m_flush(unit_nr)
              !ENDIF
            ELSE
-             IF (unit_nr>0) THEN
-                WRITE(unit_nr,'(T6,A)') &
-                      "RICCATI: CG algorithm has NOT converged"
-             ENDIF
-             CPASSERT(.FALSE.)
+             CPABORT("RICCATI: CG algorithm has NOT converged")
            ENDIF
    
         ENDIF
@@ -410,11 +396,7 @@ CONTAINS
              !   CALL m_flush(unit_nr)
              !ENDIF
            ELSE
-             IF (unit_nr>0) THEN
-                WRITE(unit_nr,'(T6,A)') &
-                      "RICCATI: CG algorithm has NOT converged"
-             ENDIF
-             CPASSERT(.FALSE.)
+             CPABORT("RICCATI: CG algorithm has NOT converged")
            ENDIF
    
         ENDIF
@@ -438,14 +420,12 @@ CONTAINS
 
      CASE DEFAULT
         CPABORT("illegal preconditioner type")
-        CPASSERT(.FALSE.)
      END SELECT ! preconditioner type
 
      IF (cts_env%update_p) THEN
        
         IF (cts_env%tensor_type.eq.tensor_up_down) THEN
            CPABORT("orbital update is NYI for this tensor type")
-           CPASSERT(.FALSE.)
         ENDIF
 
         ! transform occupied orbitals
@@ -543,7 +523,6 @@ CONTAINS
      
     ELSE
      CPABORT("illegal occ option")
-     CPASSERT(.FALSE.)
     ENDIF
 
     CALL timestop(handle)
@@ -1084,7 +1063,6 @@ CONTAINS
                 beta=0.0_dp
              CASE DEFAULT
                 CPABORT("illegal conjugator")
-                CPASSERT(.FALSE.)
              END SELECT
           ENDIF ! iteration.eq.0
           
@@ -1185,7 +1163,6 @@ CONTAINS
           
           IF (nsteps.eq.0) THEN
              CPABORT("no step sizes!")
-             CPASSERT(.FALSE.)
           ENDIF
           ! if we have several possible step sizes
           ! choose one with the lowest objective function
@@ -1633,7 +1610,6 @@ CONTAINS
           CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
           IF( INFO.NE.0 ) THEN
              CPABORT("DSYEV failed")
-             CPASSERT(.FALSE.)
           END IF
 
           ! copy eigenvectors into a cp_dbcsr matrix

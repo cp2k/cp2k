@@ -284,8 +284,7 @@ CONTAINS
                ! RZK UPDATE! the update algorithm is removed because
                ! RZK UPDATE! it requires updating core LS_SCF routines
                ! RZK UPDATE! (the code exists in the CVS version)
-               IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "Density_matrix_sign has not been tested yet"
-               CPASSERT(.FALSE.)
+               CPABORT("Density_matrix_sign has not been tested yet")
                ! RZK UPDATE!  CALL density_matrix_sign(almo_scf_env%matrix_p_blk(ispin),&
                ! RZK UPDATE!          local_mu,&
                ! RZK UPDATE!          almo_scf_env%fixed_mu,&
@@ -715,8 +714,7 @@ CONTAINS
     ENDDO ! end scf cycle
 
     IF (.NOT.converged)  THEN
-      IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF for ALMOs on overlapping domains not converged! "
-      CPASSERT(.FALSE.)
+      CPABORT("SCF for ALMOs on overlapping domains not converged! ")
     ENDIF
 
     DO ispin=1,nspin
@@ -861,7 +859,6 @@ CONTAINS
     !!!!!! OPTIMIZED ORBITALS - BOTH ALPNA AND BETA
     IF (almo_scf_env%nspins.gt.1) THEN
        CPABORT("UNRESTRICTED ALMO SCF IS NYI(!)")
-       CPASSERT(.FALSE.)
     ENDIF
 
     DO ispin=1,almo_scf_env%nspins
@@ -992,7 +989,6 @@ CONTAINS
              !ENDIF
              IF (grad_norm.gt.almo_scf_env%envelope_amplitude) THEN
                 CPABORT("Max norm of the initial guess is too large")
-                CPASSERT(.FALSE.)
              ENDIF
              ! use artanh of block-diagonal ALMOs as an initial guess for independent variables
              CALL cp_dbcsr_copy(m_theta,matrix_t_0)
@@ -1767,7 +1763,6 @@ CONTAINS
                             ! RZK-warning THIS PREC HAS NOT BEEN IMPLEMENTED FOR THETA
                             IF (ncores.gt.1) THEN                            
                                CPABORT("serial code only")
-                               CPASSERT(.FALSE.)
                             ENDIF
                             CALL newton_grad_to_step(&
                                     matrix_grad=m_tmp_no_2,&
@@ -1867,7 +1862,6 @@ CONTAINS
                                !!! RZK-warning Currently for non-theta only
                                IF (optimize_theta) THEN
                                   CPABORT("theta is NYI")
-                                  CPASSERT(.FALSE.)
                                ENDIF
 
                                CALL apply_domain_operators(&
@@ -1983,7 +1977,6 @@ CONTAINS
                             beta=0.0_dp
                          CASE DEFAULT
                             CPABORT("illegal conjugator")
-                            CPASSERT(.FALSE.)
                          END SELECT
       
                          IF (beta.lt.0.0_dp) THEN
@@ -2284,8 +2277,7 @@ CONTAINS
        CALL cp_dbcsr_release(matrix_sigma_inv_0)
     
        IF (.NOT.converged)  THEN
-          IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "Optimization not converged! "
-          CPASSERT(.FALSE.)
+          CPABORT("Optimization not converged! ")
        ENDIF
     
        DEALLOCATE(domain_r_down)
@@ -2334,7 +2326,6 @@ CONTAINS
 
           IF (iblock_row.ne.iblock_col) THEN
              CPABORT("off-diagonal block found")
-             CPASSERT(.FALSE.)
           ENDIF
 
           retained_v=almo_scf_env%nvirt_of_domain(iblock_col,ispin)
@@ -3303,7 +3294,6 @@ CONTAINS
                                   beta=0.0_dp
                                CASE DEFAULT
                                   CPABORT("illegal conjugator")
-                                  CPASSERT(.FALSE.)
                                END SELECT
    
                                IF (beta.lt.0.0_dp) THEN
@@ -3485,7 +3475,6 @@ CONTAINS
                             ! one more check on the step size
                             IF (step_size.lt.0.0_dp) THEN
                                CPABORT("Negative step proposed")
-                               CPASSERT(.FALSE.)
                             ENDIF
    
                             CALL cp_dbcsr_copy(almo_scf_env%matrix_k_blk(ispin),&
@@ -3977,8 +3966,7 @@ CONTAINS
           ! RZK UPDATE! the update algorithm is removed because
           ! RZK UPDATE! it requires updating core LS_SCF routines
           ! RZK UPDATE! (the code exists in the CVS version)
-          IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "CVS only: density_matrix_sign has not been updated in SVN"
-          CPASSERT(.FALSE.)
+          CPABORT("CVS only: density_matrix_sign has not been updated in SVN")
           ! RZK UPDATE!CALL density_matrix_sign(almo_scf_env%matrix_p(ispin),&
           ! RZK UPDATE!                     local_mu,&
           ! RZK UPDATE!                     almo_scf_env%fixed_mu,&

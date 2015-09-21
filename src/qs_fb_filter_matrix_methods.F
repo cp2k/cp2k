@@ -1443,7 +1443,6 @@ CONTAINS
     IF (info .NE. 0) THEN
        WRITE (*,*) "DSYGV ERROR MESSAGE: ", info
        CPABORT("DSYGV failed")
-       CPASSERT(.FALSE.)
     END IF
 
     CALL timestop(handle_dsygv)
