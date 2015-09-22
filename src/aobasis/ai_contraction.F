@@ -84,8 +84,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'contraction_ab', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, lda, ldb, ldq, lds, &
-                                                ldw, mal, mbl, nal, nbl
+    INTEGER                                  :: lda, ldb, ldq, lds, ldw, mal, &
+                                                mbl, nal, nbl
     LOGICAL                                  :: failure, my_trans
     REAL(KIND=dp)                            :: fs
     REAL(KIND=dp), ALLOCATABLE, &
@@ -173,7 +173,7 @@ CONTAINS
        END IF
     ELSE
        ! Copy of arrays is not covered here
-       CPASSERT(istat==0)
+       CPABORT("Copy of arrays is not covered here")
     END IF
 
   END SUBROUTINE contraction_ab
@@ -214,8 +214,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'contraction_abc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, lda, ldb, ldc, mal, &
-                                                mbl, mcl, nal, nbl, ncl
+    INTEGER                                  :: lda, ldb, ldc, mal, mbl, mcl, &
+                                                nal, nbl, ncl
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work1, work2, work3, work4
@@ -302,7 +302,7 @@ CONTAINS
             message="Not implemented",error_level=cp_failure_level)
     ELSE
        ! Copy of arrays is not covered here
-       CPASSERT(istat==0)
+       CPABORT("Copy of arrays is not covered here")
     END IF
 
   END SUBROUTINE contraction_abc
