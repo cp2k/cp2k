@@ -920,10 +920,8 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cr ( cd, rhos1 % pw % cr3d )
 
-  DEALLOCATE (zs,STAT=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zs")
-  DEALLOCATE (cd,STAT=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cd")
+  DEALLOCATE (zs)
+  DEALLOCATE (cd)
 
 END SUBROUTINE dg_get_patch_1
 
@@ -985,10 +983,8 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cri ( cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
 
-  DEALLOCATE (zs,stat=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zs")
-  DEALLOCATE (cd,stat=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cd")
+  DEALLOCATE (zs)
+  DEALLOCATE (cd)
 
 END SUBROUTINE dg_get_patch_2
 

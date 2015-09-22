@@ -322,10 +322,8 @@ CONTAINS
                len/1024," Kwords",perf," Mcopy/s"
        END IF
 
-       DEALLOCATE ( ca , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ca")
-       DEALLOCATE ( cb , STAT = ierr )
-       IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cb")
+       DEALLOCATE ( ca )
+       DEALLOCATE ( cb )
     END DO
     CALL mp_sync(para_env%group)
   END SUBROUTINE copy_test
@@ -443,12 +441,9 @@ CONTAINS
                   " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
           END IF
 
-          DEALLOCATE ( ma , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
-          DEALLOCATE ( mb , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
-          DEALLOCATE ( mc , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
+          DEALLOCATE ( ma )
+          DEALLOCATE ( mb )
+          DEALLOCATE ( mc )
        END DO
     ENDIF
 
@@ -543,12 +538,9 @@ CONTAINS
                   " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
           END IF
 
-          DEALLOCATE ( ma , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ma")
-          DEALLOCATE ( mb , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mb")
-          DEALLOCATE ( mc , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc")
+          DEALLOCATE ( ma )
+          DEALLOCATE ( mb )
+          DEALLOCATE ( mc )
        END DO
     ENDIF
 
@@ -652,10 +644,8 @@ CONTAINS
                    WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
                         ADJUSTR(method)," test (in-place)    Size = ",len, perf," Mflop/s"
                 END IF
-                DEALLOCATE ( ca , STAT = ierr )
-                IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ca")
-                DEALLOCATE ( ra , STAT = ierr )
-                IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ra")
+                DEALLOCATE ( ca )
+                DEALLOCATE ( ra )
              END IF
           END DO
           IF ( para_env%ionode ) WRITE ( iw, * )
@@ -704,14 +694,10 @@ CONTAINS
           END IF
           IF ( para_env%ionode ) WRITE ( iw, * )
 
-          DEALLOCATE ( ra , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ra")
-          DEALLOCATE ( ca , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ca")
-          DEALLOCATE ( cb , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cb")
-          DEALLOCATE ( cc , STAT = ierr )
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cc")
+          DEALLOCATE ( ra )
+          DEALLOCATE ( ca )
+          DEALLOCATE ( cb )
+          DEALLOCATE ( cc )
        END IF
        CALL finalize_fft(para_env, wisdom_file=wisdom_file)
     END DO

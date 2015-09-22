@@ -229,8 +229,7 @@ PROGRAM graph
      CALL M_GETARG(i,wq_char)
 
      IF (INDEX(wq_char,'-ndw').NE.0)THEN
-        DEALLOCATE(idw,stat=stat)
-        IF (stat/=0) STOP "Allocation Error"
+        DEALLOCATE(idw)
 
         ndw=0
         ndw_loop: DO ix=i+1,argcount
@@ -262,8 +261,7 @@ PROGRAM graph
            ENDIF
         ENDDO nprd_loop
 
-        DEALLOCATE(iprd,stat=stat)
-        IF (stat/=0) STOP "Allocation Error"
+        DEALLOCATE(iprd)
         ALLOCATE(iprd(nprd),stat=stat)
         IF (stat/=0) STOP "Allocation Error"
 
@@ -421,8 +419,7 @@ PROGRAM graph
      DO i=1,ndim
         ngrid(i_map(i))=tmp(i)
      END DO
-     DEALLOCATE(tmp,stat=stat)
-     IF (stat/=0) STOP "Allocation Error" 
+     DEALLOCATE(tmp)
   ELSE
      ngrid=100
   END IF
@@ -681,42 +678,24 @@ PROGRAM graph
   IF ((l_pmin) .OR. (l_popt)) CALL fes_path(fes, ndim, ngrid, dp_grid, iperd, x0, ndw, mep_input_data, l_int)
   
   ! Free memory
-  DEALLOCATE(ngrid,stat=stat)
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(dp_grid,stat=stat)
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(idw,stat=stat)
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(iperd,stat=stat)
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(x0,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(xf,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(ss0,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(delta_s,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(ww,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(ind,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(inds,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(nn,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(nn_max,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(dp_cut,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(i_map,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(fes,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(iprd,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(mep_input_data%minima,stat=stat)
-  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(ngrid)
+  DEALLOCATE(dp_grid)
+  DEALLOCATE(idw)
+  DEALLOCATE(iperd)
+  DEALLOCATE(x0)
+  DEALLOCATE(xf)
+  DEALLOCATE(ss0)
+  DEALLOCATE(delta_s)
+  DEALLOCATE(ww)
+  DEALLOCATE(ind)
+  DEALLOCATE(inds)
+  DEALLOCATE(nn)
+  DEALLOCATE(nn_max)
+  DEALLOCATE(dp_cut)
+  DEALLOCATE(i_map)
+  DEALLOCATE(fes)
+  DEALLOCATE(iprd)
+  DEALLOCATE(mep_input_data%minima)
 
   ! Terminate FES
   WRITE(iw,'(/,A,/)') "FES| NORMAL FES TERMINATION."

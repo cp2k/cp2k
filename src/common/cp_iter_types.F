@@ -156,8 +156,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(iteration_info)) THEN
        IF (iteration_info%ref_count<=0) THEN
           CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
@@ -165,27 +163,15 @@ CONTAINS
        iteration_info%ref_count=iteration_info%ref_count-1
        IF (iteration_info%ref_count==0) THEN
           IF (ASSOCIATED(iteration_info%iteration)) THEN
-             DEALLOCATE(iteration_info%iteration,stat=stat)
-             IF (stat/=0) THEN
-                CALL mp_abort(routineP//" iteration_info%iteration deallocation stat ")
-             END IF
+             DEALLOCATE(iteration_info%iteration)
           END IF
           IF (ASSOCIATED(iteration_info%last_iter)) THEN
-             DEALLOCATE(iteration_info%last_iter,stat=stat)
-             IF (stat/=0) THEN
-                CALL mp_abort(routineP//" iteration_info%last_iter deallocation stat ")
-             END IF
+             DEALLOCATE(iteration_info%last_iter)
           END IF
           IF (ASSOCIATED(iteration_info%level_name)) THEN
-             DEALLOCATE(iteration_info%level_name,stat=stat)
-             IF (stat/=0) THEN
-                CALL mp_abort(routineP//" iteration_info%level_name deallocation stat ")
-             END IF
+             DEALLOCATE(iteration_info%level_name)
           END IF
-          DEALLOCATE(iteration_info,stat=stat)
-          IF (stat/=0) THEN
-             CALL mp_abort(routineP//" iteration_info deallocation stat ")
-          END IF
+          DEALLOCATE(iteration_info)
        END IF
     END IF
   END SUBROUTINE cp_iteration_info_release
@@ -212,22 +198,19 @@ CONTAINS
 
        iteration_info_out%n_rlevel           = iteration_info_in%n_rlevel
 
-       DEALLOCATE(iteration_info_out%iteration,stat=stat)
-       IF (stat/=0)CALL mp_abort(routineP//" could not deallocate iteration_info%iteration")
+       DEALLOCATE(iteration_info_out%iteration)
        i = SIZE(iteration_info_in%iteration)
        ALLOCATE(iteration_info_out%iteration(i),stat=stat)
        IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info%iteration")
        iteration_info_out%iteration          = iteration_info_in%iteration
 
-       DEALLOCATE(iteration_info_out%last_iter,stat=stat)
-       IF (stat/=0)CALL mp_abort(routineP//" could not deallocate iteration_info%last_iter")
+       DEALLOCATE(iteration_info_out%last_iter)
        i = SIZE(iteration_info_in%last_iter)
        ALLOCATE(iteration_info_out%last_iter(i),stat=stat)
        IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info%last_iter")
        iteration_info_out%last_iter          = iteration_info_in%last_iter
 
-       DEALLOCATE(iteration_info_out%level_name,stat=stat)
-       IF (stat/=0)CALL mp_abort(routineP//" could not deallocate iteration_info%level_name")
+       DEALLOCATE(iteration_info_out%level_name)
        i = SIZE(iteration_info_in%level_name)
        ALLOCATE(iteration_info_out%level_name(i),stat=stat)
        IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info%level_name")

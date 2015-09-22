@@ -413,8 +413,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
-        DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
+        DEALLOCATE(pos)
      CASE('GETE','GET_E')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -470,8 +469,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
-        DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
+        DEALLOCATE(pos)
      CASE('CALCEF','CALC_EF')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -502,8 +500,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
-        DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
+        DEALLOCATE(pos)
      CASE('UNITS_EVA','UNITS_EV_A')
         e_fact=evolt
         pos_fact=angstrom

@@ -932,8 +932,7 @@ CONTAINS
 
     ENDIF
 
-    DEALLOCATE ( p2p, STAT = ierr )
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p2p")
+    DEALLOCATE ( p2p)
 
     IF ( PRESENT ( status ) ) THEN
        status = stat

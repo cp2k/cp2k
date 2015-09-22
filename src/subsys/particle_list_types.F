@@ -173,7 +173,6 @@ SUBROUTINE particle_list_release(list)
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -188,8 +187,7 @@ SUBROUTINE particle_list_release(list)
            END IF
         END IF
         NULLIFY(list%els)
-        DEALLOCATE(list,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(list)
      END IF
   END IF
   NULLIFY(list)

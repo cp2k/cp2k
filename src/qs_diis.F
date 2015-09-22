@@ -366,8 +366,7 @@ CONTAINS
         CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
         CALL cp_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
 
-        DEALLOCATE (occ,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"occ")
+        DEALLOCATE (occ)
 
       ELSE
 
@@ -515,12 +514,9 @@ CONTAINS
         END DO
       END DO
 
-      DEALLOCATE (a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"a")
-      DEALLOCATE (b,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"b")
-      DEALLOCATE (ev,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ev")
+      DEALLOCATE (a)
+      DEALLOCATE (b)
+      DEALLOCATE (ev)
 
     ELSE
 
@@ -793,12 +789,9 @@ CONTAINS
         END DO ! end-loop-ispin
       ENDIF ! if-iscf-to-updateKS------ END
 
-      DEALLOCATE (a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"a")
-      DEALLOCATE (b,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"b")
-      DEALLOCATE (ev,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ev")
+      DEALLOCATE (a)
+      DEALLOCATE (b)
+      DEALLOCATE (ev)
 
     ELSE
       DO ispin=1,nspin

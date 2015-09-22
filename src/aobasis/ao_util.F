@@ -659,10 +659,7 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"work")
-    END IF
+    DEALLOCATE (work)
 
   END SUBROUTINE transform_c2s
 
@@ -703,10 +700,7 @@ CONTAINS
        CPC_so(1:nsoset(maxl),iso) = work(1:nsoset(maxl),iso,1)
     END DO
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"work")
-    END IF
+    DEALLOCATE (work)
 
   END SUBROUTINE transform_c2s_new
 
@@ -787,10 +781,7 @@ CONTAINS
        ENDDO ! l
     ENDDO ! ic2
 
-    DEALLOCATE (matsc,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"matsc")
-    END IF
+    DEALLOCATE (matsc)
 
   END SUBROUTINE transform_s2c
   !------------------------------------------------------------------------------!

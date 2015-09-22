@@ -311,9 +311,7 @@ CONTAINS
 
     END DO  ! l
 
-    DEALLOCATE (gexp,erf_z_h,gh_tmp,int1,int2,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "gexp,gh_tmp,erf_z_h,int1,int2")
+    DEALLOCATE (gexp,erf_z_h,gh_tmp,int1,int2)
   END SUBROUTINE calculate_g0
 
 ! *****************************************************************************
@@ -336,23 +334,15 @@ CONTAINS
     DO ikind = 1,nkind
 
       IF(ASSOCIATED(mp_gau(ikind)%Qlm_gg)) THEN
-        DEALLOCATE(mp_gau(ikind)%Qlm_gg,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "Qlm_gg")
+        DEALLOCATE(mp_gau(ikind)%Qlm_gg)
       END IF
 
-      DEALLOCATE(mp_gau(ikind)%g0_h, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "mp_gau(ikind)%g0_h")
+      DEALLOCATE(mp_gau(ikind)%g0_h)
 
-      DEALLOCATE(mp_gau(ikind)%vg0_h, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "mp_gau(ikind)%vg0_h")
+      DEALLOCATE(mp_gau(ikind)%vg0_h)
     END DO
 
-    DEALLOCATE(mp_gau, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "mp_gau")
+    DEALLOCATE(mp_gau)
 
   END SUBROUTINE deallocate_mpole_gau
 
@@ -368,28 +358,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat, natom
+    INTEGER                                  :: iat, natom
 
     natom = SIZE(mp_rho)
 
     DO iat = 1,natom
-      DEALLOCATE(mp_rho(iat)%Qlm_h,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "Qlm_h")
-      DEALLOCATE(mp_rho(iat)%Qlm_s,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "Qlm_s")
-      DEALLOCATE(mp_rho(iat)%Qlm_tot,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "Qlm_tot")
-      DEALLOCATE(mp_rho(iat)%Qlm_car,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "Qlm_car")
+      DEALLOCATE(mp_rho(iat)%Qlm_h)
+      DEALLOCATE(mp_rho(iat)%Qlm_s)
+      DEALLOCATE(mp_rho(iat)%Qlm_tot)
+      DEALLOCATE(mp_rho(iat)%Qlm_car)
     END DO
 
-    DEALLOCATE(mp_rho,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "mp_rho")
+    DEALLOCATE(mp_rho)
 
   END SUBROUTINE deallocate_mpole_rho
 
@@ -405,7 +385,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat, natom
+    INTEGER                                  :: iat, natom
 
     IF (ASSOCIATED(rho0_atom_set)) THEN
 
@@ -422,9 +402,7 @@ CONTAINS
         ENDIF
       ENDDO
 
-      DEALLOCATE (rho0_atom_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "rho0_atom_set")
+      DEALLOCATE (rho0_atom_set)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho0_atom_set is not associated and "//&
@@ -443,8 +421,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_mpole', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (ASSOCIATED(rho0)) THEN
 
       IF (ASSOCIATED(rho0%mp_gau)) CALL deallocate_mpole_gau(rho0%mp_gau)
@@ -452,34 +428,24 @@ CONTAINS
       IF (ASSOCIATED(rho0%mp_rho)) CALL deallocate_mpole_rho(rho0%mp_rho)
 
       IF (ASSOCIATED(rho0%lmax0_kind)) THEN
-         DEALLOCATE(rho0%lmax0_kind,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "rho0%lmax0_kind")
+         DEALLOCATE(rho0%lmax0_kind)
       END IF
 
       IF (ASSOCIATED(rho0%norm_g0l_h)) THEN
-         DEALLOCATE(rho0%norm_g0l_h, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "rho0%norm_g0l_h")
+         DEALLOCATE(rho0%norm_g0l_h)
       END IF
 
       IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
           CALL pw_release(rho0%rho0_s_rs%pw)
-          DEALLOCATE(rho0%rho0_s_rs, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "rho0%rho0_s_rs")
+          DEALLOCATE(rho0%rho0_s_rs)
       ENDIF
 
       IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
           CALL pw_release(rho0%rho0_s_gs%pw)
-          DEALLOCATE(rho0%rho0_s_gs, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "rho0%rho0_s_gs")
+          DEALLOCATE(rho0%rho0_s_gs)
 
       ENDIF
-      DEALLOCATE (rho0,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "rho0_mpole")
+      DEALLOCATE (rho0)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho0 is not associated and "//&

@@ -132,14 +132,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_md_ftable', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (current_nmax > -1) THEN
 
-      DEALLOCATE (ftable,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"ftable")
-      END IF
+      DEALLOCATE (ftable)
 
       current_nmax = -1
 

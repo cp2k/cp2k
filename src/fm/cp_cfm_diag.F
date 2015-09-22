@@ -110,12 +110,9 @@ CONTAINS
     liwork = iwork(1)
 #endif
 
-    DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
-    DEALLOCATE (rwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork")
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (iwork)
+    DEALLOCATE (rwork)
+    DEALLOCATE (work)
     ALLOCATE (iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork",int_size*liwork)
     iwork(:) = 0
@@ -149,12 +146,9 @@ CONTAINS
     IF (info /= 0) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Diagonalisation complex matrix failed")
     END IF
-    DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
-    DEALLOCATE (rwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork")
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (iwork)
+    DEALLOCATE (rwork)
+    DEALLOCATE (work)
 
     CALL timestop(handle)
 

@@ -1100,9 +1100,7 @@ CONTAINS
       m1 = m1 + maxso
     END DO  ! iset1
 
-   DEALLOCATE(g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h,vx,STAT=istat)
-   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h")
+   DEALLOCATE(g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h,vx)
 
    DEALLOCATE(cg_list,cg_n_list)
 
@@ -1391,9 +1389,7 @@ CONTAINS
     END DO  ! iset1
     END DO ! ispin
 
-    DEALLOCATE(g1,g2,gg,dgg,matso_h,matso_s,gVXCg_h,gVXCg_s,gVXGg_h,gVXGg_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
+    DEALLOCATE(g1,g2,gg,dgg,matso_h,matso_s,gVXCg_h,gVXCg_s,gVXGg_h,gVXGg_s)
     DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list)
 
     CALL timestop(handle)

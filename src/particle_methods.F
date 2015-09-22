@@ -374,14 +374,10 @@ CONTAINS
        WRITE (iunit) y4*REAL(factor,KIND=sp)
        WRITE (iunit) z4*REAL(factor,KIND=sp)
        ! Release work storage
-       DEALLOCATE (arr,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"arr")
-       DEALLOCATE (x4,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"x4")
-       DEALLOCATE (y4,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"y4")
-       DEALLOCATE (z4,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"z4")
+       DEALLOCATE (arr)
+       DEALLOCATE (x4)
+       DEALLOCATE (y4)
+       DEALLOCATE (z4)
     CASE (dump_pdb)
        my_charge_occup = .FALSE.
        IF (PRESENT(charge_occup)) my_charge_occup = charge_occup

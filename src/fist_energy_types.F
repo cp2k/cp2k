@@ -77,11 +77,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (ASSOCIATED(fist_energy)) THEN
-      DEALLOCATE (fist_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fist_energy")
+      DEALLOCATE (fist_energy)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The fist_energy pointer is not associated "//&

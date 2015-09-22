@@ -297,21 +297,13 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     ! *** Release work storage ***
-    DEALLOCATE (basis_set_list,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "basis_set_list")
+    DEALLOCATE (basis_set_list)
 
-    DEALLOCATE (efgab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "efgab")
+    DEALLOCATE (efgab)
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    DEALLOCATE (work)
 
-    DEALLOCATE (efgint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "efgint")
+    DEALLOCATE (efgint)
 
     ! Print the electric field gradient matrix, if requested
 

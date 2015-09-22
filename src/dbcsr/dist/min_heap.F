@@ -518,8 +518,7 @@ CONTAINS
        new_nodes(1:heap%n) = heap%nodes(1:heap%n)
        tmp_nodes => heap%nodes
        heap%nodes => new_nodes
-       DEALLOCATE (tmp_nodes, stat=stat)
-       IF (stat /= 0) error = .TRUE.
+       DEALLOCATE (tmp_nodes)
     ENDIF
   END SUBROUTINE heap_reallocate
 

@@ -565,8 +565,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: block_size, current_sum, &
-                                                istat, nblocks, nsize_mix, &
-                                                selector
+                                                nblocks, nsize_mix, selector
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mixer
     INTEGER, DIMENSION(:), POINTER           :: sizes
     TYPE(dbcsr_error_type)                   :: error
@@ -606,9 +605,7 @@ CONTAINS
     current_sum = SUM (block_sizes)
     CALL dbcsr_assert (current_sum, "EQ", size_sum, dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Incorrect block sizes",__LINE__,error)
-    DEALLOCATE(mixer, sizes, STAT=istat)
-    CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "deallocation error",__LINE__,error)
+    DEALLOCATE(mixer, sizes)
 
   END SUBROUTINE dbcsr_make_random_block_sizes
 

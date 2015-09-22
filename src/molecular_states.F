@@ -353,27 +353,23 @@ CONTAINS
           END DO
        ENDIF
 
-       DEALLOCATE (evals,STAT=isos)
-       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eval")
+       DEALLOCATE (evals)
        CALL cp_fm_release ( b)
        CALL cp_fm_release ( c)
        CALL cp_fm_release ( d)
        CALL cp_fm_release ( e_vectors)
        CALL cp_fm_release ( rot_e_vectors)
 
-       DEALLOCATE (states,STAT=isos)
-       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"states")
+       DEALLOCATE (states)
 
     END DO
     CALL cp_fm_release(smo)
     CALL cp_fm_to_fm(storage,mo_localized)
     CALL cp_fm_release(storage)
     IF (ASSOCIATED(mark_states))THEN
-       DEALLOCATE (mark_states,stat=isos)
-       IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mark_states")
+       DEALLOCATE (mark_states)
     END IF
-    DEALLOCATE (nstates,STAT=isos)
-    IF (isos /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nstates")
+    DEALLOCATE (nstates)
     CALL cp_print_key_finished_output(unit_report,logger,loc_print_section,&
                                       "MOLECULAR_STATES")
     !------------------------------------------------------------------------------

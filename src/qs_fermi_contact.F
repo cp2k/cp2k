@@ -284,22 +284,14 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     ! *** Release work storage ***
-    DEALLOCATE (basis_set_list,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "basis_set_list")
+    DEALLOCATE (basis_set_list)
 
-    DEALLOCATE (fcab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "fcab")
+    DEALLOCATE (fcab)
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    DEALLOCATE (work)
 
     NULLIFY (fcint(1)%block)
-    DEALLOCATE (fcint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "fcint")
+    DEALLOCATE (fcint)
 
 !   *** Print the Fermi contact matrix, if requested ***
 

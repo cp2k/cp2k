@@ -675,8 +675,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    DEALLOCATE (wrk,stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"wrk")
+    DEALLOCATE (wrk)
   END SUBROUTINE restore_temporary_set
 
 ! *****************************************************************************

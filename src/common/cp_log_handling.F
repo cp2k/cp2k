@@ -451,8 +451,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(logger)) THEN
        IF (logger%ref_count<1) CALL mp_abort(routineP//" logger%ref_count<1")
        logger%ref_count=logger%ref_count-1
@@ -471,8 +469,7 @@ CONTAINS
           END IF
           CALL my_cp_para_env_release(logger%para_env)
           CALL cp_iteration_info_release(logger%iter_info)
-          DEALLOCATE(logger,stat=stat)
-          IF (stat/=0) PRINT *, routineP," WARNING logger dealloc stat=",stat
+          DEALLOCATE(logger)
        END IF
     END IF
     NULLIFY(logger)
@@ -785,8 +782,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'my_cp_para_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(para_env)) THEN
        IF (para_env%ref_count<1) THEN
           CALL mp_abort(routineP//" para_env%ref_count<1")
@@ -796,8 +791,7 @@ CONTAINS
           IF (para_env%owns_group) THEN
              CALL mp_comm_free(para_env%group)
           END IF
-          DEALLOCATE(para_env,stat=stat)
-          IF(stat/=0)PRINT *,routineP," WARNING para_env DEALLOCATE stat=",stat
+          DEALLOCATE(para_env)
        END IF
     END IF
     NULLIFY(para_env)

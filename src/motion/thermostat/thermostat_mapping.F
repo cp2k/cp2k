@@ -1206,8 +1206,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "work",int_size*num_massive_atm)
     CALL sort(massive_atom_list,num_massive_atm,work)
-    DEALLOCATE (work,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (work)
 
     DEALLOCATE(local_atm_list)
     DEALLOCATE(array_num_massive_atm)

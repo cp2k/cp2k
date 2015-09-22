@@ -936,72 +936,32 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    DEALLOCATE (mc_par%mc_input_file)
+    DEALLOCATE (mc_par%mc_bias_file)
 
-    DEALLOCATE (mc_par%mc_input_file,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%mc_input_file")
-    DEALLOCATE (mc_par%mc_bias_file,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%mc_bias_file")
+   DEALLOCATE (mc_par%pmtraion_mol)
+    DEALLOCATE (mc_par%pmtrans_mol)
+    DEALLOCATE (mc_par%pmrot_mol)
+    DEALLOCATE (mc_par%pmswap_mol)
 
-   DEALLOCATE (mc_par%pmtraion_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmtraion_mol")
-    DEALLOCATE (mc_par%pmtrans_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmtrans_mol")
-    DEALLOCATE (mc_par%pmrot_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmrot_mol")
-    DEALLOCATE (mc_par%pmswap_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmswap_mol")
+    DEALLOCATE (mc_par%eta)
 
-    DEALLOCATE (mc_par%eta,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%eta")
+    DEALLOCATE (mc_par%rmbond)
+    DEALLOCATE (mc_par%rmangle)
+    DEALLOCATE (mc_par%rmdihedral)
+    DEALLOCATE (mc_par%rmtrans)
+    DEALLOCATE (mc_par%rmrot)
 
-    DEALLOCATE (mc_par%rmbond,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%rmbond")
-    DEALLOCATE (mc_par%rmangle,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%rmangle")
-    DEALLOCATE (mc_par%rmdihedral,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%rmdihedral")
-    DEALLOCATE (mc_par%rmtrans,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%rmtrans")
-    DEALLOCATE (mc_par%rmrot,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%rmrot")
-
-    DEALLOCATE (mc_par%avbmc_atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%avbmc_atom")
-    DEALLOCATE (mc_par%avbmc_rmin,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%avbmc_rmin")
-    DEALLOCATE (mc_par%avbmc_rmax,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%avbmc_rmax")
-    DEALLOCATE (mc_par%pmavbmc_mol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmavbmc_mol")
-    DEALLOCATE (mc_par%pbias,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pbias")
+    DEALLOCATE (mc_par%avbmc_atom)
+    DEALLOCATE (mc_par%avbmc_rmin)
+    DEALLOCATE (mc_par%avbmc_rmax)
+    DEALLOCATE (mc_par%pmavbmc_mol)
+    DEALLOCATE (mc_par%pbias)
    IF(mc_par%ensemble == "VIRIAL") THEN
-    DEALLOCATE (mc_par%virial_temps,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%virial_temps")
+    DEALLOCATE (mc_par%virial_temps)
    END IF
 
-   DEALLOCATE (mc_par,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par")
+   DEALLOCATE (mc_par)
     NULLIFY(mc_par)
 
  END SUBROUTINE mc_sim_par_destroy
@@ -1227,23 +1187,11 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
-    DEALLOCATE (mc_input_file%mol_set_nmol_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_input_file%mol_set_nmol_row")
-    DEALLOCATE (mc_input_file%mol_set_nmol_column,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_input_file%mol_set_nmol_column")
-    DEALLOCATE (mc_input_file%text,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_input_file%text")
-    DEALLOCATE (mc_input_file%atom_names_empty,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_input_file%atom_names_empty")
-    DEALLOCATE (mc_input_file%coordinates_empty,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_input_file%coordinates_empty")
+    DEALLOCATE (mc_input_file%mol_set_nmol_row)
+    DEALLOCATE (mc_input_file%mol_set_nmol_column)
+    DEALLOCATE (mc_input_file%text)
+    DEALLOCATE (mc_input_file%atom_names_empty)
+    DEALLOCATE (mc_input_file%coordinates_empty)
 
   END SUBROUTINE mc_input_file_destroy
 
@@ -2141,12 +2089,9 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,box_number,&
     ENDDO
 
 ! get rid of stuff we don't need
-    DEALLOCATE(names_init,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"names_init")
-    DEALLOCATE(molecule_kinds_new,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"molecule_kinds_new")
-    DEALLOCATE(particles,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"particles")
+    DEALLOCATE(names_init)
+    DEALLOCATE(molecule_kinds_new)
+    DEALLOCATE(particles)
 
 END SUBROUTINE MC_DETERMINE_MOLECULE_INFO
 
@@ -2164,29 +2109,17 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    DEALLOCATE(mc_molecule_info%nchains)
+    DEALLOCATE(mc_molecule_info%nunits)
+    DEALLOCATE(mc_molecule_info%mol_type)
+    DEALLOCATE(mc_molecule_info%in_box)
+    DEALLOCATE(mc_molecule_info%names)
+    DEALLOCATE(mc_molecule_info%atom_names)
+    DEALLOCATE(mc_molecule_info%conf_prob)
+    DEALLOCATE(mc_molecule_info%nunits_tot)
+    DEALLOCATE(mc_molecule_info%mass)
 
-    DEALLOCATE(mc_molecule_info%nchains,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nchains")
-    DEALLOCATE(mc_molecule_info%nunits,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nunits")
-    DEALLOCATE(mc_molecule_info%mol_type,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mol_type")
-    DEALLOCATE(mc_molecule_info%in_box,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"in_box")
-    DEALLOCATE(mc_molecule_info%names,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"names")
-    DEALLOCATE(mc_molecule_info%atom_names,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_names")
-    DEALLOCATE(mc_molecule_info%conf_prob,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"conf_prob")
-    DEALLOCATE(mc_molecule_info%nunits_tot,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nunits_tot")
-    DEALLOCATE(mc_molecule_info%mass,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mass")
-
-    DEALLOCATE(mc_molecule_info,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc_molecule_info")
+    DEALLOCATE(mc_molecule_info)
     NULLIFY(mc_molecule_info)
 
   END SUBROUTINE mc_molecule_info_destroy

@@ -238,9 +238,7 @@ CONTAINS
        atom_info%id_atmname(iatom) = id_name(ikind)
        atom_info%id_element(iatom) = id_name(ikind)
     END DO
-    DEALLOCATE (id_name,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "id_name",para_env)
+    DEALLOCATE (id_name)
 
     ! Read atomic coordinates
     IF (para_env%ionode) THEN
@@ -283,9 +281,7 @@ CONTAINS
           ikind = ibuf(iatom)
           atom_info%id_molname(iatom) = id_name(ikind)
        END DO
-       DEALLOCATE (id_name,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"id_name",&
-                                        para_env)
+       DEALLOCATE (id_name)
        ! Read molecule index which is used also as residue id
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) atom_info%resid(1:natom)
@@ -299,8 +295,7 @@ CONTAINS
           atom_info%id_resname(iatom) = str2id(s2s(cp_to_string(atom_info%resid(iatom))))
        END DO
     END IF
-    DEALLOCATE (ibuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+    DEALLOCATE (ibuf)
 
     !MK to be checked ...
     topology%aa_element = .TRUE.
@@ -441,8 +436,7 @@ CONTAINS
                                                " coordinates (IOSTAT = "//&
                                                TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                                input_unit,para_env)
-                DEALLOCATE (rbuf,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+                DEALLOCATE (rbuf)
                 ALLOCATE (ibuf(nbuf),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "ibuf",int_size*nbuf,&
@@ -453,8 +447,7 @@ CONTAINS
                                                TRIM(section_name)//" (IOSTAT = "//&
                                                TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                                input_unit,para_env)
-                DEALLOCATE (ibuf,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+                DEALLOCATE (ibuf)
              END IF
              exit_routine = .TRUE.
           ELSE
@@ -502,8 +495,7 @@ CONTAINS
        particle_set(iparticle)%r(1:3) = rbuf(1:3,iparticle)
     END DO
 
-    DEALLOCATE (rbuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+    DEALLOCATE (rbuf)
 
     ALLOCATE (ibuf(nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -525,8 +517,7 @@ CONTAINS
        particle_set(iparticle)%atom_index = ibuf(iparticle)
     END DO
 
-    DEALLOCATE (ibuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+    DEALLOCATE (ibuf)
 
     IF (iw > 0) THEN
        WRITE (UNIT=iw,FMT="(T2,A)")&
@@ -662,8 +653,7 @@ CONTAINS
                                                   " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                                   input_unit,para_env)
                 END DO
-                DEALLOCATE (rbuf,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+                DEALLOCATE (rbuf)
                 IF (iw > 0) THEN
                    message = "INFO: Ignoring section <"//TRIM(ADJUSTL(section_label))//&
                              "> from binary restart file <"//TRIM(binary_restart_file_name)//">."
@@ -719,8 +709,7 @@ CONTAINS
           END IF
        END IF
 
-       DEALLOCATE (rbuf,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+       DEALLOCATE (rbuf)
 
     END IF
 
@@ -931,8 +920,7 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE (rbuf,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+       DEALLOCATE (rbuf)
 
        restart = .TRUE.
 

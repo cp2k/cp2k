@@ -410,12 +410,8 @@ CONTAINS
       ENDDO
 
  ! deallocate some stuff
-      DEALLOCATE(subsys_bias,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"subsys_bias")
-      DEALLOCATE(particles_bias,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"particles_bias")
+      DEALLOCATE(subsys_bias)
+      DEALLOCATE(particles_bias)
 
 ! end the timing
       CALL timestop(handle)
@@ -633,12 +629,8 @@ CONTAINS
       ENDIF
 
       IF(loverlap) THEN
-         DEALLOCATE(oldsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"oldsys")
-         DEALLOCATE(particles_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"particles_old")
+         DEALLOCATE(oldsys)
+         DEALLOCATE(particles_old)
          CALL timestop(handle)
          RETURN
       ENDIF
@@ -847,9 +839,7 @@ CONTAINS
       ENDIF
 
 ! deallocate r_insert_mol
-      DEALLOCATE(r_insert_mol,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "r_insert_mol")
+      DEALLOCATE(r_insert_mol)
 
 ! now let's create the two new environments with the different number
 ! of molecules
@@ -929,27 +919,13 @@ CONTAINS
          CALL mc_molecule_info_destroy(mc_molecule_info_test)
          CALL force_env_release(test_env(insert_box)%force_env)
          CALL force_env_release(test_env(remove_box)%force_env)
-         DEALLOCATE(insert_coords,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"insert_coords")
-         DEALLOCATE(remove_coords,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"remove_coords")
-         DEALLOCATE(r_cbmc,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"r_cbmc")
-         DEALLOCATE(cbmc_energies,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"cbmc_energies")
-         DEALLOCATE(oldsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"oldsys")
-         DEALLOCATE(particles_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"particles_old")
-         DEALLOCATE(test_env,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-              __LINE__,"test_env")
+         DEALLOCATE(insert_coords)
+         DEALLOCATE(remove_coords)
+         DEALLOCATE(r_cbmc)
+         DEALLOCATE(cbmc_energies)
+         DEALLOCATE(oldsys)
+         DEALLOCATE(particles_old)
+         DEALLOCATE(test_env)
          CALL timestop(handle)
          RETURN
       ENDIF
@@ -1165,9 +1141,7 @@ CONTAINS
             bias_env(insert_box)%force_env =>  test_env_bias(insert_box)%force_env
             CALL force_env_release(bias_env(remove_box)%force_env)
             bias_env(remove_box)%force_env => test_env_bias(remove_box)%force_env
-            DEALLOCATE(test_env_bias,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-                 __LINE__,"test_env_bias")
+            DEALLOCATE(test_env_bias)
          ENDIF
 
       ELSE
@@ -1179,34 +1153,18 @@ CONTAINS
          IF(lbias) THEN
             CALL force_env_release( test_env_bias(insert_box)%force_env)
             CALL force_env_release( test_env_bias(remove_box)%force_env)
-            DEALLOCATE(test_env_bias,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-                 __LINE__,"test_env_bias")
+            DEALLOCATE(test_env_bias)
          ENDIF
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(insert_coords,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-           __LINE__,"insert_coords")
-      DEALLOCATE(remove_coords,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-           __LINE__,"remove_coords")
-      DEALLOCATE(test_env,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-           __LINE__,"test_env")
-      DEALLOCATE(cbmc_energies,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"cbmc_energies")
-      DEALLOCATE(r_cbmc,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"r_cbmc")
-      DEALLOCATE(oldsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "oldsys")
-      DEALLOCATE(particles_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "particles_old")
+      DEALLOCATE(insert_coords)
+      DEALLOCATE(remove_coords)
+      DEALLOCATE(test_env)
+      DEALLOCATE(cbmc_energies)
+      DEALLOCATE(r_cbmc)
+      DEALLOCATE(oldsys)
+      DEALLOCATE(particles_old)
 
 ! end the timing
       CALL timestop(handle)
@@ -1562,27 +1520,13 @@ CONTAINS
          CALL cell_release(cell_test(ibox)%cell)
          CALL cell_release(cell_old(ibox)%cell)
       ENDDO
-      DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "r")
-      DEALLOCATE(oldsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "oldsys")
-      DEALLOCATE(particles_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "particles_old")
-      DEALLOCATE(cell,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "cell")
-      DEALLOCATE(cell_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "cell_old")
-      DEALLOCATE(cell_test,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "cell_test")
-      DEALLOCATE(loverlap,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "loverlap")
+      DEALLOCATE(r)
+      DEALLOCATE(oldsys)
+      DEALLOCATE(particles_old)
+      DEALLOCATE(cell)
+      DEALLOCATE(cell_old)
+      DEALLOCATE(cell_test)
+      DEALLOCATE(loverlap)
 
 ! end the timing
       CALL timestop(handle)

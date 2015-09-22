@@ -196,9 +196,7 @@ CONTAINS
           bs_m, bs_n, bs_k, sparsities, trans, symmetries, TYPE, &
           alpha, beta, limits, retain_sparsity, nrep, error=error)
 
-     DEALLOCATE(bs_m, bs_n, bs_k, STAT=istat)
-     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-          routineN, "deallocattion problem",__LINE__,error)
+     DEALLOCATE(bs_m, bs_n, bs_k)
 
    END SUBROUTINE dbcsr_perf_multiply
 
@@ -711,9 +709,7 @@ CONTAINS
     CALL dbcsr_release (m_c_orig)
 
     DEALLOCATE(times, flops, t_max, flops_node, flops_thread, flops_all, &
-         flop_sum, t_min, t, load_imb, STAT=istat)
-    CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "deallocattion problem",__LINE__,error)
+         flop_sum, t_min, t, load_imb)
 
     CALL dbcsr_error_stop(error_handler, error)
 

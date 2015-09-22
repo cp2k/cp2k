@@ -159,25 +159,17 @@ MODULE qs_local_rho_types
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rhoz', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, istat, nkind
+    INTEGER                                  :: ikind, nkind
 
     nkind = SIZE(rhoz_set)
 
     DO ikind = 1,nkind
-      DEALLOCATE(rhoz_set(ikind)%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "rhoz_set%r_coef")
-      DEALLOCATE(rhoz_set(ikind)%dr_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "rhoz_set%dr_coef")
-      DEALLOCATE(rhoz_set(ikind)%vr_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "rhoz_set%vr_coef")
+      DEALLOCATE(rhoz_set(ikind)%r_coef)
+      DEALLOCATE(rhoz_set(ikind)%dr_coef)
+      DEALLOCATE(rhoz_set(ikind)%vr_coef)
     END DO
 
-    DEALLOCATE(rhoz_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "rhoz_set")
+    DEALLOCATE(rhoz_set)
 
   END SUBROUTINE  deallocate_rhoz
 

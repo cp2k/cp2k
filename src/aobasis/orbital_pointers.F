@@ -263,69 +263,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_orbital_pointers', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (current_maxl > -1) THEN
 
-      DEALLOCATE (co,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"co")
-      END IF
+      DEALLOCATE (co)
 
-      DEALLOCATE (coset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"coset")
-      END IF
+      DEALLOCATE (coset)
 
-      DEALLOCATE (indco,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"indco")
-      END IF
+      DEALLOCATE (indco)
 
-      DEALLOCATE (indso,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"indso")
-      END IF
+      DEALLOCATE (indso)
 
-      DEALLOCATE (indso_inv,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"indso_inv")
-      END IF
+      DEALLOCATE (indso_inv)
 
-      DEALLOCATE (nco,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"nco")
-      END IF
+      DEALLOCATE (nco)
 
-      DEALLOCATE (ncoset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"ncoset")
-      END IF
+      DEALLOCATE (ncoset)
 
-      DEALLOCATE (nso,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"nso")
-      END IF
+      DEALLOCATE (nso)
 
-      DEALLOCATE (nsoset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
-      END IF
+      DEALLOCATE (nsoset)
 
-      DEALLOCATE (nsoset_pm,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset_pm")
-      END IF
+      DEALLOCATE (nsoset_pm)
 
-      DEALLOCATE (so,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
-      END IF
+      DEALLOCATE (so)
 
-      DEALLOCATE (soset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
-      END IF
+      DEALLOCATE (soset)
 
       current_maxl = -1
 

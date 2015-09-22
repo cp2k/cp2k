@@ -254,7 +254,7 @@ CONTAINS
       routineN = 'neighbor_list_iterator_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: il, istat, mthread
+    INTEGER                                  :: il, mthread
     TYPE(neighbor_list_iterator_type), &
       POINTER                                :: iterator
 
@@ -264,28 +264,19 @@ CONTAINS
     IF (ASSOCIATED(iterator%list_search)) THEN
        DO il=1,SIZE(iterator%list_search)
           IF (iterator%list_search(il)%nlist >= 0) THEN
-             DEALLOCATE (iterator%list_search(il)%atom_list,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "iterator%list_search(il)%atom_list")
-             DEALLOCATE (iterator%list_search(il)%atom_index,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "iterator%list_search(il)%atom_index")
-             DEALLOCATE (iterator%list_search(il)%neighbor_list,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "iterator%list_search(il)%neighbor_list")
+             DEALLOCATE (iterator%list_search(il)%atom_list)
+             DEALLOCATE (iterator%list_search(il)%atom_index)
+             DEALLOCATE (iterator%list_search(il)%neighbor_list)
           END IF
        END DO
-       DEALLOCATE (iterator%list_search,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator%list_search")
+       DEALLOCATE (iterator%list_search)
     END IF
 
     mthread = SIZE(iterator_set)
     DO il=0,mthread-1
-       DEALLOCATE (iterator_set(il)%neighbor_list_iterator,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list_iterator")
+       DEALLOCATE (iterator_set(il)%neighbor_list_iterator)
     END DO
-    DEALLOCATE (iterator_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iterator_set")
+    DEALLOCATE (iterator_set)
 
   END SUBROUTINE neighbor_list_iterator_release
 
@@ -829,7 +820,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_neighbor_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
                                                 next_neighbor_node
 
@@ -839,17 +829,11 @@ CONTAINS
 
       DO WHILE (ASSOCIATED(neighbor_node))
         next_neighbor_node => neighbor_node%next_neighbor_node
-        DEALLOCATE (neighbor_node,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_node")
-        END IF
+        DEALLOCATE (neighbor_node)
         neighbor_node => next_neighbor_node
       END DO
 
-      DEALLOCATE (neighbor_list,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list")
-      END IF
+      DEALLOCATE (neighbor_list)
 
     END IF
 
@@ -868,7 +852,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_neighbor_list_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
                                                 next_neighbor_list
 
@@ -882,10 +865,7 @@ CONTAINS
         neighbor_list => next_neighbor_list
       END DO
 
-      DEALLOCATE (neighbor_list_set,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list_set")
-      END IF
+      DEALLOCATE (neighbor_list_set)
 
     END IF
 

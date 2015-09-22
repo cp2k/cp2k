@@ -267,15 +267,8 @@ CONTAINS
        END DO
        WRITE (UNIT=output_unit,FMT="(T2,A)") ""
     END IF
-    DEALLOCATE (all_pid,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
-    END IF
-    DEALLOCATE (all_host,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
-
-    END IF
+    DEALLOCATE (all_pid)
+    DEALLOCATE (all_host)
 
   END SUBROUTINE echo_all_hosts
 
@@ -334,17 +327,11 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(T2,A)") ""
         END IF
        END DO
-       DEALLOCATE (all_pid,STAT=istat)
-       IF (istat /= 0) THEN
-         CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
-       END IF
+       DEALLOCATE (all_pid)
 
     END IF
 
-    DEALLOCATE (all_host,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
-    END IF
+    DEALLOCATE (all_host)
 
   END SUBROUTINE echo_all_process_host
 

@@ -473,42 +473,27 @@ CONTAINS
          CALL m_flush(iw)
          CALL mp_sync(group)
       END DO
-      DEALLOCATE (work, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, "work")
+      DEALLOCATE (work)
 
       CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
            "PRINT%DISTRIBUTION1D")
    END IF
 !   *** Release work storage ***
 
-    DEALLOCATE (workload_count, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "workload")
+    DEALLOCATE (workload_count)
 
-    DEALLOCATE (workload_fill, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "workload_old")
+    DEALLOCATE (workload_fill)
 
-    DEALLOCATE (nmolecule_local, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nmolecule_local")
+    DEALLOCATE (nmolecule_local)
 
-    DEALLOCATE (nparticle_local, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nparticle_local")
+    DEALLOCATE (nparticle_local)
 
     DO imolecule_kind=1, nmolecule_kind
       IF (ASSOCIATED(local_molecule(imolecule_kind)%array)) THEN
-        DEALLOCATE (local_molecule(imolecule_kind)%array, STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN, moduleN, __LINE__, &
-                           "local_molecule(imolecule_kind)%array")
-        END IF
+        DEALLOCATE (local_molecule(imolecule_kind)%array)
       END IF
     END DO
-    DEALLOCATE (local_molecule, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "local_molecule")
+    DEALLOCATE (local_molecule)
 
     CALL timestop(handle)
 
@@ -799,18 +784,10 @@ CONTAINS
        ENDIF
 
        ! cleanup
-       DEALLOCATE (cluster_list, stat=istat)
-       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-            "cluster_list", nclusters*int_size)
-       DEALLOCATE (cluster_prices, stat=istat)
-       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-            "cluster_prices", nclusters*int_size)
-       DEALLOCATE (cluster_row_distribution, stat=istat)
-       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-            "cluster_prices", nclusters*int_size)
-       DEALLOCATE (cluster_col_distribution, stat=istat)
-       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-            "cluster_prices", nclusters*int_size)
+       DEALLOCATE (cluster_list)
+       DEALLOCATE (cluster_prices)
+       DEALLOCATE (cluster_row_distribution)
+       DEALLOCATE (cluster_col_distribution)
 
     ELSE
        ! expects nothing else
@@ -903,10 +880,7 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
 
-      DEALLOCATE (work, STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN, moduleN, __LINE__, "work")
-      END IF
+      DEALLOCATE (work)
 
 !     *** Print column distribution ***
 
@@ -932,10 +906,7 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
 
-      DEALLOCATE (work, STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN, moduleN, __LINE__, "work")
-      END IF
+      DEALLOCATE (work)
 
       CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
            "PRINT%DISTRIBUTION")
@@ -954,13 +925,9 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    DEALLOCATE (nparticle_local_row, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nparticle_local_row")
+    DEALLOCATE (nparticle_local_row)
 
-    DEALLOCATE (nparticle_local_col, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nparticle_local_col")
+    DEALLOCATE (nparticle_local_col)
 
     CALL timestop(handle)
 

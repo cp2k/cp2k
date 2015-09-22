@@ -800,11 +800,9 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE (pab,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab)
 
-    DEALLOCATE (work,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (work)
 
     IF (gridlevel_info%ngrid_levels==1) THEN
       CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=rho_r(1)%pw, dir=rs2pw)
@@ -1030,14 +1028,12 @@ CONTAINS
 
           END DO
 
-          DEALLOCATE (work,STAT=ierr)
-          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+          DEALLOCATE (work)
 
        END DO
     END DO
 
-    DEALLOCATE (pab,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab)
 
     CALL pw_zero(lri_rho_g%pw)
     CALL pw_zero(lri_rho_r%pw)
@@ -1180,11 +1176,9 @@ CONTAINS
     END DO
 
     IF (ASSOCIATED(cores)) THEN
-      DEALLOCATE (cores,STAT=ierr)
-      IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
+      DEALLOCATE (cores)
     END IF
-    DEALLOCATE (pab,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab)
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE)
@@ -1273,8 +1267,7 @@ CONTAINS
            use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
     ENDIF
 
-    DEALLOCATE (pab,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab)
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE)
@@ -1376,8 +1369,7 @@ CONTAINS
      ENDDO
     ENDIF
    
-    DEALLOCATE (pab,cores,stat=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab,cores)
    
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE)
@@ -1470,8 +1462,7 @@ CONTAINS
            use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
     ENDIF
  
-    DEALLOCATE (pab,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab)
  
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE)
@@ -1575,8 +1566,7 @@ CONTAINS
      ENDDO
     ENDIF
    
-    DEALLOCATE (pab,cores,stat=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab,cores)
    
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE)
@@ -2789,14 +2779,11 @@ CONTAINS
     CALL pw_transfer(rho_gspace%pw,rho%pw)
 
     ! Release work storage
-    DEALLOCATE (eigenvector,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eigenvector")
+    DEALLOCATE (eigenvector)
 
-    DEALLOCATE (pab,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+    DEALLOCATE (pab)
 
-    DEALLOCATE (work,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (work)
 
     ! give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace)
@@ -3987,8 +3974,10 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:), POINTER       :: rag, rbg
     COMPLEX(dp), DIMENSION(:, :, :, :), &
       POINTER                                :: cubeaxis
-    INTEGER :: ax, ay, az, bx, by, bz, handle, i, ico, ig, ig2, jco, jg, kg, &
-      la, lb, lb_cube_min, lb_grid, stat, ub_cube_max, ub_grid
+    INTEGER                                  :: ax, ay, az, bx, by, bz, &
+                                                handle, i, ico, ig, ig2, jco, &
+                                                jg, kg, la, lb, lb_cube_min, &
+                                                lb_grid, ub_cube_max, ub_grid
     INTEGER, DIMENSION(3)                    :: lb_cube, ub_cube
     REAL(dp)                                 :: f, fa, fb, pij, prefactor, &
                                                 rzetp, twozetp, zetp
@@ -4147,14 +4136,10 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE (cubeaxis,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cubeaxis")
-    DEALLOCATE (g,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"g")
-    DEALLOCATE (rag,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rag")
-    DEALLOCATE (rbg,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbg")
+    DEALLOCATE (cubeaxis)
+    DEALLOCATE (g)
+    DEALLOCATE (rag)
+    DEALLOCATE (rbg)
 
     CALL timestop(handle)
 

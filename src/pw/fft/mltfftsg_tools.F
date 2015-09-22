@@ -133,11 +133,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
 
 !$omp end parallel
 
-  DEALLOCATE ( Z, stat=ierr )
-  IF (ierr /= 0) THEN
-     WRITE (*,*) "Error in DEallocating memory for z in mltfftsg.F"
-     STOP
-  ENDIF
+  DEALLOCATE ( Z)
 
   IF(TRANSB == 'N'.OR.TRANSB == 'n') THEN
      B(1:LDBX,M+1:LDBY) = CMPLX(0._dp,0._dp,dp)

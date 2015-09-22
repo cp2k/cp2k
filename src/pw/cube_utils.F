@@ -197,26 +197,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_cube_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
 
     IF (info%orthorhombic) THEN
-        DEALLOCATE (info%lb_cube,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "info%lb_cube")
-        DEALLOCATE (info%ub_cube,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "info%ub_cube")
-        DEALLOCATE (info%sphere_bounds_count,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "info%sphere_bounds_count")
+        DEALLOCATE (info%lb_cube)
+        DEALLOCATE (info%ub_cube)
+        DEALLOCATE (info%sphere_bounds_count)
         DO i=1,info%max_radius
-          DEALLOCATE (info%sphere_bounds(i)%p,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "info%sphere_bounds(i)%p")
+          DEALLOCATE (info%sphere_bounds(i)%p)
         END DO
-        DEALLOCATE (info%sphere_bounds,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "info%sphere_bounds")
+        DEALLOCATE (info%sphere_bounds)
     ELSE
         ! no info to be deallocated
     ENDIF

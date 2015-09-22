@@ -442,12 +442,9 @@ CONTAINS
              END DO
           END DO
 
-          DEALLOCATE(catom,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"catom")
-          DEALLOCATE(R12,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"R12")
-          DEALLOCATE(cell_functions,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cell_functions")
+          DEALLOCATE(catom)
+          DEALLOCATE(R12)
+          DEALLOCATE(cell_functions)
 
        END IF
 
@@ -716,30 +713,18 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE (catom,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"catom")
-       DEALLOCATE (R12,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"R12")
-       DEALLOCATE (s_my_ij,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"s_my_ij")
-       DEALLOCATE (ds_dR,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ds_dR")
-       DEALLOCATE (P_i,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"P_i")
-       DEALLOCATE (dw_dR,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dw_dR")
-       DEALLOCATE (is_constraint,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_constraint")
-       DEALLOCATE (d_sum_Pm_dR,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"d_sum")
-       DEALLOCATE (d_sum_const_dR,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"d_sum_const")
-       DEALLOCATE (dP_i_dRi,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dP_i_dRj")
-       DEALLOCATE (dP_i_dRj,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dP_i_dRj")
-       DEALLOCATE (coefficients,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"coefficients")
+       DEALLOCATE (catom)
+       DEALLOCATE (R12)
+       DEALLOCATE (s_my_ij)
+       DEALLOCATE (ds_dR)
+       DEALLOCATE (P_i)
+       DEALLOCATE (dw_dR)
+       DEALLOCATE (is_constraint)
+       DEALLOCATE (d_sum_Pm_dR)
+       DEALLOCATE (d_sum_const_dR)
+       DEALLOCATE (dP_i_dRi)
+       DEALLOCATE (dP_i_dRj)
+       DEALLOCATE (coefficients)
        CALL mp_sum(integrated, para_env%group)
 
        DO iatom=1,natom
@@ -749,12 +734,9 @@ CONTAINS
                force(ikind)%rho_elec(:,i) + integrated(:,iatom)*strength
        END DO
 
-       DEALLOCATE (integrated,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"integrated")
-       DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_of_kind")
-       DEALLOCATE (kind_of,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"kind_of")
+       DEALLOCATE (integrated)
+       DEALLOCATE (atom_of_kind)
+       DEALLOCATE (kind_of)
 
      END IF
 

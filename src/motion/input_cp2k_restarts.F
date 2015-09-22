@@ -1771,12 +1771,9 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE (work,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
-    DEALLOCATE (index,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"index")
-    DEALLOCATE (nhc_per_proc,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nhc_per_proc")
+    DEALLOCATE (work)
+    DEALLOCATE (index)
+    DEALLOCATE (nhc_per_proc)
 
   END SUBROUTINE collect_nose_restart_info
 
@@ -1885,7 +1882,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: coord, force, mass, velocity
 
@@ -1896,8 +1892,7 @@ CONTAINS
           coord => section_vals_get_subs_vals(work_section,"COORD")
           CALL section_vals_val_set(coord,"_DEFAULT_KEYWORD_",r_vals_ptr=eta)
        ELSE
-          DEALLOCATE (eta,STAT=stat)
-          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta")
+          DEALLOCATE (eta)
        END IF
     END IF
     IF (PRESENT(veta)) THEN
@@ -1905,8 +1900,7 @@ CONTAINS
           velocity => section_vals_get_subs_vals(work_section,"VELOCITY")
           CALL section_vals_val_set(velocity,"_DEFAULT_KEYWORD_",r_vals_ptr=veta)
        ELSE
-          DEALLOCATE (veta,STAT=stat)
-          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta")
+          DEALLOCATE (veta)
        END IF
     END IF
     IF (PRESENT(fnhc)) THEN
@@ -1914,8 +1908,7 @@ CONTAINS
           force => section_vals_get_subs_vals(work_section,"FORCE")
           CALL section_vals_val_set(force,"_DEFAULT_KEYWORD_",r_vals_ptr=fnhc)
        ELSE
-          DEALLOCATE (fnhc,STAT=stat)
-          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc")
+          DEALLOCATE (fnhc)
        END IF
     END IF
     IF (PRESENT(mnhc)) THEN
@@ -1923,8 +1916,7 @@ CONTAINS
           mass => section_vals_get_subs_vals(work_section,"MASS")
           CALL section_vals_val_set(mass,"_DEFAULT_KEYWORD_",r_vals_ptr=mnhc)
        ELSE
-          DEALLOCATE (mnhc,STAT=stat)
-          IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc")
+          DEALLOCATE (mnhc)
        END IF
     END IF
 
@@ -2403,8 +2395,7 @@ CONTAINS
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                        output_unit,para_env)
        n_dp_size = n_dp_size + 3*natom
-       DEALLOCATE (rbuf,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+       DEALLOCATE (rbuf)
 
        ! Write molecule information if available
        IF (nmolecule > 0) THEN
@@ -2445,13 +2436,10 @@ CONTAINS
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                           output_unit,para_env)
           n_int_size = n_int_size + natom
-          DEALLOCATE (imol,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"imol",&
-                                           para_env)
+          DEALLOCATE (imol)
        END IF ! molecules
 
-       DEALLOCATE (ibuf,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+       DEALLOCATE (ibuf)
 
        ! Core-shell model only
        section_label = "SHELL COORDINATES"
@@ -2476,8 +2464,7 @@ CONTAINS
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                           output_unit,para_env)
           n_dp_size = n_dp_size + 3*nshell
-          DEALLOCATE (rbuf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          DEALLOCATE (rbuf)
           ! Write atomic indices, i.e. number of the atom the shell belongs to
           ALLOCATE (ibuf(nshell),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -2491,8 +2478,7 @@ CONTAINS
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                           output_unit,para_env)
           n_int_size = n_int_size + nshell
-          DEALLOCATE (ibuf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+          DEALLOCATE (ibuf)
        END IF
 
        section_label = "CORE COORDINATES"
@@ -2517,8 +2503,7 @@ CONTAINS
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                           output_unit,para_env)
           n_dp_size = n_dp_size + 3*ncore
-          DEALLOCATE (rbuf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          DEALLOCATE (rbuf)
           ! Write atomic indices, i.e. number of the atom the core belongs to
           ALLOCATE (ibuf(ncore),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -2532,8 +2517,7 @@ CONTAINS
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                           output_unit,para_env)
           n_int_size = n_int_size + ncore
-          DEALLOCATE (ibuf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+          DEALLOCATE (ibuf)
        END IF
     END IF ! ionode only
 
@@ -2629,8 +2613,7 @@ CONTAINS
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                           output_unit,para_env)
           n_dp_size = n_dp_size + 3*natom
-          DEALLOCATE (rbuf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+          DEALLOCATE (rbuf)
        END IF
        ! Write shell velocities
        section_label = "SHELL VELOCITIES"
@@ -2659,8 +2642,7 @@ CONTAINS
                                              "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                              output_unit,para_env)
              n_dp_size = n_dp_size + 3*nshell
-             DEALLOCATE (rbuf,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+             DEALLOCATE (rbuf)
           END IF
        END IF
        ! Write core velocities
@@ -2690,8 +2672,7 @@ CONTAINS
                                              "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                              output_unit,para_env)
              n_dp_size = n_dp_size + 3*ncore
-             DEALLOCATE (rbuf,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+             DEALLOCATE (rbuf)
           END IF
        END IF
     END IF ! ionode only
@@ -2781,8 +2762,7 @@ CONTAINS
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
-    DEALLOCATE (eta,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"eta",para_env)
+    DEALLOCATE (eta)
 
     ! veta
     IF (output_unit > 0) THEN ! only ionode
@@ -2794,8 +2774,7 @@ CONTAINS
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
-    DEALLOCATE (veta,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"veta",para_env)
+    DEALLOCATE (veta)
 
     ! mnhc
     IF (output_unit > 0) THEN ! only ionode
@@ -2807,8 +2786,7 @@ CONTAINS
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
-    DEALLOCATE (mnhc,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mnhc",para_env)
+    DEALLOCATE (mnhc)
 
     ! fnhc
     IF (output_unit > 0) THEN ! only ionode
@@ -2820,8 +2798,7 @@ CONTAINS
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
-    DEALLOCATE (fnhc,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"fnhc",para_env)
+    DEALLOCATE (fnhc)
 
     CALL timestop(handle)
 

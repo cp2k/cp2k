@@ -202,71 +202,33 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_moves_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
 
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,handle)
 
 ! allocate all the structures
-      DEALLOCATE (moves%bond,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%bond",0)
-      DEALLOCATE (moves%angle,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%angle",0)
-      DEALLOCATE (moves%dihedral,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%dihedral",0)
-      DEALLOCATE (moves%trans,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%trans",0)
-      DEALLOCATE (moves%rot,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%rot",0)
-      DEALLOCATE (moves%bias_bond,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%bias_bond",0)
-      DEALLOCATE (moves%bias_angle,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%bias_angle",0)
-      DEALLOCATE (moves%bias_dihedral,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%bias_dihedral",0)
-      DEALLOCATE (moves%bias_trans,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%bias_trans",0)
-      DEALLOCATE (moves%bias_rot,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%bias_rot",0)
-      DEALLOCATE (moves%volume,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%volume",0)
-      DEALLOCATE (moves%hmc,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%hmc",0)
-      DEALLOCATE (moves%avbmc_inin,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%avbmc_inin",0)
-      DEALLOCATE (moves%avbmc_inout,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%avbmc_inout",0)
-      DEALLOCATE (moves%avbmc_outin,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%avbmc_outin",0)
-      DEALLOCATE (moves%avbmc_outout,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%avbmc_outout",0)
-      DEALLOCATE (moves%swap,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%swap",0)
-      DEALLOCATE (moves%Quickstep,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves%Quickstep",0)
+      DEALLOCATE (moves%bond)
+      DEALLOCATE (moves%angle)
+      DEALLOCATE (moves%dihedral)
+      DEALLOCATE (moves%trans)
+      DEALLOCATE (moves%rot)
+      DEALLOCATE (moves%bias_bond)
+      DEALLOCATE (moves%bias_angle)
+      DEALLOCATE (moves%bias_dihedral)
+      DEALLOCATE (moves%bias_trans)
+      DEALLOCATE (moves%bias_rot)
+      DEALLOCATE (moves%volume)
+      DEALLOCATE (moves%hmc)
+      DEALLOCATE (moves%avbmc_inin)
+      DEALLOCATE (moves%avbmc_inout)
+      DEALLOCATE (moves%avbmc_outin)
+      DEALLOCATE (moves%avbmc_outout)
+      DEALLOCATE (moves%swap)
+      DEALLOCATE (moves%Quickstep)
 
-      DEALLOCATE (moves,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "moves",0)
+      DEALLOCATE (moves)
 
 ! now nullify the moves
       NULLIFY(moves)

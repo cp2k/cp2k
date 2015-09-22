@@ -117,7 +117,7 @@ MODULE qs_rho_atom_types
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_atom_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iat, istat, j, n, natom
+    INTEGER                                  :: i, iat, j, n, natom
 
     IF (ASSOCIATED(rho_atom_set)) THEN
 
@@ -231,9 +231,7 @@ MODULE qs_rho_atom_types
 
       ENDDO
 
-      DEALLOCATE (rho_atom_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "rho_atom_set")
+      DEALLOCATE (rho_atom_set)
 
     ELSE
 

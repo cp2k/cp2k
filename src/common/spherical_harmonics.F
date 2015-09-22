@@ -228,14 +228,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
 
      IF ( ALLOCATED ( cg_table ) ) THEN
-        DEALLOCATE ( cg_table, STAT=ierr )
-        IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cg_table")
+        DEALLOCATE ( cg_table)
      END IF
     CALL timestop(handle)
 
@@ -262,8 +261,7 @@ CONTAINS
 
      IF ( l < 0 ) CALL stop_program(routineN,moduleN,__LINE__,"l < 0")
      IF ( ALLOCATED ( cg_table ) ) THEN
-        DEALLOCATE ( cg_table, STAT=ierr )
-        IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cg_table")
+        DEALLOCATE ( cg_table)
      END IF
      ! maximum size of table
      n = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8

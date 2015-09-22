@@ -55,41 +55,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'structure_factor_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isos
-
-    DEALLOCATE ( exp_igr % ex, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'ex')
-    DEALLOCATE ( exp_igr % ey, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'ey')
-    DEALLOCATE ( exp_igr % ez, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'ez')
+    DEALLOCATE ( exp_igr % ex)
+    DEALLOCATE ( exp_igr % ey)
+    DEALLOCATE ( exp_igr % ez)
     IF ( ASSOCIATED ( exp_igr % shell_ex ) ) THEN
-       DEALLOCATE ( exp_igr % shell_ex, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'shell_ex')
-       DEALLOCATE ( exp_igr % shell_ey, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'shell_ey')
-       DEALLOCATE ( exp_igr % shell_ez, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'shell_ez')
+       DEALLOCATE ( exp_igr % shell_ex)
+       DEALLOCATE ( exp_igr % shell_ey)
+       DEALLOCATE ( exp_igr % shell_ez)
     END IF
     IF ( ASSOCIATED ( exp_igr % core_ex ) ) THEN
-       DEALLOCATE ( exp_igr % core_ex, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'core_ex')
-       DEALLOCATE ( exp_igr % core_ey, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'core_ey')
-       DEALLOCATE ( exp_igr % core_ez, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'core_ez')
+       DEALLOCATE ( exp_igr % core_ex)
+       DEALLOCATE ( exp_igr % core_ey)
+       DEALLOCATE ( exp_igr % core_ez)
     END IF
     IF ( ASSOCIATED ( exp_igr % centre ) ) THEN
-       DEALLOCATE ( exp_igr % centre, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'centre')
+       DEALLOCATE ( exp_igr % centre)
     END IF
     IF ( ASSOCIATED ( exp_igr % shell_centre ) ) THEN
-       DEALLOCATE ( exp_igr % shell_centre, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'centre')
+       DEALLOCATE ( exp_igr % shell_centre)
     END IF
     IF ( ASSOCIATED ( exp_igr % core_centre ) ) THEN
-       DEALLOCATE ( exp_igr % core_centre, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory(routineN,moduleN,__LINE__,'centre')
+       DEALLOCATE ( exp_igr % core_centre)
     END IF
 
   END SUBROUTINE structure_factor_deallocate

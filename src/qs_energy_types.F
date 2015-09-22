@@ -125,16 +125,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (ASSOCIATED(qs_energy)) THEN
       IF (ASSOCIATED(qs_energy%ddapc_restraint)) THEN
-        DEALLOCATE (qs_energy%ddapc_restraint,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "qs_energy%ddapc_restraint")
+        DEALLOCATE (qs_energy%ddapc_restraint)
       END IF
-      DEALLOCATE (qs_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qs_energy")
+      DEALLOCATE (qs_energy)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The qs_energy pointer is not associated "//&

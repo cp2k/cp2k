@@ -583,16 +583,11 @@ CONTAINS
     !sample peak memory
     CALL m_memory()
 
-    DEALLOCATE (mm_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mm_radius")
-    DEALLOCATE (qeff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qeff")
-    DEALLOCATE (qcore,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qcore")
-    DEALLOCATE (qshell,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qshell")
-    DEALLOCATE (is_shell_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_shell_kind")
+    DEALLOCATE (mm_radius)
+    DEALLOCATE (qeff)
+    DEALLOCATE (qcore)
+    DEALLOCATE (qshell)
+    DEALLOCATE (is_shell_kind)
 
     CALL timestop(handle)
 

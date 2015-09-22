@@ -110,15 +110,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_oce_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
 
     IF(ASSOCIATED(oce_set%intac)) CALL release_sap_int(oce_set%intac)
 
-    DEALLOCATE (oce_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "deallocate_oce_set",0)
+    DEALLOCATE (oce_set)
 
   END SUBROUTINE deallocate_oce_set
 

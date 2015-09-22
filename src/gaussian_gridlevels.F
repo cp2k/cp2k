@@ -18,7 +18,6 @@ MODULE gaussian_gridlevels
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE message_passing,                 ONLY: mp_sum
-  USE termination,                     ONLY: stop_memory
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -87,7 +86,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_gaussian_gridlevel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, i, istat, output_unit
+    INTEGER                                  :: group, i, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -121,18 +120,14 @@ CONTAINS
        END IF
     END IF
 
-    DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "gridlevel_info%cutoff")
+    DEALLOCATE (gridlevel_info%cutoff)
 
     CALL cp_print_key_finished_output(output_unit,logger,gridlevel_info%print_section,&
          "")
 
     CALL section_vals_release(gridlevel_info%print_section)
 
-    DEALLOCATE (gridlevel_info%count,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "gridlevel_info%count")
+    DEALLOCATE (gridlevel_info%count)
 
   END SUBROUTINE destroy_gaussian_gridlevel
 

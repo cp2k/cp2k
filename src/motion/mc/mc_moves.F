@@ -411,12 +411,8 @@ CONTAINS
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r")
-      DEALLOCATE(r_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r_new")
+      DEALLOCATE(r_old)
+      DEALLOCATE(r_new)
 
 ! end the timing
   CALL timestop(handle)
@@ -645,9 +641,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r")
+      DEALLOCATE(r_old)
 
 ! end the timing
   CALL timestop(handle)
@@ -955,9 +949,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r_old")
+      DEALLOCATE(r_old)
 
 ! end the timing
   CALL timestop(handle)
@@ -1156,9 +1148,7 @@ END SUBROUTINE mc_conformation_change
 
       IF(loverlap) THEN
 ! deallocate some stuff
-         DEALLOCATE(r,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "r")
+         DEALLOCATE(r)
          logger=>cp_get_default_logger()
          output_unit=cp_logger_get_default_io_unit(logger)
          IF(output_unit>0) WRITE(output_unit,*) &
@@ -1217,9 +1207,7 @@ END SUBROUTINE mc_conformation_change
       CALL mp_bcast(loverlap,source,group)
       IF(loverlap) THEN
 ! deallocate some stuff
-         DEALLOCATE(r,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "r")
+         DEALLOCATE(r)
 
          logger=>cp_get_default_logger()
          output_unit=cp_logger_get_default_io_unit(logger)
@@ -1321,9 +1309,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r")
+      DEALLOCATE(r)
       CALL cell_release(cell_test)
       CALL cell_release(cell_old)
 
@@ -1506,21 +1492,11 @@ END SUBROUTINE mc_conformation_change
 ! correct the value of dis_length for the acceptance rule
       dis_length=(old_length+dis_length)/old_length
 
-      DEALLOCATE(connection,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "connection")
-      DEALLOCATE(connectivity,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "connectivity")
-      DEALLOCATE(counter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "counter")
-      DEALLOCATE(atom_a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "atom_a")
-      DEALLOCATE(atom_b,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "atom_b")
+      DEALLOCATE(connection)
+      DEALLOCATE(connectivity)
+      DEALLOCATE(counter)
+      DEALLOCATE(atom_a)
+      DEALLOCATE(atom_b)
 ! end the timing
       CALL timestop(handle)
 
@@ -1787,21 +1763,11 @@ END SUBROUTINE mc_conformation_change
       ENDDO
 
 ! deallocate some stuff
-      DEALLOCATE(connection,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "connection")
-      DEALLOCATE(connectivity,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "connectivity")
-      DEALLOCATE(counter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "counter")
-      DEALLOCATE(atom_a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "atom_a")
-      DEALLOCATE(atom_c,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "atom_c")
+      DEALLOCATE(connection)
+      DEALLOCATE(connectivity)
+      DEALLOCATE(counter)
+      DEALLOCATE(atom_a)
+      DEALLOCATE(atom_c)
 
 ! end the timing
       CALL timestop(handle)
@@ -2020,21 +1986,11 @@ END SUBROUTINE mc_conformation_change
       ENDDO
 
 ! deallocate some stuff
-      DEALLOCATE(connection,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "connection")
-      DEALLOCATE(connectivity,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "connectivity")
-      DEALLOCATE(counter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "counter")
-      DEALLOCATE(atom_a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "atom_a")
-      DEALLOCATE(atom_d,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "atom_d")
+      DEALLOCATE(connection)
+      DEALLOCATE(connectivity)
+      DEALLOCATE(counter)
+      DEALLOCATE(atom_a)
+      DEALLOCATE(atom_d)
 
 ! end the timing
       CALL timestop(handle)
@@ -2297,9 +2253,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
       IF(loverlap) THEN
-         DEALLOCATE(r_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "r_new")
+         DEALLOCATE(r_new)
 
 ! need to reset the old coordinates
          IF(lbias) THEN
@@ -2446,9 +2400,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r_new")
+      DEALLOCATE(r_new)
 ! end the timing
   CALL timestop(handle)
 
@@ -2595,12 +2547,8 @@ END SUBROUTINE mc_conformation_change
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r")
-      DEALLOCATE(hmc_ekin,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "hmc_ekin")
+      DEALLOCATE(r)
+      DEALLOCATE(hmc_ekin)
 
 ! end the timing
       CALL timestop(handle)

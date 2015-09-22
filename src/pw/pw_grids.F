@@ -2316,7 +2316,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     INTEGER, POINTER :: dummy_ptr
 #endif
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -2343,8 +2342,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
              stat = cudaFreeHost(c_loc(dummy_ptr))
              CPASSERT(stat==0)
 #else
-             DEALLOCATE ( pw_grid % g_hatmap, STAT = stat )
-             CPASSERT(stat==0)
+             DEALLOCATE ( pw_grid % g_hatmap)
 #endif
           END IF
           IF ( ASSOCIATED ( pw_grid % grays ) ) THEN

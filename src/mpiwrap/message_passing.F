@@ -780,8 +780,6 @@ CONTAINS
   SUBROUTINE mp_perf_env_release(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(perf_env)) THEN
        IF (perf_env%ref_count<1) THEN
           CALL mp_abort(&
@@ -789,10 +787,7 @@ CONTAINS
        END IF
        perf_env%ref_count=perf_env%ref_count-1
        IF (perf_env%ref_count==0) THEN
-          DEALLOCATE(perf_env,stat=stat)
-          IF (stat/=0) THEN
-             CALL mp_abort("deallocation error: message_passing @ mp_perf_env_release")
-          END IF
+          DEALLOCATE(perf_env)
        END IF
     END IF
     NULLIFY(perf_env)
@@ -1404,8 +1399,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL mp_abort( "group_free @ mp_rank_compare" )
     CALL mpi_group_free(g2, ierr)
     IF ( ierr /= 0 ) CALL mp_abort( "group_free @ mp_rank_compare" )
-    DEALLOCATE ( rin, STAT = ierr )
-    IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
+    DEALLOCATE ( rin)
 #endif
     CALL mp_timestop(handle)
 

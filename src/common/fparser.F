@@ -104,27 +104,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalizef', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
     DO i = 1, SIZE(Comp)
        IF (ASSOCIATED(Comp(i)%ByteCode)) THEN
-          DEALLOCATE ( Comp(i)%ByteCode, stat = istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%ByteCode")
+          DEALLOCATE ( Comp(i)%ByteCode)
        END IF
        IF (ASSOCIATED(Comp(i)%Immed)) THEN
-          DEALLOCATE ( Comp(i)%Immed, stat=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%Immed")
+          DEALLOCATE ( Comp(i)%Immed)
        END IF
        IF (ASSOCIATED(Comp(i)%Stack)) THEN
-          DEALLOCATE ( Comp(i)%Stack, stat=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp(i)%Stack")
+          DEALLOCATE ( Comp(i)%Stack)
        END IF
     END DO
 
-    DEALLOCATE ( Comp, stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Comp")
+    DEALLOCATE ( Comp)
 
   END SUBROUTINE finalizef
   !

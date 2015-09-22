@@ -238,20 +238,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imolecule, istat, j
+    INTEGER                                  :: imolecule, j
 
     IF (ASSOCIATED(molecule_set)) THEN
 
       DO imolecule=1,SIZE(molecule_set)
          IF (ASSOCIATED(molecule_set(imolecule)%lmi)) THEN
              IF (ASSOCIATED(molecule_set(imolecule)%lmi%states)) THEN
-                 DEALLOCATE (molecule_set(imolecule)%lmi%states,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "molecule_set(i)%lmi%states")
+                 DEALLOCATE (molecule_set(imolecule)%lmi%states)
              ENDIF
-             DEALLOCATE (molecule_set(imolecule)%lmi,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "molecule_set(i)%lmi")
+             DEALLOCATE (molecule_set(imolecule)%lmi)
          ENDIF
          IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
             IF (ASSOCIATED(molecule_set(imolecule)%lci%lcolv)) THEN
@@ -261,28 +257,18 @@ CONTAINS
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar)
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                END DO
-               DEALLOCATE (molecule_set(imolecule)%lci%lcolv,STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "molecule_set(i)%lci%lcolv")
+               DEALLOCATE (molecule_set(imolecule)%lci%lcolv)
              ENDIF
              IF (ASSOCIATED(molecule_set(imolecule)%lci%lg3x3)) THEN
-                 DEALLOCATE (molecule_set(imolecule)%lci%lg3x3,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "molecule_set(i)%lci%lg3x3")
+                 DEALLOCATE (molecule_set(imolecule)%lci%lg3x3)
              ENDIF
              IF (ASSOCIATED(molecule_set(imolecule)%lci%lg4x6)) THEN
-                 DEALLOCATE (molecule_set(imolecule)%lci%lg4x6,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "molecule_set(i)%lci%lg4x6")
+                 DEALLOCATE (molecule_set(imolecule)%lci%lg4x6)
              ENDIF
-             DEALLOCATE (molecule_set(imolecule)%lci,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "molecule_set(i)%lci")
+             DEALLOCATE (molecule_set(imolecule)%lci)
          ENDIF
       ENDDO
-      DEALLOCATE (molecule_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "molecule_set")
+      DEALLOCATE (molecule_set)
 
     ELSE
 

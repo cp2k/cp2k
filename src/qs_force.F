@@ -692,10 +692,8 @@ CONTAINS
 
        WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
 
-       DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_of_kind")
-       DEALLOCATE (kind_of,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"kind_of")
+       DEALLOCATE (atom_of_kind)
+       DEALLOCATE (kind_of)
 
     END IF
 

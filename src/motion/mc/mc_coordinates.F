@@ -163,9 +163,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
 
                   IF (dist < rmin ) THEN
                      loverlap=.TRUE.
-                     DEALLOCATE(r,STAT=istat)
-                     IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-                     __LINE__,"r")
+                     DEALLOCATE(r)
 
                      CALL timestop(handle)
                      RETURN
@@ -176,9 +174,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
          ENDDO
       ENDDO
 
-      DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"r")
+      DEALLOCATE(r)
 
 ! end the timing
       CALL timestop(handle)
@@ -614,21 +610,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
             'CBMC swap move found all overlaps for the remove config')
          ENDIF
 
-         DEALLOCATE(r_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"r_old")
-         DEALLOCATE(r,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"r")
-         DEALLOCATE(trial_energy,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"trial_energy")
-         DEALLOCATE(boltz_weights,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"boltz_weights")
-         DEALLOCATE(loverlap_array,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"loverlap_array")
+         DEALLOCATE(r_old)
+         DEALLOCATE(r)
+         DEALLOCATE(trial_energy)
+         DEALLOCATE(boltz_weights)
+         DEALLOCATE(loverlap_array)
          CALL timestop(handle)
          RETURN
       ENDIF
@@ -648,21 +634,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
          particles%els(iatom)%r(1:3)=r(1:3,iatom,choosen)
       ENDDO
 
-      DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"r_old")
-      DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"r")
-      DEALLOCATE(trial_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"trial_energy")
-      DEALLOCATE(boltz_weights,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"boltz_weights")
-      DEALLOCATE(loverlap_array,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"loverlap_array")
+      DEALLOCATE(r_old)
+      DEALLOCATE(r)
+      DEALLOCATE(trial_energy)
+      DEALLOCATE(boltz_weights)
+      DEALLOCATE(loverlap_array)
 
 ! end the timing
       CALL timestop(handle)

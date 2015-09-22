@@ -233,8 +233,7 @@ END SUBROUTINE cp_2d_r_write
        IF (ASSOCIATED(array)) THEN
           IF (SIZE(array) /= n) THEN
              CPWARN('size has changed')
-             DEALLOCATE(array, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(array)
           END IF
        END IF
        IF (.NOT.ASSOCIATED(array)) THEN
@@ -279,8 +278,7 @@ END SUBROUTINE cp_2d_r_write
        IF (ASSOCIATED(array)) THEN
           IF (SIZE(array,1) /= n_rows .OR. SIZE(array,2) /= n_cols) THEN
              CPWARN('size has changed')
-             DEALLOCATE(array, stat=stat)
-             CPASSERT(stat==0)
+             DEALLOCATE(array)
              NULLIFY(array)
           END IF
        END IF

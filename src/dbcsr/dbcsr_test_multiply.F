@@ -695,9 +695,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = dlange(norm, c_row_size, c_col_size, dense_c%d%r2_dp(1,1), ldc, work)
-       DEALLOCATE(work, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocation problem",__LINE__,error)
+       DEALLOCATE(work)
     CASE (dbcsr_type_real_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -755,9 +753,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = REAL(slange(norm, c_row_size, c_col_size, dense_c%d%r2_sp(1,1), ldc, work_sp),real_8)
-       DEALLOCATE(work_sp, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocation problem",__LINE__,error)
+       DEALLOCATE(work_sp)
     CASE (dbcsr_type_complex_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -781,9 +777,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = zlange(norm, c_row_size, c_col_size, dense_c%d%c2_dp(1,1), ldc, work)
-       DEALLOCATE(work, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocation problem",__LINE__,error)
+       DEALLOCATE(work)
     CASE (dbcsr_type_complex_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -807,9 +801,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = clange(norm, c_row_size, c_col_size, dense_c%d%c2_sp(1,1), ldc, work_sp)
-       DEALLOCATE(work_sp, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocation problem",__LINE__,error)
+       DEALLOCATE(work_sp)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect or 1-D data type", __LINE__, error)

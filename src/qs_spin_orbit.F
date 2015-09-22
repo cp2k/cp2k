@@ -298,21 +298,13 @@ CONTAINS
 
     ! *** Release work storage ***
 
-    DEALLOCATE (basis_set_list,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "basis_set_list")
+    DEALLOCATE (basis_set_list)
 
-    DEALLOCATE (soab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soab")
+    DEALLOCATE (soab)
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    DEALLOCATE (work)
 
-    DEALLOCATE (soint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soint")
+    DEALLOCATE (soint)
 
 !   *** Print the spin orbit matrix, if requested ***
 

@@ -123,7 +123,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, spin, stat
+    INTEGER                                  :: i, spin
 
     DO spin=1, SIZE(t_env%evecs, 2)
        DO i=1, SIZE(t_env%evecs, 1)
@@ -136,9 +136,7 @@ CONTAINS
        IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
             CALL cp_fm_release(t_env%invS(spin)%matrix)
     END DO
-    DEALLOCATE (t_env%invS,t_env%evecs,t_env%evals,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "t_env%invS,t_env%evecs,t_env%evals")
+    DEALLOCATE (t_env%invS,t_env%evecs,t_env%evals)
 
     NULLIFY (t_env%invS)
 
