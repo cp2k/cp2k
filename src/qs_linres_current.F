@@ -608,7 +608,7 @@ CONTAINS
 
     INTEGER :: bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, &
       idir2, igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, &
-      istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
+      itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
       jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, &
       nb1, nb2, ncoa, ncob, ngpts, nimages, nkind, nseta, nsetb, ntasks, &
       nthread, sgfa, sgfb
@@ -938,7 +938,6 @@ CONTAINS
          skip_load_balance_distributed=.FALSE.)
 
     ALLOCATE(rs_current(gridlevel_info%ngrid_levels))
-    CPASSERT(istat==0)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        ! Here we need to reallocate the distributed rs_grids, which may have been reordered

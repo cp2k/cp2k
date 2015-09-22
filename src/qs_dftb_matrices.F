@@ -1632,8 +1632,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, blk, do_ipol, ewald_type, handle, i, iatom, ikind, &
-      imm, imp, indmm, ipot, iqm, istat, jatom, natom, natorb, nkind, nmm, &
-      nspins, number_qm_atoms
+      imm, imp, indmm, ipot, iqm, jatom, natom, natorb, nkind, nmm, nspins, &
+      number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, do_multipoles, &
                                                 failure, found
@@ -1811,7 +1811,6 @@ CONTAINS
              END IF
              CALL mp_sum(qpot,para_env%group)
              CALL mp_sum(Forces_QM, para_env%group)
-             CPASSERT(istat==0)
              ! Add Ewald and DFTB short range corrections
              ! This is effectively using a minimum image convention!
              ! Set rcutoff to values compatible with alpha Ewald
