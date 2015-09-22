@@ -1442,8 +1442,9 @@ CONTAINS
     !first integer array with element status, random number seed, and move type
     counter = 1
     IF(DEBUG.GT.0) THEN
-       IF((m_send%task_int(counter+1) .NE. elem%sub_tree_nr) .AND. (m_send%task_int(counter+3).NE.elem%nr)) &
+       IF((m_send%task_int(counter+1) .NE. elem%sub_tree_nr) .AND. (m_send%task_int(counter+3).NE.elem%nr)) THEN
           CPABORT("read_NMC_result_massage: got result of wrong element")
+       ENDIF
        counter = counter + 2+2
     END IF
     ! the molecule information

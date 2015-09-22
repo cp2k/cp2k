@@ -229,8 +229,9 @@ CONTAINS
     density_guess=scf_control%density_guess
     do_std_diag = .FALSE.
 
-    IF(do_kpoints .AND. density_guess==restart_guess) &
+    IF(do_kpoints .AND. density_guess==restart_guess) THEN
        CPABORT("calculate_first_density_matrix: restart not implemented for k-points")
+    ENDIF
 
     safe_density_guess = atomic_guess
     IF ( dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &

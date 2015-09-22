@@ -93,10 +93,12 @@ MODULE swarm_mpi
     worker_id = -1
     swarm_mpi%world => world_para_env
 
-    IF (MOD(swarm_mpi%world%num_pe-1, n_workers) /= 0) &
+    IF (MOD(swarm_mpi%world%num_pe-1, n_workers) /= 0) THEN
        CPABORT("number of processors-1 is not divisible by n_workers.")
-    IF (swarm_mpi%world%num_pe < n_workers + 1) &
+    ENDIF
+    IF (swarm_mpi%world%num_pe < n_workers + 1) THEN
        CPABORT("There are not enough processes for n_workers + 1. Aborting.")
+    ENDIF
 
     pe_per_worker = (swarm_mpi%world%num_pe-1)/n_workers
 
@@ -220,11 +222,13 @@ MODULE swarm_mpi
     IF(ASSOCIATED(swarm_mpi%worker)) THEN
        old_logger => cp_get_default_logger()
        project_name = old_logger%iter_info%project_name
-       IF(worker_id > 99999) &
+       IF(worker_id > 99999) THEN
           CPABORT("Did not expect so many workers.")
+       ENDIF
        WRITE(worker_name,"(A,I5.5)") 'WORKER', worker_id
-       IF(LEN_TRIM(project_name)+1+LEN_TRIM(worker_name)>default_string_length) &
+       IF(LEN_TRIM(project_name)+1+LEN_TRIM(worker_name)>default_string_length) THEN
           CPABORT("project name too long")
+       ENDIF
        output_path = TRIM(project_name) // "-"// TRIM(worker_name) // ".out"
        new_project_name = TRIM(project_name) // "-"// TRIM(worker_name)
        CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=new_project_name)
