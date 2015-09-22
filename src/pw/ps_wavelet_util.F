@@ -89,9 +89,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: karray
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
-    INTEGER :: i1, i2, i3, i_all, i_stat, iend, istart, j2, m1, m2, m3, md1, &
-      md2, md3, n1, n2, n3, nd1, nd2, nd3, nlim, nwb, nwbl, nwbr, nxc, nxcl, &
-      nxcr, nxt
+    INTEGER :: i1, i2, i3, iend, istart, j2, m1, m2, m3, md1, md2, md3, n1, &
+      n2, n3, nd1, nd2, nd3, nlim, nwb, nwbl, nwbr, nxc, nxcl, nxcr, nxt
     REAL(KIND=dp)                            :: factor, hgrid, red_fact, scal
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zf
@@ -109,14 +108,8 @@ CONTAINS
        STOP 'PSolver: geometry code not admitted'
     END IF
     !array allocations
-    i_all=0
-    ALLOCATE(zf(md1,md3,md2/nproc),stat=i_stat)
-    i_all=i_all+i_stat
+    ALLOCATE(zf(md1,md3,md2/nproc))
 
-    IF (i_all /= 0) THEN
-       PRINT *,"PSolver: Problem of memory allocation"
-       STOP
-    END IF
     !  CALL timing(iproc,'Exchangecorr  ','ON')
     !dimension for exchange-correlation (different in the global or distributed case)
     !let us calculate the dimension of the portion of the rhopot array to be passed
@@ -200,11 +193,7 @@ CONTAINS
 
     CALL scale_and_distribute(m1,m3,md1,md2,md3,nxc,zf,rhopot,nproc,red_fact)
 
-    DEALLOCATE(zf,stat=i_all)
-    IF (i_all+i_stat /= 0) THEN
-       WRITE(*,*)' psolver: problem of memory deallocation'
-       STOP
-    END IF
+    DEALLOCATE(zf)
 
   END SUBROUTINE PSolver
 

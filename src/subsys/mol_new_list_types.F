@@ -108,15 +108,9 @@ SUBROUTINE mol_new_list_create(list, els_ptr, &
     CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(PRESENT(els_ptr).OR.PRESENT(n_els))
 
-  ALLOCATE(list, stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(list)
   last_mol_new_list_id=last_mol_new_list_id+1
   list%id_nr=last_mol_new_list_id
   list%ref_count=1
@@ -132,8 +126,7 @@ SUBROUTINE mol_new_list_create(list, els_ptr, &
   END IF
   IF (PRESENT(n_els)) list%n_els=n_els
   IF (.NOT.ASSOCIATED(list%els)) THEN
-     ALLOCATE(list%els(list%n_els),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(list%els(list%n_els))
      CPASSERT(list%owns_els)
   END IF
 END SUBROUTINE mol_new_list_create
@@ -150,10 +143,6 @@ SUBROUTINE mol_new_list_retain(list)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(list))
   CPASSERT(list%ref_count>0)
@@ -172,10 +161,6 @@ SUBROUTINE mol_new_list_release(list)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(list)) THEN
      CPASSERT(list%ref_count>0)

@@ -824,8 +824,8 @@ CONTAINS
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: delta_res_p, res_rho, &
                                                 res_rho_p, tmp
     INTEGER                                  :: handle, ib, ibb, ig, info, &
-                                                ispin, istat, jb, kb, kkb, &
-                                                lwork, nb, nbuffer, ng, nspin
+                                                ispin, jb, kb, kkb, lwork, &
+                                                nb, nbuffer, ng, nspin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
     LOGICAL                                  :: failure, skip_bq
     REAL(dp) :: alpha, beta, delta, delta_p, delta_rhog, delta_rhog_p, f_mix, &
@@ -991,7 +991,7 @@ CONTAINS
 !dbg
 
 !dbg
-        ALLOCATE (fm2(ib-1,ib-1),STAT=istat)
+        ALLOCATE (fm2(ib-1,ib-1))
         fm2 = 0.0_dp
         DO kb=1,ib-1
           DO jb=1,kb
@@ -1036,7 +1036,7 @@ CONTAINS
    END IF
 !dbg
 !dbg
-        ALLOCATE(a2(ib-1,ib-1),STAT=istat)
+        ALLOCATE(a2(ib-1,ib-1))
         DO jb = 1,ib-1
         DO kb = 1,ib-1
           a2(kb,jb) =  weight(jb,ispin)*weight(kb,ispin)*fm2(kb,jb)
@@ -1111,9 +1111,9 @@ CONTAINS
         IF(.NOT. skip_bq) THEN
            ! in this case the old z_vec is needed
            ! a temporary array is needed to store the new one
-           ALLOCATE(tmp_z(ib-1),STAT=istat)
+           ALLOCATE(tmp_z(ib-1))
            DO jb = 1,ib-1
-             ALLOCATE(tmp_z(jb)%cc(ng),STAT=istat)
+             ALLOCATE(tmp_z(jb)%cc(ng))
            END DO
         END IF
         DO jb = 1,ib-1
@@ -1148,9 +1148,9 @@ CONTAINS
         IF(.NOT. skip_bq ) THEN
           DO jb = 1,ib-1
              IF (weight(jb,ispin) < (10._dp*wmax))  z_vec(jb,ispin)%cc(:) = tmp_z(jb)%cc(:)
-             DEALLOCATE(tmp_z(jb)%cc,STAT=istat)
+             DEALLOCATE(tmp_z(jb)%cc)
           END DO
-          DEALLOCATE(tmp_z,STAT=istat)
+          DEALLOCATE(tmp_z)
         END IF
 
         ! Overwrite the density i reciprocal space
@@ -1617,7 +1617,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iat, ic, ispin, &
-                                                natom, nbuffer, nimg, stat
+                                                natom, nbuffer, nimg
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
@@ -1691,7 +1691,7 @@ CONTAINS
       nbuffer = mixing_store%nbuffer
       mixing_store%ncall = 0
       IF(.NOT. ASSOCIATED(mixing_store%rhoin)) THEN
-        ALLOCATE(mixing_store%rhoin(nspins), STAT=stat)
+        ALLOCATE(mixing_store%rhoin(nspins))
         DO ispin = 1,nspins
           NULLIFY(mixing_store%rhoin(ispin)%cc)
         END DO
@@ -1750,7 +1750,7 @@ CONTAINS
 !   *** allocate broyden buffer ***
     IF (mixing_method==broyden_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%rhoin_old)) THEN
-        ALLOCATE(mixing_store%rhoin_old(nspins), STAT=stat)
+        ALLOCATE(mixing_store%rhoin_old(nspins))
         DO ispin = 1,nspins
           NULLIFY(mixing_store%rhoin_old(ispin)%cc)
         END DO
@@ -1848,9 +1848,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iat, ib, ig, ig1, &
-                                                ig_count, iproc, ispin, &
-                                                istat, n1, n2, natom, &
-                                                nbuffer, ng, nspin
+                                                ig_count, iproc, ispin, n1, &
+                                                n2, natom, nbuffer, ng, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: bconst, beta, fdamp, g2max, &
                                                 g2min, kmin
@@ -1902,7 +1901,7 @@ CONTAINS
     nbuffer = mixing_store%nbuffer
     DO ispin = 1,nspin
       IF(.NOT. ASSOCIATED(mixing_store%rhoin(ispin)%cc)) THEN
-        ALLOCATE(mixing_store%rhoin(ispin)%cc(ng),STAT=istat)
+        ALLOCATE(mixing_store%rhoin(ispin)%cc(ng))
       END IF
       mixing_store%rhoin(ispin)%cc = rho_g(ispin)%pw%cc
 
@@ -1960,7 +1959,7 @@ CONTAINS
     ELSEIF(mixing_method==broyden_mixing_nr) THEN
        DO ispin = 1,nspin
          IF(.NOT. ASSOCIATED(mixing_store%rhoin_old(ispin)%cc)) THEN
-            ALLOCATE(mixing_store%rhoin_old(ispin)%cc(ng),STAT=istat)
+            ALLOCATE(mixing_store%rhoin_old(ispin)%cc(ng))
          END IF
          IF(.NOT. ASSOCIATED(mixing_store%drho_buffer(1,ispin)%cc)) THEN
            DO ib = 1,nbuffer
@@ -1981,8 +1980,8 @@ CONTAINS
            n1 = SIZE(rho_atom(iat)%cpc_s(ispin)%r_coef,1)
            n2 = SIZE(rho_atom(iat)%cpc_s(ispin)%r_coef,2)
            IF(.NOT. ASSOCIATED(mixing_store%cpc_s_old(iat,ispin)%r_coef)) THEN
-             ALLOCATE(mixing_store%cpc_s_old(iat,ispin)%r_coef(n1,n2),STAT=istat)
-             ALLOCATE(mixing_store%cpc_h_old(iat,ispin)%r_coef(n1,n2),STAT=istat)
+             ALLOCATE(mixing_store%cpc_s_old(iat,ispin)%r_coef(n1,n2))
+             ALLOCATE(mixing_store%cpc_h_old(iat,ispin)%r_coef(n1,n2))
            END IF
            mixing_store%cpc_h_old(iat,ispin)%r_coef = 0.0_dp
            mixing_store%cpc_s_old(iat,ispin)%r_coef = 0.0_dp

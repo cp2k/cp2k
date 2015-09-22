@@ -1029,10 +1029,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iat, idir, istat, n, natom
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
+    INTEGER                                  :: i, iat, idir, n, natom
 
     CPASSERT(ASSOCIATED(jrho_atom_set))
     natom = SIZE(jrho_atom_set)
@@ -1051,9 +1048,7 @@ CONTAINS
                            jrho_atom_set(iat)%cjc_ii_h(i)%r_coef,&
                            jrho_atom_set(iat)%cjc_ii_s(i)%r_coef,&
                            jrho_atom_set(iat)%cjc_iii_h(i)%r_coef,&
-                           jrho_atom_set(iat)%cjc_iii_s(i)%r_coef,&
-                           STAT=istat)
-                CPASSERT(istat==0)
+                           jrho_atom_set(iat)%cjc_iii_s(i)%r_coef)
              END DO
           END IF
           DEALLOCATE(jrho_atom_set(iat)%cjc0_h,&
@@ -1063,9 +1058,7 @@ CONTAINS
                      jrho_atom_set(iat)%cjc_ii_h,&
                      jrho_atom_set(iat)%cjc_ii_s,&
                      jrho_atom_set(iat)%cjc_iii_h,&
-                     jrho_atom_set(iat)%cjc_iii_s,&
-                     STAT=istat)
-          CPASSERT(istat==0)
+                     jrho_atom_set(iat)%cjc_iii_s)
        END IF
 
        IF(ASSOCIATED(jrho_atom_set(iat)%jrho_a_h)) THEN
@@ -1087,9 +1080,7 @@ CONTAINS
                            jrho_atom_set(iat)%jrho_a_h_iii(i)%r_coef,&
                            jrho_atom_set(iat)%jrho_a_s_iii(i)%r_coef,&
                            jrho_atom_set(iat)%jrho_b_h_iii(i)%r_coef,&
-                           jrho_atom_set(iat)%jrho_b_s_iii(i)%r_coef,&
-                           STAT=istat)
-                CPASSERT(istat==0)
+                           jrho_atom_set(iat)%jrho_b_s_iii(i)%r_coef)
              END DO
           END IF
           DEALLOCATE(jrho_atom_set(iat)%jrho_h,&
@@ -1105,9 +1096,7 @@ CONTAINS
                      jrho_atom_set(iat)%jrho_a_h_iii,&
                      jrho_atom_set(iat)%jrho_a_s_iii,&
                      jrho_atom_set(iat)%jrho_b_h_iii,&
-                     jrho_atom_set(iat)%jrho_b_s_iii,&
-                     STAT=istat)
-          CPASSERT(istat==0)
+                     jrho_atom_set(iat)%jrho_b_s_iii)
        END IF
 
        IF(ASSOCIATED(jrho_atom_set(iat)%jrho_vec_rad_h)) THEN
@@ -1118,16 +1107,12 @@ CONTAINS
                    !
                    ! size =(nr,na) distributed
                    DEALLOCATE(jrho_atom_set(iat)%jrho_vec_rad_h(idir,i)%r_coef,&
-                              jrho_atom_set(iat)%jrho_vec_rad_s(idir,i)%r_coef,&
-                              STAT=istat)
-                   CPASSERT(istat==0)
+                              jrho_atom_set(iat)%jrho_vec_rad_s(idir,i)%r_coef)
                 END DO
              END DO
           ENDIF
           DEALLOCATE(jrho_atom_set(iat)%jrho_vec_rad_h,&
-                     jrho_atom_set(iat)%jrho_vec_rad_s,&
-                     STAT=istat)
-          CPASSERT(istat==0)
+                     jrho_atom_set(iat)%jrho_vec_rad_s)
        END IF
     END DO
     DEALLOCATE(jrho_atom_set)
@@ -1150,7 +1135,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, idir, istat
+    INTEGER                                  :: handle, idir
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -1162,9 +1147,7 @@ CONTAINS
 
     DO idir = 1,3
        ALLOCATE(jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef(nr,na),&
-                jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na),&
-                STAT=istat)
-       CPASSERT(istat==0)
+                jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na))
        jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
        jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
     ENDDO
@@ -1182,9 +1165,7 @@ CONTAINS
              jrho1_atom%jrho_a_h_iii(ispin)%r_coef(nr,max_iso_not0),&
              jrho1_atom%jrho_a_s_iii(ispin)%r_coef(nr,max_iso_not0),&
              jrho1_atom%jrho_b_h_iii(ispin)%r_coef(nr,max_iso_not0),&
-             jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0),&
-             STAT=istat)
-    CPASSERT(istat==0)
+             jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0))
     !
     jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
     jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
@@ -1260,7 +1241,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -1274,9 +1255,7 @@ CONTAINS
                 jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef(nsotot,nsotot),&
                 jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef(nsotot,nsotot),&
                 jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),&
-                jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),&
-                STAT=istat)
-       CPASSERT(istat==0)
+                jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot))
        jrho1_atom_set(iatom)%cjc0_h(i)%r_coef = 0.0_dp
        jrho1_atom_set(iatom)%cjc0_s(i)%r_coef = 0.0_dp
        jrho1_atom_set(iatom)%cjc_h(i)%r_coef = 0.0_dp
@@ -1305,7 +1284,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -1319,9 +1298,7 @@ CONTAINS
                   jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef,&
                   jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef,&
                   jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,&
-                  jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,&
-                  STAT=istat)
-       CPASSERT(istat==0)
+                  jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef)
     ENDDO
     CALL timestop(handle)
   END SUBROUTINE deallocate_jrho_coeff
@@ -1390,8 +1367,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iat, iatom, idir, &
-                                                ikind, ispin, istat, nat, &
-                                                natom, nkind
+                                                ikind, ispin, nat, natom, &
+                                                nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
 
@@ -1442,9 +1419,7 @@ CONTAINS
                    jrho1_atom_set(iatom)%cjc_ii_h(nspins),&
                    jrho1_atom_set(iatom)%cjc_ii_s(nspins),&
                    jrho1_atom_set(iatom)%cjc_iii_h(nspins),&
-                   jrho1_atom_set(iatom)%cjc_iii_s(nspins),&
-                   STAT=istat)
-          CPASSERT(istat==0)
+                   jrho1_atom_set(iatom)%cjc_iii_s(nspins))
 
           DO ispin = 1,nspins
              DO idir = 1,3

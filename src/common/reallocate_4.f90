@@ -27,8 +27,7 @@
                                          (ub4-lb4+1))
        END IF
        work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
-       DEALLOCATE (p,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
+       DEALLOCATE (p)
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,lb4_new:ub4_new),&
@@ -44,6 +43,5 @@
 
     IF (ASSOCIATED(p).AND.ALLOCATED(work)) THEN
        p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
-       DEALLOCATE (work,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+       DEALLOCATE (work)
     END IF

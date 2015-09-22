@@ -619,10 +619,7 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
+    INTEGER                                  :: i, j
 
     IF (ASSOCIATED(helium)) THEN
       CPASSERT(helium%ref_count>0)
@@ -640,32 +637,10 @@ MODULE helium_methods
           helium%rtmp_3_np_1d, &
           helium%itmp_atoms_np_1d, &
           helium%ltmp_atoms_1d, &
-          helium%itmp_atoms_1d, &
-          STAT=stat )
-        CPASSERT(stat==0)
-        NULLIFY ( &
-          helium%ltmp_3_atoms_beads_3d, &
-          helium%rtmp_p_ndim_2d, &
-          helium%rtmp_3_atoms_beads_np_1d, &
-          helium%rtmp_3_atoms_beads_1d, &
-          helium%rtmp_p_ndim_np_1d, &
-          helium%rtmp_p_ndim_1d, &
-          helium%rtmp_3_np_1d, &
-          helium%itmp_atoms_np_1d, &
-          helium%ltmp_atoms_1d, &
-          helium%itmp_atoms_1d &
-        )
+          helium%itmp_atoms_1d,)
 
         ! DEALLOCATE solute-related arrays
-        DEALLOCATE ( &
-          helium%force_inst, &
-          helium%force_avrg, &
-          STAT=stat )
-        CPASSERT(stat==0)
-        NULLIFY( &
-          helium%force_inst, &
-          helium%force_avrg &
-        )
+        DEALLOCATE (helium%force_inst, helium%force_avrg)
 
         IF ( helium%rho_present ) THEN
           IF ( helium%rho_restart ) THEN
@@ -690,9 +665,7 @@ MODULE helium_methods
           helium%permutation, &
           helium%ptable, &
           helium%work, &
-          helium%pos, &
-          STAT=stat )
-        CPASSERT(stat==0)
+          helium%pos)
           DO i = 1, SIZE ( helium%eij , 1 )
              DO j = 1, SIZE ( helium%eij , 1 )
                 CALL spline_data_release(helium%eij(i,j)%spline_data)
@@ -712,11 +685,7 @@ MODULE helium_methods
 
          ! deallocate solute-related arrays
           IF (helium%solute_present) THEN
-            DEALLOCATE(helium%solute_element, &
-                       helium%solute_number, &
-                       helium%solute_index, &
-                       STAT=stat)
-            CPASSERT(stat==0)
+            DEALLOCATE(helium%solute_element, helium%solute_number, helium%solute_index)
           END IF
 
           DEALLOCATE( helium)

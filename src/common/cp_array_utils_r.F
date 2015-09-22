@@ -223,24 +223,16 @@ END SUBROUTINE cp_2d_r_write
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_r_guarantee_size', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(n>=0)
-    failureIf: IF (.NOT. failure) THEN
-       IF (ASSOCIATED(array)) THEN
-          IF (SIZE(array) /= n) THEN
-             CPWARN('size has changed')
-             DEALLOCATE(array)
-          END IF
+    IF (ASSOCIATED(array)) THEN
+       IF (SIZE(array) /= n) THEN
+          CPWARN('size has changed')
+          DEALLOCATE(array)
        END IF
-       IF (.NOT.ASSOCIATED(array)) THEN
-          ALLOCATE(array(n), stat=stat)
-          CPASSERT(stat==0)
-       END IF
-    END IF failureIf
+    END IF
+    IF (.NOT.ASSOCIATED(array)) THEN
+       ALLOCATE(array(n))
+    END IF
   END SUBROUTINE cp_1d_r_guarantee_size
 
 ! *****************************************************************************
@@ -267,26 +259,17 @@ END SUBROUTINE cp_2d_r_write
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_r_guarantee_size', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(n_cols>=0)
     CPASSERT(n_rows>=0)
-    failureIf: IF (.NOT. failure) THEN
-       IF (ASSOCIATED(array)) THEN
-          IF (SIZE(array,1) /= n_rows .OR. SIZE(array,2) /= n_cols) THEN
-             CPWARN('size has changed')
-             DEALLOCATE(array)
-             NULLIFY(array)
-          END IF
+    IF (ASSOCIATED(array)) THEN
+       IF (SIZE(array,1) /= n_rows .OR. SIZE(array,2) /= n_cols) THEN
+          CPWARN('size has changed')
+          DEALLOCATE(array)
        END IF
-       IF (.NOT.ASSOCIATED(array)) THEN
-          ALLOCATE(array(n_rows,n_cols), stat=stat)
-          CPASSERT(stat==0)
-       END IF
-    END IF failureIf
+    END IF
+    IF (.NOT.ASSOCIATED(array)) THEN
+       ALLOCATE(array(n_rows,n_cols))
+    END IF
   END SUBROUTINE cp_2d_r_guarantee_size
 
 ! *****************************************************************************

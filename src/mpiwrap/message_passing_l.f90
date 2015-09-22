@@ -1053,8 +1053,7 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ "//routineN )
     IF (msglen>0) THEN
       m1 = SIZE(msg,1)
-      ALLOCATE (res(m1),STAT=ierr)
-      IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+      ALLOCATE (res(m1))
       CALL mpi_reduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,&
            root,gid,ierr)
       IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ "//routineN )
@@ -1102,8 +1101,7 @@
     IF (msglen>0) THEN
     m1 = SIZE(msg,1)
     m2 = SIZE(msg,2)
-    ALLOCATE (res(m1,m2),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(m1,m2))
     CALL mpi_reduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,root,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ "//routineN )
     IF ( taskid == root ) THEN
@@ -1235,7 +1233,6 @@
     msglen = SIZE(msg)
 #if defined(__parallel)
     t_start = m_walltime ( )
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
     CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER8,MPI_MIN,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     t_end = m_walltime ( )
@@ -2586,13 +2583,7 @@
     t_end = m_walltime()
     CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
 #else
-    DEALLOCATE(DATA, stat=ierr)
-    IF (PRESENT (stat)) THEN
-       stat=ierr
-    ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ "//routineN)
-    ENDIF
-    NULLIFY(DATA)
+    DEALLOCATE(DATA)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_deallocate_l
@@ -2960,10 +2951,7 @@
     CALL MPI_FREE_MEM(DATA, mp_res)
     IF (PRESENT (stat)) stat = mp_res
 #else
-     IF (PRESENT (stat)) THEN
-        DEALLOCATE(DATA, stat=stat)
-     ELSE
-        DEALLOCATE(DATA)
-     ENDIF
+     DEALLOCATE(DATA)
+     IF (PRESENT (stat)) stat=0
 #endif
    END SUBROUTINE mp_free_mem_l

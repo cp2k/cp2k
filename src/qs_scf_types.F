@@ -435,10 +435,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
+    INTEGER                                  :: i
 
     IF(ASSOCIATED(krylov_space)) THEN
 
@@ -463,11 +460,11 @@ CONTAINS
         DO i = 1,SIZE(krylov_space%chc_mat)
           CALL cp_fm_release(krylov_space%chc_mat(i)%matrix)
         END DO
-        DEALLOCATE(krylov_space%chc_mat,STAT=stat)
+        DEALLOCATE(krylov_space%chc_mat)
         DO i = 1,SIZE(krylov_space%c_vec)
           CALL cp_fm_release(krylov_space%c_vec(i)%matrix)
         END DO
-        DEALLOCATE(krylov_space%c_vec,STAT=stat)
+        DEALLOCATE(krylov_space%c_vec)
         CALL cp_fm_release(krylov_space%tmp_mat)
         CALL cp_fm_release(krylov_space%block1_mat)
         CALL cp_fm_release(krylov_space%block2_mat)
@@ -554,10 +551,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'diag_subspace_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
+    INTEGER                                  :: i
 
     IF(ASSOCIATED(subspace_env)) THEN
 
@@ -569,15 +563,15 @@ CONTAINS
        DO i = 1,SIZE(subspace_env%chc_mat)
          CALL cp_fm_release(subspace_env%chc_mat(i)%matrix)
        END DO
-       DEALLOCATE(subspace_env%chc_mat,STAT=stat)
+       DEALLOCATE(subspace_env%chc_mat)
        DO i = 1,SIZE(subspace_env%c_vec)
          CALL cp_fm_release(subspace_env%c_vec(i)%matrix)
        END DO
-       DEALLOCATE(subspace_env%c_vec,STAT=stat)
+       DEALLOCATE(subspace_env%c_vec)
        DO i = 1,SIZE(subspace_env%c0)
          CALL cp_fm_release(subspace_env%c0(i)%matrix)
        END DO
-       DEALLOCATE(subspace_env%c0,STAT=stat)
+       DEALLOCATE(subspace_env%c0)
 
         IF (ASSOCIATED(subspace_env%mixing_store)) THEN
            CALL mixing_storage_release(subspace_env%mixing_store)

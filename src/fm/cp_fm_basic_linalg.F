@@ -1235,7 +1235,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icol, info, irow, &
-                                                istat, j, lda, lwork, ncol, &
+                                                j, lda, lwork, ncol, &
                                                 ndim, nrow
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: tau, work
@@ -1265,33 +1265,33 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CPASSERT(nrow>=ncol)
     ndim = SIZE(a,2)
-!    ALLOCATE(ipiv(ndim),istat=STAT)
-    ALLOCATE(tau(ndim),STAT=istat)
+!    ALLOCATE(ipiv(ndim))
+    ALLOCATE(tau(ndim))
 
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)
 
     lwork = -1
-    ALLOCATE(work(2*ndim),STAT=istat)
+    ALLOCATE(work(2*ndim))
     CALL pdgeqrf( nrow, ncol, a, irow, icol, desca,  tau, work, lwork, info )
     lwork = INT(work(1))
-    DEALLOCATE(work,STAT=istat)
-    ALLOCATE(work(lwork),STAT=istat)
+    DEALLOCATE(work)
+    ALLOCATE(work(lwork))
     CALL pdgeqrf( nrow, ncol, a, irow, icol, desca, tau, work, lwork, info )
 
 #else
     lwork = -1
-    ALLOCATE(work(2*ndim),STAT=istat)
+    ALLOCATE(work(2*ndim))
     CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )
     lwork = INT(work(1))
-    DEALLOCATE(work,STAT=istat)
-    ALLOCATE(work(lwork),STAT=istat)
+    DEALLOCATE(work)
+    ALLOCATE(work(lwork))
     CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )
 
 #endif
 
-    ALLOCATE(r_mat(ncol,ncol),STAT=istat)
+    ALLOCATE(r_mat(ncol,ncol))
     CALL cp_fm_get_submatrix(matrix_a,r_mat,1,1,ncol,ncol)
     DO i = 1,ncol
       DO j = i+1,ncol
@@ -1301,7 +1301,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CALL cp_fm_set_submatrix(matrix_r,r_mat,1,1,ncol,ncol)
 
 
-    DEALLOCATE(tau, work, r_mat, STAT=istat)
+    DEALLOCATE(tau, work, r_mat)
 
     CALL timestop(handle)
 

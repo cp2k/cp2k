@@ -1223,8 +1223,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_region', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ireg, istat, nfree, &
-                                                nfree_done, nregions
+    INTEGER                                  :: ireg, nfree, nfree_done, &
+                                                nregions
     REAL(KIND=dp)                            :: ekin, ekin_old, &
                                                 ekin_total_new, fscale, &
                                                 vcom(3), vcom_total(3)
@@ -1245,7 +1245,7 @@ CONTAINS
      ekin_total_new = 0.0_dp
      ekin_old = md_ener%ekin
      vcom_total = 0.0_dp
-     ALLOCATE(temp_new(0:nregions),temp_old(0:nregions), STAT=istat)
+     ALLOCATE(temp_new(0:nregions),temp_old(0:nregions))
      temp_new = 0.0_dp
      temp_old = 0.0_dp
      !loop regions
@@ -1292,7 +1292,7 @@ CONTAINS
              " rescaled from:",temp_old(ireg)," K  to ",temp_new(ireg)," K"
        END IF
      END DO
-     DEALLOCATE(temp_new,temp_old,STAT=istat)
+     DEALLOCATE(temp_new,temp_old)
 
   END SUBROUTINE scale_velocity_region
 

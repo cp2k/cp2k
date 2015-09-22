@@ -595,10 +595,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name_sto
-    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, lfomo, &
-      n_mo(2), n_rep, nao, natom, ncubes, nelectron, nexc_atoms, nexc_search, &
-      nj, nk, nkind, nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, &
-      nvirtual, nvirtual2, nwork
+    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, n_mo(2), &
+      n_rep, nao, natom, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, &
+      nkind, nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, nvirtual, &
+      nvirtual2, nwork
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_type_tmp, &
                                                 kind_z_tmp, last_sgf
     INTEGER, DIMENSION(4, 7)                 :: ne
@@ -927,7 +927,7 @@ CONTAINS
 
       !Type of state
       norb = 0
-      ALLOCATE(nq(1),lq(1),sto_zet(1),STAT=istat)
+      ALLOCATE(nq(1),lq(1),sto_zet(1))
       IF( xas_control%state_type == xas_1s_type) THEN
         norb(0) = 1
         nq(1) = 1
@@ -948,9 +948,8 @@ CONTAINS
 
 
 !     Find core orbitals of right angular momentum
-      ALLOCATE(kind_type_tmp(nkind),STAT=istat)
-      ALLOCATE(kind_z_tmp(nkind),STAT=istat)
-      CPASSERT(istat==0)
+      ALLOCATE(kind_type_tmp(nkind))
+      ALLOCATE(kind_z_tmp(nkind))
       kind_type_tmp = 0
       kind_z_tmp = 0
       nk=0
@@ -1013,9 +1012,8 @@ CONTAINS
              xas_env%stogto_overlap(ik)%array)
       END DO
 
-      DEALLOCATE(nq,lq,sto_zet,STAT=istat)
-      DEALLOCATE(kind_type_tmp,kind_z_tmp,STAT=istat)
-      CPASSERT(istat==0)
+      DEALLOCATE(nq,lq,sto_zet)
+      DEALLOCATE(kind_type_tmp,kind_z_tmp)
     END IF  ! failure
 
   END SUBROUTINE xas_env_init
@@ -1047,8 +1045,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istat, lfomo, nabs, &
-                                                nmo, nvirtual, output_unit, &
+    INTEGER                                  :: homo, i, lfomo, nabs, nmo, &
+                                                nvirtual, output_unit, &
                                                 xas_estate
     LOGICAL                                  :: append_cube, failure, length
     REAL(dp)                                 :: rc(3)
@@ -1125,8 +1123,8 @@ CONTAINS
              xas_section, iatom, lfomo, length=length)
       END IF
 
-      DEALLOCATE(sp_em,STAT=istat)
-      DEALLOCATE(sp_ab,STAT=istat)
+      DEALLOCATE(sp_em)
+      DEALLOCATE(sp_ab)
 
       IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
         "PRINT%CLS_FUNCTION_CUBES"),cp_p_file)) THEN

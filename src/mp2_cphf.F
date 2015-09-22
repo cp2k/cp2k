@@ -146,7 +146,7 @@ MODULE mp2_cphf
 
     INTEGER :: alpha, beta, bin, dimen, handle, handle2, i, i_global, &
       i_thread, iiB, ikind, irep, ispin, j_global, jjB, my_bin_size, &
-      n_rep_hf, n_threads, ncol_local, nrow_local, stat, transf_type_in, &
+      n_rep_hf, n_threads, ncol_local, nrow_local, transf_type_in, &
       transf_type_out, virtual, virtual_beta
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
@@ -657,7 +657,7 @@ MODULE mp2_cphf
     ! release DBCSR stuff
     DO ispin=1, dft_control%nspins
       CALL cp_dbcsr_release(mat_mu_nu(ispin)%matrix)
-      DEALLOCATE(mat_mu_nu(ispin)%matrix,STAT=stat)
+      DEALLOCATE(mat_mu_nu(ispin)%matrix)
     END DO
     DEALLOCATE(mat_mu_nu)
     CALL cp_dbcsr_release(P_mu_nu%matrix)

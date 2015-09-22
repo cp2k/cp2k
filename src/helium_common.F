@@ -638,9 +638,9 @@ MODULE helium_common
 
    nb = helium%atoms
    !TODO: check allocation status
-   ALLOCATE(p(2*nb),STAT=i)
-   ALLOCATE(order(nb),STAT=i)
-   ALLOCATE(lens(2*nb),STAT=i)
+   ALLOCATE(p(2*nb))
+   ALLOCATE(order(nb))
+   ALLOCATE(lens(2*nb))
    b  = helium%beads-helium%bisection+1
    f = -0.5_dp/(helium%hb2m*helium%tau*helium%bisection)
    tmatrix => helium%tmatrix
@@ -974,9 +974,9 @@ MODULE helium_common
    END DO
 
    ! clean up:
-   DEALLOCATE(lens,STAT=i)
-   DEALLOCATE(order,STAT=i)
-   DEALLOCATE(p,STAT=i)
+   DEALLOCATE(lens)
+   DEALLOCATE(order)
+   DEALLOCATE(p)
 
   RETURN
 END SUBROUTINE helium_update_transition_matrix

@@ -104,9 +104,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'th_stm_image', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, irep, ispin, istat, &
-                                                n_rep, ndim, nmo, nspin, &
-                                                output_unit
+    INTEGER                                  :: handle, irep, ispin, n_rep, &
+                                                ndim, nmo, nspin, output_unit
     INTEGER, DIMENSION(:), POINTER           :: nadd_unocc, stm_th_torb
     LOGICAL                                  :: append_cube, failure, &
                                                 use_ref_energy
@@ -189,7 +188,7 @@ CONTAINS
 
      ALLOCATE(mo_arrays(nspin))
      ALLOCATE(evals(nspin))
-     ALLOCATE(occupation(nspin),STAT=istat)
+     ALLOCATE(occupation(nspin))
      DO ispin=1,nspin
           IF(nadd_unocc(ispin)==0) THEN
             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
@@ -201,10 +200,10 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                  eigenvalues=mo_eigenvalues, nmo=nmo, mu=efermi, occupation_numbers=mo_occ)
              ndim = nmo+nadd_unocc(ispin)
-             ALLOCATE(evals(ispin)%array(ndim),STAT=istat)
+             ALLOCATE(evals(ispin)%array(ndim))
              evals(ispin)%array(1:nmo)=mo_eigenvalues(1:nmo)
              evals(ispin)%array(1+nmo:ndim)=unoccupied_evals(ispin)%array(1:nadd_unocc(ispin))
-             ALLOCATE(occupation(ispin)%array(ndim),STAT=istat)
+             ALLOCATE(occupation(ispin)%array(ndim))
              occupation(ispin)%array(1:nmo)=mo_occ(1:nmo)
              occupation(ispin)%array(1+nmo:ndim)=0.0_dp
              CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=ndim, &
@@ -294,9 +293,9 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_pos, oname, title
     INTEGER                                  :: handle, i, ibias, imo, iorb, &
-                                                ispin, istat, istates, nmo, &
-                                                nspin, nstates(2), &
-                                                state_start(2), unit_nr
+                                                ispin, istates, nmo, nspin, &
+                                                nstates(2), state_start(2), &
+                                                unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: occ_tot
@@ -358,7 +357,7 @@ CONTAINS
        CALL cp_fm_create(matrix_vf,fm_struct_tmp, name="matrix_vf")
        CALL cp_fm_struct_release(fm_struct_tmp)
 
-       ALLOCATE(occ_tot(istates),STAT=istat)
+       ALLOCATE(occ_tot(istates))
 
        ! we sum both alpha and beta electrons together for this density of states
        istates=0
@@ -410,7 +409,7 @@ CONTAINS
 
        CALL cp_fm_release(matrix_v)
        CALL cp_fm_release(matrix_vf)
-       DEALLOCATE(occ_tot,STAT=istat)
+       DEALLOCATE(occ_tot)
 
     ENDDO
 

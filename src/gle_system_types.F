@@ -73,7 +73,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, j, k, n_rep
+    INTEGER                                  :: i, ir, j, k, n_rep
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: list
     REAL(KIND=dp)                            :: a_scale
@@ -93,10 +93,10 @@ CONTAINS
     CALL section_vals_val_get(section,"NDIM",i_val=gle%ndim)
     CALL section_vals_val_get(section,"A_SCALE",r_val=a_scale)
 
-    ALLOCATE(gle%a_mat(gle%ndim,gle%ndim), STAT=istat)
-    ALLOCATE(gle%c_mat(gle%ndim,gle%ndim), STAT=istat)
-    ALLOCATE(gle%gle_s(gle%ndim,gle%ndim), STAT=istat)
-    ALLOCATE(gle%gle_t(gle%ndim,gle%ndim), STAT=istat)
+    ALLOCATE(gle%a_mat(gle%ndim,gle%ndim))
+    ALLOCATE(gle%c_mat(gle%ndim,gle%ndim))
+    ALLOCATE(gle%gle_s(gle%ndim,gle%ndim))
+    ALLOCATE(gle%gle_t(gle%ndim,gle%ndim))
 
     CALL section_vals_val_get(section,"A_LIST",n_rep_val=n_rep)
 
@@ -236,7 +236,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -256,11 +256,10 @@ CONTAINS
        END IF
        IF (ASSOCIATED (gle%nvt)) THEN
           DO i = 1,SIZE(gle%nvt)
-            DEALLOCATE (gle%nvt(i)%s, STAT=stat)
+            DEALLOCATE (gle%nvt(i)%s)
             IF (ASSOCIATED(gle%nvt(i)%gaussian_rng_stream)) THEN
               CALL delete_rng_stream(gle%nvt(i)%gaussian_rng_stream)
             END IF
-            CPASSERT(stat==0)
           END DO
           DEALLOCATE (gle%nvt)
        ENDIF

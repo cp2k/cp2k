@@ -313,14 +313,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
     TYPE(pw_env_type), POINTER               :: pw_env
 
     failure=.FALSE.
-    stat=0
     NULLIFY(maxradius, maxradius2, pw_env)
 
     maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
@@ -360,8 +359,7 @@ CONTAINS
           END DO
        END SELECT
 
-       IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2, stat=stat)
-       CPASSERT(stat==0)
+       IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2)
     END IF
 
     qmmm_env_qm%maxradius => maxradius
@@ -891,8 +889,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: qm_atom_kind, qm_link_element
     INTEGER                                  :: ikind, k, link_involv_mm, &
                                                 link_type, mm_index, n_var, &
-                                                nkind, nlinks, &
-                                                num_qm_atom_tot, stat
+                                                nkind, nlinks, num_qm_atom_tot
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: scale_f
@@ -902,7 +899,6 @@ CONTAINS
     num_qm_atom_tot = 0
     link_involv_mm  = 0
     nlinks          = 0
-    stat            = 0
     !
     ! QM_KINDS
     !

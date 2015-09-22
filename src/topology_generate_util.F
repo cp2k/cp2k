@@ -201,7 +201,7 @@ CONTAINS
     INTEGER :: atom_in_kind, atom_in_mol, first, handle, handle2, i, iatm, &
       iatom, iend, ifirst, ilast, inum, istart, itype, iw, j, jump1, jump2, &
       last, max_mol_num, mol_num, mol_res, mol_typ, myind, N, natom, nlocl, &
-      ntype, resid, stat
+      ntype, resid
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, wrk1, wrk2
     LOGICAL                                  :: do_again, failure, found, &
                                                 my_qmmm
@@ -230,17 +230,13 @@ CONTAINS
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
     natom = topology%natoms
-    stat  = 0
-    IF (ASSOCIATED(atom_info%map_mol_typ)) DEALLOCATE(atom_info%map_mol_typ,STAT=stat)
-    CPASSERT(stat==0)
+    IF (ASSOCIATED(atom_info%map_mol_typ)) DEALLOCATE(atom_info%map_mol_typ)
     ALLOCATE (atom_info%map_mol_typ(natom))
 
-    IF (ASSOCIATED(atom_info%map_mol_num)) DEALLOCATE(atom_info%map_mol_num,STAT=stat)
-    CPASSERT(stat==0)
+    IF (ASSOCIATED(atom_info%map_mol_num)) DEALLOCATE(atom_info%map_mol_num)
     ALLOCATE (atom_info%map_mol_num(natom))
 
-    IF (ASSOCIATED(atom_info%map_mol_res)) DEALLOCATE(atom_info%map_mol_res,STAT=stat)
-    CPASSERT(stat==0)
+    IF (ASSOCIATED(atom_info%map_mol_res)) DEALLOCATE(atom_info%map_mol_res)
     ALLOCATE (atom_info%map_mol_res(natom))
 
     ! Initialisation

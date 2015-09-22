@@ -11,8 +11,7 @@
                            "work",t_size*(ub1-lb1+1))
        END IF
        work(lb1:ub1) = p(lb1:ub1)
-       DEALLOCATE (p,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
+       DEALLOCATE (p)
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
@@ -24,6 +23,5 @@
 
     IF (ASSOCIATED(p).AND.ALLOCATED(work)) THEN
        p(lb1:ub1) = work(lb1:ub1)
-       DEALLOCATE (work,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+       DEALLOCATE (work)
     END IF

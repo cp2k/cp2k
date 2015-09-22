@@ -102,17 +102,12 @@ SUBROUTINE [el_typename]_list_create(list, els_ptr, &
   LOGICAL, INTENT(in), OPTIONAL :: owns_els
   INTEGER, INTENT(in), OPTIONAL :: n_els
 
-  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat
-
-  failure=.FALSE.
 
   CPASSERT(PRESENT(els_ptr).OR.PRESENT(n_els))
 
-  ALLOCATE(list, stat=stat)
-  CPASSERT(stat==0)
+  ALLOCATE(list)
   last_[el_typename]_list_id=last_[el_typename]_list_id+1
   list%id_nr=last_[el_typename]_list_id
   list%ref_count=1
@@ -128,8 +123,7 @@ SUBROUTINE [el_typename]_list_create(list, els_ptr, &
   END IF
   IF (PRESENT(n_els)) list%n_els=n_els
   IF (.NOT.ASSOCIATED(list%els)) THEN
-     ALLOCATE(list%els(list%n_els),stat=stat)
-     CPASSERT(stat==0)
+     ALLOCATE(list%els(list%n_els))
      CPASSERT(list%owns_els)
   END IF
 END SUBROUTINE [el_typename]_list_create
@@ -144,11 +138,9 @@ END SUBROUTINE [el_typename]_list_create
 SUBROUTINE [el_typename]_list_retain(list)
   TYPE([el_typename]_list_type), POINTER :: list
 
-  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_retain',&
         routineP=moduleN//':'//routineN
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(list))
   CPASSERT(list%ref_count>0)
@@ -165,12 +157,8 @@ END SUBROUTINE [el_typename]_list_retain
 SUBROUTINE [el_typename]_list_release(list)
   TYPE([el_typename]_list_type), POINTER :: list
 
-  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_release',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(list)) THEN
      CPASSERT(list%ref_count>0)
@@ -182,8 +170,7 @@ SUBROUTINE [el_typename]_list_release(list)
            END IF
         END IF
         NULLIFY(list%els)
-        DEALLOCATE(list,stat=stat)
-        CPASSERT(stat==0)
+        DEALLOCATE(list)
      END IF
   END IF
   NULLIFY(list)

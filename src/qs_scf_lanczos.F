@@ -196,8 +196,8 @@ CONTAINS
                                                 rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: hand1, hand2, hand3, hand4, hand5, handle, ib, ik, imo, &
-      imo_low, imo_up, istat, it, jt, nblock, ndim, nmo, nmo_converged, &
-      nmo_nc, nmob, num_blocks
+      imo_low, imo_up, it, jt, nblock, ndim, nmo, nmo_converged, nmo_nc, &
+      nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
     LOGICAL                                  :: failure, my_check_moconv_only
     REAL(dp)                                 :: max_norm, min_norm, vmax
@@ -363,8 +363,8 @@ CONTAINS
            v_mat => krylov_space%v_mat
         END IF
 
-        ALLOCATE(tblock(nmob,nmob),STAT=istat)
-        ALLOCATE(tvblock(nmob,ndim),STAT=istat)
+        ALLOCATE(tblock(nmob,nmob))
+        ALLOCATE(tvblock(nmob,ndim))
 
     CALL timeset(routineN//"_kry_loop",hand2)
         CALL cp_fm_set_all(b_mat,rzero)
@@ -423,7 +423,7 @@ CONTAINS
         END DO ! ik
     CALL timestop(hand2)
 
-        DEALLOCATE(tblock, STAT=istat)
+        DEALLOCATE(tblock)
 
     CALL timeset(routineN//"_diag_tri",hand3)
 
@@ -439,17 +439,17 @@ CONTAINS
           CALL cp_gemm('N','N',nao,ndim,nmob,rone,v_mat(ik)%matrix,t_vec,rone,c2_tmp,&
                b_first_row=(jt+1))
         END DO
-        DEALLOCATE(tvblock,STAT=istat)
+        DEALLOCATE(tvblock)
 
         CALL cp_fm_set_all(c3_tmp,rzero)
         CALL cp_gemm('T','N',nmob,ndim,nao,rone,v_mat(1)%matrix,c2_tmp,rzero,c3_tmp)
 
         !Try to avoid linear dependencies
-        ALLOCATE(q_mat(nmob,ndim),STAT=istat)
+        ALLOCATE(q_mat(nmob,ndim))
         !get max
         CALL cp_fm_get_submatrix(c3_tmp,q_mat,1,1,nmob,ndim)
 
-        ALLOCATE(itaken(ndim),STAT=istat)
+        ALLOCATE(itaken(ndim))
         itaken = 0
         DO it = 1,nmob
            vmax = 0.0_dp
@@ -464,8 +464,8 @@ CONTAINS
 
           CALL cp_fm_to_fm(c2_tmp,v_mat(1)%matrix,1,ik,it)
         END DO
-        DEALLOCATE(itaken,STAT=istat)
-        DEALLOCATE(q_mat,STAT=istat)
+        DEALLOCATE(itaken)
+        DEALLOCATE(q_mat)
 
       !Copy in the converged set to enlarge the converged subspace
         CALL cp_fm_to_fm(v_mat(1)%matrix,c0,nmob,1,(nmo_converged+imo_low))
@@ -480,7 +480,7 @@ CONTAINS
           DO ik=1,krylov_space%nkrylov
              CALL cp_fm_release(v_mat(ik)%matrix)
           END DO
-          DEALLOCATE(v_mat,STAT=istat)
+          DEALLOCATE(v_mat)
 
         END IF
         CALL cp_fm_release(c2_tmp)

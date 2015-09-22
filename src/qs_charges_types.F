@@ -125,17 +125,12 @@ SUBROUTINE qs_charges_release(qs_charges)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   IF (ASSOCIATED(qs_charges)) THEN
      CPASSERT(qs_charges%ref_count>0)
      qs_charges%ref_count=qs_charges%ref_count-1
      IF (qs_charges%ref_count<1) THEN
-        DEALLOCATE(qs_charges%total_rho1_hard,stat=stat)
-        DEALLOCATE(qs_charges%total_rho1_soft,stat=stat)
+        DEALLOCATE(qs_charges%total_rho1_hard)
+        DEALLOCATE(qs_charges%total_rho1_soft)
         DEALLOCATE(qs_charges)
      END IF
   END IF

@@ -513,19 +513,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, stat
+    INTEGER                                  :: I
 
     IF (ASSOCIATED(qmmm_links%imomm)) THEN
        DO i = 1, SIZE(qmmm_links%imomm)
-          IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
-          CPASSERT(stat==0)
+          IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link)
        END DO
        DEALLOCATE(qmmm_links%imomm)
     END IF
     IF (ASSOCIATED(qmmm_links%pseudo)) THEN
        DO i = 1, SIZE(qmmm_links%pseudo)
-          IF (ASSOCIATED(qmmm_links%pseudo(i)%link)) DEALLOCATE(qmmm_links%pseudo(i)%link, stat=stat)
-          CPASSERT(stat==0)
+          IF (ASSOCIATED(qmmm_links%pseudo(i)%link)) DEALLOCATE(qmmm_links%pseudo(i)%link)
        END DO
        DEALLOCATE(qmmm_links%pseudo)
     END IF

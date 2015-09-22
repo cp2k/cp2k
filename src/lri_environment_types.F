@@ -878,7 +878,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ijkind, inode, natom, &
-                                                nkind, nnode, stat
+                                                nkind, nnode
 
     CPASSERT(ASSOCIATED(lri_ints))
     nkind = lri_ints%nkind
@@ -903,9 +903,7 @@ CONTAINS
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dacoef,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sinv,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%n,&
-                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sn,&
-                                     STAT=stat)
-                         CPASSERT(stat==0)
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sn)
                       END DO
                       DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int)
                    END IF
@@ -932,7 +930,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ijkind, inode, natom, &
-                                                nkind, nnode, stat
+                                                nkind, nnode
 
     CPASSERT(ASSOCIATED(lri_ints_rho))
     nkind = lri_ints_rho%nkind
@@ -946,9 +944,7 @@ CONTAINS
                 IF(nnode > 0) THEN
                    IF(ASSOCIATED(lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho)) THEN
                       DO inode = 1,nnode
-                         DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho(inode)%soaabb,&
-                                     STAT=stat)
-                         CPASSERT(stat==0)
+                         DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho(inode)%soaabb)
                       END DO
                       DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho)
                    END IF
@@ -976,7 +972,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iatom, ijkind, inode, &
-                                                natom, nkind, nnode, stat
+                                                natom, nkind, nnode
     LOGICAL                                  :: failure
     TYPE(lri_list_type), POINTER             :: lri_rho
 
@@ -1001,9 +997,7 @@ CONTAINS
                      IF(ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
                        DO inode = 1,nnode
                           DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec,&
-                                      lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec,&
-                                      STAT=stat)
-                          CPASSERT(stat==0)
+                                      lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec)
                        END DO
                        DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)
                      END IF

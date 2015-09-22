@@ -2305,16 +2305,8 @@ MODULE dbcsr_mm_cannon
                KIND=KIND(row_max_epss))
        END DO
        !
-       DEALLOCATE (row_counts, stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN,&
-            "Could not deallocate memory for right matrix row counts",&
-            __LINE__, error=error)
-       DEALLOCATE (total_row_counts, stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN,&
-            "Could not deallocate memory for right matrix row counts",&
-            __LINE__, error=error)
+       DEALLOCATE (row_counts)
+       DEALLOCATE (total_row_counts)
     ENDIF per_row_eps
     !
     ! The main transfer loop goes through the virtual rows/columns.
@@ -2893,26 +2885,13 @@ MODULE dbcsr_mm_cannon
     END IF
 
     IF (ALLOCATED (right_norms)) THEN
-       DEALLOCATE (right_norms, stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
-            dbcsr_internal_error,&
-            routineN, "Could not deallocate memory for right norms", __LINE__,&
-            error=error)
+       DEALLOCATE (right_norms)
     ENDIF
     IF (ALLOCATED (left_norms)) THEN
-       DEALLOCATE (left_norms, stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
-            dbcsr_internal_error,&
-            routineN, "Could not deallocate memory for left norms", __LINE__,&
-            error=error)
+       DEALLOCATE (left_norms)
     ENDIF
     IF (ALLOCATED (row_max_epss)) THEN
-       DEALLOCATE (row_max_epss, stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
-            dbcsr_internal_error,&
-            routineN, "Could not deallocate memory for row block epsilons",&
-            __LINE__,&
-            error=error)
+       DEALLOCATE (row_max_epss)
     ENDIF
     !
     CALL dbcsr_destroy_array (right_buffer_2, error=error)
@@ -3426,11 +3405,7 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel do
        min_row_max_epss = REAL(filter_eps/REAL(index_row_max_epss,KIND=KIND(row_max_epss)),&
             KIND=KIND(row_max_epss))
-       DEALLOCATE (row_counts, total_row_counts, stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN,&
-            "Could not deallocate memory for right matrix row counts",&
-            __LINE__, error=error)
+       DEALLOCATE (row_counts, total_row_counts)
     ELSE
        !
        ! The array must be valid when passed to called subroutines.

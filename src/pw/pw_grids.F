@@ -1787,14 +1787,12 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     INTEGER(KIND=C_SIZE_T)                     :: length
     TYPE(C_PTR)                                :: cptr_g_hatmap
     INTEGER(C_INT), PARAMETER                  :: cudaHostAllocDefault = 0
+    INTEGER                                    :: stat
 #endif
 
-    INTEGER                                  :: allocstat, handle
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
-
-    failure = .FALSE.
 
     ALLOCATE ( pw_grid % g ( 3, ng ))
     ALLOCATE ( pw_grid % gsq ( ng ))
@@ -1804,42 +1802,26 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     length = INT(int_size * MAX(ng,1) * MAX(nmaps,1), KIND=C_SIZE_T)
-    allocstat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
+    stat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
+    CPASSERT(stat==0)
     CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/MAX(ng,1), MAX(nmaps,1)/))
 #elif defined ( __PW_CUDA ) && defined ( __PW_CUDA_NO_HOSTALLOC )
-    ALLOCATE(pw_grid%g_hatmap(ng, nmaps), STAT = allocstat)
+    ALLOCATE(pw_grid%g_hatmap(ng, nmaps))
 #else
-    ALLOCATE(pw_grid%g_hatmap(1, 1), STAT = allocstat)
+    ALLOCATE(pw_grid%g_hatmap(1, 1))
 #endif
-    CPASSERT(allocstat==0)
 
     IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
       ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
-                 pw_grid%para%nyzray(pw_grid%para%my_pos) ), &
-                 STAT = allocstat )
-      CPASSERT(allocstat == 0)
+                 pw_grid%para%nyzray(pw_grid%para%my_pos) ))
     END IF
 
-    ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
-         STAT = allocstat )
-    CPASSERT(allocstat == 0)
-    ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
-         STAT = allocstat )
-    CPASSERT(allocstat == 0)
-
-    ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
-         STAT = allocstat )
-    CPASSERT(allocstat == 0)
-    ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
-         STAT = allocstat )
-    CPASSERT(allocstat == 0)
-
-    ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
-         STAT = allocstat )
-    CPASSERT(allocstat == 0)
-    ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
-         STAT = allocstat )
-    CPASSERT(allocstat == 0)
+    ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ))
+    ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ))
+    ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ))
+    ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ))
+    ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ))
+    ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ))
 
     CALL timestop(handle)
 
@@ -2314,6 +2296,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     INTEGER, POINTER :: dummy_ptr
+    INTEGER          :: stat
 #endif
 
     LOGICAL                                  :: failure

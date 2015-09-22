@@ -2236,8 +2236,7 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MINLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
@@ -2281,8 +2280,7 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_INTEGER8,MPI_MINLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
@@ -2326,8 +2324,7 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_2REAL,MPI_MINLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
@@ -2371,12 +2368,11 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MAXLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    DEALLOCATE (res,STAT=ierr)
+    DEALLOCATE (res)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
 #endif
@@ -2416,12 +2412,11 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    DEALLOCATE (res,STAT=ierr)
+    DEALLOCATE (res)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
 #endif
@@ -2461,12 +2456,11 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_INTEGER8,MPI_MAXLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    DEALLOCATE (res,STAT=ierr)
+    DEALLOCATE (res)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #endif
@@ -2506,12 +2500,11 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    ALLOCATE (res(1:msglen))
     CALL mpi_allreduce(msg,res,1,MPI_2REAL,MPI_MAXLOC,gid, ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     msg = res
-    DEALLOCATE (res,STAT=ierr)
+    DEALLOCATE (res)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #endif

@@ -2684,7 +2684,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fft_scratch_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2707,36 +2706,32 @@ CONTAINS
        dummy_ptr_z => fft_scratch%p2buf(1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%p2buf,STAT=ierr)
+       DEALLOCATE(fft_scratch%p2buf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p3buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
        dummy_ptr_z => fft_scratch%p3buf(1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%p3buf,STAT=ierr)
+       DEALLOCATE(fft_scratch%p3buf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p4buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
        dummy_ptr_z => fft_scratch%p4buf(1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%p4buf,STAT=ierr)
+       DEALLOCATE(fft_scratch%p4buf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p5buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
        dummy_ptr_z => fft_scratch%p5buf(1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%p5buf,STAT=ierr)
+       DEALLOCATE(fft_scratch%p5buf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p6buf)) THEN
        DEALLOCATE(fft_scratch%p6buf)
@@ -2746,18 +2741,16 @@ CONTAINS
        dummy_ptr_z => fft_scratch%p7buf(1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%p7buf,STAT=ierr)
+       DEALLOCATE(fft_scratch%p7buf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%r1buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
        dummy_ptr_z => fft_scratch%r1buf(1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%r1buf,STAT=ierr)
+       DEALLOCATE(fft_scratch%r1buf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%r2buf)) THEN
        DEALLOCATE(fft_scratch%r2buf)
@@ -2767,9 +2760,8 @@ CONTAINS
        dummy_ptr_z => fft_scratch%tbuf(1,1,1)
        ierr = cudaFreeHost(c_loc(dummy_ptr_z))
 #else
-       DEALLOCATE(fft_scratch%tbuf,STAT=ierr)
+       DEALLOCATE(fft_scratch%tbuf)
 #endif
-       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a1buf)) THEN
        DEALLOCATE(fft_scratch%a1buf)

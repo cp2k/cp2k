@@ -1063,8 +1063,8 @@ CONTAINS
     CHARACTER(LEN=25)                        :: fname_key
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle
-    INTEGER :: group, handle, homo_read, i, ispin, istat, lfomo_read, &
-      max_nloc, n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
+    INTEGER :: group, handle, homo_read, i, ispin, lfomo_read, max_nloc, &
+      n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
       output_unit, rst_unit, source
     LOGICAL                                  :: failure, file_exists
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
@@ -1145,7 +1145,7 @@ CONTAINS
 
     ALLOCATE (vecbuffer(1,nao))
     IF(ASSOCIATED(qs_loc_env%localized_wfn_control%loc_states)) THEN
-      DEALLOCATE(qs_loc_env%localized_wfn_control%loc_states,STAT=istat)
+      DEALLOCATE(qs_loc_env%localized_wfn_control%loc_states)
     END IF
     ALLOCATE(qs_loc_env%localized_wfn_control%loc_states(max_nloc,2))
     qs_loc_env%localized_wfn_control%loc_states = 0

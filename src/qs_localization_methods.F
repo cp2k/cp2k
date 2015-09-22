@@ -770,7 +770,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: diag_z
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
-    INTEGER :: dim2, handle, i, icol, idim, irow, istat, method, ncol_global, &
+    INTEGER :: dim2, handle, i, icol, idim, irow, method, ncol_global, &
       ncol_local, norder, nrow_global, nrow_local, nsquare, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: do_emd, failure
@@ -933,9 +933,8 @@ CONTAINS
     CALL rotate_orbitals(mat_R,vectors)
 
     CALL cp_fm_release(mat_R)
-    DEALLOCATE(evals_exp,evals,diag_z,STAT=istat)
-    DEALLOCATE(mii,mij,mjj,STAT=istat)
-    CPASSERT(istat==0)
+    DEALLOCATE(evals_exp,evals,diag_z)
+    DEALLOCATE(mii,mij,mjj)
 
     CALL timestop(handle)
 

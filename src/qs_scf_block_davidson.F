@@ -157,9 +157,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i_first, i_last, imo, istat, iter, j, jj, &
-      max_iter, n, nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, &
-      nset, nset_conv, nset_not_conv
+    INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, max_iter, n, &
+      nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, nset, &
+      nset_conv, nset_not_conv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv, inotconv
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iconv_set, inotconv_set
     LOGICAL                                  :: converged, &
@@ -299,8 +299,8 @@ CONTAINS
 
       IF(REAL(nmo_converged,dp)/REAL(nmo,dp)>bdav_env%conv_percent) THEN
          converged=.TRUE.
-         DEALLOCATE(iconv_set,STAT=istat)
-         DEALLOCATE (inotconv_set,STAT=istat)
+         DEALLOCATE(iconv_set)
+         DEALLOCATE (inotconv_set)
          t2 = m_walltime()
          IF (output_unit > 0) THEN
            WRITE(output_unit,'(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')&
@@ -511,13 +511,13 @@ CONTAINS
            eigenvalues(i_first:i_last) = evals(jj:jj+n-1)
            jj=jj+n
          END DO
-         DEALLOCATE(iconv_set,STAT=istat)
-         DEALLOCATE (inotconv_set,STAT=istat)
+         DEALLOCATE(iconv_set)
+         DEALLOCATE (inotconv_set)
        ELSE
          CALL cp_fm_to_fm(m_hc,mo_coeff)
          eigenvalues(1:nmo) = evals(1:nmo)
        END IF
-       DEALLOCATE(evals,STAT=istat)
+       DEALLOCATE(evals)
 
        CALL cp_fm_release(m_hc)
 
