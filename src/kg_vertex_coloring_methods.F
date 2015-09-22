@@ -257,27 +257,6 @@ CONTAINS
 
   END SUBROUTINE
 
-! *****************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param nnodes ...
-! *****************************************************************************
-  SUBROUTINE kg_heap_new(heap, nnodes)
-    TYPE(heap_t), INTENT(OUT)                :: heap
-    INTEGER                                  :: nnodes
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_new', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure, heap_error
-
-    failure=.FALSE.
-
-    CALL heap_new(heap, nnodes, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
-         routineP, "Error creating heap.")
-
-  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief ...
@@ -332,26 +311,6 @@ CONTAINS
          routineP, "Error initially filling heap.")
 
     DEALLOCATE (values)
-
-  END SUBROUTINE
-
-! *****************************************************************************
-!> \brief ...
-!> \param heap ...
-! *****************************************************************************
-  SUBROUTINE kg_heap_release(heap)
-    TYPE(heap_t)                             :: heap
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_release', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure, heap_error
-
-    failure=.FALSE.
-
-    CALL heap_release(heap, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error releasing heap.")
 
   END SUBROUTINE
 
@@ -479,7 +438,7 @@ CONTAINS
     ELSE
 
       ! allocate and fill the heap
-      CALL kg_heap_new(heap, nnodes)
+      CALL heap_new(heap, nnodes)
 
       CALL kg_heap_fill(heap, graph)
 
@@ -537,7 +496,7 @@ CONTAINS
       END DO
 
       ! release the heap
-      CALL kg_heap_release(heap)
+      CALL heap_release(heap)
 
     END IF
 

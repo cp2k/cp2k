@@ -2687,6 +2687,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    INTEGER                   :: ierr
     COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
 #endif
 

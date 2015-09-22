@@ -717,7 +717,7 @@ CONTAINS
           ! The heap is used to distribute "leftover"rows to threads.
           ! Lefotver rows are those of the same size that can not be
           ! evenly distributed among all threads.
-          CALL heap_new (t_heap, nthreads-1, heap_error)
+          CALL heap_new (t_heap, nthreads-1)
           ! We do not want thread 0 to be in the heap.
           ALLOCATE(itemp1(1:nthreads-1))
           ALLOCATE(itemp2(1:nthreads-1))
@@ -773,7 +773,7 @@ CONTAINS
              END DO
 
           END DO
-          CALL heap_release (t_heap, heap_error)
+          CALL heap_release (t_heap)
           DEALLOCATE (sorted_row_sizes)
           DEALLOCATE (reorder)
        ELSE

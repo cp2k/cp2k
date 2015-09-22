@@ -637,7 +637,7 @@ MODULE helium_methods
           helium%rtmp_3_np_1d, &
           helium%itmp_atoms_np_1d, &
           helium%ltmp_atoms_1d, &
-          helium%itmp_atoms_1d,)
+          helium%itmp_atoms_1d)
 
         ! DEALLOCATE solute-related arrays
         DEALLOCATE (helium%force_inst, helium%force_avrg)

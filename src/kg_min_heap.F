@@ -118,41 +118,25 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param n ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE heap_new (heap, n, error)
+  SUBROUTINE heap_new (heap, n)
     TYPE(heap_t), INTENT(OUT)                :: heap
     INTEGER, INTENT(IN)                      :: n
-    LOGICAL, INTENT(OUT)                     :: error
 
-    INTEGER                                  :: stat
-
-!
-
-    heap%n = n 
-    ALLOCATE (heap%index(n), stat=stat)
-    ALLOCATE (heap%nodes(n), stat=stat)
-    error = (stat /= 0)
+    heap%n = n
+    ALLOCATE (heap%index(n))
+    ALLOCATE (heap%nodes(n))
   END SUBROUTINE heap_new
 
 ! *****************************************************************************
 !> \brief ...
 !> \param heap ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE heap_release (heap, error)
+  SUBROUTINE heap_release (heap)
     TYPE(heap_t), INTENT(INOUT)              :: heap
-    LOGICAL, INTENT(OUT)                     :: error
 
-    INTEGER                                  :: stat
-
-!
-
-    DEALLOCATE (heap%index, stat=stat)
-    DEALLOCATE (heap%nodes, stat=stat)
-    error = (stat /= 0)
-    NULLIFY (heap%index)
-    NULLIFY (heap%nodes)
+    DEALLOCATE (heap%index)
+    DEALLOCATE (heap%nodes)
     heap%n = 0
   END SUBROUTINE heap_release
 

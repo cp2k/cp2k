@@ -2457,7 +2457,7 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Array of element sizes does not match the number of elements.",&
             __LINE__, error=error)
-       CALL heap_new (bin_heap, nbins, heap_error)
+       CALL heap_new (bin_heap, nbins)
        CALL heap_fill (bin_heap, (/ (bin, bin = 0, nbins-1) /),&
                                  (/ (0,   bin = 0, nbins-1) /), heap_error)
        DO i = 1, nelements
@@ -2466,7 +2466,7 @@ CONTAINS
           bin_cnt = bin_cnt + element_sizes(i)
           CALL heap_reset_first (bin_heap, bin_cnt, heap_error)
        ENDDO
-       CALL heap_release (bin_heap, heap_error)
+       CALL heap_release (bin_heap)
     ELSE
        DO i = 1, nelements
           CALL RANDOM_NUMBER(rn)

@@ -99,38 +99,23 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param n ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE heap_new (heap, n, error)
+  SUBROUTINE heap_new (heap, n)
     TYPE(heap_t), INTENT(OUT)                :: heap
     INTEGER, INTENT(IN)                      :: n
-    LOGICAL, INTENT(OUT)                     :: error
-
-    INTEGER                                  :: stat
-
-!
 
     heap%n = n
-    ALLOCATE (heap%nodes(n), stat=stat)
-    error = (stat /= 0)
+    ALLOCATE (heap%nodes(n))
   END SUBROUTINE heap_new
 
 ! *****************************************************************************
 !> \brief ...
 !> \param heap ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE heap_release (heap, error)
+  SUBROUTINE heap_release (heap)
     TYPE(heap_t), INTENT(INOUT)              :: heap
-    LOGICAL, INTENT(OUT)                     :: error
 
-    INTEGER                                  :: stat
-
-!
-
-    DEALLOCATE (heap%nodes, stat=stat)
-    error = (stat /= 0)
-    NULLIFY (heap%nodes)
+    DEALLOCATE (heap%nodes)
     heap%n = 0
   END SUBROUTINE heap_release
 
@@ -266,9 +251,8 @@ CONTAINS
 
     error = .FALSE.
     new_n = heap%n+1
-    CALL heap_reallocate (heap, new_n, error)
+    CALL heap_reallocate (heap, new_n)
     heap%n = new_n
-    IF (error) RETURN
     CALL node_set (heap, new_n, key, value)
     CALL bubble_up (heap, new_n, new_pos, error)
     CALL bubble_down (heap, new_pos, error)
@@ -489,32 +473,20 @@ CONTAINS
 !> \brief ...
 !> \param heap ...
 !> \param n ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE heap_reallocate (heap, n, error)
+  SUBROUTINE heap_reallocate (heap, n)
     TYPE(heap_t), INTENT(INOUT)              :: heap
     INTEGER, INTENT(IN)                      :: n
-    LOGICAL, INTENT(OUT)                     :: error
 
     INTEGER, PARAMETER                       :: min_size = 10
     REAL, PARAMETER                          :: oversize = 1.4
 
-    INTEGER                                  :: n_allocate, stat
+    INTEGER                                  :: n_allocate
     TYPE(heap_node_e), DIMENSION(:), POINTER :: new_nodes, tmp_nodes
 
-!
-
-    error = .FALSE.
     IF (n .GT. SIZE (heap%nodes)) THEN
        n_allocate = MAX(MAX(n, min_size), INT(n*oversize))
-       ALLOCATE (new_nodes(n_allocate), stat=stat)
-       IF (stat /= 0) THEN
-          ALLOCATE (new_nodes(n), stat=stat)
-       ENDIF
-       IF (stat /= 0) THEN
-          error = .TRUE.
-          RETURN
-       ENDIF
+       ALLOCATE (new_nodes(n_allocate))
        new_nodes(1:heap%n) = heap%nodes(1:heap%n)
        tmp_nodes => heap%nodes
        heap%nodes => new_nodes
@@ -642,9 +614,8 @@ CONTAINS
     ELSE
        n = 10
     ENDIF
-    CALL heap_new (heap, n, error=error)
-    CALL error_test (error, "new")
-    !
+    CALL heap_new (heap, n)
+
     ALLOCATE (keys(n))
     ALLOCATE (values(n))
     DO i = 1,n
@@ -723,8 +694,7 @@ CONTAINS
     !
     DEALLOCATE (keys)
     DEALLOCATE (values)
-    CALL heap_release (heap, error)
-    CALL error_test (error, "release")
+    CALL heap_release (heap)
   END SUBROUTINE test_heap
 
 END MODULE min_heap

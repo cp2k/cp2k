@@ -97,6 +97,9 @@ def process_log_file(fn, public_symbols, used_symbols):
             if(unit.isdigit()):
                 print(loc+': Found WRITE statement with hardcoded unit in "'+curr_procedure+'"')
 
+        elif(line.startswith("DEALLOCATE") and "STAT=" in line):
+            print(loc+': Found DEALLOCATE with STAT argument in "'+curr_procedure+'"')
+
 #===============================================================================
 main()
 
