@@ -62,13 +62,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
 
     trunk_revision = log[0]['num']
     log_index = dict([(r['num'], r) for r in log])
-
-    # find latest revision that should have been tested by now
     now = datetime.utcnow().replace(microsecond=0)
-    freshness_threshold = now - timedelta(hours=25)
-    revs_beyond_threshold = [ r['num'] for r in log if r['date'] < freshness_threshold ]
-    threshold_rev = revs_beyond_threshold[0]
-    print "threshold_rev: ", threshold_rev
 
     output  = html_header(title="CP2K Dashboard")
     output += '<div id="flex-container">\n'
@@ -86,8 +80,15 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
         host        = config.get(s,"host")
         report_type = config.get(s,"report_type")
         report_url  = config.get(s,"report_url")
-        do_notify   = config.getboolean(s,"notify")
+        do_notify   = config.getboolean(s,"notify") if(config.has_option(s,"notify")) else False
+        timeout     = config.getint(s,"timeout") if(config.has_option(s,"timeout")) else 24
 
+        # find latest revision that should have been tested by now
+        freshness_threshold = now - timedelta(hours=timeout)
+        revs_beyond_threshold = [ r['num'] for r in log if r['date'] < freshness_threshold ]
+        threshold_rev = revs_beyond_threshold[0]
+
+        # get and parse report
         report_txt = retrieve_report(report_url)
         report = parse_report(report_txt, report_type)
 
