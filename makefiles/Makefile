@@ -434,10 +434,10 @@ endif
 # This is used e.g. by the convention checker.
 %.o: %.F
 ifneq ($(CPP),)
-	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< > $*.f90
+	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" $< > $*.f90
 	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
 else
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" $< $(FCLOGPIPE)
 endif
 
 %.o: %.c
@@ -481,7 +481,7 @@ else
 # it is useful in a two-stage compile.
 #
 %.mod: %.F
-	$(MC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $<
+	$(MC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" $<
 endif
 
 #EOF
