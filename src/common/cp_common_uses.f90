@@ -49,14 +49,11 @@
 ! in this case substitute __FILE__ with "file" down here.
 ! obviously then the error messages will not give the filename.
 ! (otherwise make the file reference in the makefile relative vs. absolute)
-#ifdef __SHORT_FILE__
-#define CPSourceFileRef __SHORT_FILE__//' line '//TRIM(ADJUSTL(cp_to_string(__LINE__)))
-#else
-#define CPSourceFileRef __FILE__//' line '//TRIM(ADJUSTL(cp_to_string(__LINE__)))
+#if !defined(__SHORT_FILE__)
+#define __SHORT_FILE__ __FILE__
 #endif
-
+#define CPSourceFileRef __SHORT_FILE__//':'//TRIM(ADJUSTL(cp_to_string(__LINE__)))
 
 #define CPWARN(msg) CALL cp__w(__SHORT_FILE__,__LINE__,msg)
 #define CPABORT(msg) CALL cp__b(__SHORT_FILE__,__LINE__,msg)
 #define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(__SHORT_FILE__,__LINE__)
-
