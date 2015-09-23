@@ -20,7 +20,8 @@ MODULE dbcsr_acc_operations
                                              acc_devmem_type
   USE acc_stream,                      ONLY: acc_stream_cptr,&
                                              acc_stream_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
