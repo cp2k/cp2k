@@ -11,6 +11,8 @@
 ! *****************************************************************************
 
 MODULE dbcsr_geev
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_type
   USE kinds,                           ONLY: real_4,&
                                              real_8
 
@@ -301,6 +303,7 @@ CONTAINS
                                                 work(20*ndim)
     REAL(real_4), DIMENSION(ndim)            :: eval1, eval2
     REAL(real_4), DIMENSION(ndim, ndim)      :: evec_l, evec_r
+    TYPE(dbcsr_error_type)                   :: error
 
     eval1=REAL(0.0,real_4); eval2=REAL(0.0,real_4)
     tmp_array(:,:)=matrix(:,:)
@@ -331,7 +334,7 @@ CONTAINS
         levec(:,i+1)=CMPLX(evec_l(:,i),-evec_l(:,i+1),real_4)
         i=i+2
       ELSE
-        STOP 'something went wrong while sorting the EV in dbcsr_geev'
+        CALL dbcsr_abort(routineP,__LINE__,'something went wrong while sorting the EV in dbcsr_geev',error)
       END IF
     END DO
 
@@ -368,6 +371,7 @@ CONTAINS
                                                 work(20*ndim)
     REAL(real_8), DIMENSION(ndim)            :: eval1, eval2
     REAL(real_8), DIMENSION(ndim, ndim)      :: evec_l, evec_r
+    TYPE(dbcsr_error_type)                   :: error
 
     eval1=REAL(0.0,real_8); eval2=REAL(0.0,real_8)
     tmp_array(:,:)=matrix(:,:)
@@ -398,7 +402,7 @@ CONTAINS
         levec(:,i+1)=CMPLX(evec_l(:,i),-evec_l(:,i+1),real_8)
         i=i+2
       ELSE
-        STOP 'something went wrong while sorting the EV in dbcsr_geev'
+        CALL dbcsr_abort(routineP,__LINE__,'something went wrong while sorting the EV in dbcsr_geev',error)
       END IF
     END DO
 

@@ -381,17 +381,17 @@ CONTAINS
        IF(area%d%memory_type%acc_devalloc) THEN
           IF(.NOT.acc_devmem_allocated(area%d%acc_devmem)) THEN
              CALL acc_devmem_allocate_bytes(area%d%acc_devmem, &
-                dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area))
+                dbcsr_datatype_sizeof(area%d%data_type,error)*dbcsr_data_get_size(area))
              IF(pad) CALL acc_devmem_setzero_bytes(area%d%acc_devmem, stream=area%d%memory_type%acc_stream)
           ELSE
              CALL acc_devmem_ensure_size_bytes(area%d%acc_devmem, &
                    area%d%memory_type%acc_stream, &
-                   dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area), &
+                   dbcsr_datatype_sizeof(area%d%data_type,error)*dbcsr_data_get_size(area), &
                    nocopy, zero_pad)
           END IF
           CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
           CALL dbcsr_assert(&
-                 dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area)&
+                 dbcsr_datatype_sizeof(area%d%data_type,error)*dbcsr_data_get_size(area)&
                   == acc_devmem_size_in_bytes(area%d%acc_devmem),&
                  dbcsr_fatal_level, dbcsr_caller_error,&
                  routineN, "Host and device buffer differ in size.",__LINE__,error)

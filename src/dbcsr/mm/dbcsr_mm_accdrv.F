@@ -221,7 +221,7 @@ MODULE dbcsr_mm_accdrv
     i = MOD(ithread, SIZE(priority_streams)) + 1
     CALL dbcsr_memtype_setup(thread_privates%memtype_cbuffer,has_pool=.TRUE., acc_hostalloc=.TRUE.,&
           acc_devalloc=.TRUE., acc_stream=priority_streams(i), error=error)
-    CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=1)
+    CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=1, error=error)
 
     ! Setup things for this particular multipcation
     !------------------------------------------------------------------------

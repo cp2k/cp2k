@@ -147,7 +147,7 @@ CONTAINS
        CALL compute_evals(arnoldi_data, error)
 
 ! Select the evals according to user selection and keep them in arnoldi_data
-       CALL select_evals(arnoldi_data)
+       CALL select_evals(arnoldi_data, error)
 
 ! Prepare for a restart with the best eigenvector not needed in case of iram but who cares
        IF(.NOT.ASSOCIATED(restart_vec))ALLOCATE(restart_vec)
@@ -234,7 +234,7 @@ CONTAINS
        CALL compute_evals(arnoldi_data, error)
 
 ! Select the evals according to user selection and keep them in arnoldi_data
-       CALL select_evals(arnoldi_data)
+       CALL select_evals(arnoldi_data, error)
 
 ! update the matrices and compute the convergence 
        CALL gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
@@ -300,7 +300,7 @@ CONTAINS
     arnoldi_matrices(1)%matrix => matrix_a
     CALL setup_arnoldi_data(my_arnoldi,arnoldi_matrices,max_iter=max_iter_internal,&
          threshold=threshold,selection_crit=1, nval_request=2, nrestarts=nrestarts,&
-         generalized_ev=.FALSE.,iram=.TRUE.)
+         generalized_ev=.FALSE.,iram=.TRUE.,error=error)
     CALL dbcsr_arnoldi_ev(arnoldi_matrices,my_arnoldi,error)
     converged=arnoldi_is_converged(my_arnoldi)
     max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)

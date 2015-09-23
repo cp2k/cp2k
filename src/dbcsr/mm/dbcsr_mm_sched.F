@@ -28,7 +28,8 @@ MODULE dbcsr_mm_sched
                                              mm_driver_acc
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
   USE dbcsr_mm_accdrv,                 ONLY: dbcsr_mm_accdrv_barrier,&
@@ -343,6 +344,9 @@ MODULE dbcsr_mm_sched
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mm_sched_process', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ithread, sp, stacked_datasize
     INTEGER(kind=int_8)                      :: flop_per_entry, total_flop
     LOGICAL                                  :: success
@@ -365,13 +369,13 @@ MODULE dbcsr_mm_sched
      IF(.FALSE.) THEN
         DO sp = 1, stack_fillcount
            IF(stack_data(p_a_first,sp) > SIZE(left%data_area%d%r_dp)) &
-              STOP "left data out of range"
+              CALL dbcsr_abort(routineP,__LINE__,"left data out of range",error)
            IF(stack_data(p_b_first,sp) > SIZE(right%data_area%d%r_dp)) &
-              STOP "right data out of range"
+              CALL dbcsr_abort(routineP,__LINE__,"right data out of range",error)
            IF(stack_data(p_c_first,sp) > SIZE(this%product_wm%data_area%d%r_dp)) THEN
               WRITE (*,*) "blub: ",stack_data(p_c_first,sp) , SIZE(this%product_wm%data_area%d%r_dp), &
                 dbcsr_data_get_size(this%product_wm%data_area), stacked_datasize
-              STOP "product data out of range"
+              CALL dbcsr_abort(routineP,__LINE__,"product data out of range",error)
            END IF
         END DO
      ENDIF
@@ -440,8 +444,7 @@ MODULE dbcsr_mm_sched
         RETURN
      ENDIF
 
-     STOP "dbcsr_mm_sched_process_stack failed"
-
+     CALL dbcsr_abort(routineP,__LINE__,"dbcsr_mm_sched_process_stack failed",error)
 
   END SUBROUTINE dbcsr_mm_sched_process
 

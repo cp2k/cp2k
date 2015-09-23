@@ -76,9 +76,9 @@ MODULE dbcsr_mm_cannon
                                              image_calculator,&
                                              make_sizes_dense
   USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
+       dbcsr_error_stop, dbcsr_error_type, dbcsr_failure_level, &
+       dbcsr_fatal_level, dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
        dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: &
        dbcsr_count_row_index, dbcsr_has_local_row_index, dbcsr_index_compact, &
@@ -268,7 +268,7 @@ MODULE dbcsr_mm_cannon
     ! Each thread has its own working-matrix and its own mempool
     ALLOCATE(memtype_product_wm(ithread)%p)
     CALL dbcsr_memtype_setup(memtype_product_wm(ithread)%p, has_pool=.TRUE., error=error)
-    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=1)
+    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=1, error=error)
   END SUBROUTINE dbcsr_mm_cannon_lib_init
 
 
@@ -566,11 +566,11 @@ MODULE dbcsr_mm_cannon
        !TODO: ensure capacity 2/3?
        CALL dbcsr_memtype_setup(memtype_trsbuffer_1,has_pool=.TRUE.,&
             acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1,error=error)
-       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1)
+       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1, error=error)
 
        CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE.,&
             acc_hostalloc=.TRUE., acc_devalloc=.TRUE.,acc_stream=stream_2, error=error)
-       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1)
+       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1, error=error)
     ELSE
        CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE., error=error)
        CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE., error=error)
@@ -2098,7 +2098,7 @@ MODULE dbcsr_mm_cannon
     flop_total = 0
     ! Set up variables
     data_type = dbcsr_get_data_type (product_matrix)
-    data_type_byte = dbcsr_datatype_sizeof(data_type)
+    data_type_byte = dbcsr_datatype_sizeof(data_type,error)
     left_row_nimages =  left_set%image_dist%i%row_decimation
     left_row_mult =     left_set%image_dist%i%row_multiplicity
     left_col_nimages =  left_set%image_dist%i%col_decimation
@@ -2396,9 +2396,9 @@ MODULE dbcsr_mm_cannon
     ! update capacity of memory-pools
     IF (mm_driver == mm_driver_acc) THEN
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
-      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
+      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult, error=error)
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
-      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
+      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult, error=error)
     ENDIF
 
     !
@@ -3058,7 +3058,7 @@ MODULE dbcsr_mm_cannon
     ! Set up variables
     flop = 0
     data_type = dbcsr_get_data_type (product_matrix)
-    data_type_byte = dbcsr_datatype_sizeof(data_type)
+    data_type_byte = dbcsr_datatype_sizeof(data_type,error)
     left_row_nimages =  left_set%image_dist%i%row_decimation
     left_row_mult =     left_set%image_dist%i%row_multiplicity
     left_col_nimages =  left_set%image_dist%i%col_decimation
@@ -3323,9 +3323,9 @@ MODULE dbcsr_mm_cannon
     ! update capacity of memory-pools
     IF (mm_driver == mm_driver_acc) THEN
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
-            capacity=left_col_nimages + right_row_nimages)
+            capacity=left_col_nimages + right_row_nimages, error=error)
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
-            capacity=left_col_nimages + right_row_nimages)
+            capacity=left_col_nimages + right_row_nimages, error=error)
     ENDIF
     !
     ! Count the maximum possible multiplies per row for on-the-fly filtering.
@@ -4614,7 +4614,7 @@ MODULE dbcsr_mm_cannon
 
     CALL dbcsr_error_set (routineN, error_handle, error)
     IF (.FALSE.) WRITE(*,*)" Calling rec_sort_index, size", nblks
-    CALL rec_sort_index(1, m, 1, n, nblks, idx, 0)
+    CALL rec_sort_index(1, m, 1, n, nblks, idx, 0, error)
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE call_rec_sort_index
 
@@ -4628,16 +4628,18 @@ MODULE dbcsr_mm_cannon
 !> \param nele ...
 !> \param a ...
 !> \param d ...
+!> \param error ...
 !> \par History
 !> - 2011-02-17 [UB] modified for use in DBCSR; reduced memory usage.
 !> \author JV
 !> \note Always cut longest first. On a tie cut N
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rec_sort_index(mi,mf,ni,nf,nele,a,d)
+  RECURSIVE SUBROUTINE rec_sort_index(mi,mf,ni,nf,nele,a,d,error)
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, nele
     INTEGER, DIMENSION(3, 1:nele), &
       INTENT(inout)                          :: a
     INTEGER, INTENT(IN)                      :: d
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
@@ -4660,25 +4662,25 @@ MODULE dbcsr_mm_cannon
     N = nf-ni+1
     IF (M > N) THEN
        half = M/2
-       CALL rec_split (nele, a, tmp, 1, nlow, mi, half)
+       CALL rec_split (nele, a, tmp, 1, nlow, mi, half, error)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
-          CALL rec_sort_index(mi,mi+half-1,ni,nf, nlow, a(:,1:nlow), d+1)
+          CALL rec_sort_index(mi,mi+half-1,ni,nf, nlow, a(:,1:nlow), d+1, error)
        ENDIF
        IF (nele-nlow .GT. 1) THEN
-          CALL rec_sort_index(mi+half,mf,ni,nf, nele-nlow, a(:,nlow+1:nele), d+1)
+          CALL rec_sort_index(mi+half,mf,ni,nf, nele-nlow, a(:,nlow+1:nele), d+1, error)
        ENDIF
     ELSE
        half = N/2
-       CALL rec_split (nele, a, tmp, 2, nlow, ni, half)
+       CALL rec_split (nele, a, tmp, 2, nlow, ni, half, error)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
-         CALL rec_sort_index(mi,mf,ni,ni+half-1, nlow, a(:,1:nlow), d+1)
+         CALL rec_sort_index(mi,mf,ni,ni+half-1, nlow, a(:,1:nlow), d+1, error)
        ENDIF
        IF (nele-nlow .GT. 1) THEN
-         CALL rec_sort_index(mi,mf,ni+half,nf, nele-nlow, a(:,nlow+1:nele), d+1)
+         CALL rec_sort_index(mi,mf,ni+half,nf, nele-nlow, a(:,nlow+1:nele), d+1, error)
        ENDIF
     ENDIF
   END SUBROUTINE rec_sort_index
@@ -4693,14 +4695,19 @@ MODULE dbcsr_mm_cannon
 !> \param nlow ...
 !> \param mi ...
 !> \param half ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half)
+  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half, error)
     INTEGER, INTENT(IN)                      :: nele
     INTEGER, DIMENSION(3, nele), INTENT(IN)  :: a
     INTEGER, DIMENSION(3, nele), INTENT(OUT) :: split
     INTEGER, INTENT(IN)                      :: row_or_col
     INTEGER, INTENT(OUT)                     :: nlow
     INTEGER, INTENT(IN)                      :: mi, half
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rec_split', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: el, half_m, p_high, p_low
 
@@ -4717,7 +4724,8 @@ MODULE dbcsr_mm_cannon
        ENDIF
     ENDDO
     nlow = p_low - 1
-    IF (p_high .NE. nlow) STOP
+    IF (p_high .NE. nlow) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
   END SUBROUTINE rec_split
 
 ! *****************************************************************************
@@ -4968,8 +4976,10 @@ MODULE dbcsr_mm_cannon
     NULLIFY(col_blk_sizes2enum, enum2col_blk_sizes)
     NULLIFY(local2global_rows, local2global_cols, trs_stack)
 
-    IF (.NOT. matrix%m%list_indexing) STOP "build_trs_stack: only list_indexing supported."
-    IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4) STOP "build_trs_stack: stac_buf has wrong datatype"
+    IF (.NOT. matrix%m%list_indexing) CALL dbcsr_abort(routineP,__LINE__,&
+       "build_trs_stack: only list_indexing supported.",error)
+    IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4)&
+       CALL dbcsr_abort(routineP,__LINE__,"build_trs_stack: stac_buf has wrong datatype",error)
     blk_index => matrix%m%coo_l
     row_blk_sizes => array_data (matrix%m%row_blk_size)
     col_blk_sizes => array_data (matrix%m%col_blk_size)
@@ -5034,7 +5044,7 @@ MODULE dbcsr_mm_cannon
     !sanity check
     DO mi=1, mi_max
       DO ni=1, ni_max
-         IF(filled(mi,ni) /= counters(mi,ni)) STOP "acc_transpose_blocks: bug"
+         IF(filled(mi,ni) /= counters(mi,ni)) CALL dbcsr_abort(routineP,__LINE__,"acc_transpose_blocks: bug",error)
       END DO
     END DO
 

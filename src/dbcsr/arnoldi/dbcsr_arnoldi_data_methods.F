@@ -21,7 +21,8 @@ MODULE dbcsr_arnoldi_data_methods
        has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, &
        set_data_s, set_data_z
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
                                              dbcsr_is_initialized,&
                                              dbcsr_release
@@ -70,9 +71,10 @@ CONTAINS
 !> \param nrestarts ...
 !> \param generalized_ev ...
 !> \param iram ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE setup_arnoldi_data(arnoldi_data, matrix, max_iter, threshold, selection_crit,&
-                                nval_request, nrestarts, generalized_ev,iram)
+                                nval_request, nrestarts, generalized_ev,iram,error)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     INTEGER                                  :: max_iter
@@ -80,12 +82,13 @@ CONTAINS
     INTEGER                                  :: selection_crit, nval_request, &
                                                 nrestarts
     LOGICAL                                  :: generalized_ev, iram
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_data', &
       routineP = moduleN//':'//routineN
 
     CALL setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit,&
-                               nval_request, nrestarts, generalized_ev, iram)
+                               nval_request, nrestarts, generalized_ev, iram, error)
 
     SELECT CASE (matrix(1)%matrix%m%data_type)
     CASE (dbcsr_type_real_8)
@@ -111,9 +114,10 @@ CONTAINS
 !> \param nrestarts ...
 !> \param generalized_ev ...
 !> \param iram ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request,&
-                                   nrestarts, generalized_ev, iram)
+                                   nrestarts, generalized_ev, iram,error)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     INTEGER                                  :: max_iter
@@ -121,6 +125,7 @@ CONTAINS
     INTEGER                                  :: selection_crit, nval_request, &
                                                 nrestarts
     LOGICAL                                  :: generalized_ev, iram
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_control', &
       routineP = moduleN//':'//routineN
@@ -134,7 +139,8 @@ CONTAINS
     control%mp_group=distri%d%mp_env%mp%mp_group
     control%myproc=distri%d%mp_env%mp%mynode
     CALL dbcsr_mp_grid_setup(distri%d%mp_env)
-    IF(.NOT. distri%d%mp_env%mp%subgroups_defined) STOP 'arnoldi only with subgroups'
+    IF(.NOT. distri%d%mp_env%mp%subgroups_defined)&
+       CALL dbcsr_abort(routineP,__LINE__,"arnoldi only with subgroups",error)
     control%pcol_group=distri%d%mp_env%mp%pcol_group
     control%prow_group=distri%d%mp_env%mp%prow_group
 
@@ -156,13 +162,19 @@ CONTAINS
     control%generalized_ev=generalized_ev
 
     IF(control%nval_req>1.AND.control%nrestart>0.AND..NOT.control%iram)&
-     STOP 'with more than one eigenvalue requested internal restarting with a previous EVEC is a bad idea, set IRAM or nrestsart=0'
+      CALL dbcsr_abort(routineP,__LINE__,'with more than one eigenvalue requested '//&
+      'internal restarting with a previous EVEC is a bad idea, set IRAM or nrestsart=0',error)
+
 
 ! some checks for the generalized EV mode
-    IF(control%generalized_ev.AND.selection_crit==1)STOP 'generalized ev can only highest OR lowest EV'
-    IF(control%generalized_ev.AND.nval_request.NE.1)STOP 'generalized ev can only compute one EV at the time'
-    IF(control%generalized_ev.AND.control%nrestart==0)STOP 'outer loops are mandatory for generalized EV, set nrestart appropriatly'
-    IF(SIZE(matrix).NE.2.AND.control%generalized_ev)STOP 'generalized ev needs exactly two matrices as input (2nd is the metric)'
+    IF(control%generalized_ev.AND.selection_crit==1)&
+       CALL dbcsr_abort(routineP,__LINE__,'generalized ev can only highest OR lowest EV',error)
+    IF(control%generalized_ev.AND.nval_request.NE.1)&
+       CALL dbcsr_abort(routineP,__LINE__,'generalized ev can only compute one EV at the time',error)
+    IF(control%generalized_ev.AND.control%nrestart==0)&
+       CALL dbcsr_abort(routineP,__LINE__,'outer loops are mandatory for generalized EV, set nrestart appropriatly',error)
+    IF(SIZE(matrix).NE.2.AND.control%generalized_ev)&
+       CALL dbcsr_abort(routineP,__LINE__,'generalized ev needs exactly two matrices as input (2nd is the metric)',error)
 
     ALLOCATE(control%selected_ind(max_iter))
     CALL set_control(arnoldi_data,control)
@@ -219,17 +231,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief perform the selection of eigenvalues, fills the selected_ind array
 !> \param arnoldi_data ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE select_evals(arnoldi_data)
+  SUBROUTINE select_evals(arnoldi_data,error)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals', &
       routineP = moduleN//':'//routineN
 
-    IF(has_d_real(arnoldi_data))  CALL select_evals_d(arnoldi_data)
-    IF(has_s_real(arnoldi_data))  CALL select_evals_s(arnoldi_data)
-    IF(has_d_cmplx(arnoldi_data)) CALL select_evals_z(arnoldi_data)
-    IF(has_s_cmplx(arnoldi_data)) CALL select_evals_c(arnoldi_data)
+    IF(has_d_real(arnoldi_data))  CALL select_evals_d(arnoldi_data,error)
+    IF(has_s_real(arnoldi_data))  CALL select_evals_s(arnoldi_data,error)
+    IF(has_d_cmplx(arnoldi_data)) CALL select_evals_z(arnoldi_data,error)
+    IF(has_s_cmplx(arnoldi_data)) CALL select_evals_c(arnoldi_data,error)
 
   END SUBROUTINE select_evals
 
@@ -324,12 +338,16 @@ CONTAINS
     INTEGER                                  :: ind
     COMPLEX(real_8)                          :: eval_out
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_val', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(real_4), DIMENSION(:), POINTER   :: evals_s
     COMPLEX(real_8), DIMENSION(:), POINTER   :: evals_d
     INTEGER                                  :: ev_ind
     INTEGER, DIMENSION(:), POINTER           :: selected_ind
+    TYPE(dbcsr_error_type)                   :: error
 
-    IF(ind.GT.get_nval_out(ar_data))STOP 'outside range of indexed evals'
+    IF(ind.GT.get_nval_out(ar_data)) CALL dbcsr_abort(routineP,__LINE__,'outside range of indexed evals',error)
 
     selected_ind=>get_sel_ind(ar_data)
     ev_ind=selected_ind(ind)
@@ -350,10 +368,15 @@ CONTAINS
 !>        at least the size of get_neval_out()
 !> \param ar_data ...
 !> \param eval_out ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_all_selected_ritz_val(ar_data, eval_out)
+  SUBROUTINE get_all_selected_ritz_val(ar_data, eval_out, error)
     TYPE(dbcsr_arnoldi_data)                 :: ar_data
     COMPLEX(real_8), DIMENSION(:)            :: eval_out
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_all_selected_ritz_val', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(real_4), DIMENSION(:), POINTER   :: evals_s
     COMPLEX(real_8), DIMENSION(:), POINTER   :: evals_d
@@ -361,7 +384,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: selected_ind
 
     NULLIFY(evals_d,evals_s)
-    IF(SIZE(eval_out).LT.get_nval_out(ar_data))STOP 'array for eval output too small'
+    IF(SIZE(eval_out).LT.get_nval_out(ar_data))&
+       CALL dbcsr_abort(routineP,__LINE__,'array for eval output too small',error)
     selected_ind=>get_sel_ind(ar_data)
 
     IF(has_d_real(ar_data))  evals_d=>get_evals_d(ar_data)

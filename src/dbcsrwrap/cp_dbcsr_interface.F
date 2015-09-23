@@ -2031,6 +2031,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
       DIMENSION(:)                           :: m_ptrs
 
@@ -2042,7 +2043,7 @@ CONTAINS
     END DO
 
     CALL setup_arnoldi_data(arnoldi_data,m_ptrs ,max_iter, threshold,selection_crit, & 
-                            nval_request, nrestarts, generalized_ev, iram)
+                            nval_request, nrestarts, generalized_ev, iram, dbcsr_error)
       
 
     DEALLOCATE(m_ptrs)

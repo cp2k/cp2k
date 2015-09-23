@@ -72,7 +72,9 @@
 
     ! The select_data_type argument is needed to make this function unique
     ! enough to use in the interface.
-    IF (KIND(select_data_type) .NE. KIND(DATA)) STOP "compiler borken"
+    IF (KIND(select_data_type) .NE. KIND(DATA))&
+       CALL dbcsr_abort(routineP,__LINE__,"compiler borken",error)
+
     IF (ASSOCIATED (area%d)) THEN
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c_dp, 1)

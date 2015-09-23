@@ -19,7 +19,8 @@ MODULE dbcsr_mem_methods
                                              dbcsr_mempool_entry_type,&
                                              dbcsr_mempool_type,&
                                              dbcsr_memtype_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
   USE kinds,                           ONLY: dp
@@ -46,12 +47,17 @@ MODULE dbcsr_mem_methods
 ! *****************************************************************************
 !> \brief Creates a memory pool.
 !> \param pool ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mempool_create(pool)
+  SUBROUTINE dbcsr_mempool_create(pool, error)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    IF(ASSOCIATED(pool)) STOP "dbcsr_mempool_create: pool already allocated"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_create', &
+      routineP = moduleN//':'//routineN
+
+    IF(ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool already allocated",error)
     ALLOCATE(pool)
     !$ CALL OMP_INIT_LOCK(pool%lock)
     ALLOCATE(pool%root) !root allways allocated, but unsused. Simplifies looping.
@@ -62,13 +68,19 @@ MODULE dbcsr_mem_methods
 !> \brief Ensures that mempool has at least the given capacity.
 !> \param pool ...
 !> \param capacity ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mempool_ensure_capacity(pool, capacity)
+  SUBROUTINE dbcsr_mempool_ensure_capacity(pool, capacity, error)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
     INTEGER, INTENT(IN)                      :: capacity
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_ensure_capacity: pool not allocated"
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'dbcsr_mempool_ensure_capacity', &
+      routineP = moduleN//':'//routineN
+
+    IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated",error)
     !$ CALL OMP_SET_LOCK(pool%lock)
     pool%capacity = MAX(pool%capacity, capacity)
     !$ CALL OMP_UNSET_LOCK(pool%lock)
@@ -90,12 +102,15 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     TYPE(dbcsr_data_obj)                     :: res
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_get', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: best_size, s
     TYPE(dbcsr_mempool_entry_type), POINTER  :: best_cur, best_prev, cur, prev
     TYPE(dbcsr_mempool_type), POINTER        :: pool
 
     pool => memtype%pool
-    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_get: pool not allocated"
+    IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated",error)
 
     !$ CALL OMP_SET_LOCK(pool%lock)
     res%d => Null()
@@ -120,7 +135,7 @@ MODULE dbcsr_mem_methods
     ENDDO
 
     IF(ASSOCIATED(best_cur)) THEN
-       IF(best_cur%area%d%refcount /= 0) STOP "mempool_get: refcount /= 0"
+       IF(best_cur%area%d%refcount /= 0) CALL dbcsr_abort(routineP,__LINE__,"refcount /= 0",error)
        best_cur%area%d%refcount =  1
        best_prev%next => best_cur%next
        res = best_cur%area
@@ -143,13 +158,16 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_data_obj)                     :: area
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_add', &
+      routineP = moduleN//':'//routineN
+
     TYPE(dbcsr_mempool_entry_type), POINTER  :: new_entry
     TYPE(dbcsr_mempool_type), POINTER        :: pool
 
     pool => area%d%memory_type%pool
-    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_add: pool not allocated"
-    IF(.NOT.dbcsr_data_exists(area, error)) STOP "dbcsr_mempool_add: area not allocated"
-    IF(area%d%refcount /= 0) STOP "mempool_add: refcount /= 0"
+    IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated",error)
+    IF(.NOT.dbcsr_data_exists(area, error)) CALL dbcsr_abort(routineP,__LINE__,"area not allocated",error)
+    IF(area%d%refcount /= 0) CALL dbcsr_abort(routineP,__LINE__,"refcount /= 0",error)
 
     CALL mempool_collect_garbage(pool, error)
 
@@ -171,10 +189,13 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_mempool_type), POINTER        :: pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mempool_collect_garbage', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: n
     TYPE(dbcsr_mempool_entry_type), POINTER  :: cur, prev
 
-    IF(.NOT.ASSOCIATED(pool)) STOP "mempool_collect_garbage: pool not allocated"
+    IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated",error)
 
     !$ CALL OMP_SET_LOCK(pool%lock)
     prev => pool%root
@@ -207,7 +228,10 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_mempool_type), POINTER        :: pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_destruct: pool not allocated"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_destruct', &
+      routineP = moduleN//':'//routineN
+
+    IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated",error)
 
     CALL dbcsr_mempool_clear(pool, error)
 
@@ -227,12 +251,13 @@ MODULE dbcsr_mem_methods
     TYPE(dbcsr_mempool_type), POINTER        :: pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mempool_clear'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_clear', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
     TYPE(dbcsr_mempool_entry_type), POINTER  :: cur, prev
 
-    IF(.NOT.ASSOCIATED(pool)) STOP "dbcsr_mempool_clear: pool not allocated"
+    IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated",error)
 
     CALL dbcsr_error_set (routineN, error_handler, error)
 
@@ -273,6 +298,9 @@ MODULE dbcsr_mem_methods
     LOGICAL, INTENT(IN), OPTIONAL            :: has_pool
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_memtype_setup', &
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: is_ok, my_has_pool
     TYPE(dbcsr_memtype_type)                 :: aim
 
@@ -287,7 +315,7 @@ MODULE dbcsr_mem_methods
     IF(PRESENT(oversize_factor)) aim%oversize_factor = oversize_factor
 
     IF(.NOT. aim%acc_devalloc.EQV.acc_stream_associated(aim%acc_stream))&
-       STOP "dbcsr_memtype_setup: acc_stream missing"
+    CALL dbcsr_abort(routineP,__LINE__,"acc_stream missing",error)
 
     is_ok = .TRUE.
     is_ok = is_ok .AND. (memtype%acc_hostalloc.EQV.aim%acc_hostalloc)
@@ -307,7 +335,7 @@ MODULE dbcsr_mem_methods
         memtype%acc_stream = aim%acc_stream
         memtype%oversize_factor = aim%oversize_factor
         IF(my_has_pool) &
-           CALL dbcsr_mempool_create(memtype%pool)
+           CALL dbcsr_mempool_create(memtype%pool, error)
     ENDIF
   END SUBROUTINE dbcsr_memtype_setup
 

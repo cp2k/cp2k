@@ -12,6 +12,8 @@ MODULE dbcsr_data_types
   USE acc_devmem,                      ONLY: acc_devmem_type
   USE acc_event,                       ONLY: acc_event_type
   USE acc_stream,                      ONLY: acc_stream_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_type
   USE kinds,                           ONLY: &
        dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
        real_8_size
@@ -144,12 +146,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Helper-routine, returns size of given datatype in terms of bytes.
 !> \param datatype ...
+!> \param error ...
 !> \retval size ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  FUNCTION dbcsr_datatype_sizeof(datatype) RESULT(size)
+  FUNCTION dbcsr_datatype_sizeof(datatype, error) RESULT(size)
     INTEGER, INTENT(IN)                      :: datatype
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER                                  :: size
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_datatype_sizeof', &
+      routineP = moduleN//':'//routineN
 
     SELECT CASE (datatype)
     CASE (dbcsr_type_int_4)
@@ -165,7 +172,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        size = (2*real_8_size)
     CASE default
-       STOP "dbcsr_datatype_sizeof: Invalid data type"
+       CALL dbcsr_abort(routineP,__LINE__,"Invalid data type",error)
     END SELECT
  END FUNCTION dbcsr_datatype_sizeof
 

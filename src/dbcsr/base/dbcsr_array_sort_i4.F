@@ -56,16 +56,14 @@ SUBROUTINE dbcsr_1d_i4_sort(arr, n, indices)
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     INTEGER(kind=int_4), POINTER             :: tmp_arr(:)
     INTEGER, POINTER                         :: tmp_idx(:)
 
    IF(n == 0) RETURN ! for some reason this is a frequent case in cp2k
    
    ! scratch space used during the merge step
-   ALLOCATE(tmp_arr((SIZE(arr)+1)/2), tmp_idx((SIZE(arr)+1)/2), stat=stat)
-   IF(stat /= 0) STOP "dbcsr_1d_i4_sort: allocation failed"
-   
+   ALLOCATE(tmp_arr((SIZE(arr)+1)/2), tmp_idx((SIZE(arr)+1)/2))
    indices = (/ (i, i = 1, SIZE(arr)) /)
    
    CALL dbcsr_1d_i4_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)

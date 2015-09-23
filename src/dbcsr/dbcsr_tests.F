@@ -260,7 +260,7 @@ CONTAINS
             io_unit = io_unit, always_checksum=always_checksum,&
             retain_sparsity=retain_sparsity)
     CASE(dbcsr_test_arnoldi)
-       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops)
+       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, dbcsr_error)
     CASE(dbcsr_test_binary_io)
        CALL test_binary_io(matrix_a,io_unit,dbcsr_error)
     END SELECT
@@ -324,10 +324,12 @@ CONTAINS
 !> \param matrix_b ...
 !> \param io_unit ...
 !> \param n_loops ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops)
+  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, error)
     TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b
     INTEGER                                  :: io_unit, n_loops
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_arnoldi', &
       routineP = moduleN//':'//routineN
@@ -345,7 +347,7 @@ CONTAINS
        ALLOCATE(matrix_p(2))
        matrix_p(1)%matrix=>matrix_a
        matrix_p(2)%matrix=>matrix_b
-       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2,0,.FALSE.,.FALSE.)
+       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2,0,.FALSE.,.FALSE.,error)
        CALL dbcsr_arnoldi_ev(matrix_p, arnoldi_data, dbcsr_error)
        max_eV=get_selected_ritz_val(arnoldi_data,2)
        min_eV=get_selected_ritz_val(arnoldi_data,1)

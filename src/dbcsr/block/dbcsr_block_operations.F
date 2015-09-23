@@ -24,9 +24,10 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
   USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
+       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
+       dbcsr_error_stop, dbcsr_error_type, dbcsr_failure_level, &
+       dbcsr_fatal_level, dbcsr_internal_error, dbcsr_warning_level, &
+       dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
@@ -1194,8 +1195,9 @@ CONTAINS
     ENDIF
 
     IF(acc_devmem_allocated(area%d%acc_devmem)) THEN
-      IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for acc_devmem"
-      s = dbcsr_datatype_sizeof(area%d%data_type)
+      IF (PRESENT(value)) CALL dbcsr_abort(routineP,__LINE__,&
+         "dbcsr_data_clear0 with value not implemented for acc_devmem",error)
+      s = dbcsr_datatype_sizeof(area%d%data_type,error)
       CALL acc_devmem_setzero_bytes(area%d%acc_devmem, s*lb, s*ub, area%d%memory_type%acc_stream)
     END IF
 

@@ -24,7 +24,7 @@ MODULE dbcsr_error_handling
 
   ! procedures
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop
-  PUBLIC :: dbcsr_assert
+  PUBLIC :: dbcsr_assert, dbcsr_abort
   ! types
   PUBLIC :: dbcsr_error_type
   ! parameters
@@ -133,10 +133,14 @@ CONTAINS
     INTEGER, INTENT(out)                     :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_error_set', &
+      routineP = moduleN//':'//routineN
+
 !$OMP MASTER
     error%stack%level = error%stack%level + 1
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
-       error%stack%level.LT.1) STOP
+       error%stack%level.LT.1) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
     error%stack%s(error%stack%level) = name
     handler = error%stack%level
     error%stack%handler(error%stack%level) = handler
@@ -154,19 +158,22 @@ CONTAINS
     INTEGER, INTENT(inout)                   :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_error_stop', &
+      routineP = moduleN//':'//routineN
+
 !$OMP MASTER
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
        error%stack%level.LT.1) THEN
        WRITE(*,*) 'dbcsr_error_stop'
        WRITE(*,*) 'level=',error%stack%level
        WRITE(*,*) 'dbcsr_error_stack_size=',dbcsr_error_stack_size
-       STOP
+       CALL dbcsr_abort(routineP,__LINE__,"",error)
     ENDIF
     IF(handler.NE.error%stack%handler(error%stack%level)) THEN
        WRITE(*,*) 'get handler=',handler
        WRITE(*,*) 'expected handler=',error%stack%handler(error%stack%level)
        WRITE(*,*) 'you may have forget to call dbcsr_error_stop (may be a RETURN)...'
-       CALL dbcsr_abort (error%stack%level, dbcsr_failure_level, error%routine,&
+       CALL dbcsr_abort_low (error%stack%level, dbcsr_failure_level, error%routine,&
             "", error%line, error)
     ENDIF
     IF (ASSOCIATED(external_timestop)) &
@@ -224,6 +231,23 @@ CONTAINS
     CALL m_flush(output_unit)
   END SUBROUTINE dbcsr_error_print_stack
 
+! *****************************************************************************
+!> \brief ...
+!> \param routine ...
+!> \param line ...
+!> \param msg ...
+!> \param error ...
+!> \param[inout]
+! *****************************************************************************
+  SUBROUTINE dbcsr_abort(routine, line,  msg, error)
+    CHARACTER(*), INTENT(in)                 :: routine
+    INTEGER, INTENT(in)                      :: line
+    CHARACTER(*), INTENT(in)                 :: msg
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CALL dbcsr_abort_low(dbcsr_fatal_level, dbcsr_internal_error, routine, msg, line, error)
+
+  END SUBROUTINE dbcsr_abort
 
 ! *****************************************************************************
 !> \brief ...
@@ -235,7 +259,7 @@ CONTAINS
 !> \param error ...
 !> \param[inout]
 ! *****************************************************************************
-  SUBROUTINE dbcsr_abort (level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_abort_low (level, etype, routine, msg, line, error)
     INTEGER, INTENT(in)                      :: level, etype
     CHARACTER(*), INTENT(in)                 :: routine, msg
     INTEGER, INTENT(in)                      :: line
@@ -262,7 +286,7 @@ CONTAINS
        CALL mp_abort()
     ENDIF
     !
-  END SUBROUTINE dbcsr_abort
+  END SUBROUTINE dbcsr_abort_low
 
 ! *****************************************************************************
 !> \brief Assertion
@@ -309,7 +333,7 @@ CONTAINS
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,I9,A4,I9)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
-       CALL dbcsr_abort (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
     ENDIF
   END SUBROUTINE dbcsr_int_assert
 
@@ -357,7 +381,7 @@ CONTAINS
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,L1,A,L1)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
-       CALL dbcsr_abort (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
     ENDIF
   END SUBROUTINE dbcsr_logical_assert
 
@@ -399,7 +423,7 @@ CONTAINS
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,A1,1X,A4,1X,A1)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
-       CALL dbcsr_abort (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
     ENDIF
   END SUBROUTINE dbcsr_char_assert
 
@@ -429,7 +453,7 @@ CONTAINS
     IF (.NOT.l) THEN
        WRITE(*,'(1X,A,1X,L1)')"ASSERTION FAILED:",&
             right
-       CALL dbcsr_abort (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
     ENDIF
     !CALL cp_assert(l, level, etype, routine, msg)
   END SUBROUTINE dbcsr_true_assert
@@ -469,7 +493,7 @@ CONTAINS
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,A,L1)')"ASSERTION FAILED:",&
             "."//rel//".", right
-       CALL dbcsr_abort (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
     ENDIF
   END SUBROUTINE dbcsr_not_assert
 

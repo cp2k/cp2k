@@ -27,9 +27,10 @@ MODULE dbcsr_data_methods_low
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d
   USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
+       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
+       dbcsr_error_stop, dbcsr_error_type, dbcsr_failure_level, &
+       dbcsr_fatal_level, dbcsr_internal_error, dbcsr_warning_level, &
+       dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate,&
                                              memory_zero,&
@@ -214,7 +215,7 @@ MODULE dbcsr_data_methods_low
 
     IF(area%memory_type%acc_devalloc) THEN
        IF(sizes(1) > 1) &
-          CALL acc_devmem_allocate_bytes(area%acc_devmem, dbcsr_datatype_sizeof(area%data_type)*sizes(1))
+          CALL acc_devmem_allocate_bytes(area%acc_devmem, dbcsr_datatype_sizeof(area%data_type,error)*sizes(1))
        CALL acc_event_create(area%acc_ready)
     ENDIF
 
@@ -786,10 +787,8 @@ MODULE dbcsr_data_methods_low
                routineN, "Invalid data type.",__LINE__,error)
     END SELECT
 
-    IF(area%d%memory_type%acc_devalloc) THEN
-       WRITE(*,*) "dbcsr_data_zero: not yet supported for acc devmem"
-       STOP 1
-    ENDIF
+    IF(area%d%memory_type%acc_devalloc)&
+       CALL dbcsr_abort(routineP,__LINE__,"not yet supported for acc devmem",error)
 
     IF (careful_mod) THEN
        CALL dbcsr_error_stop(error_handle, error)
