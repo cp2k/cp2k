@@ -94,7 +94,8 @@ CONTAINS
       nra, nrb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nrt
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, found, use_virial
+    LOGICAL                                  :: defined, found, omit_headers, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
                                                 eisol, kh, udd, uff, upp, &
@@ -407,9 +408,10 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log")
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
        after = MIN(MAX(after,1),16)
        CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,after,qs_env,para_env,&
-                                         scale=evolt,output_unit=iw)
+                                         scale=evolt,output_unit=iw,omit_headers=omit_headers)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN")
      END IF

@@ -58,7 +58,8 @@ MODULE admm_methods
                                              do_admm_purify_mo_diag,&
                                              do_admm_purify_mo_no_diag,&
                                              do_admm_purify_none
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -1789,7 +1790,7 @@ MODULE admm_methods
     INTEGER                                  :: handle, ispin, iw, &
                                                 nao_aux_fit, nao_orb, natom, &
                                                 neighbor_list_id, nmo
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, omit_headers
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: admm_force
     TYPE(admm_type), POINTER                 :: admm_env
@@ -2106,11 +2107,13 @@ MODULE admm_methods
         CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
         DEALLOCATE(admm_force)
 
+        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT"),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
                 extension=".Log")
-           CALL cp_dbcsr_write_sparse_matrix(matrix_w_s,4,6,qs_env,para_env,output_unit=iw)
+           CALL cp_dbcsr_write_sparse_matrix(matrix_w_s,4,6,qs_env,&
+                para_env,output_unit=iw,omit_headers=omit_headers)
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                 "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT")
         END IF
@@ -2118,7 +2121,8 @@ MODULE admm_methods
              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT"),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
                 extension=".Log")
-           CALL cp_dbcsr_write_sparse_matrix(matrix_w_q,4,6,qs_env,para_env,output_unit=iw)
+           CALL cp_dbcsr_write_sparse_matrix(matrix_w_q,4,6,qs_env,&
+                para_env,output_unit=iw,omit_headers=omit_headers)
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                 "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT")
         END IF

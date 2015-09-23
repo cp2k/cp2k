@@ -466,7 +466,7 @@ END SUBROUTINE qs_scf_print_scf_summary
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: after, handle, ic, ispin, iw
-    LOGICAL                                  :: do_kpoints
+    LOGICAL                                  :: do_kpoints, omit_headers
     REAL(KIND=dp)                            :: mo_mag_max, mo_mag_min, &
                                                 orthonormality
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -488,7 +488,7 @@ END SUBROUTINE qs_scf_print_scf_summary
     dft_section => section_vals_get_subs_vals(input,"DFT")
     scf_section => section_vals_get_subs_vals(dft_section,"SCF")
 
-
+    CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
     DO ispin=1,dft_control%nspins
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -501,7 +501,7 @@ END SUBROUTINE qs_scf_print_scf_summary
          after = MIN(MAX(after,1),16)
          DO ic=1,SIZE(matrix_p,2)
             CALL cp_dbcsr_write_sparse_matrix(matrix_p(ispin,ic)%matrix,4,after,qs_env,para_env,&
-                 output_unit=iw)
+                 output_unit=iw,omit_headers=omit_headers)
          END DO
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
               "PRINT%AO_MATRICES/DENSITY")
@@ -517,10 +517,10 @@ END SUBROUTINE qs_scf_print_scf_summary
          DO ic=1,SIZE(matrix_ks,2)
             IF (dft_control%qs_control%semi_empirical) THEN
                CALL cp_dbcsr_write_sparse_matrix(matrix_ks(ispin,ic)%matrix,4,after,qs_env,para_env,&
-                    scale=evolt,output_unit=iw)
+                    scale=evolt,output_unit=iw, omit_headers=omit_headers)
             ELSE
                CALL cp_dbcsr_write_sparse_matrix(matrix_ks(ispin,ic)%matrix,4,after,qs_env,para_env,&
-                    output_unit=iw)
+                    output_unit=iw,omit_headers=omit_headers)
             END IF
          END DO
          CALL cp_print_key_finished_output(iw,logger,dft_section,&

@@ -84,7 +84,8 @@ CONTAINS
     INTEGER                                  :: after, handle, ispin, iw, &
                                                 output_unit, print_level, &
                                                 unit_nr
-    LOGICAL                                  :: explicit, failure, print_it
+    LOGICAL                                  :: explicit, failure, &
+                                                omit_headers, print_it
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -178,9 +179,10 @@ CONTAINS
           CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
           after = MIN(MAX(after,1),16)
           CALL qs_rho_get(rho, rho_ao=rho_ao)
+          CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
           DO ispin=1,dft_control%nspins
              CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
-                                            para_env,output_unit=iw)
+                                            para_env,output_unit=iw,omit_headers=omit_headers)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,"AO_MATRICES/DENSITY")
        END IF

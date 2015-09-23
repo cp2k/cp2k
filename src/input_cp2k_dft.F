@@ -1096,6 +1096,11 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"AO_MATRICES",&
          description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
          print_level=debug_print_level,filename="__STD_OUT__")
+    CALL keyword_create(keyword=keyword, name="OMIT_HEADERS",&
+         description="Print only the matrix data, not the row and column headers",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
     CALL keyword_create(keyword=keyword, name="NDIGITS",&
          description="Specify the number of digits used to print the AO matrices",&
          default_i_val=6)

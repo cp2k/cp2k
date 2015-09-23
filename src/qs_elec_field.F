@@ -90,7 +90,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: found, new_atom_b
+    LOGICAL                                  :: found, new_atom_b, &
+                                                omit_headers
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -312,13 +313,20 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/EFG",&
             extension=".Log")
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
        after = MIN(MAX(after,1),16)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(2)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(3)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(4)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(5)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(6)%matrix,4,after,qs_env,para_env,output_unit=iw)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(1)%matrix,4,after,qs_env,&
+           para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(2)%matrix,4,after,qs_env,&
+           para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(3)%matrix,4,after,qs_env,&
+           para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(4)%matrix,4,after,qs_env,&
+           para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(5)%matrix,4,after,qs_env,&
+           para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_efg(6)%matrix,4,after,qs_env,&
+           para_env,output_unit=iw,omit_headers=omit_headers)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/EFG")
     END IF

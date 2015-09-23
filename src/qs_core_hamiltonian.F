@@ -536,6 +536,7 @@ CONTAINS
 
     INTEGER                                  :: after, handle, i, ic, iw, &
                                                 output_unit
+    LOGICAL                                  :: omit_headers
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_v
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -563,6 +564,7 @@ CONTAINS
        END IF
     END IF
 
+    CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
     ! Print the overlap integral matrix, if requested
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
               qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP"),cp_p_file)) THEN
@@ -574,7 +576,7 @@ CONTAINS
        IF (ASSOCIATED(matrixkp_s)) THEN
           DO ic=1,SIZE(matrixkp_s,2)
              CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(1,ic)%matrix,4,after,qs_env,para_env,&
-                  output_unit=iw)
+                  output_unit=iw,omit_headers=omit_headers)
           END DO
           IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
               "DFT%PRINT%AO_MATRICES/DERIVATIVES"),cp_p_file) &
@@ -582,7 +584,7 @@ CONTAINS
              DO ic=1,SIZE(matrixkp_s,2)
                 DO i=2,SIZE(matrix_s)
                    CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i,ic)%matrix,4,after,qs_env,para_env,&
-                        output_unit=iw)
+                        output_unit=iw,omit_headers=omit_headers)
                 END DO
              END DO
           END IF
@@ -602,7 +604,7 @@ CONTAINS
        IF (ASSOCIATED(matrixkp_t)) THEN
           DO ic=1,SIZE(matrixkp_t,2)
              CALL cp_dbcsr_write_sparse_matrix(matrixkp_t(1,ic)%matrix,4,after,qs_env,para_env,&
-                  output_unit=iw)
+                  output_unit=iw,omit_headers=omit_headers)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -625,7 +627,8 @@ CONTAINS
              CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrixkp_h(1,1)%matrix,name="POTENTIAL ENERGY MATRIX")
              CALL cp_dbcsr_add(matrix_v(1)%matrix,matrixkp_t(1,1)%matrix,&
                   alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,after,qs_env,&
+                  para_env,output_unit=iw,omit_headers=omit_headers)
              CALL cp_dbcsr_deallocate_matrix_set(matrix_v)
           ELSE
              CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -648,7 +651,7 @@ CONTAINS
        IF (ASSOCIATED(matrixkp_h)) THEN
           DO ic=1,SIZE(matrixkp_h,2)
              CALL cp_dbcsr_write_sparse_matrix(matrixkp_h(1,ic)%matrix,4,after,qs_env,para_env,&
-                  output_unit=iw)
+                  output_unit=iw,omit_headers=omit_headers)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&

@@ -157,7 +157,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: defined, found, hb_sr_damp, &
-                                                use_virial
+                                                omit_headers, use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, erepij, f0, f1, &
                                                 foab, fow, ga, gb, hb_para, &
@@ -553,7 +553,8 @@ CONTAINS
      ! set repulsive energy
      CALL mp_sum(erep,para_env%group)
      energy%repulsive = erep
-
+     
+     CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN"),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
@@ -562,7 +563,7 @@ CONTAINS
        after = MIN(MAX(after,1),16)
        DO img=1,nimg
           CALL cp_dbcsr_write_sparse_matrix(matrix_h(1,img)%matrix,4,after,qs_env,para_env,&
-               output_unit=iw)
+               output_unit=iw,omit_headers=omit_headers)
        END DO
 
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -577,13 +578,13 @@ CONTAINS
        after = MIN(MAX(after,1),16)
        DO img=1,nimg
           CALL cp_dbcsr_write_sparse_matrix(matrix_s(1,img)%matrix,4,after,qs_env,para_env,&
-             output_unit=iw)
+             output_unit=iw,omit_headers=omit_headers)
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                  qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES"),cp_p_file)) THEN
             DO i=2,SIZE(matrix_s,1)
               CALL cp_dbcsr_write_sparse_matrix(matrix_s(i,img)%matrix,4,after,qs_env,para_env,&
-                   output_unit=iw)
+                   output_unit=iw,omit_headers=omit_headers)
             END DO
           END IF
        END DO

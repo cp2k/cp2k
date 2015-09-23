@@ -46,6 +46,8 @@ vdW_PP_GRIMME_p2.inp                                  33    1.0E-14             
 Ar-fine-1.inp                                          1      4e-14             -21.10344502369165
 # a basis none first kind
 H2O-none.inp                                           1      3e-14             -17.64549036281212
+# Test printing of sparse matrices without headers
+H2O-noheader.inp                                       1      3e-14             -17.64549036281212
 # extended pseudopotentials
 h4.t1.inp                                              1    1.0E-14              -2.09271001057167
 h4.t2.inp                                              1      2e-13              -1.16908577342979

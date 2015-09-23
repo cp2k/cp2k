@@ -2202,8 +2202,8 @@ CONTAINS
       print_level, tile_npts, unit_nr
     LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
       do_dirichlet_bc_cube, do_kpoints, failure, has_dirichlet_bc, &
-      has_implicit_ps, print_it, print_total_density, rho_r_valid, smooth, &
-      tile_cubes, write_ks, write_xc, xrd_interface
+      has_implicit_ps, omit_headers, print_it, print_total_density, &
+      rho_r_valid, smooth, tile_cubes, write_ks, write_xc, xrd_interface
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
@@ -2877,6 +2877,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
        ENDIF
 
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
        ! Write the density matrices
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                  "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
@@ -2888,7 +2889,7 @@ CONTAINS
           DO ispin=1,dft_control%nspins
              DO img=1,dft_control%nimages
                 CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin,img)%matrix,4,after,qs_env,&
-                                                  para_env,output_unit=iw)
+                                                  para_env,output_unit=iw,omit_headers=omit_headers)
              END DO
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2919,7 +2920,7 @@ CONTAINS
           DO ispin=1,dft_control%nspins
              DO img=1,dft_control%nimages
                 CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin,img)%matrix,4,after,qs_env,&
-                                                  para_env,output_unit=iw)
+                                                  para_env,output_unit=iw,omit_headers=omit_headers)
              END DO
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2937,7 +2938,7 @@ CONTAINS
           DO ispin=1,dft_control%nspins
              DO img=1,dft_control%nimages
                 CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin,img)%matrix,4,after,qs_env,&
-                                                  para_env,output_unit=iw)
+                                                  para_env,output_unit=iw,omit_headers=omit_headers)
              END DO
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&

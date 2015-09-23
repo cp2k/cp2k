@@ -139,7 +139,8 @@ CONTAINS
                                                 nkind, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
-    LOGICAL                                  :: failure, has_unit_metric
+    LOGICAL                                  :: failure, has_unit_metric, &
+                                                omit_headers
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -266,10 +267,11 @@ CONTAINS
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
                   extension=".Log")
              CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+             CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
              after = MIN(MAX(after,1),16)
              DO ic=1,SIZE(matrix_w_kp,2)
                 CALL cp_dbcsr_write_sparse_matrix(matrix_w_kp(ispin,ic)%matrix,4,after,qs_env,&
-                     para_env,output_unit=iw)
+                     para_env,output_unit=iw,omit_headers=omit_headers)
              END DO
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                   "DFT%PRINT%AO_MATRICES/W_MATRIX")

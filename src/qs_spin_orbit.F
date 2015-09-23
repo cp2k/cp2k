@@ -89,7 +89,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: found, new_atom_b
+    LOGICAL                                  :: found, new_atom_b, &
+                                                omit_headers
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -314,9 +315,13 @@ CONTAINS
             extension=".Log")
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
        after = MIN(MAX(after,1),16)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_so(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_so(2)%matrix,4,after,qs_env,para_env,output_unit=iw)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_so(3)%matrix,4,after,qs_env,para_env,output_unit=iw)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_so(1)%matrix,4,after,qs_env,&
+            para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_so(2)%matrix,4,after,qs_env,&
+            para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_so(3)%matrix,4,after,qs_env,&
+            para_env,output_unit=iw,omit_headers=omit_headers)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/PSO")
     END IF

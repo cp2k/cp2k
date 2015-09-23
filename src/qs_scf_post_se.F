@@ -631,7 +631,7 @@ CONTAINS
 
     INTEGER                                  :: after, handle, ispin, iw, &
                                                 output_unit
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, omit_headers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -745,6 +745,7 @@ CONTAINS
        ENDIF
 
        ! Write the density matrix
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                  "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
@@ -753,7 +754,7 @@ CONTAINS
           after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
              CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
-                  para_env,output_unit=iw)
+                  para_env,output_unit=iw,omit_headers=omit_headers)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
                "DFT%PRINT%AO_MATRICES/DENSITY")
@@ -768,7 +769,8 @@ CONTAINS
                extension=".Log")
           CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
           after = MIN(MAX(after,1),16)
-          CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,after,qs_env,para_env,output_unit=iw)
+          CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,after,qs_env,&
+               para_env,output_unit=iw,omit_headers=omit_headers)
           CALL cp_print_key_finished_output(iw,logger,input,&
                "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
        END IF

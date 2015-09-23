@@ -841,7 +841,7 @@ CONTAINS
     INTEGER                                  :: after, handle, ikind, iw, &
                                                 nao, ndep, output_unit
     LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
-      s_minus_half_available
+      omit_headers, s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -913,8 +913,10 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
                extension=".Log")
           CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+          CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
           after = MIN(MAX(after,1),16)
-          CALL write_fm_with_basis_info(scf_env%ortho,4,after,qs_env,para_env,output_unit=iw)
+          CALL write_fm_with_basis_info(scf_env%ortho,4,after,qs_env,&
+               para_env,output_unit=iw,omit_headers=omit_headers)
           CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                "DFT%PRINT%AO_MATRICES/ORTHO")
        END IF

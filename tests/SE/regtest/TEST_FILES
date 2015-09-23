@@ -37,6 +37,8 @@ brcl.inp                                               3      9e-12            -
 sih_x.inp                                              3    1.0E-14             -96.26092844300443
 sih_y.inp                                              3    1.0E-14             -96.26092844300442
 tio.inp                                                3    1.0E-14            -349.24954119989451
+# Test printing of sparse matrices without headers
+tio_noheader.inp                                       3    1.0E-14            -349.24954119989451
 # integrals in-core
 H2O-MNDO-si.inp                                        3    1.0E-14            -351.41062850810090
 H2O-MNDO-si-nc.inp                                     3    1.0E-14            -351.41062851273358
