@@ -942,6 +942,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: message
 
     INTEGER                                  :: ierr, numtask, taskid
+    REAL(KIND=dp)                            :: t1
 
     ierr = 0
 #if defined(__parallel)
@@ -950,10 +951,20 @@ CONTAINS
     numtask=1
     taskid=0
 #endif
+    ! delayed abort on non-master ranks, for cleaner output if all ranks call this subroutine at the same time.
+    IF (taskid.NE.0) THEN
+       t1=m_walltime()
+       DO
+         IF (m_walltime()-t1>1.0_dp .OR. t1<0) EXIT
+       ENDDO
+    ENDIF
+
+    WRITE(default_output_unit,*) 
     IF (PRESENT(message)) THEN
-       WRITE(default_output_unit,'(A)')         ' CP2K| '//TRIM(message)
+       WRITE(default_output_unit,'(A)')         ' CP2K| Error: '//TRIM(message)
     ENDIF
     WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
+    WRITE(default_output_unit,*) 
     CALL m_flush(default_output_unit)
 
 #if defined(__parallel)

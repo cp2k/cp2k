@@ -151,10 +151,9 @@ CONTAINS
        IF(level > CP_WARNING_LEVEL) iam_ionode = .TRUE.
 
        IF (iam_ionode) THEN
-          CALL cp_log(logger,level,fromWhere//' processor '//&
+          CALL cp_log(logger,level,fromWhere//' on MPI rank '//&
                       TRIM(ADJUSTL(cp_to_string(logger%para_env%mepos)))//' ',&
-                      'err='//TRIM(ADJUSTL(cp_to_string(error_nr)))//&
-                      ' '//TRIM(ADJUSTL(message)), local=.TRUE.)
+                      'reason: '//TRIM(ADJUSTL(message)), local=.TRUE.)
        ENDIF
 
        IF(level > CP_WARNING_LEVEL) THEN
