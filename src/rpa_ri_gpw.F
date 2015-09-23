@@ -156,9 +156,8 @@ MODULE rpa_ri_gpw
       my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, &
       my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
       my_ia_start_beta, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start
-    INTEGER :: nrow_block_mat, ncol_block_mat, &
-      ngroup, num_integ_group, num_integ_points, num_poles, &
-      pos_integ_group, virtual, virtual_beta
+    INTEGER :: ncol_block_mat, ngroup, nrow_block_mat, num_integ_group, &
+      num_integ_points, num_poles, pos_integ_group, virtual, virtual_beta
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_ia, ends_ia_beta, ends_nm_gw, &
       sizes_ia, sizes_ia_beta, sizes_nm_gw, starts_ia, starts_ia_beta, &
@@ -791,16 +790,14 @@ MODULE rpa_ri_gpw
       end_row_block, grid_2D(2), handle, handle2, handle3, i, i_global, &
       i_local, i_sub, iiB, iii, iproc, iproc_col, iproc_row, itmp(2), &
       j_global, j_local, j_sub, jjB, mepos_in_RPA_group, my_num_col_blocks, &
-      my_num_row_blocks, mypcol, myprow, ncol_block, &
-      ncol_local, npcol, nprow, nrow_block, nrow_local, &
-      num_rec_cols, number_of_rec, number_of_send, proc_receive, &
-      proc_receive_static, proc_send, proc_send_static, proc_shift, &
-      rec_counter, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
-      rec_L_size
-    INTEGER :: rec_L_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
-      row_col_proc_ratio, send_counter, send_pcol, send_prow, &
-      size_rec_buffer, size_send_buffer, start_col_block, start_row_block, &
-      sub_sub_color
+      my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, npcol, &
+      nprow, nrow_block, nrow_local, num_rec_cols, number_of_rec, &
+      number_of_send, proc_receive, proc_receive_static, proc_send, &
+      proc_send_static, proc_shift, rec_counter, rec_ia_end, rec_ia_size, &
+      rec_ia_start, rec_L_end, rec_L_size, rec_L_start, rec_pcol, rec_prow
+    INTEGER :: ref_send_pcol, ref_send_prow, row_col_proc_ratio, &
+      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
+      start_col_block, start_row_block, sub_sub_color
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send, RPA_proc_map
