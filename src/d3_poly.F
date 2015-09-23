@@ -77,7 +77,7 @@ SUBROUTINE init_d3_poly_module()
 
     nthreads = 1
     !$ nthreads = OMP_GET_NUM_THREADS()
-    IF(nthreads /= 1) STOP "init_d3_poly_module must not be called within OMP PARALLEL"
+    IF(nthreads /= 1) CPABORT("init_d3_poly_module must not be called within OMP PARALLEL")
 
     IF (module_initialized) RETURN
 
@@ -390,7 +390,7 @@ SUBROUTINE poly_mult1(p1,p2,pRes,np1,sumUp)
                                                 resShift_0, size_p1, size_p2
     LOGICAL                                  :: mySumUp
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     mySumUp=.FALSE.
     myNp1=1
     IF (PRESENT(np1)) myNp1=np1
@@ -438,7 +438,7 @@ SUBROUTINE poly_mult2(p1,p2,pRes,np1,sumUp)
       size_p2, subG2
     LOGICAL                                  :: mySumUp
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     mySumUp=.FALSE.
     IF (PRESENT(sumUp)) mySumUp=sumUp
     myNp1=1
@@ -519,7 +519,7 @@ SUBROUTINE poly_mult3(p1,p2,pRes,np1,sumUp)
                                                 newSize, size_p1, size_p2
     LOGICAL                                  :: mySumUp
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     mySumUp=.FALSE.
     IF (PRESENT(sumUp)) mySumUp=sumUp
     myNp1=1
@@ -571,7 +571,7 @@ SUBROUTINE poly_mult3b(p1,size_p1,grad1,p2,size_p2,grad2,pRes,size_pRes,np1,sumU
       shift2J, shiftRes, shiftRes_0, shiftResI, shiftResI_0, shiftResJ, &
       subG2, subGrad
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_size_p1=size_p1/np1
     newSize=size_pRes/np1
 
@@ -681,7 +681,7 @@ SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
       shift2J, shiftRes, shiftRes_0, shiftResI, shiftResI_0, shiftResJ, &
       subG2, subGrad
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_size_p1=size_p1/np1
     newSize=size_pRes/np1
 
@@ -789,7 +789,7 @@ SUBROUTINE poly_write2(p,out_f)
     INTEGER, DIMENSION(2)                    :: mono_e
     LOGICAL                                  :: did_write
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     did_write=.FALSE.
     DO i=1,SIZE(p)
         mono_e=mono_exp2(i-1)
@@ -817,7 +817,7 @@ SUBROUTINE poly_write3(p,out_f)
     INTEGER, DIMENSION(3)                    :: mono_e
     LOGICAL                                  :: did_write
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     did_write=.FALSE.
     DO i=1,SIZE(p)
         mono_e=mono_exp3(i-1)
@@ -853,7 +853,7 @@ FUNCTION poly_random(p,maxSize,minSize) RESULT(res)
     INTEGER                                  :: i, myMinSize, pSize
     REAL(dp)                                 :: g
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     myMinSize=1
     IF (PRESENT(minSize)) myMinSize=minSize
     CALL RANDOM_NUMBER(g)
@@ -895,7 +895,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
     REAL(dp), DIMENSION(4, 3)                :: basepoly
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     basepoly(1,:)=b
@@ -1059,7 +1059,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
     REAL(dp), DIMENSION(4, 3)                :: basepoly
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     basepoly(1,:)=b
@@ -1218,7 +1218,7 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly)
                                                 size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1265,7 +1265,7 @@ SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 pShift, shiftRes, shiftRes_0, &
                                                 subG
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     inSize=size_p/npoly
     newSize=size_pRes/npoly
     pRes(1:size_pRes)=0.0
@@ -1333,7 +1333,7 @@ SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly)
                                                 size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1381,7 +1381,7 @@ SUBROUTINE poly_padd_uneval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 pShift, shiftRes, shiftRes_0, &
                                                 subG, upSize
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     inSize=size_p/npoly
     newSize=size_pRes/npoly
     upSize=(grad+1)*(grad+2)*(grad+3)/6
@@ -1447,7 +1447,7 @@ SUBROUTINE poly_p_eval2(p,x,pRes,npoly)
                                                 size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1492,7 +1492,7 @@ SUBROUTINE poly_p_eval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 inSize, ipoly, msize_p, &
                                                 newSize, pShift, shiftRes
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     inSize=size_p/npoly
     newSize=size_pRes/npoly
     pRes(1:size_pRes)=0.0_dp
@@ -1556,7 +1556,7 @@ SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly)
                                                 size_p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1602,7 +1602,7 @@ SUBROUTINE poly_padd_uneval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 newSize, pShift, shiftRes, &
                                                 upSize
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     inSize=size_p/npoly
     upSize=(grad+1)*(grad+2)/2
     newSize=size_pRes/npoly
@@ -1704,7 +1704,7 @@ SUBROUTINE poly_eval2(p,x,y,pRes,npoly)
     REAL(dp)                                 :: v
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi, yi
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1775,7 +1775,7 @@ SUBROUTINE poly_eval3(p,x,y,z,pRes,npoly)
     REAL(dp)                                 :: v
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi, yi, zi
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1851,7 +1851,7 @@ SUBROUTINE poly_derive3(p,pRes,npoly,sumUp)
       zShift
     LOGICAL                                  :: my_sumUp
 
-    IF (.not.module_initialized) STOP "module d3_poly not initialized"
+    IF (.not.module_initialized) CPABORT("module d3_poly not initialized")
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     my_sumUp=.FALSE.

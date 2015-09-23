@@ -3478,7 +3478,7 @@ CONTAINS
        sreq(ns-1) = sn
     END DO
     IF ( rcount(pos) /= 0 ) THEN
-       IF( rcount(pos) /= scount(pos) ) STOP
+       IF( rcount(pos) /= scount(pos) ) CPABORT("")
        rq(rdispl(pos)+1:rdispl(pos)+rcount(pos)) = rs(sdispl(pos)+1:sdispl(pos)+scount(pos))
     END IF
     CALL mp_waitall(sreq(0:ns-1))

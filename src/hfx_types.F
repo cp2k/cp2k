@@ -974,7 +974,7 @@ MODULE hfx_types
                                maxlgto=basis_info%max_am,&
                                basis_type="AUX_FIT")
         END IF
-        IF (basis_info%max_set<max_set) STOP "UNEXPECTED MAX_SET"
+        IF (basis_info%max_set<max_set) CPABORT("UNEXPECTED MAX_SET")
         max_set = MAX(max_set,basis_info%max_set)
         CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
                                lmax=basis_parameter(ikind)%lmax, &

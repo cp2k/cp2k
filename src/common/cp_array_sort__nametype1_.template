@@ -27,7 +27,9 @@
 MODULE cp_array_sort_[nametype1]
    
   [USE]
-  
+
+#include "cp_common_uses.f90"
+
   IMPLICIT NONE
   PRIVATE
 

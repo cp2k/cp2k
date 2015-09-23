@@ -28,6 +28,7 @@
 MODULE cp_array_sort_i8
    
   USE kinds,                           ONLY: int_8
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

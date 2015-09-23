@@ -666,11 +666,11 @@ CONTAINS
 
 ! linear scaling calculation of verlet list
         ll1=INT(alat(1)/cut)
-        IF (ll1.lt.1) STOP 'alat(1) too small'
+        IF (ll1.lt.1) CPABORT("alat(1) too small")
         ll2=INT(alat(2)/cut)
-        IF (ll2.lt.1) STOP 'alat(2) too small'
+        IF (ll2.lt.1) CPABORT("alat(2) too small")
         ll3=INT(alat(3)/cut)
-        IF (ll3.lt.1) STOP 'alat(3) too small'
+        IF (ll3.lt.1) CPABORT("alat(3) too small")
 
 ! determine number of threads
         npr=1
@@ -776,7 +776,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -789,7 +789,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -809,7 +809,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -822,7 +822,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -842,7 +842,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -855,7 +855,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -874,7 +874,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -887,7 +887,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -900,7 +900,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -913,7 +913,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -931,7 +931,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -944,7 +944,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -957,7 +957,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -970,7 +970,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -988,7 +988,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1001,7 +1001,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1014,7 +1014,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1027,7 +1027,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1043,7 +1043,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1056,7 +1056,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1069,7 +1069,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1082,7 +1082,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1095,7 +1095,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1108,7 +1108,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1121,7 +1121,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1134,7 +1134,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1278,7 +1278,7 @@ CONTAINS
 
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
-        IF (istopg.gt.0) STOP 'DIMENSION ERROR (see WARNING above)'
+        IF (istopg.gt.0) CPABORT("DIMENSION ERROR (see WARNING above)")
         ener_var=ener2/nat-(ener/nat)**2
         coord=coord/nat
         coord_var=coord2/nat-coord**2
@@ -1836,11 +1836,11 @@ CONTAINS
 
 ! linear scaling calculation of verlet list
         ll1=INT(alat(1)/cut)
-        IF (ll1.lt.1) STOP 'alat(1) too small'
+        IF (ll1.lt.1) CPABORT("alat(1) too small")
         ll2=INT(alat(2)/cut)
-        IF (ll2.lt.1) STOP 'alat(2) too small'
+        IF (ll2.lt.1) CPABORT("alat(2) too small")
         ll3=INT(alat(3)/cut)
-        IF (ll3.lt.1) STOP 'alat(3) too small'
+        IF (ll3.lt.1) CPABORT("alat(3) too small")
 
 ! determine number of threads
         npr=1
@@ -1945,7 +1945,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -1958,7 +1958,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -1978,7 +1978,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1991,7 +1991,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2011,7 +2011,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2024,7 +2024,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2043,7 +2043,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2056,7 +2056,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2069,7 +2069,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2082,7 +2082,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2100,7 +2100,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2113,7 +2113,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2126,7 +2126,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2139,7 +2139,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2157,7 +2157,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2170,7 +2170,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2183,7 +2183,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2196,7 +2196,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2212,7 +2212,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2225,7 +2225,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2238,7 +2238,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2251,7 +2251,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2264,7 +2264,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2277,7 +2277,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2290,7 +2290,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2303,7 +2303,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2438,7 +2438,7 @@ CONTAINS
 
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
-        IF (istopg.gt.0) STOP 'DIMENSION ERROR (see WARNING above)'
+        IF (istopg.gt.0) CPABORT("DIMENSION ERROR (see WARNING above)")
         ener_var=ener2/nat-(ener/nat)**2
         coord=coord/nat
         coord_var=coord2/nat-coord**2

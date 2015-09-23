@@ -258,7 +258,7 @@ CONTAINS
     ELSE
        PRINT *,'the FFT in the x direction is not allowed'
        PRINT *,'n01 dimension',n01
-       STOP
+       CPABORT("")
     END IF
     l1=l1+1
     CALL fourier_dim(l2,n2)
@@ -266,14 +266,14 @@ CONTAINS
     ELSE
        PRINT *,'the FFT in the z direction is not allowed'
        PRINT *,'n03 dimension',n03
-       STOP
+       CPABORT("")
     END IF
     CALL fourier_dim(l3,n3)
     IF (n3 == m3) THEN
     ELSE
        PRINT *,'the FFT in the y direction is not allowed'
        PRINT *,'n02 dimension',n02
-       STOP
+       CPABORT("")
     END IF
 
     !dimensions that contain the unpadded real space,
@@ -358,7 +358,7 @@ CONTAINS
     ELSE
        PRINT *,'the FFT in the x direction is not allowed'
        PRINT *,'n01 dimension',n01
-       STOP
+       CPABORT("")
     END IF
     l1=l1+1
     CALL fourier_dim(l2,n2)
@@ -366,7 +366,7 @@ CONTAINS
     ELSE
        PRINT *,'the FFT in the z direction is not allowed'
        PRINT *,'n03 dimension',n03
-       STOP
+       CPABORT("")
     END IF
     DO
        CALL fourier_dim(l3,n3)

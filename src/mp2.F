@@ -1218,7 +1218,7 @@ MODULE mp2
     ! GW on top of HFX with ADMM is not working. Please, converge an SCF with ADMM,
     ! print the restart file, remove the ADMM section, add the RPA and GW section,
     ! set very lax SCF convergence parameters to converge the SCF in one step.
-    IF(dft_control%do_admm) STOP "GW on top of ADMM is not implemented." 
+    IF(dft_control%do_admm) CPABORT("GW on top of ADMM is not implemented.")
 
     CALL qs_rho_get(rho, rho_ao=rho_ao)
 

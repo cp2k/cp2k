@@ -11,6 +11,8 @@ MODULE mltfftsg_tools
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
+#include "../../common/cp_common_uses.f90"
+
   PRIVATE
   INTEGER, PARAMETER :: ctrig_length=1024
   INTEGER, PARAMETER :: cache_size = 2048
@@ -77,7 +79,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   ALLOCATE ( Z ( LENGTH, 2, 0:num_threads - 1 ), stat=ierr )
   IF (ierr /= 0) THEN
      WRITE (*,*) "Error in allocating memory for z in mltfftsg.F"
-     STOP
+     CPABORT("")
   ENDIF
   iterations = (M + LOT - 1) / LOT
   chunk = LOT * ((iterations + num_threads - 1) / num_threads)

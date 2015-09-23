@@ -412,7 +412,7 @@ MODULE admm_dm_methods
        matrix_p => rho_ao_aux(ispin)%matrix
        matrix_s => matrix_s_aux_fit(1)%matrix
        history => admm_dm%mcweeny_history(ispin)%p
-       IF(ASSOCIATED(history)) STOP "purify_dm_mcweeny: history already associated"
+       IF(ASSOCIATED(history)) CPABORT("purify_dm_mcweeny: history already associated")
        IF(nspins==1) CALL cp_dbcsr_scale(matrix_p,0.5_dp)
 
        DO istep=1, admm_dm%mcweeny_max_steps

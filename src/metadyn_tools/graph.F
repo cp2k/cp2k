@@ -33,6 +33,7 @@ PROGRAM graph
   USE machine,                         ONLY: m_getarg,&
                                              m_iargc
   USE mathconstants,                   ONLY: pi
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -211,15 +212,15 @@ PROGRAM graph
   ! Basic Allocation
   ndw = ndim
   ALLOCATE(ngrid(ndim),stat=stat)
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE(dp_grid(ndim),stat=stat)
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE(idw(ndw),stat=stat)
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE(iperd(ndim),stat=stat)
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE(iprd(nprd),stat=stat)
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   DO i = 1, ndim
      idw(i)   = i
      iperd(i) = 0
@@ -242,7 +243,7 @@ PROGRAM graph
         ENDDO ndw_loop
 
         ALLOCATE(idw(ndw),stat=stat)
-        IF (stat/=0) STOP "Allocation Error"
+        IF (stat/=0) CPABORT("Allocation Error")
 
         DO id=1,ndw
            CALL M_GETARG(i+id,wq_char)
@@ -263,7 +264,7 @@ PROGRAM graph
 
         DEALLOCATE(iprd)
         ALLOCATE(iprd(nprd),stat=stat)
-        IF (stat/=0) STOP "Allocation Error"
+        IF (stat/=0) CPABORT("Allocation Error")
 
         DO id=1,nprd
            CALL M_GETARG(i+id,wq_char)
@@ -388,7 +389,7 @@ PROGRAM graph
 
   !  Defines the order of the collectiv var.: first the "wanted" ones, then the others
   ALLOCATE(i_map(ndim),stat=stat)
-  IF (stat/=0) STOP "Allocation Error" 
+  IF (stat/=0) CPABORT("Allocation Error")
   i_map = 0
 
   DO id=1,ndw
@@ -414,7 +415,7 @@ PROGRAM graph
   ! Grid size
   IF(l_grid) THEN
      ALLOCATE(tmp(ndim),stat=stat)
-     IF (stat/=0) STOP "Allocation Error"
+     IF (stat/=0) CPABORT("Allocation Error")
      tmp=ngrid
      DO i=1,ndim
         ngrid(i_map(i))=tmp(i)
@@ -445,25 +446,25 @@ PROGRAM graph
   END IF
   
   ALLOCATE( x0(ndim)         , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( xf(ndim)         , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( ss0(ndim,nt)     , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( delta_s(ndim,nt) , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( ww(nt)           , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( ind(ndim)        , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( inds(ndim)       , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( nn(ndim,nt)      , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( nn_max(ndim)     , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
   ALLOCATE( dp_cut(ndim)     , stat=stat )
-  IF (stat/=0) STOP "Allocation Error"
+  IF (stat/=0) CPABORT("Allocation Error")
 
   IF      (l_cp2k) THEN
      CALL get_val_res(unit=unit_nr,section="&METADYN",subsection="&SPAWNED_HILLS_POS")
@@ -671,7 +672,7 @@ PROGRAM graph
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
   ! If requested find  or opt path
-  IF ((l_pmin) .AND. (l_popt)) STOP "USE EITHER -find-path OR -opt-path"
+  IF ((l_pmin) .AND. (l_popt)) CPABORT("USE EITHER -find-path OR -opt-path")
   IF (l_pmin) l_int=.TRUE.
   IF (l_popt) l_int=.FALSE.
 

@@ -957,7 +957,7 @@ CONTAINS
        ! the bond list..
        IF (mol_info(atom_b)==-1.AND.my_mol_name==mol_name(atom_b)) THEN
           CALL spread_mol(atom_bond_list,mol_info,atom_b,imol,my_mol_name, mol_name)
-          IF (mol_info(atom_b)/=imol) STOP "internal error"
+          IF (mol_info(atom_b)/=imol) CPABORT("internal error")
        END IF
     ENDDO
   END SUBROUTINE spread_mol

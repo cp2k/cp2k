@@ -648,7 +648,7 @@ CONTAINS
              q_low = q
           END IF
        END DO
-       IF (q_hi == q_low) STOP 'get_potential:  qhi == qlow'
+       IF (q_hi == q_low) CPABORT("get_potential:  qhi == qlow")
 
        dq = q_mesh(q_hi) - q_mesh(q_low)
 

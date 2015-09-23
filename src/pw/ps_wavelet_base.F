@@ -72,14 +72,14 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: zmpi1
 
-    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1'
-    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2'
-    IF (nd3.LT.n3/2+1) STOP 'Parallel convolution:ERROR:nd3'
-    IF (md1.LT.n1) STOP 'Parallel convolution:ERROR:md1'
-    IF (md2.LT.n2) STOP 'Parallel convolution:ERROR:md2'
-    IF (md3.LT.n3) STOP 'Parallel convolution:ERROR:md3'
-    IF (MOD(nd3,nproc).NE.0) STOP 'Parallel convolution:ERROR:nd3'
-    IF (MOD(md2,nproc).NE.0) STOP 'Parallel convolution:ERROR:md2'
+    IF (nd1.LT.n1/2+1) CPABORT("Parallel convolution:ERROR:nd1")
+    IF (nd2.LT.n2/2+1) CPABORT("Parallel convolution:ERROR:nd2")
+    IF (nd3.LT.n3/2+1) CPABORT("Parallel convolution:ERROR:nd3")
+    IF (md1.LT.n1) CPABORT("Parallel convolution:ERROR:md1")
+    IF (md2.LT.n2) CPABORT("Parallel convolution:ERROR:md2")
+    IF (md3.LT.n3) CPABORT("Parallel convolution:ERROR:md3")
+    IF (MOD(nd3,nproc).NE.0) CPABORT("Parallel convolution:ERROR:nd3")
+    IF (MOD(md2,nproc).NE.0) CPABORT("Parallel convolution:ERROR:md2")
 
     !defining work arrays dimensions
     ncache=ncache_optimal
@@ -134,7 +134,7 @@ CONTAINS
             'convolxc_off:ncache has to be enlarged to be able to hold at' // &
             'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths'
-       STOP
+       CPABORT("")
     ENDIF
     DO j2=1,md2/nproc
        !this condition ensures that we manage only the interesting part for the FFT
@@ -188,7 +188,7 @@ CONTAINS
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
-             STOP
+             CPABORT("")
           ENDIF
 
           DO j=1,n2,lot
@@ -228,7 +228,7 @@ CONTAINS
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
-             STOP
+             CPABORT("")
           ENDIF
 
           DO j=1,n1,lot
@@ -887,15 +887,15 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     ! check input
-    IF (MOD(n3,2).NE.0) STOP 'Parallel convolution:ERROR:n3'
-    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1'
-    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2'
-    IF (nd3.LT.n3/2+1) STOP 'Parallel convolution:ERROR:nd3'
-    IF (md1.LT.n1) STOP 'Parallel convolution:ERROR:md1'
-    IF (md2.LT.n2) STOP 'Parallel convolution:ERROR:md2'
-    IF (md3.LT.n3/2) STOP 'Parallel convolution:ERROR:md3'
-    IF (MOD(nd3,nproc).NE.0) STOP 'Parallel convolution:ERROR:nd3'
-    IF (MOD(md2,nproc).NE.0) STOP 'Parallel convolution:ERROR:md2'
+    IF (MOD(n3,2).NE.0) CPABORT("Parallel convolution:ERROR:n3")
+    IF (nd1.LT.n1/2+1) CPABORT("Parallel convolution:ERROR:nd1")
+    IF (nd2.LT.n2/2+1) CPABORT("Parallel convolution:ERROR:nd2")
+    IF (nd3.LT.n3/2+1) CPABORT("Parallel convolution:ERROR:nd3")
+    IF (md1.LT.n1) CPABORT("Parallel convolution:ERROR:md1")
+    IF (md2.LT.n2) CPABORT("Parallel convolution:ERROR:md2")
+    IF (md3.LT.n3/2) CPABORT("Parallel convolution:ERROR:md3")
+    IF (MOD(nd3,nproc).NE.0) CPABORT("Parallel convolution:ERROR:nd3")
+    IF (MOD(md2,nproc).NE.0) CPABORT("Parallel convolution:ERROR:md2")
 
     !defining work arrays dimensions
     ncache=ncache_optimal
@@ -969,7 +969,7 @@ CONTAINS
             'convolxc_off:ncache has to be enlarged to be able to hold at' // &
             'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths',n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc
-       STOP
+       CPABORT("")
     ENDIF
 
     DO j2=1,md2/nproc
@@ -1023,7 +1023,7 @@ CONTAINS
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
-             STOP
+             CPABORT("")
           ENDIF
 
           DO j=1,n2,lot
@@ -1063,7 +1063,7 @@ CONTAINS
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
-             STOP
+             CPABORT("")
           ENDIF
 
           DO j=1,n1,lot
@@ -1647,17 +1647,17 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: zmpi1
 
-    IF (MOD(n1,2).NE.0) STOP 'Parallel convolution:ERROR:n1'
-    IF (MOD(n2,2).NE.0) STOP 'Parallel convolution:ERROR:n2'
-    IF (MOD(n3,2).NE.0) STOP 'Parallel convolution:ERROR:n3'
-    IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1'
-    IF (nd2.LT.n2/2+1) STOP 'Parallel convolution:ERROR:nd2'
-    IF (nd3.LT.n3/2+1) STOP 'Parallel convolution:ERROR:nd3'
-    IF (md1.LT.n1/2) STOP 'Parallel convolution:ERROR:md1'
-    IF (md2.LT.n2/2) STOP 'Parallel convolution:ERROR:md2'
-    IF (md3.LT.n3/2) STOP 'Parallel convolution:ERROR:md3'
-    IF (MOD(nd3,nproc).NE.0) STOP 'Parallel convolution:ERROR:nd3'
-    IF (MOD(md2,nproc).NE.0) STOP 'Parallel convolution:ERROR:md2'
+    IF (MOD(n1,2).NE.0) CPABORT("Parallel convolution:ERROR:n1")
+    IF (MOD(n2,2).NE.0) CPABORT("Parallel convolution:ERROR:n2")
+    IF (MOD(n3,2).NE.0) CPABORT("Parallel convolution:ERROR:n3")
+    IF (nd1.LT.n1/2+1) CPABORT("Parallel convolution:ERROR:nd1")
+    IF (nd2.LT.n2/2+1) CPABORT("Parallel convolution:ERROR:nd2")
+    IF (nd3.LT.n3/2+1) CPABORT("Parallel convolution:ERROR:nd3")
+    IF (md1.LT.n1/2) CPABORT("Parallel convolution:ERROR:md1")
+    IF (md2.LT.n2/2) CPABORT("Parallel convolution:ERROR:md2")
+    IF (md3.LT.n3/2) CPABORT("Parallel convolution:ERROR:md3")
+    IF (MOD(nd3,nproc).NE.0) CPABORT("Parallel convolution:ERROR:nd3")
+    IF (MOD(md2,nproc).NE.0) CPABORT("Parallel convolution:ERROR:md2")
 
     !defining work arrays dimensions
 
@@ -1721,7 +1721,7 @@ CONTAINS
             'convolxc_on:ncache has to be enlarged to be able to hold at' // &
             'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths'
-       STOP
+       CPABORT("")
     ENDIF
 
     DO j2=1,md2/nproc
@@ -1778,7 +1778,7 @@ CONTAINS
                   'convolxc_on:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
-             STOP
+             CPABORT("")
           ENDIF
 
           DO j=1,n2/2,lot
@@ -1818,7 +1818,7 @@ CONTAINS
                   'convolxc_on:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
-             STOP
+             CPABORT("")
           ENDIF
 
           DO j=1,n1,lot

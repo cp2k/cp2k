@@ -1274,7 +1274,7 @@ CONTAINS
               pos(1)=0.0_dp
               pos(2)=ds_min/gold_sec
             ELSE
-              IF (line_search_count .EQ. 150) STOP "Too many"
+              IF (line_search_count .EQ. 150) CPABORT("Too many")
               IF (lsr.eq.0) THEN
                  IF (energy(line_search_count-1).lt.energy(line_search_count)) THEN
                     lsr = line_search_count

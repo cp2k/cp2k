@@ -88,7 +88,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set,qs_kind_set,cell_section,kind_section,my_cell,my_cell_ref,my_cp_subsys)
 
-    IF(ASSOCIATED(subsys)) STOP "qs_subsys_create: subsys already associated"
+    IF(ASSOCIATED(subsys)) CPABORT("qs_subsys_create: subsys already associated")
 
     ! create cp_subsys
     IF (PRESENT(cp_subsys)) THEN

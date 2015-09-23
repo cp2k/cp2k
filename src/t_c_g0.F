@@ -49,6 +49,7 @@
 MODULE t_c_g0
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
+#include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE
@@ -1349,7 +1350,7 @@ SUBROUTINE init(Nder,iunit,mepos,group)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: chunk
 
   patches=207
-  IF (Nder>nderiv_max) STOP "T_C_G0 init failed"
+  IF (Nder>nderiv_max) CPABORT("T_C_G0 init failed")
   nderiv_init=Nder
   IF(ALLOCATED(C0)) DEALLOCATE(C0)
   ! round up to a multiple of 32 to give some generous alignment for each C0

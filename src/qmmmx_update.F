@@ -74,7 +74,7 @@ CONTAINS
     IF (.NOT. ASSOCIATED(qmmm_force_mixing)) RETURN
     CALL section_vals_get(qmmm_force_mixing,explicit=force_mixing_active)
     IF(.NOT.force_mixing_active) RETURN
-    IF(.NOT.ASSOCIATED(force_env%qmmmx_env)) STOP "qmmmx_update_force_env: force_env%qmmmx not associated"
+    IF(.NOT.ASSOCIATED(force_env%qmmmx_env)) CPABORT("force_env%qmmmx not associated")
 
     CALL force_env_get(force_env, subsys=subsys)
     CALL update_force_mixing_labels(subsys, qmmm_section, labels_changed=labels_changed)

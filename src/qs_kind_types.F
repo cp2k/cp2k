@@ -1834,8 +1834,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    IF(ASSOCIATED(qs_kind_set)) STOP "create_qs_kind_set: qs_kind_set already associated"
-    IF(.NOT.ASSOCIATED(atomic_kind_set)) STOP "create_qs_kind_set: atomic_kind_set not associated"
+    IF(ASSOCIATED(qs_kind_set)) CPABORT("create_qs_kind_set: qs_kind_set already associated")
+    IF(.NOT.ASSOCIATED(atomic_kind_set)) CPABORT("create_qs_kind_set: atomic_kind_set not associated")
 
     no_fail = .FALSE.
 

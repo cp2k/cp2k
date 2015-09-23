@@ -20,6 +20,8 @@ MODULE fftw3_lib
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
+#include "../../common/cp_common_uses.f90"
+
   IMPLICIT NONE
   PRIVATE
 
@@ -336,7 +338,7 @@ SUBROUTINE sortint ( iarr, n, index )
      INDEX(l) = INDEX(j)
      INDEX(j) = ib
      jstack = jstack + 2
-     IF (jstack>nstack) STOP ' Nstack too small in sortr'
+     IF (jstack>nstack) CPABORT(" Nstack too small in sortr")
      IF (ir-i+1>=j-l) THEN
         istack(jstack) = ir
         istack(jstack-1) = i

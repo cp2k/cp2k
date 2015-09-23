@@ -1565,7 +1565,7 @@ GO TO 220
 130 w1 = bup(b0, a0, y0, x0, n, eps)
 b0 = b0 + n
 131 CALL bgrat (b0, a0, y0, x0, w1, eps, ierr1)
-IF (ierr1 > 0) STOP "Error in BGRAT"
+IF (ierr1 > 0) CPABORT("Error in BGRAT")
 w = 0.5e0_dp + (0.5e0_dp - w1)
 GO TO 220
 

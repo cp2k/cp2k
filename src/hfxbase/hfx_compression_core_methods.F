@@ -100,9 +100,9 @@ MODULE hfx_compression_core_methods
    pack_tmp=packed_data(ipack)
 
    ! give the compiler a hint that Nbits is strictly positive
-   IF (Nbits<1) STOP "This is a bug"
+   IF (Nbits<1) CPABORT("This is a bug")
    ! we also limit the making number of bits
-   IF (Nbits>=64) STOP "This is a bug"
+   IF (Nbits>=64) CPABORT("This is a bug")
 
    DO
      ! we've unpacked all data
@@ -151,9 +151,9 @@ MODULE hfx_compression_core_methods
    ibits_remaining=64
 
    ! give the compiler a hint that Nbits is strictly positive
-   IF (Nbits<1)   STOP "This is a bug"
+   IF (Nbits<1)   CPABORT("This is a bug")
    ! we also limit the making number of bits
-   IF (Nbits>=64) STOP "This is a bug"
+   IF (Nbits>=64) CPABORT("This is a bug")
 
    DO
      ! we've packed all data

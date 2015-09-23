@@ -85,7 +85,7 @@ CONTAINS
   SUBROUTINE cite_reference(key)
     INTEGER, INTENT(IN)                      :: key
 
-    IF (key<1 .OR. key>max_reference) STOP "citation key out of range"
+    IF (key<1 .OR. key>max_reference) CPABORT("citation key out of range")
 
     ! set as cited
     thebib(key)%ref%is_cited=.TRUE.
@@ -139,7 +139,7 @@ CONTAINS
     INTEGER                                  :: commaloc, i, ires, line, &
                                                 match, mylen, nlines
 
-    IF (nbib+1>max_reference) STOP "increase max_reference"
+    IF (nbib+1>max_reference) CPABORT("increase max_reference")
     nbib=nbib+1
     key =nbib
 
@@ -321,7 +321,7 @@ CONTAINS
 
     INTEGER                                  :: I
 
-    IF (key<1 .OR. key>max_reference) STOP "citation key out of range"
+    IF (key<1 .OR. key>max_reference) CPABORT("citation key out of range")
 
     SELECT CASE(FORMAT)
     CASE(print_format_isi)

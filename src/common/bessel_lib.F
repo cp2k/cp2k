@@ -291,7 +291,7 @@ CONTAINS
         bessel0=bessel0+fact
         IF (ABS(fact) < tol) EXIT
       ENDDO
-      IF (ABS(fact) > tol) STOP "BESSEL0 NOT CONVERGED"
+      IF (ABS(fact) > tol) CPABORT("BESSEL0 NOT CONVERGED")
     END IF
 
   END FUNCTION bessel0

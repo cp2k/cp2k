@@ -240,7 +240,7 @@ CONTAINS
        END DO
     END IF
 
-    IF(ASSOCIATED(qmmm_env) .AND. ASSOCIATED(qmmmx_env)) STOP "calc_nfree_qm: qmmm bug"
+    CPASSERT(.NOT.(ASSOCIATED(qmmm_env) .AND. ASSOCIATED(qmmmx_env)))
   END FUNCTION calc_nfree_qm
 
 
@@ -677,7 +677,7 @@ CONTAINS
        END DO
     END IF
 
-    IF(ASSOCIATED(qmmm_env) .AND. ASSOCIATED(qmmmx_env)) STOP "get_part_ke: qmmm bug"
+    IF(ASSOCIATED(qmmm_env) .AND. ASSOCIATED(qmmmx_env)) CPABORT("get_part_ke: qmmm bug")
   END SUBROUTINE get_part_ke
 
 ! *****************************************************************************

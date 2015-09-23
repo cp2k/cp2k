@@ -56,7 +56,7 @@
 #endif
 
 
-#define CPWARN(msg) CALL cp__w(routineP,__LINE__,msg)
-#define CPABORT(msg) CALL cp__b(routineP,__LINE__,msg)
-#define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(routineP,__LINE__)
+#define CPWARN(msg) CALL cp__w(__SHORT_FILE__,__LINE__,msg)
+#define CPABORT(msg) CALL cp__b(__SHORT_FILE__,__LINE__,msg)
+#define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(__SHORT_FILE__,__LINE__)
 

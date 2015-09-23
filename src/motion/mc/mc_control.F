@@ -389,12 +389,12 @@ CONTAINS
                           mpi_comm=para_env%group)
 
     CALL f_env_add_defaults(f_env_id, f_env,failure)
-    IF(failure) STOP "mc_create_force_env: f_env_add_defaults failed"
+    IF(failure) CPABORT("mc_create_force_env: f_env_add_defaults failed")
     force_env => f_env%force_env
     CALL force_env_retain(force_env)
     CALL f_env_rm_defaults(f_env)
     CALL destroy_force_env(f_env_id, ierr)
-    IF(ierr/=0) STOP "mc_create_force_env: destroy_force_env failed"
+    IF(ierr/=0) CPABORT("mc_create_force_env: destroy_force_env failed")
 
     IF(PRESENT(globenv_new)) &
         CALL force_env_get(force_env, globenv=globenv_new)

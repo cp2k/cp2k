@@ -28,6 +28,7 @@
 MODULE cp_array_sort_r
    
   USE kinds,                           ONLY: dp
+#include "cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

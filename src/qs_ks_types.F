@@ -435,9 +435,9 @@ END SUBROUTINE qs_ks_env_create
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
 
-     IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
-     IF(ks_env%ref_count<1) STOP "get_ks_env: ks_env%ref_count<1"
-     IF(.NOT. ASSOCIATED(ks_env%subsys)) STOP "get_ks_env: subsys not associated"
+     IF(.NOT. ASSOCIATED(ks_env)) CPABORT("get_ks_env: not associated")
+     IF(ks_env%ref_count<1) CPABORT("get_ks_env: ks_env%ref_count<1")
+     IF(.NOT. ASSOCIATED(ks_env%subsys)) CPABORT("get_ks_env: subsys not associated")
 
      IF (PRESENT(s_mstruct_changed)) s_mstruct_changed = ks_env%s_mstruct_changed
      IF (PRESENT(rho_changed)) rho_changed = ks_env%rho_changed
@@ -659,8 +659,8 @@ END SUBROUTINE qs_ks_env_create
       POINTER                                :: blacs_env
     TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
 
-     IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
-     IF(ks_env%ref_count<1) STOP "set_ks_env: ks_env%ref_count<1"
+     IF(.NOT. ASSOCIATED(ks_env)) CPABORT("set_ks_env: not associated")
+     IF(ks_env%ref_count<1) CPABORT("set_ks_env: ks_env%ref_count<1")
 
      IF (PRESENT(s_mstruct_changed)) ks_env%s_mstruct_changed=s_mstruct_changed
      IF (PRESENT(rho_changed)) ks_env%rho_changed=rho_changed
