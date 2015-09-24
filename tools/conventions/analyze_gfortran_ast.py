@@ -86,7 +86,7 @@ def process_log_file(fn, public_symbols, used_symbols):
                 print(loc+': OMP PARALLEL without DEFAULT(NONE) found in "'+curr_procedure+'"')
 
         elif(line.startswith("CALL")):
-            if(tokens[1] in BANNED_CALL):
+            if(tokens[1].upper() in BANNED_CALL):
                 print(loc+": Found CALL "+tokens[1]+' in procedure "'+curr_procedure+'"')
 
         elif(tokens and tokens[0] in BANNED_STM):

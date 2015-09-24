@@ -80,7 +80,6 @@ almo_scf_methods.F: Found WRITE statement with hardcoded unit in "matrix_sqrt"
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "newton_grad_to_step"
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "pseudo_invert_matrix"
 almo_scf_optimizer.F: Found WRITE statement with hardcoded unit in "almo_scf_xalmo_pcg"
-atom_output.F: Routine XC_F90_VERSION called with an implicit interface.
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
 btree_i8_k_cp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_node"
@@ -139,6 +138,7 @@ cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
+cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t_native"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "copy_dbcsr_to_cfm"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "copy_dbcsr_to_fm"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "copy_dbcsr_to_fm_bc"
@@ -146,12 +146,14 @@ cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_pl
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector"
+cp_error_handling.F: Unused dummy argument ‘error_nr’ at (1) [-Wunused-dummy-argument]
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
+cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
 cp_fm_basic_linalg.F: Unused dummy argument ‘correct_sign’ at (1) [-Wunused-dummy-argument]
-cp_fm_diag.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 cp_fm_diag.F: Unused parameter ‘vl’ declared at (1) [-Wunused-parameter]
 cp_fm_diag.F: Unused parameter ‘vu’ declared at (1) [-Wunused-parameter]
+cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "freev"
@@ -163,12 +165,8 @@ cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn3lb"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm"
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string"
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr"
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_release"
-cp_log_handling.F: Found WRITE statement with hardcoded unit in "my_cp_para_env_release"
-cp_ma_interface.F: Found WRITE statement with hardcoded unit in "cp_ma_mpi_reordering"
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho"
 cuda_profiling.F: Found WRITE statement with hardcoded unit in "cuda_nvtx_range_push"
-dbcsr_data_methods_low.F: Found WRITE statement with hardcoded unit in "dbcsr_data_zero"
 dbcsr_data_methods_low.F: Found WRITE statement with hardcoded unit in "internal_data_allocate"
 dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
 dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic"
@@ -265,24 +263,11 @@ farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter ‘dp’ which has been explicitly imported at (1) [-Wunused-parameter]
 fft_tools.F: Unused dummy argument ‘group’ at (1) [-Wunused-dummy-argument]
-force_env_methods.F: Found WRITE statement with hardcoded unit in "qmmm_energy_and_forces_low"
 fparser.F: Copyright banner malformed
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend"
-gauss_colloc.F: Found GOTO statement in procedure "collocgauss"
-gauss_colloc.F: Found GOTO statement in procedure "collocgaussflat"
-gauss_colloc.F: Found GOTO statement in procedure "integrategauss"
-gauss_colloc.F: Found GOTO statement in procedure "integrategaussfull"
-gauss_colloc.F: Found GOTO statement in procedure "integrategaussfullflat"
-gauss_colloc.F: Found WRITE statement with hardcoded unit in "collocgauss"
-gauss_colloc.F: Found WRITE statement with hardcoded unit in "collocgauss_safe"
-gauss_colloc.F: Found WRITE statement with hardcoded unit in "collocgaussflat"
-gauss_colloc.F: Found WRITE statement with hardcoded unit in "integrategauss"
-gauss_colloc.F: Found WRITE statement with hardcoded unit in "integrategaussfull"
-gauss_colloc.F: Found WRITE statement with hardcoded unit in "integrategaussfullflat"
-gauss_colloc.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup"
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist"
 glob_matching.F: Copyright banner malformed
@@ -316,42 +301,10 @@ k290.F: Found WRITE statement with hardcoded unit in "mesh"
 k290.F: Found WRITE statement with hardcoded unit in "sppt2"
 kg_min_heap.F: Found WRITE statement with hardcoded unit in "heap_check"
 library_tests.F: Routine PILAENV called with an implicit interface.
-library_tests.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_aabb_test_simple"
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_ab_test_simple"
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_abc_test_simple"
-ma_affinity.F: Unused dummy argument ‘id’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘my_core’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘my_node’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘node’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘print_mem’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘print_proc’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘proc’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘sched_unit’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘unit_nr’ at (1) [-Wunused-dummy-argument]
-ma_affinity.F: Unused dummy argument ‘unit_num’ at (1) [-Wunused-dummy-argument]
-ma_process_mapping.F: Dummy argument ‘mp_new_comm’ at (1) was declared INTENT(OUT) but was not set [-Wunused-dummy-argument]
-ma_process_mapping.F: Unused dummy argument ‘kernel’ at (1) [-Wunused-dummy-argument]
-ma_process_mapping.F: Unused dummy argument ‘mp_comm’ at (1) [-Wunused-dummy-argument]
-ma_process_mapping.F: Unused dummy argument ‘order’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘dest’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘mp_group’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘nid’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘src’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘xdir’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘ydir’ at (1) [-Wunused-dummy-argument]
-ma_topology.F: Unused dummy argument ‘zdir’ at (1) [-Wunused-dummy-argument]
 machine.F: Found OPEN statement in procedure "read_energy"
-machine_architecture.F: Unused dummy argument ‘coreid’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘core’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘cpu’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘dist’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘flag’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘mempol’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘myrank’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘node’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘proc’ at (1) [-Wunused-dummy-argument]
-machine_architecture.F: Unused dummy argument ‘unit_num’ at (1) [-Wunused-dummy-argument]
 machine_internal.F: Found CLOSE statement in procedure "m_memory_details"
 machine_internal.F: Found OPEN statement in procedure "m_memory"
 machine_internal.F: Found OPEN statement in procedure "m_memory_details"
@@ -397,14 +350,11 @@ ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "fte
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "scaling_function"
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wavelet_function"
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions"
-ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "psolver"
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions"
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort"
-qmmm_force_mixing.F: Found WRITE statement with hardcoded unit in "add_layer_hysteretically"
-qmmm_force_mixing.F: Found WRITE statement with hardcoded unit in "setup_force_mixing_qmmm_sections"
-qmmm_force_mixing.F: Found WRITE statement with hardcoded unit in "update_force_mixing_labels"
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density"
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_vxc"
+qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag"
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat"
 qs_gspace_mixing.F: Found WRITE statement with hardcoded unit in "broyden_mixing_new"
 qs_gspace_mixing.F: Found WRITE statement with hardcoded unit in "multisecant_mixing"
@@ -493,7 +443,6 @@ xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd"
 xc_libxc_wrap.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 xc_pade.F: Unused dummy argument ‘derivative_set’ at (1) [-Wunused-dummy-argument]
-xc_write_output.F: Routine XC_F90_VERSION called with an implicit interface.
 xml_parser.F: Copyright banner malformed
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_put_element_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_details_int_"
