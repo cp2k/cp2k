@@ -152,6 +152,7 @@ CONTAINS
        CALL pw_zero(ps_implicit_env%cstr_charge)
 
        ps_implicit_env%ehartree = 0.0_dp
+       ps_implicit_env%electric_enthalpy = 0.0_dp
        ps_implicit_env%times_called = 0
 
        IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
@@ -464,17 +465,17 @@ CONTAINS
 !> \param poisson_env poisson environment 
 !> \param density electron density 
 !> \param v_new electrostatic potential
-!> \param ehartree Hartree energy
+!> \param electric_enthalpy electric enthalpy
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, ehartree)
+  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, electric_enthalpy)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
+    REAL(dp), INTENT(OUT), OPTIONAL          :: electric_enthalpy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'implicit_poisson_solver_mixed_periodic', &
@@ -489,9 +490,10 @@ CONTAINS
     LOGICAL                                  :: reached_max_iter, &
                                                 reached_tol, &
                                                 use_zero_initial_guess
-    REAL(dp)                                 :: Axvbar_avg, eta, g_avg, &
-                                                gminusAxvbar_avg, nabs_error, &
-                                                omega, pres_error, tol
+    REAL(dp)                                 :: Axvbar_avg, ehartree, eta, &
+                                                g_avg, gminusAxvbar_avg, &
+                                                nabs_error, omega, &
+                                                pres_error, tol
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: Btxlambda_new, Btxlambda_old, &
       Bxv_bar, Bxv_new, lambda0, lambda_new, lambda_newNeta, lambda_old, &
       QSxlambda, v_bar1D, v_D, v_new1D, w
@@ -658,10 +660,11 @@ CONTAINS
                                       pres_error, nabs_error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
-       IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree)  
+       IF (PRESENT(electric_enthalpy)) THEN
+          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree, electric_enthalpy)  
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
           ps_implicit_env%ehartree = ehartree
+          ps_implicit_env%electric_enthalpy = electric_enthalpy
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
@@ -709,7 +712,7 @@ CONTAINS
     END IF
        
     ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
-    IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
+    IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
@@ -731,17 +734,17 @@ CONTAINS
 !> \param poisson_env poisson environment 
 !> \param density electron density 
 !> \param v_new electrostatic potential
-!> \param ehartree Hartree energy
+!> \param electric_enthalpy electric enthalpy
 !> \par History
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, ehartree)
+  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, electric_enthalpy)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
+    REAL(dp), INTENT(OUT), OPTIONAL          :: electric_enthalpy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'implicit_poisson_solver_mixed', &
@@ -756,9 +759,10 @@ CONTAINS
     LOGICAL                                  :: reached_max_iter, &
                                                 reached_tol, &
                                                 use_zero_initial_guess
-    REAL(dp)                                 :: Axvbar_avg, eta, g_avg, &
-                                                gminusAxvbar_avg, nabs_error, &
-                                                omega, pres_error, tol
+    REAL(dp)                                 :: Axvbar_avg, ehartree, eta, &
+                                                g_avg, gminusAxvbar_avg, &
+                                                nabs_error, omega, &
+                                                pres_error, tol
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: Btxlambda_new, Btxlambda_old, &
       Bxv_bar, Bxv_new, lambda0, lambda_new, lambda_newNeta, lambda_old, &
       QSxlambda, v_bar1D, v_D, v_new1D, w
@@ -936,10 +940,11 @@ CONTAINS
                                       v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
-       IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree)  
+       IF (PRESENT(electric_enthalpy)) THEN
+          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree, electric_enthalpy)  
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
           ps_implicit_env%ehartree = ehartree
+          ps_implicit_env%electric_enthalpy = electric_enthalpy
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
@@ -987,7 +992,7 @@ CONTAINS
     END IF
 
     ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
-    IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
+    IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
@@ -1982,11 +1987,12 @@ CONTAINS
 !>                  and B^t is the transpose of the boundary operator
 !> \param v Hartree potential
 !> \param ehartree Hartree energy
+!> \param electric_enthalpy electric enthalpy
 !> \par History
 !>       06.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE compute_ehartree_mixed_bc(dielectric, density, Btxlambda, v, ehartree)
+  SUBROUTINE compute_ehartree_mixed_bc(dielectric, density, Btxlambda, v, ehartree, electric_enthalpy)
 
     TYPE(dielectric_type), INTENT(IN), &
       POINTER                                :: dielectric
@@ -1994,7 +2000,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :), INTENT(IN)         :: Btxlambda
     TYPE(pw_type), INTENT(IN), POINTER       :: v
-    REAL(dp), INTENT(OUT)                    :: ehartree
+    REAL(dp), INTENT(OUT)                    :: ehartree, electric_enthalpy
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_mixed_bc', &
       routineP = moduleN//':'//routineN
@@ -2021,7 +2027,8 @@ CONTAINS
     ehartree_rho_cstr = 0.5_dp * ehartree_rho_cstr * dvol
     CALL mp_sum(ehartree_rho, pw_grid%para%group)
     CALL mp_sum(ehartree_rho_cstr, pw_grid%para%group)
-    ehartree = ehartree_rho + ehartree_rho_cstr
+    electric_enthalpy = ehartree_rho + ehartree_rho_cstr
+    ehartree = ehartree_rho - ehartree_rho_cstr
 
     CALL timestop(handle)
 

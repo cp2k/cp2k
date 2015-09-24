@@ -347,10 +347,10 @@ CONTAINS
                                                       ehartree=ehartree)
              CASE (MIXED_PERIODIC_BC)
                 CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
-                                                      ehartree=ehartree)
+                                                      electric_enthalpy=ehartree)
              CASE (MIXED_BC)
                 CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
-                                                      ehartree=ehartree)
+                                                      electric_enthalpy=ehartree)
           END SELECT
 
           IF (PRESENT(vhartree)) CALL pw_transfer(vhartree_rs, vhartree)

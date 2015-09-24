@@ -51,6 +51,7 @@ MODULE ps_implicit_types
      TYPE(pw_type), POINTER            :: cstr_charge
      REAL(dp), DIMENSION(:), POINTER   :: initial_lambda => NULL()
      REAL(dp)                          :: ehartree
+     REAL(dp)                          :: electric_enthalpy
      INTEGER                           :: times_called 
      TYPE(dirichlet_bc_p_type), & 
        DIMENSION(:), POINTER           :: gates => NULL()

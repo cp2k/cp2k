@@ -60,6 +60,10 @@ MODULE qs_ks_utils
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
+  USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                             MIXED_PERIODIC_BC,&
+                                             NEUMANN_BC,&
+                                             PERIODIC_BC
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
@@ -987,11 +991,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, output_unit
-    REAL(KIND=dp)                            :: ddapc_order_p, s2_order_p
+    INTEGER                                  :: bc, n, output_unit, psolver
+    REAL(KIND=dp)                            :: ddapc_order_p, &
+                                                implicit_ps_ehartree, &
+                                                s2_order_p
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_env_type), POINTER               :: pw_env
 
     logger => cp_get_default_logger()
+
+    NULLIFY(pw_env)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    psolver = pw_env%poisson_env%parameters%solver
 
     output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
           extension=".scfLog")
@@ -1020,11 +1031,29 @@ CONTAINS
              "Core Hamiltonian energy:                       ",energy%core,&
              "Hartree energy:                                ",energy%hartree
         ELSE
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
-             "Core Hamiltonian energy:                       ",energy%core,&
-             "Hartree energy:                                ",energy%hartree,&
-             "Exchange-correlation energy:                   ",energy%exc
+          IF (psolver .EQ. pw_poisson_implicit) THEN
+            implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
+            bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+            SELECT CASE (bc)
+            CASE (MIXED_PERIODIC_BC, MIXED_BC) 
+              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+                 "Core Hamiltonian energy:                       ",energy%core,&
+                 "Hartree energy:                                ",implicit_ps_ehartree,&
+                 "Electric enthalpy:                             ",energy%hartree,&
+                 "Exchange-correlation energy:                   ",energy%exc
+            CASE (PERIODIC_BC, NEUMANN_BC) 
+              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+                 "Core Hamiltonian energy:                       ",energy%core,&
+                 "Hartree energy:                                ",energy%hartree,&
+                 "Exchange-correlation energy:                   ",energy%exc
+            END SELECT
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Hartree energy:                                ",energy%hartree,&
+               "Exchange-correlation energy:                   ",energy%exc
           END IF
+        END IF
       END IF
 
       IF(dft_control%apply_external_density) THEN

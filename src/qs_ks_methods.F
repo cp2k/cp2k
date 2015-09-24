@@ -378,7 +378,8 @@ CONTAINS
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
                                             "PRINT%DETAILED_ENERGY"),&
                                             cp_p_file).AND.&
-          (.NOT.gapw).AND.(.NOT.gapw_xc)) THEN
+          (.NOT.gapw).AND.(.NOT.gapw_xc).AND.&
+          (.NOT.(poisson_env%parameters%solver .EQ. pw_poisson_implicit))) THEN
           CALL pw_zero(rho_tot_gspace%pw)
           CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.)
           CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%e_hartree,&
