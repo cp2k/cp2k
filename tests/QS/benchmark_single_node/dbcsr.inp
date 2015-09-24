@@ -1,0 +1,52 @@
+&GLOBAL
+  PRINT_LEVEL  MEDIUM
+  PROGRAM_NAME TEST
+  RUN_TYPE NONE
+  &TIMINGS
+     THRESHOLD 0.00000000001
+  &END
+&END GLOBAL
+&TEST
+  &CP_DBCSR
+     K 13800
+     M 13800
+     N 13800
+     TRANSA FALSE
+     TRANSB TRUE
+     N_LOOP 3
+     ASPARSITY 0.70
+     BSPARSITY 0.70
+     CSPARSITY 0.70
+     bs_m 1 23
+     bs_k 1 23
+     bs_n 1 23
+  &END
+  &CP_DBCSR
+     K 12800
+     M 12800
+     N 12800
+     TRANSA FALSE
+     TRANSB TRUE
+     N_LOOP 3
+     ASPARSITY 0.70
+     BSPARSITY 0.70
+     CSPARSITY 0.70
+     bs_m 1 32
+     bs_k 1 32
+     bs_n 1 32
+  &END 
+  &CP_DBCSR
+     K 13800
+     M 13800
+     N 13800
+     TRANSA FALSE
+     TRANSB TRUE
+     N_LOOP 3
+     ASPARSITY 0.70
+     BSPARSITY 0.70
+     CSPARSITY 0.70
+     bs_m 1 13 2 5
+     bs_k 1 13 2 5
+     bs_n 1 13 2 5
+  &END
+&END TEST
