@@ -300,7 +300,7 @@ MODULE  rt_propagation_forces
        ELSE
           CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&
                filter_eps=rtp%filter_eps)
-          CALL cp_dbcsr_multiply("N","N",-one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,&
+          CALL cp_dbcsr_multiply("N","N",one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,&
                filter_eps=rtp%filter_eps)
        ENDIF
 
