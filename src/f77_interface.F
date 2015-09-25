@@ -401,9 +401,7 @@ CONTAINS
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "invalid env_id "//cp_to_string(f_env_id),&
-            failure=failure)
+       CPABORT("invalid env_id "//cp_to_string(f_env_id))
     ELSE
        f_env => f_envs(f_env_pos)%f_env
     END IF
@@ -444,9 +442,7 @@ CONTAINS
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "invalid env_id "//cp_to_string(f_env_id),&
-            failure=failure)
+       CPABORT("invalid env_id "//cp_to_string(f_env_id))
     ELSE
        f_env => f_envs(f_env_pos)%f_env
        logger => f_env%logger
@@ -826,11 +822,9 @@ CPSourceFileRef,&
           CALL create_force_eval_section(section)
           keyword => section_get_keyword(section,"METHOD")
           CALL keyword_get(keyword,enum=enum)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
                "Invalid METHOD <"//TRIM(enum_i2c(enum,method_name_id))//&
-            "> was specified, "//&
-            CPSourceFileRef,&
-            failure)
+               "> was specified, ")
           CALL section_release(section)
        END SELECT
 

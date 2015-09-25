@@ -362,8 +362,7 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=scf_control%use_ot)
        IF ( scf_control%use_diag .AND. scf_control%use_ot ) THEN
           ! don't allow both options to be true
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Don't activate OT and Diagonaliztion together",failure)
+          CPABORT("Don't activate OT and Diagonaliztion together")
        ELSEIF ( .NOT. (scf_control%use_diag .OR. scf_control%use_ot) ) THEN
           ! set default to diagonalization
           scf_control%use_diag = .TRUE.

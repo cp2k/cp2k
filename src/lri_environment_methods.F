@@ -965,9 +965,7 @@ CONTAINS
        END IF
        DEALLOCATE(s,work,iwork)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                 routineP,"No initialization for LRI overlap available?",&
-                 only_ionode=.TRUE.)
+       CPABORT("No initialization for LRI overlap available?")
     END SELECT
 
     CALL timestop(handle)

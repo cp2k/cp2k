@@ -353,8 +353,7 @@ CONTAINS
                     pw_pools=pw_pools, poisson_env=poisson_env)
 
     IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
-        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP,&
-             "The implicit Poisson solver cannot be used in conjunction with GAPW.",failure)
+        CPABORT("The implicit Poisson solver cannot be used in conjunction with GAPW.")
     END IF
 
     ! ***  Prepare densities for gapw ***
@@ -403,9 +402,7 @@ CONTAINS
                                  in_space=REALSPACE)
 
           IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
-             CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP,&
-                       "The implicit Poisson solver cannot be used together with SCCS.",&
-                       failure)
+             CPABORT("The implicit Poisson solver cannot be used together with SCCS.")
           END IF
 
           IF (use_virial.AND.calculate_forces) THEN

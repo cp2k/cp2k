@@ -626,9 +626,7 @@ CONTAINS
       CASE(calc_once_done)
           ! do nothing image matrix is stored
       CASE DEFAULT
-         CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                   routineP,"No initialization for image charges available?",&
-                   only_ionode=.TRUE.)
+         CPABORT("No initialization for image charges available?")
       END SELECT
     ENDIF
 

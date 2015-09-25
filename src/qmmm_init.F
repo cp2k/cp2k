@@ -652,9 +652,7 @@ CONTAINS
        CALL section_vals_get(image_charge_section,explicit=qmmm_env%image_charge)
 
     ELSE
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "QMMM section not present in input file!"//&
-          CPSourceFileRef,failure)
+     CPABORT("QMMM section not present in input file!")
     ENDIF
     !
     ! Build MM atoms list

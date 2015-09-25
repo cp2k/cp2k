@@ -210,11 +210,9 @@ CONTAINS
        END DO ikloop
        IF (.NOT.spez .AND. .NOT.(inv .AND. symmo)) THEN
           ! Warning: real wfn might be wrong for this system
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "A calculation using real wavefunctions is requested. "//&
-               "We could not determine if the symmetry of the system allows real wavefunctions. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "We could not determine if the symmetry of the system allows real wavefunctions. ")
 
        END IF
     END IF

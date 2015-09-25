@@ -545,18 +545,13 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
                    c_val=cons_info%const_colv_molname(ig))
            END IF
            IF  (((cons_info%const_colv_mol(ig)/=0).AND.(cons_info%const_colv_molname(ig)/="UNDEF"))) THEN
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                   "Both MOLNAME and MOLECULE specified for CONSTRAINT section. "//&
-CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+              CPABORT("Both MOLNAME and MOLECULE specified for CONSTRAINT section. ")
            END IF
            IF  ((cons_info%const_colv_mol(ig)==0).AND.(cons_info%const_colv_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%colv_intermolecular(ig))) THEN
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+              CALL cp_abort(__SHORT_FILE__,__LINE__,&
                    "Constraint section error: you have to specify at least one of the "//&
-                   "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! "//&
-CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+                   "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! ")
            END IF
            NULLIFY(cons_info%colvar_set(ig)%colvar)
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig,&

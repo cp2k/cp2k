@@ -388,11 +388,9 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
     wf_history%store_wf = .TRUE.
     IF(.NOT.has_unit_metric) wf_history%store_overlap = .TRUE.
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-          routineP,"Unknown interpolation method: "//&
-          TRIM(ADJUSTL(cp_to_string(interpolation_method_nr)))//" in "//&
-CPSourceFileRef,&
-          failure)
+     CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          "Unknown interpolation method: "//&
+          TRIM(ADJUSTL(cp_to_string(interpolation_method_nr))))
      wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
   END SELECT
   ALLOCATE(wf_history%past_states(wf_history%memory_depth))
@@ -427,19 +425,13 @@ SUBROUTINE wfi_create_for_kp(wf_history)
     END IF
     ! Check for KP compatible methods
     IF(wf_history%store_wf) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"WFN based interpolation method not possible for kpoints.",&
-            failure)
+       CPABORT("WFN based interpolation method not possible for kpoints.")
     END IF
     IF(wf_history%store_frozen_density) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Frozen density initialization method not possible for kpoints.",&
-            failure)
+       CPABORT("Frozen density initialization method not possible for kpoints.")
     END IF
     IF(wf_history%store_overlap) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Inconsistent interpolation method for kpoints.",&
-            failure)
+       CPABORT("Inconsistent interpolation method for kpoints.")
     END IF
 
 END SUBROUTINE wfi_create_for_kp
@@ -486,12 +478,9 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
   CASE(wfi_aspc_nr)
     res = "ASPC"
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-          routineP,"Unknown interpolation method: "//&
-          TRIM(ADJUSTL(cp_to_string(method_nr)))//&
-          " in "//&
-CPSourceFileRef,&
-          failure)
+     CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          "Unknown interpolation method: "//&
+          TRIM(ADJUSTL(cp_to_string(method_nr))))
   END SELECT
 END FUNCTION wfi_get_method_label
 
@@ -965,12 +954,9 @@ END FUNCTION wfi_get_method_label
        CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
 
     CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Unknown interpolation method: "//&
-            TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
-            " in "//&
-CPSourceFileRef,&
-            failure)
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Unknown interpolation method: "//&
+            TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr))))
     END SELECT
     IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&

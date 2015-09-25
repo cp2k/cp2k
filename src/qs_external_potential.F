@@ -274,10 +274,10 @@ CONTAINS
              WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
              CALL compress(this_error,.TRUE.)
              CALL compress(def_error,.TRUE.)
-             CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
                   'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                   ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                  TRIM(def_error)//' .',only_ionode=.TRUE.)
+                  TRIM(def_error)//' .')
           END IF
           dfunc(j)=dedf
        END DO

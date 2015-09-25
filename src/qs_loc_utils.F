@@ -1396,11 +1396,9 @@ CONTAINS
                localized_wfn_control%nloc_states(ispin) = iup-ilow +1
                nmoloc(ispin) = localized_wfn_control%nloc_states(ispin)
                IF(occupation(ilow)-occupation(iup) > localized_wfn_control%eps_occ) THEN
-                  CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+                  CALL cp_abort(__SHORT_FILE__,__LINE__,&
                        "The selected energy range includes orbitals with different occupation number. "//&
-                       " The localization procedure cannot be applied."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
+                       " The localization procedure cannot be applied.")
                END IF
                IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I4,A,I6,A)") "LOCALIZATION| Spin ", ispin ," : ",&
                     nmoloc(ispin)," orbitals in the selected energy range are localized."
@@ -1416,13 +1414,11 @@ CONTAINS
                     iup = localized_wfn_control%loc_states(i,ispin)
                     IF(ABS(occupation(ilow) - occupation(iup))>localized_wfn_control%eps_occ) THEN
                   ! write warning
-                      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "User requested the calculation of localized wavefunction from a subset of MOs, "//&
-                       "including MOs with different occupations. Check the selected subset, "//&
-                       " the electronic density is not invariant with "//&
-                       "respect to rotations among orbitals with different occupation numbers!"//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
+                      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                           "User requested the calculation of localized wavefunction from a subset of MOs, "//&
+                           "including MOs with different occupations. Check the selected subset, "//&
+                           " the electronic density is not invariant with "//&
+                           "respect to rotations among orbitals with different occupation numbers!")
                     END IF
                   END DO
                END IF
@@ -1439,12 +1435,10 @@ CONTAINS
       END IF
     ELSE
        ! Let's inform in case the section is not present in the input
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
             "User requested the calculation of the localized wavefunction but the section "//&
             "LOCALIZE (located in: DFT%LOCALIZE) was not specified. Localization "//&
-            "will not be performed!"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+            "will not be performed!")
     END IF
 
     CALL timestop(handle)

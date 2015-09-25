@@ -131,10 +131,7 @@ CONTAINS
        ELSEIF (mom_conserv_region == do_fm_mom_conserv_buffer) THEN
           mom_conserv_min_label = force_mixing_label_buffer
        ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Got unknown MOMENTUM_CONSERVATION_REGION (not CORE, QM, or BUFFER) !"//&
-             CPSourceFileRef,&
-            failure)
+          CPABORT("Got unknown MOMENTUM_CONSERVATION_REGION (not CORE, QM, or BUFFER) !")
        ENDIF
 
        total_f = 0.0_dp

@@ -493,9 +493,7 @@ CONTAINS
        CALL section_vals_val_get(path_section,"DISTANCES_RMSD",l_val=colvar%reaction_path_param%dist_rmsd)
        CALL section_vals_val_get(path_section,"RMSD",l_val=colvar%reaction_path_param%rmsd)
        IF(colvar%reaction_path_param%dist_rmsd .AND. colvar%reaction_path_param%rmsd)THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                     "CV REACTION PATH: only one between DISTANCES_RMSD and RMSD can be used "//&
-                     CPSourceFileRef)
+          CPABORT("CV REACTION PATH: only one between DISTANCES_RMSD and RMSD can be used ")
        END IF
        IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
           NULLIFY(colvar%reaction_path_param%i_rmsd, colvar%reaction_path_param%r_ref)
@@ -525,9 +523,7 @@ CONTAINS
                 END DO
                 colvar%reaction_path_param%n_components = ndim
              ELSE
-                CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                     "CV REACTION PATH: if SUBSET_TYPE=LIST a list of atoms needs to be provided "//&
-                     CPSourceFileRef)
+                CPABORT("CV REACTION PATH: if SUBSET_TYPE=LIST a list of atoms needs to be provided ")
              END IF
           END IF
 
@@ -542,9 +538,7 @@ CONTAINS
                 CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, para_env)
              ENDDO
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                    "CV REACTION PATH: the number of CV to define the path must be >0 "//&
-                    CPSourceFileRef)
+             CPABORT("CV REACTION PATH: the number of CV to define the path must be >0 ")
           ENDIF
           colvar%reaction_path_param%n_components=ncol
           NULLIFY(range)
@@ -853,9 +847,7 @@ CPSourceFileRef)
              END DO
              colvar%rmsd_param%n_atoms = ndim
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=LIST a list of atoms needs to be provided "//&
-                  CPSourceFileRef)
+             CPABORT("CV RMSD: if SUBSET_TYPE=LIST a list of atoms needs to be provided ")
           END IF
        ELSE IF (colvar%rmsd_param%subset==rmsd_weightlist) THEN
           CALL section_vals_val_get(rmsd_section,"ATOMS",n_rep_val=n_var)
@@ -870,9 +862,7 @@ CPSourceFileRef)
              END DO
              colvar%rmsd_param%n_atoms = ndim
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms needs to be provided "//&
-                  CPSourceFileRef)
+             CPABORT("CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms needs to be provided ")
           END IF
           CALL section_vals_val_get(rmsd_section,"WEIGHTS",n_rep_val=n_var)
           ndim = 0
@@ -893,15 +883,11 @@ CPSourceFileRef)
              END DO
              DEALLOCATE (weights)
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. "//&
-                  CPSourceFileRef)
+             CPABORT("CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. ")
           END IF
 
        ELSE
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-               "CV RMSD: unknown SUBSET_TYPE."//&
-               CPSourceFileRef)
+          CPABORT("CV RMSD: unknown SUBSET_TYPE.")
        END IF
 
        CALL section_vals_val_get(rmsd_section,"ALIGN_FRAMES",l_val=colvar%rmsd_param%align_frames)
@@ -2080,10 +2066,10 @@ CPSourceFileRef)
                 WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
                 CALL compress(this_error,.TRUE.)
                 CALL compress(def_error,.TRUE.)
-                CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                CALL cp_warn(__SHORT_FILE__,__LINE__,&
                      'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                     TRIM(def_error)//' .',only_ionode=.TRUE.)
+                     TRIM(def_error)//' .')
              END IF
              ! General Mapping of forces...
              ! First: Get Mapping index array
@@ -3663,12 +3649,10 @@ CPSourceFileRef)
           WRITE(def_error,"(A,G12.6,A)")"(",colvar%combine_cvs_param%lerr,")"
           CALL compress(this_error,.TRUE.)
           CALL compress(def_error,.TRUE.)
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-               TRIM(def_error)//' . '//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               TRIM(def_error)//' . ')
        END IF
     END DO
     DEALLOCATE(my_val)

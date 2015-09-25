@@ -780,8 +780,7 @@ CONTAINS
        CALL pw_scale(work_rho%pw,scaling)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw)
     CASE DEFAULT
-       CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-            "Unknown sic method id",failure)
+       CPABORT("Unknown sic method id")
     END SELECT
 
     ! Correct for  DDAP charges (if any)
@@ -814,8 +813,7 @@ CONTAINS
     CASE ( sic_ad )
        full_scaling= - dft_control%sic_scaling_a * nelec
     CASE DEFAULT
-       CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-            "Unknown sic method id",failure)
+       CPABORT("Unknown sic method id")
     END SELECT
     energy%hartree=energy%hartree + full_scaling * ener
 

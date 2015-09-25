@@ -404,11 +404,7 @@ CPSourceFileRef,&
        CASE("RIGHT")
          chol_pos='R'
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "wrong argument pos"//&
-CPSourceFileRef,&
-               failure)
+          CPABORT("wrong argument pos")
        END SELECT
     ELSE
        chol_pos='L'

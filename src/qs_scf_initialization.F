@@ -591,7 +591,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ensure_mixing', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: mixing_section
 
     SELECT CASE(scf_control%mixing_method)
@@ -605,8 +604,7 @@ CONTAINS
       CALL mixing_storage_create(scf_env%mixing_store, mixing_section, scf_env%mixing_method, &
           dft_control%qs_control%cutoff)
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Unknown mixing method",failure)
+      CPABORT("Unknown mixing method")
     END SELECT
 
     ! Disable DIIS for OT and g-space density mixing methods
@@ -618,16 +616,14 @@ CONTAINS
     END IF
 
     IF (scf_control%use_diag .AND. scf_env%mixing_method==no_mixing_nr) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Diagonalization procedures without mixing are not recommendable",failure)
+       CPABORT("Diagonalization procedures without mixing are not recommendable")
     END IF
 
     IF(scf_env%mixing_method>direct_mixing_nr) THEN
       scf_env%skip_diis = .TRUE.
       scf_env%p_mix_alpha = scf_env%mixing_store%alpha
       IF(scf_env%mixing_store%beta==0.0_dp) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Mixing employing the Kerker damping factor needs BETA /= 0.0",failure)
+          CPABORT("Mixing employing the Kerker damping factor needs BETA /= 0.0")
       END IF
     END IF
 
@@ -635,9 +631,7 @@ CONTAINS
       scf_env%p_mix_alpha = scf_env%mixing_store%alpha
       IF(scf_control%eps_diis<scf_control%eps_scf) THEN
         scf_env%skip_diis = .TRUE.
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "the DIIS scheme is disabled, since EPS_DIIS < EPS_SCF",&
-                       failure)
+        CPWARN("the DIIS scheme is disabled, since EPS_DIIS < EPS_SCF")
       END IF
     END IF
 
@@ -741,8 +735,7 @@ CONTAINS
          CALL fb_distribution_build(scf_env%filter_matrix_env, qs_env, scf_section)
          CALL fb_env_build_atomic_halos(scf_env%filter_matrix_env, qs_env, scf_section)
       CASE DEFAULT
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"Unknown diagonalization method",failure)
+         CPABORT("Unknown diagonalization method")
       END SELECT
       ! Check if subspace diagonlization is requested: allocation of additional matrices is needed
       IF(scf_control%do_diag_sub) THEN
@@ -759,16 +752,14 @@ CONTAINS
       scf_env%method=ot_method_nr
       need_coeff_b=.TRUE.
       IF(scf_control%added_mos(1)+scf_control%added_mos(2) > 0) &
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"OT with ADDED_MOS/=0 not implemented",failure)
+         CPABORT("OT with ADDED_MOS/=0 not implemented")
       IF(dft_control%restricted)&
          CALL cp_assert(dft_control%nspins.EQ.2,cp_failure_level,cp_assertion_failed,&
                routineP,"nspin must be 2 for restricted (ROKS)",failure)
       CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
             routineP,"OT not possible with kpoint calculations",failure)
     ELSE
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"OT or DIAGONALIZATION have to be set",failure)
+      CPABORT("OT or DIAGONALIZATION have to be set")
     END IF
     DO ispin=1,dft_control%nspins
        mos(ispin)%mo_set%use_mo_coeff_b=need_coeff_b

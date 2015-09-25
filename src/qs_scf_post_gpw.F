@@ -366,10 +366,8 @@ CONTAINS
     END IF
 
     IF(n_rep==0.AND.p_loc_lumo)THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-           "No LIST_UNOCCUPIED was specified, therefore localization of unoccupied states will be skipped!"//&
-           CPSourceFileRef,&
-           only_ionode=.TRUE.)
+        CALL cp_abort(__SHORT_FILE__,__LINE__,"No LIST_UNOCCUPIED was specified, "//&
+             "therefore localization of unoccupied states will be skipped!")
         p_loc_lumo=.FALSE.
     END IF
     print_key => section_vals_get_subs_vals(loc_print_section,"WANNIER_STATES")

@@ -420,10 +420,7 @@ CONTAINS
              nset_max = MAX(nset_max,1)
              nshell_max = MAX(nshell_max,lmax+1)
           ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Unknown basis type. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          CPABORT("Unknown basis type. ")
           END IF
        END DO
 
@@ -463,10 +460,7 @@ CPSourceFileRef,&
                 nso_info(ishell,1,iatom) = nso(lshell)
              END DO
           ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Unknown basis set type. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          CPABORT("Unknown basis set type. ")
           END IF
        END DO
 
@@ -929,10 +923,7 @@ CPSourceFileRef,&
        READ (rst_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
        IF(PRESENT(rt_mos)) THEN
           IF (nspin_read /= nspin) THEN
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "To change nspin is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+            CPABORT("To change nspin is not possible. ")
          END IF
       ELSE
          ! we should allow for restarting with different spin settings
@@ -942,10 +933,7 @@ CPSourceFileRef,&
          END IF
          ! this case needs fixing of homo/lfomo/nelec/occupations ...
          IF (nspin_read > nspin) THEN
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "Reducing nspin is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+            CPABORT("Reducing nspin is not possible. ")
          ENDIF
       END IF
 
@@ -963,10 +951,7 @@ CPSourceFileRef,&
             WRITE(cp_logger_get_default_unit_nr(logger),*) &
                  " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
             IF(PRESENT(rt_mos))&
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                    "To change basis is not possible. "//&
-                    CPSourceFileRef,&
-                    only_ionode=.TRUE.)
+                 CPABORT("To change basis is not possible. ")
          END IF
 
          READ (rst_unit) nset_info
@@ -998,10 +983,7 @@ CPSourceFileRef,&
               " READ RESTART : WARNING : DIFFERENT natom, returning ",natom,natom_read
          RETURN
       ELSE
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-              "Incorrect number of atoms in restart file. "//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
+         CPABORT("Incorrect number of atoms in restart file. ")
       ENDIF
    ENDIF
 
@@ -1044,19 +1026,14 @@ CPSourceFileRef,&
         mos(ispin)%mo_set%lfomo = lfomo_read
         IF (homo_read > nmo) THEN
           IF(nelectron_read==mos(ispin)%mo_set%nelectron) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "The number of occupied MOs on the restart unit is larger than "//&
-                 "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!"//&
-CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "The number of occupied MOs on the restart unit is larger than "//&
+                  "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!")
              CALL set_mo_occupation(mo_set=mos(ispin)%mo_set)
           ELSE
               ! can not make this a warning i.e. homo must be smaller than nmo
               ! otherwise e.g. set_mo_occupation will go out of bounds
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                "Number of occupied MOs on restart unit larger than allocated MOs. "//&
-CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+              CPABORT("Number of occupied MOs on restart unit larger than allocated MOs. ")
           END IF
         END IF
       END IF
@@ -1103,10 +1080,7 @@ CPSourceFileRef,&
                      nset = 1
                      minbas=.TRUE.
                   ELSE
-                     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                          "Unknown basis set type. "//&
-                          CPSourceFileRef,&
-                          only_ionode=.TRUE.)
+                     CPABORT("Unknown basis set type. ")
                   END IF
 
                   use_this = .TRUE.
@@ -1182,16 +1156,10 @@ CPSourceFileRef,&
           mos(ispin+1)%mo_set%lfomo = mos(ispin)%mo_set%lfomo
           nelectron = mos(ispin)%mo_set%nelectron
           IF (my_mult.NE.1) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets)."//&
-                  CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CPABORT("Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets).")
           END IF
           IF(mos(ispin+1)%mo_set%nelectron < 0)THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "LSD: too few electrons for this multiplisity. "//&
-                  CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CPABORT("LSD: too few electrons for this multiplisity. ")
           END IF
           mos(ispin+1)%mo_set%eigenvalues = mos(ispin)%mo_set%eigenvalues
           mos(ispin)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers/2.0_dp
@@ -1436,10 +1404,7 @@ CPSourceFileRef,&
                       isgf = isgf + nso(lshell)
                    END DO
                 ELSE
-                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                        "Unknown basis set type. "//&
-                        CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CPABORT("Unknown basis set type. ")
                 END IF
              END DO ! iatom
 
@@ -1556,10 +1521,7 @@ CPSourceFileRef,&
                          END DO
                       END DO
                    ELSE
-                      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                           "Unknown basis set type. "//&
-                           CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      CPABORT("Unknown basis set type. ")
                    END IF
 
                 ELSE
@@ -1599,10 +1561,7 @@ CPSourceFileRef,&
                          END DO
                       END DO
                    ELSE
-                      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                           "Unknown basis type. "//&
-                           CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      CPABORT("Unknown basis type. ")
                    END IF
 
                 END IF ! p_cart

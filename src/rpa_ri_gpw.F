@@ -228,10 +228,9 @@ MODULE rpa_ri_gpw
       input_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size
       do_minimax_quad=mp2_env%ri_rpa%minimax_quad
       IF(do_minimax_quad.AND.num_integ_points>20) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "The required number of quadrature point exceeds the maximum possible in the "//&
-                       "Minimax quadrature scheme. The number of quadrature point has been reset to 20.",&
-                       only_ionode=.TRUE.)
+        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             "The required number of quadrature point exceeds the maximum possible in the "//&
+             "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
         num_integ_points=20
       END IF
     END IF
@@ -3333,15 +3332,14 @@ MODULE rpa_ri_gpw
         n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
         IF(iiter==max_iter_fit) THEN
           WRITE(MO_number, "(I3)")  n_level_gw_ref
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                         "The fit for corrected level n ="// MO_number// " did not converge. "//&
-                         "For levels close to HOMO or LUMO, this is normally no issue. "//&
-                         "To avoid this warning, you can (1) increase the "//&
-                         "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
-                         "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
-                         "or  you can (3) decrease "//&
-                         "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ",&
-                         only_ionode=.TRUE.)
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "The fit for corrected level n ="// MO_number// " did not converge. "//&
+               "For levels close to HOMO or LUMO, this is normally no issue. "//&
+               "To avoid this warning, you can (1) increase the "//&
+               "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
+               "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
+               "or  you can (3) decrease "//&
+               "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
 
         END IF
 
@@ -3745,10 +3743,9 @@ MODULE rpa_ri_gpw
       END IF
 
       IF((gw_corr_lev_occ==0 .OR. gw_corr_lev_virt==0) .AND. count_ev_sc_GW>1) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Please increase for eigenvalue-self-consistent GW, the number of "//&
-                       "corrected occupied and/or virtual orbitals above 0.",&
-                       only_ionode=.TRUE.)
+        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             "Please increase for eigenvalue-self-consistent GW, the number of "//&
+             "corrected occupied and/or virtual orbitals above 0.")
       END IF
 
 

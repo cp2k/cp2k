@@ -336,9 +336,7 @@ CONTAINS
        END IF
     END IF
     IF(ms_vib%select_id==0)&
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-         routineP,"no frequency, range or involved atoms specified ",&
-         failure=failure)
+         CPABORT("no frequency, range or involved atoms specified ")
     ionode=para_env%mepos==para_env%source
     SELECT CASE(guess)
     CASE(ms_guess_atomic)

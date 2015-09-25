@@ -1021,8 +1021,7 @@ CONTAINS
 
           ! need debugging ???
           IF ( em > toler .OR. et > toler ) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "The FFT results are not accurate ... starting debug pw_transfer")
+             CPWARN("The FFT results are not accurate ... starting debug pw_transfer")
              CALL pw_transfer ( ca%pw, cb%pw, .TRUE.)
              CALL pw_transfer ( cb%pw, cc%pw, .TRUE.)
           ENDIF

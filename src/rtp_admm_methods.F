@@ -191,10 +191,7 @@ CONTAINS
        CALL calculate_rtp_admm_density(density_matrix_aux,density_matrix_aux_im,&
             rtp_coeff_aux_fit,ispin)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "only purification NONE possible with RTP/EMD at the moment"//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
+       CPWARN("only purification NONE possible with RTP/EMD at the moment")
     END SELECT
 
     CALL timestop(handle)
@@ -256,9 +253,7 @@ CONTAINS
                                   admm_env=admm_env)
 
       IF(admm_control%method /= do_admm_basis_projection) THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                "RTP requires BASIS_PROJECTION."//&
-                CPSourceFileRef, only_ionode=.TRUE.)
+           CPWARN("RTP requires BASIS_PROJECTION.")
       END IF
     END IF
 
@@ -269,10 +264,7 @@ CONTAINS
        CALL rtp_fit_mo_coeffs_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
             mos, mos_aux_fit,rtp,rtp_coeff_aux_fit,recalc_S)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-            "Purification method not implemented in combination with RTP"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       CPWARN("Purification method not implemented in combination with RTP")
      END SELECT
 
     CALL timestop(handle)
@@ -492,9 +484,7 @@ CONTAINS
           CALL rt_merge_ks_matrix_none(ispin, admm_env,&
                                        matrix_ks_im, matrix_ks_aux_fit_im)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                         "only purification NONE possible with RTP/EMD at the moment"//&
-                          CPSourceFileRef, only_ionode=.TRUE.)
+          CPWARN("only purification NONE possible with RTP/EMD at the moment")
        END SELECT
 
     ENDDO !spin loop

@@ -163,8 +163,7 @@ CONTAINS
       CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
                             should_output,output_unit,print_level)
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Invalid DFT+U method requested",only_ionode=.TRUE.)
+      CPABORT("Invalid DFT+U method requested")
     END SELECT
 
     CALL cp_print_key_finished_output(output_unit,logger,input,"DFT%PRINT%PLUS_U",&
@@ -801,9 +800,7 @@ CONTAINS
 
       IF (ASSOCIATED(sm_w)) THEN
 
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Forces are not yet fully implemented for DFT+U method LOWDIN",&
-                       only_ionode=.TRUE.)
+        CPWARN("Forces are not yet fully implemented for DFT+U method LOWDIN")
 
       END IF ! W matrix update requested
 

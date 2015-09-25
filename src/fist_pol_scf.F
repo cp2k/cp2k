@@ -617,10 +617,7 @@ CONTAINS
        IF (iw>0) WRITE(iw,FMT='(T5,"POL_SCF|",1X,"Final RMSD of residual:",5X,E12.6)') rmsd
        ! Stop program when congergence is not reached after all
        IF ( rmsd > eps_pol ) THEN
-         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-              "Error in the conjugate gradient method for self-consistent polarization! "//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
+         CPWARN("Error in the conjugate gradient method for self-consistent polarization! ")
        END IF
     ELSE
        ! Now evaluate after convergence to obtain forces and converged energies

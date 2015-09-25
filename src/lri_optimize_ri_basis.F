@@ -337,9 +337,7 @@ CONTAINS
     CASE(do_lri_opt_exps)
        lri_opt%opt_exps=.TRUE.
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                 routineP,"No initialization available?????",&
-                 only_ionode=.TRUE.)
+       CPABORT("No initialization available?????")
     END SELECT
 
     ! *** restraint

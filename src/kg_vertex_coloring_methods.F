@@ -736,8 +736,7 @@ CONTAINS
        ! color with max degree of saturation
        CALL kg_dsatur(kg_env, graph, ncolors)
     CASE DEFAULT
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineP, "Coloring method not known.")
+       CPABORT("Coloring method not known.")
     END SELECT
 
     CALL kg_pair_switching(graph,ncolors)

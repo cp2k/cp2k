@@ -632,9 +632,7 @@ MODULE qs_efield_berry
     IF(calculate_forces)THEN
        ! check for smoothness of energy surface
        IF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Large change of e-field energy detected. Correct for non-smooth energy surface",&
-               only_ionode=.TRUE.)
+          CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
        END IF
        efield%field_energy = ener_field
        efield%polarisation(:) = cqi(:)
@@ -1135,9 +1133,7 @@ MODULE qs_efield_berry
        ener_field=SUM(ci)
        ! check for smoothness of energy surface
        IF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat)) ) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Large change of e-field energy detected. Correct for non-smooth energy surface",&
-               only_ionode=.TRUE.)
+          CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
        END IF
        efield%field_energy = ener_field
        efield%polarisation(:) = cqi(:)

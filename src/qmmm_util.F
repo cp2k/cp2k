@@ -77,9 +77,9 @@ CONTAINS
        SELECT CASE(iwall_type)
        CASE(do_qmmm_wall_quadratic)
           IF(do_qmmm_force_mixing) THEN
-            CALL cp_assert(.FALSE., cp_warning_level,cp_assertion_failed,routineP,&
-            "Quadratic walls for QM/MM are not implemented (or useful), when "//&
-            "force mixing is active.  Skipping!"//CPSourceFileRef)
+            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                 "Quadratic walls for QM/MM are not implemented (or useful), when "//&
+                 "force mixing is active.  Skipping!")
           ELSE
             CALL apply_qmmm_walls_quadratic(qmmm_env, walls_section)
           ENDIF
@@ -197,13 +197,11 @@ CONTAINS
              ENDIF
           ELSE
              ! Otherwise print a warning and continue crossing cp2k's finger..
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-             "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
-             "and you may possibly consider: the activation of the QMMM WALLS "//&
-             "around the QM box, switching ON the centering of the QM box or increase "//&
-             "the size of the QM cell. CP2K CONTINUE but results could be meaningless. "//&
-             CPSourceFileRef,&
-             only_ionode=.TRUE.)
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
+                  "and you may possibly consider: the activation of the QMMM WALLS "//&
+                  "around the QM box, switching ON the centering of the QM box or increase "//&
+                  "the size of the QM cell. CP2K CONTINUE but results could be meaningless. ")
           END IF
        END IF
     END DO

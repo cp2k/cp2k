@@ -137,13 +137,11 @@ CPSourceFileRef,&
     ! spline generation
     min_eps_spline_allowed = 20.0_dp*MAX(ff_type%max_energy,10.0_dp)*EPSILON(0.0_dp)
     IF (ff_type%eps_spline < min_eps_spline_allowed) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
             "Requested spline accuracy ("//TRIM(cp_to_string(ff_type%eps_spline))//" ) "//&
             "is smaller than the minimum value allowed ("//TRIM(cp_to_string(min_eps_spline_allowed))//&
             " ) with the present machine precision ("//TRIM(cp_to_string(EPSILON(0.0_dp)))//" ). "//&
-            "New EPS_SPLINE value ("//TRIM(cp_to_string(min_eps_spline_allowed))//" ). "//&
-CPSourceFileRef,&
-            only_ionode=.TRUE.)
+            "New EPS_SPLINE value ("//TRIM(cp_to_string(min_eps_spline_allowed))//" ). ")
        ff_type%eps_spline = min_eps_spline_allowed
     END IF
     CALL section_vals_val_get(ff_section,"SHIFT_CUTOFF",l_val=ff_type%shift_cutoff)

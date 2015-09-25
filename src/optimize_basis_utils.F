@@ -849,11 +849,11 @@ CONTAINS
          flex_basis%subset(iset)%exp_const(ipgf)%ulim=MAXVAL(r_vals)
          r_val=flex_basis%subset(iset)%exps(ipgf)
          IF(flex_basis%subset(iset)%exps(ipgf).gt.MAXVAL(r_vals).OR.flex_basis%subset(iset)%exps(ipgf).lt.MINVAL(r_vals))&
-         CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                       routineP,"Exponent "//cp_to_string(r_val)//&
-                       " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))//&
-                       " to"// cp_to_string(MAXVAL(r_vals))//&
-                       " Please change input.",only_ionode=.TRUE.)
+         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              "Exponent "//cp_to_string(r_val)//&
+              " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))//&
+              " to"// cp_to_string(MAXVAL(r_vals))//&
+              " Please change input.")
          flex_basis%subset(iset)%exp_const(ipgf)%init=SUM(r_vals)/2.0_dp
          flex_basis%subset(iset)%exp_const(ipgf)%var_fac=MAXVAL(r_vals)/flex_basis%subset(iset)%exp_const(ipgf)%init-1.0_dp
       END IF
@@ -948,9 +948,7 @@ CONTAINS
          CASE(do_opt_exps)
             flex_basis%subset(iset)%opt_exps=.TRUE.
          CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                      routineP,"No initialization available?????",&
-                      only_ionode=.TRUE.)
+            CPABORT("No initialization available?????")
          END SELECT
       END DO
 
@@ -1000,9 +998,7 @@ CONTAINS
                        .NOT.flex_basis%subset(switch(2))%opt_coeff(ipgf,icont)
                END DO
             CASE DEFAULT
-               CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                         routineP,"Invalid option in SWITCH_SET_STATE, 1st value has to be 0, 1 or 2",&
-                         only_ionode=.TRUE.)
+               CPABORT("Invalid option in SWITCH_SET_STATE, 1st value has to be 0, 1 or 2")
             END SELECT
          END DO
       END DO

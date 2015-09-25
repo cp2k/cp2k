@@ -235,9 +235,9 @@ CONTAINS
 
        SELECT CASE (scf_env%method)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf method method for core level spectroscopy"//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "unknown scf method method for core level spectroscopy"//&
+               cp_to_string(scf_env%method))
 
        CASE(general_diag_method_nr) ! diagonalisation (default)
           scf_env%iter_count=iter_count
@@ -277,9 +277,9 @@ CONTAINS
                 delta= scf_env%iter_delta)
        CASE(no_mixing_nr)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf mixing method: "//&
-               cp_to_string(scf_env%mixing_method),failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "unknown scf mixing method: "//&
+               cp_to_string(scf_env%mixing_method))
        END SELECT
 
        t2 = m_walltime()

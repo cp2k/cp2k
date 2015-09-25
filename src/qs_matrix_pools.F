@@ -420,11 +420,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
   DO ispin=2,SIZE(mos)
      CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
      IF (max_nmo<nmo) THEN
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,&
-             "the mo with the most orbitals must be the first "//&
-CPSourceFileRef,&
-             failure=failure)
+        CPABORT("the mo with the most orbitals must be the first ")
      END IF
      min_nmo=MIN(min_nmo,nmo)
   END DO

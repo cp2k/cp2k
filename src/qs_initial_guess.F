@@ -266,13 +266,11 @@ CONTAINS
         CALL mp_bcast(exist, para_env%source, para_env%group)
         CALL mp_bcast(file_name, para_env%source, para_env%group)
         IF (.NOT.exist) THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+           CALL cp_warn(__SHORT_FILE__,__LINE__,&
                 "User requested to restart the wavefunction from the file named: "//&
                 TRIM(file_name)//". This file does not exist. Please check the existence of"//&
                 " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME."//&
-                " Calculation continues using ATOMIC GUESS. "//&
-CPSourceFileRef,&
-                only_ionode=.TRUE.)
+                " Calculation continues using ATOMIC GUESS. ")
            density_guess = safe_density_guess
         END IF
     ELSE IF (density_guess == history_guess) THEN
@@ -301,15 +299,13 @@ CPSourceFileRef,&
              INQUIRE(FILE=filename,exist=exist)
           CALL mp_bcast(exist, para_env%source, para_env%group)
           IF (.NOT. exist) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
                   "User requested to restart the wavefunction from a series of restart files named: "//&
                   TRIM(file_name)//" with extensions (.bak-n). These files do not exist."//&
                   " Even trying to switch to a plain restart wave-function failes because the"//&
                   " file named: "//TRIM(file_name)//" does not exist. Please check the existence of"//&
                   " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME. "//&
-                  " Calculation continues using ATOMIC GUESS. "//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+                  " Calculation continues using ATOMIC GUESS. ")
              density_guess = safe_density_guess
           END IF
        END IF

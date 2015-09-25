@@ -133,9 +133,9 @@ CONTAINS
        IF(i /= idir_surfdip) THEN
            IF(ABS(wf_r%pw%pw_grid%dh(idir_surfdip,i)) > 1.E-7_dp) THEN
              ! stop surface dipole defined only for slab perpendigular to one of the Cartesian axis
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                   routineP, " Dipole correction only for surface perpendicular to "//&
-                   " one Cartesian axis",only_ionode=.TRUE.)
+              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                   " Dipole correction only for surface perpendicular to "//&
+                   " one Cartesian axis")
 !  not properly general, we assume that vectors A, B, and C are along x y and z respectively, 
 !  in the ortorhombic cell, but in principle it does not need to be this way, importan
 !  is that the cell angles are 90 degrees.

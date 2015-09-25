@@ -102,9 +102,9 @@ CONTAINS
 
     IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
        IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
-               " or MIXED with only two force_env section.",failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
+               " or MIXED with only two force_env section.")
        END IF
     END IF
     DO iforce_eval = 1,nforce_eval
@@ -263,9 +263,7 @@ CONTAINS
        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
             i_val=xc_funct_no_shortcut)
     CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
-            failure)
+       CPABORT("unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))))
     END SELECT
   END SUBROUTINE xc_functionals_expand
 
@@ -337,9 +335,7 @@ CONTAINS
           sections2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL")
           CALL section_vals_get(sections2, n_repetition=nforce_eval2)
           IF (nforce_eval1/=nforce_eval2) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"Restart and input file MUST have the number of force_env sections",&
-                  failure)
+             CPABORT("Restart and input file MUST have the number of force_env sections")
           END IF
           ! Handle default restarts
           CALL handle_defaults_restart(r_section)
@@ -420,11 +416,10 @@ CONTAINS
                    END IF
                 END IF
              ELSE
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Error while reading the restart file. Two force_eval have incompatible"//&
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "Error while reading the restart file. Two force_eval have incompatible"//&
                      " subsys.One of them has an allocated subsys while the other has not! Check your"//&
-                     " input file or whether the restart file is compatible with the input!",&
-                     failure)
+                     " input file or whether the restart file is compatible with the input!")
              END IF
              ! QMMM restarts
              CALL section_vals_val_get(r_section,"RESTART_QMMM",l_val=flag)

@@ -126,11 +126,9 @@ CONTAINS
     topology%natoms = natom
     IF (my_overwrite) THEN
        CPASSERT(SIZE(atom_info%r,2)==natom)
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
             "Overwriting coordinates. Active coordinates read from &COORD section."//&
-            " Active coordinates READ from &COORD section "//&
-CPSourceFileRef,&
-          only_ionode=.TRUE.)
+            " Active coordinates READ from &COORD section ")
        CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list)
        DO iatom=1,natom
           is_ok=cp_sll_val_next(list,val)
@@ -337,11 +335,9 @@ CPSourceFileRef,&
     IF (ASSOCIATED(shell_particle_set)) THEN
       CPASSERT((SIZE(shell_particle_set,1) == nshell))
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell))
-      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+      CALL cp_warn(__SHORT_FILE__,__LINE__,&
            "Overwriting shell coordinates. "//&
-           "Active coordinates READ from &SHELL_COORD section. "//&
-CPSourceFileRef,&
-           only_ionode=.TRUE.)
+           "Active coordinates READ from &SHELL_COORD section. ")
       CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list)
       DO ishell=1,nshell
          ! we use only the first default_string_length characters of each line
@@ -391,11 +387,9 @@ CPSourceFileRef,&
 
           CPASSERT((SIZE(core_particle_set,1) == nshell))
           ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell))
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "Overwriting cores coordinates. "//&
-               " Active coordinates READ from &CORE_COORD section. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               " Active coordinates READ from &CORE_COORD section. ")
           CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list)
           DO ishell=1,nshell
              ! we use only the first default_string_length characters of each line
@@ -483,10 +477,7 @@ CPSourceFileRef,&
            END IF
 
          ELSE
-           CALL cp_assert(.FALSE.,cp_failure_level,&
-                 cp_assertion_failed,routineP,&
-                 "shell coordinate assigned to the wrong atom. check the shell indexes in the input",&
-                 failure)
+           CPABORT("shell coordinate assigned to the wrong atom. check the shell indexes in the input")
          END IF
       END DO
       DEALLOCATE(r,at_index,at_name)

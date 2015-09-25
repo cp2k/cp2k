@@ -228,9 +228,7 @@ CONTAINS
           END IF
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL")
         ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                         "METHOD_TYPE and MULTIPLICITY are incompatible",&
-                         only_ionode=.TRUE.)
+          CPABORT("METHOD_TYPE and MULTIPLICITY are incompatible")
         END IF
 
         NULLIFY(orbitals)

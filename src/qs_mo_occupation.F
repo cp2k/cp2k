@@ -321,13 +321,12 @@ CONTAINS
     mo_set_b%homo = lumo_b - 1
 
     IF (mo_set_b%homo > mo_set_a%homo) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "More beta ("//&
-                      TRIM(ADJUSTL(cp_to_string(mo_set_b%homo)))//&
-                      ") than alpha ("//&
-                      TRIM(ADJUSTL(cp_to_string(mo_set_a%homo)))//&
-                      ") MOs are occupied. Resorting to low spin state",&
-                      only_ionode=.TRUE.)
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "More beta ("//&
+            TRIM(ADJUSTL(cp_to_string(mo_set_b%homo)))//&
+            ") than alpha ("//&
+            TRIM(ADJUSTL(cp_to_string(mo_set_a%homo)))//&
+            ") MOs are occupied. Resorting to low spin state")
        mo_set_a%homo = nelec/2 + MODULO(nelec,2)
        mo_set_b%homo = nelec/2
     END IF

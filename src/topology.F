@@ -483,11 +483,9 @@ CONTAINS
                 CALL read_topology_conn(topology,loc_conn_type,filename,para_env,subsys_section)
              END DO
           CASE DEFAULT
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
                   "MOL_SET feature implemented only for PSF/UPSF, G87/G96 and AMBER "//&
-                  "connectivity type."//&
-CPSourceFileRef,&
-                  failure=failure)
+                  "connectivity type.")
           END SELECT
        END DO
        CALL cp_assert(SIZE(topology%atom_info%id_molname)==topology%natoms,&

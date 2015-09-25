@@ -187,7 +187,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()
@@ -224,9 +223,7 @@ CONTAINS
                 "XAS| Method:",&
                    "         DSCF for the first excited state"
         CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))),&
-             failure)
+          CPABORT("unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))))
       END SELECT
       IF(xas_control%xas_restart) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T30,A)")&

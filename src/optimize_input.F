@@ -597,10 +597,7 @@ CONTAINS
        test_ok = .TRUE.
 999    CONTINUE
        IF (.NOT. test_ok) THEN
-           CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-            "Could not parse the title line of the trajectory file"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+           CPABORT("Could not parse the title line of the trajectory file")
        END IF
        energy_traj(iframe)=trj_epot
 

@@ -161,10 +161,9 @@ CONTAINS
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
-    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                   routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
-                   " not compiled with plumed support."//&
-                   CPSourceFileRef)
+    CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         "Requested to use plumed for metadynamics, but cp2k was"//&
+         " not compiled with plumed support.")
 #endif
 
     CALL timestop(handle)
@@ -339,10 +338,9 @@ END SUBROUTINE
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                   routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
-                   " not compiled with plumed support."//&
-                   CPSourceFileRef)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "Requested to use plumed for metadynamics, but cp2k was"//&
+                     " not compiled with plumed support.")
 #endif
 
 

@@ -142,22 +142,21 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange)
        CALL section_vals_val_get(metadyn_section,"TAMCSteps",i_val=meta_env%TAMCSteps)
        IF (meta_env%TAMCSteps<0) THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-             "TAMCSteps must be positive!",only_ionode=.TRUE.)
+          CPABORT("TAMCSteps must be positive!")
        ENDIF
        CALL section_vals_val_get(metadyn_section,"Timestep",r_val=meta_env%zdt)
        IF (meta_env%zdt<=0.0_dp) THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-             "Timestep must be positive!",only_ionode=.TRUE.)
+          CPABORT("Timestep must be positive!")
        ENDIF
        CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww)
        CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills)
        CALL section_vals_val_get(metadyn_section,"MIN_NT_HILLS",i_val=meta_env%hills_env%min_nt_hills)
        IF (meta_env%hills_env%nt_hills<=0) THEN
           meta_env%hills_env%min_nt_hills=meta_env%hills_env%nt_hills
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                "NT_HILLS has a value <= 0; Setting MIN_NT_HILLS to the same value! Overriding input specification!",&
-                only_ionode=.TRUE.)
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "NT_HILLS has a value <= 0; "//&
+               "Setting MIN_NT_HILLS to the same value! "//&
+               "Overriding input specification!")
        END IF
        check=meta_env%hills_env%nt_hills>=meta_env%hills_env%min_nt_hills
        CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
@@ -813,11 +812,9 @@ CPSourceFileRef,&
              delta_s_history(1:n_colvar,i)=rvals
           END DO
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "Section SPAWNED_HILLS_SCALE is not present! Setting the scales of the"//&
-               "restarted hills according the parameters specified in the input file. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "restarted hills according the parameters specified in the input file. ")
           DO i = 1, n_hills
              DO j = 1, n_colvar
                 delta_s_history(j,i) = colvars(i)%delta_s
@@ -839,11 +836,9 @@ CPSourceFileRef,&
              ww_history(i)=rval
           END DO
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "Section SPAWNED_HILLS_HEIGHT is not present! Setting the height of the"//&
-               " restarted hills according the parameters specified in the input file. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               " restarted hills according the parameters specified in the input file. ")
           ww_history = ww
        END IF
        !
@@ -862,20 +857,16 @@ CPSourceFileRef,&
                 invdt_history(i)=rval
              END DO
           ELSE
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
                   "Section SPAWNED_HILLS_INVDT is not present! Restarting from standard"//&
-                  " metadynamics run i.e. setting 1/(Delta T) equal to zero. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+                  " metadynamics run i.e. setting 1/(Delta T) equal to zero. ")
              invdt_history = 0._dp
           END IF
        ELSE
           IF (explicit) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Found section SPAWNED_HILLS_INVDT while restarting a standard metadynamics run..."//&
-                     " Cannot restart metadynamics from well-tempered MetaD runs. "//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "Found section SPAWNED_HILLS_INVDT while restarting a standard metadynamics run..."//&
+                  " Cannot restart metadynamics from well-tempered MetaD runs. ")
           END IF
        END IF
     ENDIF

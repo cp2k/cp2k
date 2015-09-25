@@ -386,10 +386,7 @@ CONTAINS
        IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
        IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown in_use flag value "//&
-            CPSourceFileRef,&
-            failure)
+       CPABORT("unknown in_use flag value ")
     END SELECT
 
     IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section

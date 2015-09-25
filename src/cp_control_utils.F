@@ -1649,9 +1649,7 @@ CPSourceFileRef,&
     IF(PRESENT(ddapc_restraint_section))THEN
        IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
           IF(SIZE(qs_control%ddapc_restraint_control).GE.2)&
-               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "ET_COUPLING cannot be used in combination with a normal restraint",&
-               failure=failure)
+               CPABORT("ET_COUPLING cannot be used in combination with a normal restraint")
        ELSE
           ddapc_section=> ddapc_restraint_section
           ALLOCATE(qs_control%ddapc_restraint_control(1))

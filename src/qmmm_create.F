@@ -203,8 +203,7 @@ CONTAINS
        qmmm_env_qm%center_qm_subsys  = .TRUE.
        qmmm_env_qm%center_qm_subsys0  = .TRUE.
     ELSE
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unknown type of CENTER! "//CPSourceFileRef, only_ionode=.TRUE.)
+       CPABORT("Unknown type of CENTER! ")
     ENDIF
 
     CALL section_vals_val_get(qmmm_section,"CENTER_TYPE",i_val=center_i)

@@ -223,9 +223,7 @@ MODULE mp2
 
     IF (calc_forces) THEN
        IF(mp2_env%method/=ri_mp2_method_gpw) THEN
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                        "No forces/gradients for the selected method."//&
-                        CPSourceFileRef, only_ionode=.TRUE.)
+         CPABORT("No forces/gradients for the selected method.")
        END IF
     ENDIF
 
@@ -827,10 +825,7 @@ MODULE mp2
     ! communication takes place only inside the group
     number_groups=para_env%num_pe/mp2_env%mp2_num_proc
     IF(number_groups*mp2_env%mp2_num_proc/=para_env%num_pe) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          " The number of processors needs to be a multiple of the processors per group. "//&
-          CPSourceFileRef,&
-          only_ionode=.TRUE.)
+      CPABORT(" The number of processors needs to be a multiple of the processors per group. ")
     END IF
     IF(number_groups>occ_i*occ_j) THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Number of groups greater then the number of IJ pairs!'

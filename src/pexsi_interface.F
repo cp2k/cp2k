@@ -118,9 +118,7 @@ CONTAINS
     IF(PRESENT(npSymbFact)) pexsi_options%options%npSymbFact = npSymbFact
     IF(PRESENT(verbosity)) pexsi_options%options%verbosity = verbosity
 #else
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_assertion_failed, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_set_options
 
@@ -211,9 +209,7 @@ CONTAINS
    IF(PRESENT(ordering)) ordering = -1
    IF(PRESENT(npSymbFact)) npSymbFact = -1
    IF(PRESENT(verbosity)) verbosity = -1
-   CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+   CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_get_options
 
@@ -230,9 +226,7 @@ CONTAINS
 #ifdef  __LIBPEXSI
     CALL f_ppexsi_set_default_options(pexsi_options%options)
 #else
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_set_default_options
 
@@ -262,9 +256,7 @@ CONTAINS
                    only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END FUNCTION cp_pexsi_plan_initialize
 
@@ -312,9 +304,7 @@ CONTAINS
                    only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_load_real_symmetric_hs_matrix
 
@@ -363,9 +353,7 @@ CONTAINS
     muMaxInertia = 0.0_real_8
     numTotalInertiaIter = -1
     numTotalPEXSIIter = -1
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_dft_driver
 
@@ -411,9 +399,7 @@ CONTAINS
     totalEnergyS = 0.0_real_8
     totalFreeEnergy = 0.0_real_8
 
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_retrieve_real_symmetric_dft_matrix
 
@@ -437,9 +423,7 @@ CONTAINS
                    only_ionode = .TRUE.)
     CALL timestop(handle)
 #else
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
-                    "Requires linking to the PEXSI library.",&
-                    only_ionode = .TRUE.)
+    CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE
 

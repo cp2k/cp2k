@@ -158,9 +158,9 @@ CONTAINS
 
     SELECT CASE (scf_env%method)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown scf method: "//&
-            cp_to_string(scf_env%method),failure)
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "unknown scf method: "//&
+            cp_to_string(scf_env%method))
 
     ! *************************************************************************
     ! Filter matrix diagonalisation: ugly implementation at this point of time
@@ -286,9 +286,9 @@ CONTAINS
 
     SELECT CASE (scf_env%method)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"KP code: Unknown scf method: "//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "KP code: Unknown scf method: "//&
+               cp_to_string(scf_env%method))
        CASE(general_diag_method_nr)
           ! Diagonlization in non orthonormal case
           CALL get_qs_env(qs_env,matrix_ks_kp=matrix_ks,matrix_s_kp=matrix_s)
@@ -300,16 +300,16 @@ CONTAINS
           ! Diagonlization in orthonormal case
 !         CALL do_special_diag(scf_env,mos,matrix_ks,&
 !                              scf_control,scf_section,diis_step)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"KP code: Scf method not available: "//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "KP code: Scf method not available: "//&
+               cp_to_string(scf_env%method))
        CASE(ot_diag_method_nr,&
             block_krylov_diag_method_nr,&
             block_davidson_diag_method_nr,&
             ot_method_nr)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"KP code: Scf method not available: "//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "KP code: Scf method not available: "//&
+               cp_to_string(scf_env%method))
     END SELECT
 
   END SUBROUTINE qs_scf_new_mos_kp
@@ -437,9 +437,9 @@ CONTAINS
             delta=scf_env%iter_delta)
     CASE(no_mixing_nr)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown scf mixing method: "//&
-            cp_to_string(scf_env%mixing_method),failure)
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "unknown scf mixing method: "//&
+            cp_to_string(scf_env%mixing_method))
     END SELECT
 
   END SUBROUTINE qs_scf_density_mixing
@@ -706,9 +706,9 @@ CONTAINS
        CASE(filter_matrix_diag_method_nr)
    !
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf method method:"//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "unknown scf method method:"//&
+               cp_to_string(scf_env%method))
        END SELECT
 
 
