@@ -259,6 +259,7 @@ ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ew
 ewalds_multipole_debug.h: Copyright banner malformed
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 f77_int.h: Copyright banner malformed
+f77_interface.F: Unused dummy argument ‘failure’ at (1) [-Wunused-dummy-argument]
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter ‘dp’ which has been explicitly imported at (1) [-Wunused-parameter]
