@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,7 +25,7 @@ MODULE hfx_contraction_methods
 #endif
 
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
