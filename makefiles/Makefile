@@ -59,8 +59,8 @@ endif
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
          toolversions libcp2k \
-         doxifydir doxify doxifyclean \
-         prettydir pretty prettyclean doxygen/clean doxygen \
+         doxify doxifyclean \
+         pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates \
          instantiationdir templatesclean \
          test testbg testclean testrealclean
@@ -284,35 +284,32 @@ $(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
 # Prettyfier stuff ==========================================================
 vpath %.pretty $(PRETTYOBJDIR)
 
-prettydir:
-	@mkdir -p $(PRETTYOBJDIR)
-
-pretty: doxify prettydir $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
+pretty: $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
 TOOL_HELP += "pretty : Reformat all source files in a pretty way."
 
 prettyclean:
 	-rm -rf $(PRETTYOBJDIR) $(ALL_PREPRETTY_DIRS)
 TOOL_HELP += "prettyclean : Remove prettify marker files and preprettify directories"
 
-$(PRETTYOBJDIR)/%.pretty: %.F
+$(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
 	cd $(dir $<); $(TOOLSRC)/prettify.py $(notdir $<)
+	@mkdir -p $(PRETTYOBJDIR)
 	@touch $@
 
-$(PRETTYOBJDIR)/%.pretty: %.c
+$(PRETTYOBJDIR)/%.pretty: %.c $(DOXIFYOBJDIR)/%.doxified
 #   TODO: call indent here?
+	@mkdir -p $(PRETTYOBJDIR)
 	@touch $@
 
-$(PRETTYOBJDIR)/%.pretty: %.cpp
+$(PRETTYOBJDIR)/%.pretty: %.cpp $(DOXIFYOBJDIR)/%.doxified
 #   TODO: call indent here?
+	@mkdir -p $(PRETTYOBJDIR)
 	@touch $@
 
 # Doxyifier stuff ===========================================================
 vpath %.doxified $(DOXIFYOBJDIR)
 
-doxifydir:
-	@mkdir -p $(DOXIFYOBJDIR)
-
-doxify: doxifydir $(addprefix $(DOXIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxified))
+doxify: $(addprefix $(DOXIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxified))
 TOOL_HELP += "doxify : Autogenerate doxygen headers for subroutines"
 
 doxifyclean:
@@ -321,12 +318,15 @@ TOOL_HELP += "doxifyclean : Remove doxify marker files"
 
 $(DOXIFYOBJDIR)/%.doxified: %.F
 	$(TOOLSRC)/doxify/doxify.sh $<
+	@mkdir -p $(DOXIFYOBJDIR)
 	@touch $@
 
 $(DOXIFYOBJDIR)/%.doxified: %.c
+	@mkdir -p $(DOXIFYOBJDIR)
 	@touch $@
 
 $(DOXIFYOBJDIR)/%.doxified: %.cpp
+	@mkdir -p $(DOXIFYOBJDIR)
 	@touch $@
 
 # doxygen stuff =============================================================
