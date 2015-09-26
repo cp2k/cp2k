@@ -115,41 +115,37 @@ SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format)
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
 
-  LOGICAL :: failure
   INTEGER :: iostat, i
   CHARACTER(len=*), PARAMETER :: routineN='cp_1d_[nametype1]_write',&
         routineP=moduleN//':'//routineN
   CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
 
-  failure=.false.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPASSERT(iostat==0)
-  IF (.NOT.failure) THEN
-     IF (PRESENT(el_format)) THEN
-        DO i=1,SIZE(array)-1
-           WRITE(unit=unit_nr,fmt=el_format,advance="no") array(i)
-           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line
-              WRITE(unit=unit_nr,fmt="(',')")
-           ELSE
-              WRITE(unit=unit_nr,fmt="(',')",advance="no")
-           ENDIF
-        END DO
-        IF (SIZE(array)>0) &
-             WRITE(unit=unit_nr,fmt=el_format,advance="no") array(SIZE(array))
-     ELSE
-        DO i=1,SIZE(array)-1
-           WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(i)
-           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line
-              WRITE(unit=unit_nr,fmt="(',')")
-           ELSE
-              WRITE(unit=unit_nr,fmt="(',')",advance="no")
-           ENDIF
-        END DO
-        IF (SIZE(array)>0) &
-             WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(SIZE(array))
-     END IF
-     WRITE(unit=unit_nr,fmt="(' )')")
+  IF (PRESENT(el_format)) THEN
+     DO i=1,SIZE(array)-1
+        WRITE(unit=unit_nr,fmt=el_format,advance="no") array(i)
+        IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line
+           WRITE(unit=unit_nr,fmt="(',')")
+        ELSE
+           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+        ENDIF
+     END DO
+     IF (SIZE(array)>0) &
+          WRITE(unit=unit_nr,fmt=el_format,advance="no") array(SIZE(array))
+  ELSE
+     DO i=1,SIZE(array)-1
+        WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(i)
+        IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line
+           WRITE(unit=unit_nr,fmt="(',')")
+        ELSE
+           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+        ENDIF
+     END DO
+     IF (SIZE(array)>0) &
+          WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(SIZE(array))
   END IF
+  WRITE(unit=unit_nr,fmt="(' )')")
   call m_flush(unit_nr)
 
 END SUBROUTINE cp_1d_[nametype1]_write
@@ -170,14 +166,12 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format)
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
 
-  LOGICAL :: failure
   INTEGER :: iostat, i
   CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_write',&
         routineP=moduleN//':'//routineN
   CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
   CHARACTER(len=200) :: fmtstr
   CHARACTER(len=10) :: nRiga
-  failure=.FALSE.
 
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)
@@ -189,9 +183,6 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format)
         WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(i,:)
      END IF
      CPASSERT(iostat==0)
-     IF (failure) THEN
-        EXIT
-     END IF
   END DO
   call m_flush(unit_nr)
 END SUBROUTINE cp_2d_[nametype1]_write
@@ -292,11 +283,9 @@ FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index)&
   INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
   integer :: res
 
-  logical :: failure
   character(len=*), parameter :: routineN='cp_1d_[nametype1]_bsearch',&
         routineP=moduleN//':'//routineN
   INTEGER :: lindex,uindex,aindex
-  failure=.false.
 
   lindex=1
   uindex=size(array)
