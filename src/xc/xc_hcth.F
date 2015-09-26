@@ -84,8 +84,7 @@ CONTAINS
           shortform = "HCTH/407 xc energy functional (LDA)"
        END IF
     CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Invalid HCTH parameter set requested ("//cp_to_string(iparset)//")")
+       CPABORT("Invalid HCTH parameter set requested ("//cp_to_string(iparset)//")")
     END SELECT
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
@@ -281,8 +280,7 @@ CONTAINS
        ccss(4) =  0.624798E+01_dp
        ccab(4) = -0.420052E+02_dp
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Invalid HCTH parameter set requested ("//cp_to_string(iparset)//")")
+       CPABORT("Invalid HCTH parameter set requested ("//cp_to_string(iparset)//")")
     END SELECT
 
     !$omp parallel do default(none) shared(rho,norm_drho,cxss,ccss,&

@@ -129,8 +129,7 @@ SUBROUTINE pw_release(pw)
            DEALLOCATE ( pw % cc3d)
         CASE(NODATA)
         CASE default
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                "unknown data type "//cp_to_string(pw%in_use))
+           CPABORT("unknown data type "//cp_to_string(pw%in_use))
         END SELECT
         CALL pw_grid_release(pw%pw_grid)
         pw%ref_count=0
@@ -232,8 +231,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
           bounds ( 1, 3 ) : bounds ( 2, 3 ) ))
   CASE(NODATA)
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "unknown data type")
+     CPABORT("unknown data type")
   END SELECT
   IF (PRESENT(in_space)) pw%in_space=in_space
   CALL timestop(handle)

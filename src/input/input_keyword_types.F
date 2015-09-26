@@ -293,7 +293,7 @@ CONTAINS
        IF (PRESENT(type_of_var)) THEN
           keyword%type_of_var=type_of_var
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "keyword "//TRIM(keyword%names(1))//&
                " assumed undefined type by default")
        END IF
@@ -325,8 +325,7 @@ CONTAINS
                   "keyword%enum%id_nr==lone_keyword_val%enum%id_nr")
           ELSE
              IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
-                CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
-                     routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)")
+                CPABORT(".NOT. ASSOCIATED(keyword%lone_keyword_value)")
              END IF
              keyword%enum => lone_keyword_val%enum
              CALL enum_retain(keyword%enum)

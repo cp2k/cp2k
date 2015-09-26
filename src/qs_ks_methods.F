@@ -334,8 +334,7 @@ CONTAINS
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc .AND. gapw) THEN
-       CALL cp_assert(.FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                      " GAPW and GAPW_XC are not compatible")
+       CPABORT(" GAPW and GAPW_XC are not compatible")
     END IF
 
     do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid

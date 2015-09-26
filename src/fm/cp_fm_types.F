@@ -161,9 +161,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-     routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef)
+     CPABORT("full matrixes need scalapack for parallel runs ")
 #endif
 
     CPASSERT(ASSOCIATED(matrix_struct))

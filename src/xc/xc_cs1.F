@@ -642,9 +642,7 @@ CONTAINS
 
 !FM IF ( .NOT. debug_flag ) CALL stop_program(routineN,moduleN,__LINE__,"Routine not tested")
 
-    CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
-         "not tested!"//&
-         CPSourceFileRef)
+    CPWARN("not tested!")
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &
@@ -722,9 +720,7 @@ CONTAINS
                                                 ocb, oda, odb, r3a, r3b, ra, &
                                                 rb
 
-    CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
-         "not tested!"//&
-         CPSourceFileRef)
+    CPWARN("not tested!")
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &

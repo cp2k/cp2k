@@ -218,23 +218,19 @@ CONTAINS
        END IF
        ! Print warning for temp_tol
        IF (simpar%temp_tol > 0.0_dp) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "A temperature tolerance (TEMP_TOL) is used during the MD. "//&
-               "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. ")
        END IF
        ! Print warning for annealing
        IF(simpar%annealing ) THEN
          IF ( simpar%ensemble == nvt_ensemble .OR. &
               simpar%ensemble == npt_i_ensemble .OR. &
               simpar%ensemble == npt_f_ensemble )  THEN
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-              "Annealing of the ions has been required "//&
-              "even if the thermostat is active (nvt or npt_i or npt_f) "//&
-              "These two methods to control the temperature act one against the other. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                   "Annealing of the ions has been required "//&
+                   "even if the thermostat is active (nvt or npt_i or npt_f) "//&
+                   "These two methods to control the temperature act one against the other. ")
          END IF
        END IF
        ! Print warning for variable time step
@@ -242,12 +238,10 @@ CPSourceFileRef,&
          IF ( simpar%ensemble == langevin_ensemble .OR. &
               simpar%ensemble == reftraj_ensemble .OR. &
               simpar%do_respa )  THEN
-              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-              "The variable timestep  has been required, however "//&
-              "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "//&
-              "The run will proceed with constant timestep, as read from input. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+              CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                   "The variable timestep  has been required, however "//&
+                   "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "//&
+                   "The run will proceed with constant timestep, as read from input. ")
          END IF
        END IF
     END IF

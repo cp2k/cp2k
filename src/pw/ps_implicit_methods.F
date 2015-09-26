@@ -1388,9 +1388,9 @@ CONTAINS
        ps_implicit_env%v_D  = 0.0_dp
 
     CASE DEFAULT
-       CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "Please specify the type of boundary conditions using the "//&
-                        "input file keyword BOUNDARY_CONDITIONS.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Please specify the type of boundary conditions using the "//&
+            "input file keyword BOUNDARY_CONDITIONS.")
     END SELECT
 
     CALL timestop(handle)

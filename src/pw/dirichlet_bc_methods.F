@@ -109,8 +109,7 @@ CONTAINS
     SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
     CASE (MIXED_BC, MIXED_PERIODIC_BC)
       IF (n_dbcs .EQ. 0) THEN 
-         CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "No Dirichlet region is defined.")
+         CPABORT("No Dirichlet region is defined.")
       END IF
 
       ALLOCATE(dbcs(n_dbcs))
@@ -482,17 +481,16 @@ CONTAINS
     Lz = z_glbl(gub3) - z_glbl(glb3)
 
     IF( (x_xtnt(1) .LT. x_glbl(glb1)) .OR. (x_xtnt(2) .GT. x_glbl(gub1)+dx) ) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-                      "The length of the cylindrical Dirichlet region is larger than the "//&
-                      "x range of the simulation cell.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "The length of the cylindrical Dirichlet region is larger than the "//&
+            "x range of the simulation cell.")
     END IF
     forb_xtnt1 = base_center(1)-base_radius .LT. x_glbl(glb1)
     forb_xtnt2 = base_center(1)+base_radius .GT. x_glbl(gub1)+dx
     forb_xtnt3 = base_center(2)-base_radius .LT. y_glbl(glb2)
     forb_xtnt4 = base_center(2)+base_radius .GT. y_glbl(gub2)+dy
     IF( forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4 ) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-                      "The cylinder does not fit entirely inside the simulation cell.")
+       CPABORT("The cylinder does not fit entirely inside the simulation cell.")
     END IF
 
     intern_apx_type = CIRCUMSCRIBED
@@ -513,12 +511,10 @@ CONTAINS
     ELSE IF (intern_apx_type .EQ. CIRCUMSCRIBED) THEN
        h = base_radius/COS(0.5*theta) ! circumscribed uniform prism
     ELSE 
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "Unknown approximation type for cylinder.")
+       CPABORT("Unknown approximation type for cylinder.")
     END IF
     IF( h .GT. MINVAL((/Ly, Lz/)) ) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-                      "Reduce the base radius!")
+       CPABORT("Reduce the base radius!")
     END IF
 
     delta_alpha = 0.05_dp
@@ -646,9 +642,9 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The given extents for the Dirichlet region are outside the range of "//&
-                      "the simulation cell.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "The given extents for the Dirichlet region are outside the range of "//&
+            "the simulation cell.")
     END IF 
 
     xxtnt_fst = find_fst_ge(x_glbl, x_xtnt(1))
@@ -690,9 +686,9 @@ CONTAINS
        CALL cs_rectangle_create(dirichlet_bc%rectangle, A, B, C, D)
        dirichlet_bc%n_tiles = 1
     ELSE 
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "According to the given extents, the Dirichlet region is not axis-aligned or a plane. "//&
-                      "Try the input section PLANAR or AA_CUBOIDAL instead.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "According to the given extents, the Dirichlet region is not axis-aligned or a plane. "//&
+            "Try the input section PLANAR or AA_CUBOIDAL instead.")
     END IF
       
     IF ((unit_nr .GT. 0) .AND. verbose) THEN 
@@ -772,8 +768,8 @@ CONTAINS
     AB = B - A;     AC = C - A;     AD = D - A;     BC = C - B;
     are_orthogonal = ABS( DOT_PRODUCT(AB, BC)/(SQRT(SUM(AB**2)) * SQRT(SUM(BC**2))) ) .LE. small_value
     IF (.NOT. are_orthogonal) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-            "The given vertices for defining a planar Dirichlet region do not form orthogonal edges.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,"The given vertices for defining a "//&
+            "planar Dirichlet region do not form orthogonal edges.")
     END IF
 
     A_is_inside = ((A(1) .GT. x_glbl(glb1)) .AND. (A(1) .LT. x_glbl(gub1)+dx)) .AND. &
@@ -789,15 +785,14 @@ CONTAINS
                   ((D(2) .GT. y_glbl(glb2)) .AND. (D(2) .LT. y_glbl(gub2)+dy)) .AND. &
                   ((D(3) .GT. z_glbl(glb3)) .AND. (D(3) .LT. z_glbl(gub3)+dz)) 
     IF (.NOT. (A_is_inside .AND. B_is_inside .AND. C_is_inside .AND. D_is_inside)) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-                      "At least one of the given vertices for defining a planar Dirichlet "//&
-                      "region is outside the simulation box.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "At least one of the given vertices for defining a planar Dirichlet "//&
+            "region is outside the simulation box.")
     END IF
 
     are_coplanar = ABS(DOT_PRODUCT(vector_product(AB, AC), AD)) .LE. small_value
     IF (.NOT. are_coplanar) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-            "The given vertices for defining a planar Dirichlet region are not coplanar.")
+       CPABORT("The given vertices for defining a planar Dirichlet region are not coplanar.")
     END IF
 
     cm(1) = (A(1) + B(1) + C(1) + D(1))/4.0_dp
@@ -811,8 +806,8 @@ CONTAINS
                    (ABS(dist1-dist3) .LE. small_value) .AND. &
                    (ABS(dist1-dist4) .LE. small_value)  
     IF (.NOT. is_rectangle) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-            "The given vertices for defining a planar Dirichlet region do not form a rectangle.")
+        CALL cp_abort(__SHORT_FILE__,__LINE__,"The given vertices for defining "//&
+             "a planar Dirichlet region do not form a rectangle.")
     END IF
 
     dirichlet_bc%dbc_id = dbc_id
@@ -910,9 +905,9 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The given extents for the Dirichlet region are outside the range of "//&
-                      "the simulation cell.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "The given extents for the Dirichlet region are outside the range of "//&
+            "the simulation cell.")
     END IF 
 
     xxtnt_fst = find_fst_ge(x_glbl, x_xtnt(1))
@@ -932,9 +927,9 @@ CONTAINS
     IF ((ABS(z_xtnt(1)-z_xtnt(2)) .LE. small_value) .OR. &
         (ABS(y_xtnt(1)-y_xtnt(2)) .LE. small_value) .OR. &
         (ABS(x_xtnt(1)-x_xtnt(2)) .LE. small_value)) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "According to the given extents, the region's geometry is not a cuboid. "//&
-                      "Try the input section AA_PLANAR instead.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "According to the given extents, the region's geometry is not a cuboid. "//&
+            "Try the input section AA_PLANAR instead.")
     END IF
 
     box_vtx(1:3,1) = (/xlb, ylb, zlb/)

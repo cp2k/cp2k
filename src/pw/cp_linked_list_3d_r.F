@@ -397,9 +397,7 @@ CONTAINS
              IF (ASSOCIATED(res%rest)) THEN
                 res => res%rest
              ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP, "tried to go past end in "// &
-                     CPSourceFileRef)
+                CPWARN("tried to go past end in ")
              END IF
           END DO
           IF (iter==-1) THEN
@@ -614,9 +612,7 @@ CONTAINS
        sll => sll%rest
        CALL cp_sll_3d_r_dealloc_node(node_to_rm)
     ELSE
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-            routineP,"tried to remove first el of an empty list in "//&
-            CPSourceFileRef)
+       CPWARN("tried to remove first el of an empty list in ")
     END IF
   END SUBROUTINE cp_sll_3d_r_rm_first_el
 

@@ -120,18 +120,17 @@ CONTAINS
     CPASSERT(section_vals%ref_count>0)
     CPASSERT(parser%ref_count>0)
     IF (root_sect.and.parser%icol1>parser%icol2) &
-         CALL cp_assert(.FALSE.,cp_failure_level,&
-         cp_assertion_failed,routineP,&
-         "Error 1: this routine must be called just after having parsed the start of the section "&
-         //TRIM(parser_location(parser)),failure)
+         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              "Error 1: this routine must be called just after having parsed the start of the section "&
+              //TRIM(parser_location(parser)))
     section => section_vals%section
     IF (root_sect) THEN
        token=parser%input_line(parser%icol1:parser%icol2)
        CALL uppercase(token)
        IF (token/=parser%section_character//section%name)&
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Error 2: this routine must be called just after having parsed the start of the section "&
-            //TRIM(parser_location(parser)),failure)
+            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                 "Error 2: this routine must be called just after having parsed the start of the section "&
+                 //TRIM(parser_location(parser)))
     END IF
     CALL cp_assert(section%repeats.OR.SIZE(section_vals%values,2)==0,&
          cp_failure_level,cp_assertion_failed,routineP,&
@@ -189,9 +188,9 @@ CONTAINS
                 END IF
              END IF
              IF (.NOT.compatible_end) THEN
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"non-compatible end of section "//TRIM(section%name)//" "//&
-                     TRIM(parser_location(parser)),failure)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "non-compatible end of section "//TRIM(section%name)//" "//&
+                     TRIM(parser_location(parser)))
                 skip_description=.TRUE.
              END IF
              !              RETURN
@@ -205,8 +204,8 @@ CONTAINS
                   default_units=default_units,parser=parser)
           ELSE
              ! this should be an error (failure)
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"unknown subsection "//TRIM(token(2:))//" of section "&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "unknown subsection "//TRIM(token(2:))//" of section "&
                   //TRIM(section%name))
              nSub=1
              DO WHILE (nSub>0)
@@ -237,9 +236,9 @@ CONTAINS
                      lower_to_upper=.TRUE.)
                 keyword => section_get_keyword(section,token)
                 IF (.NOT.ASSOCIATED(keyword)) THEN
-                   CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                        routineP,"unknown keyword to describe "//TRIM(token)//&
-                        " in section "//TRIM(section%name),failure)
+                   CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                        "unknown keyword to describe "//TRIM(token)//&
+                        " in section "//TRIM(section%name))
                 ELSE
                    CALL keyword_describe(keyword,output_unit,desc_level)
                 END IF
@@ -255,8 +254,8 @@ CONTAINS
                 parser%icol=parser%icol1-1 ! re-read also the actual token
                 ik=0
                 IF (.NOT.ASSOCIATED(section%keywords(0)%keyword)) THEN
-                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                        routineP,"found an unknown keyword "//TRIM(token)//&
+                   CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                        "found an unknown keyword "//TRIM(token)//&
                         " in section "//TRIM(section%name))
                 END IF
              END IF
@@ -382,9 +381,9 @@ CONTAINS
                 ALLOCATE(l_val_p(0))
                 CALL val_create(val,l_vals_ptr=l_val_p)
              ELSE
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"no value was given and there is no default value"//&
-                     TRIM(parser_location(parser)),failure)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "no value was given and there is no default value"//&
+                     TRIM(parser_location(parser)))
              END IF
           ELSE
              CPASSERT(ASSOCIATED(default_value%l_val))
@@ -423,9 +422,9 @@ CONTAINS
                 ALLOCATE(i_val_p(0))
                 CALL val_create(val,i_vals_ptr=i_val_p)
              ELSE
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"no value was given and there is no default value"//&
-                     TRIM(parser_location(parser)),failure)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "no value was given and there is no default value"//&
+                     TRIM(parser_location(parser)))
              END IF
           ELSE
              check = ASSOCIATED(default_value%i_val)
@@ -464,9 +463,9 @@ CONTAINS
                 ALLOCATE(r_val_p(0))
                 CALL val_create(val,r_vals_ptr=r_val_p)
              ELSE
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"no value was given and there is no default value"//&
-                     TRIM(parser_location(parser)),failure)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "no value was given and there is no default value"//&
+                     TRIM(parser_location(parser)))
              END IF
           ELSE
              CPASSERT(ASSOCIATED(default_value%r_val))
@@ -508,9 +507,9 @@ CONTAINS
              CALL val_create(val,c_vals_ptr=c_val_p)
           ELSE
              IF (.NOT.ASSOCIATED(default_value)) THEN
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"no value was given and there is no default value"//&
-                     TRIM(parser_location(parser)),failure)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "no value was given and there is no default value"//&
+                     TRIM(parser_location(parser)))
              ELSE
                 CPASSERT(ASSOCIATED(default_value%c_val))
                 CALL val_create(val,c_vals=default_value%c_val)
@@ -580,9 +579,9 @@ CONTAINS
                 ALLOCATE(i_val_p(0))
                 CALL val_create(val,i_vals_ptr=i_val_p)
              ELSE
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"no value was given and there is no default value"//&
-                     TRIM(parser_location(parser)),failure)
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "no value was given and there is no default value"//&
+                     TRIM(parser_location(parser)))
              END IF
           ELSE
              CPASSERT(ASSOCIATED(default_value%i_val))
@@ -623,10 +622,9 @@ CPSourceFileRef,&
     IF (parser_test_next_token(parser).NE."EOL") THEN
        location=TRIM(parser_location(parser))
        CALL parser_get_object(parser,info)
-       CALL cp_assert(.FALSE.,&
-            cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "found unexpected extra argument "//TRIM(info)//" at "//&
-            location,failure)
+            location)
     ENDIF
 
     CALL timestop(handle)

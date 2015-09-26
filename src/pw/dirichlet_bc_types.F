@@ -520,13 +520,13 @@ CONTAINS
     BC_norm = SQRT(SUM(BC**2))
 
     IF ( (AB_norm .LE. small_value) .OR. (AC_norm.LE. small_value) .OR. (BC_norm .LE. small_value) ) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Not enough points to define a cartesian space plane. "//&
-          "Please increase the cutoff.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Not enough points to define a cartesian space plane. "//&
+            "Please increase the cutoff.")
     ELSE IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Unable to define a cartesian space plane. Reason: A, B, C are collinear. "//&
-          "Please increase the cutoff.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Unable to define a cartesian space plane. Reason: A, B, C are collinear. "//&
+            "Please increase the cutoff.")
     ELSE
        plane%normal = ABxAC
        plane%unit_normal = plane%normal / SQRT(SUM(plane%normal**2))

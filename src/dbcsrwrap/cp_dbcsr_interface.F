@@ -1093,8 +1093,7 @@ CONTAINS
        CALL dbcsr_norm (matrix%matrix, which_norm, norm_vector=norm_vector,&
             error=dbcsr_error)
     ELSE
-       CALL cp_assert (.FALSE., cp_wrong_args_error, cp_internal_error,&
-            routineN, "Must pass either scalar or vector norm.")
+       CPABORT("Must pass either scalar or vector norm.")
     ENDIF
 
   END SUBROUTINE cp_dbcsr_norm

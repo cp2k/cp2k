@@ -136,9 +136,7 @@ CONTAINS
 
   ELSE
 
-     CALL cp_assert(.FALSE.,cp_assertion_failed,&
-          cp_failure_level,routineP,&
-          "No wavelet based poisson solver for given geometry")
+     CPABORT("No wavelet based poisson solver for given geometry")
 
   END IF
 !!!  IF (iproc==0) THEN

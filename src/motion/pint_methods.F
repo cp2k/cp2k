@@ -660,8 +660,7 @@ CONTAINS
       CALL pint_release(pint_env)
 
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-        routineP,"Unknown mode ("//TRIM(ADJUSTL(cp_to_string(mode)))//")")
+      CPABORT("Unknown mode ("//TRIM(ADJUSTL(cp_to_string(mode)))//")")
     END SELECT
 
 

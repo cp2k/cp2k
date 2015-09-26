@@ -653,10 +653,9 @@ CONTAINS
        iteration_info%last_iter(iteration_info%n_rlevel)  = .FALSE.
        IF (PRESENT(n_rlevel_new)) n_rlevel_new=iteration_info%n_rlevel
     ELSE
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "Trying to create an iteration level ("//TRIM(level_name)//") not defined."//&
-            "Please update the module: cp_iter_types."//&
-            CPSourceFileRef)
+            "Please update the module: cp_iter_types.")
     END IF
 
   END SUBROUTINE cp_add_iter_level

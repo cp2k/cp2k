@@ -1227,9 +1227,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
   CPASSERT(pw_out%in_space==REALSPACE)
   CPASSERT(pw_out%in_use==REALDATA3D)
   IF (.NOT.ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3))) THEN
-     CALL cp_assert(.FALSE.,&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          "wrong pw distribution")
+     CPABORT("wrong pw distribution")
   END IF
   CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
        out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local)
@@ -1322,8 +1320,7 @@ END SUBROUTINE pw_nn_compose_r
              CASE (3)
                 idirVal=k
              CASE default
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")")
+                CPABORT("invalid idir ("//TRIM(cp_to_string(idir))//")")
              END SELECT
              IF (idirVal==0) THEN
                 weights(i,j,k)=0.0_dp
@@ -1558,10 +1555,7 @@ END SUBROUTINE pw_nn_compose_r
           rcv_tot_size=rcv_tot_size+rcv_size(ip)
        END DO
        IF (.NOT.rcv_tot_size==(coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size) THEN
-          CALL cp_assert(.FALSE.,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Error calculating rcv_tot_size "//&
-               CPSourceFileRef)
+          CPABORT("Error calculating rcv_tot_size ")
        END IF
        ALLOCATE(rcv_buf(0:rcv_tot_size-1))
 
@@ -1909,8 +1903,7 @@ END SUBROUTINE pw_nn_compose_r
                       fi=2*i+f_shift(1)+1
                       IF (.NOT.(fi+1==fine_bo(1,1).OR.&
                            fi+2==fine_bo(1,1))) THEN
-                         CALL cp_assert(.FALSE.,cp_failure_level,&
-                              cp_assertion_failed,routineN,&
+                         CALL cp_abort(__SHORT_FILE__,__LINE__,&
                               "unexpected start index "//&
                               TRIM(cp_to_string(coarse_bo(1,1)))//" "//&
                               TRIM(cp_to_string(fi)))
@@ -2490,9 +2483,7 @@ END SUBROUTINE pw_nn_compose_r
                            +ww1(4)*vv6+ww0(3)*vv7
                    END DO
                    IF (.NOT.FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4) THEN
-                      CALL cp_assert(.FALSE.,&
-                           cp_failure_level,cp_assertion_failed,routineP,&
-                           "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4")
+                      CPABORT("FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4")
                    END IF
                    rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)-6,4)
                    i=FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3-rest_b+4

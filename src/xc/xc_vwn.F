@@ -98,8 +98,7 @@ CONTAINS
           ca  = 13.0045_dp
           x0a = -0.00475840_dp
        CASE DEFAULT
-         CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                        " Only functionals VWN3 and VWN5 are supported")
+         CPABORT(" Only functionals VWN3 and VWN5 are supported")
 
     END SELECT
 
@@ -650,8 +649,7 @@ CONTAINS
         !$omp end parallel
 
       CASE DEFAULT
-        CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                      " Only functionals VWN3 and VWN5 are supported")
+        CPABORT(" Only functionals VWN3 and VWN5 are supported")
     END SELECT
 
     IF (cp_debug) THEN

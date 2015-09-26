@@ -145,9 +145,9 @@ CONTAINS
     IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
         ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
          (derivative_method .EQ. derivative_fft_use_deps))) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The specified derivative method is not compatible with the type of "//&
-                      "the dielectric constant function.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "The specified derivative method is not compatible with the type of "//&
+            "the dielectric constant function.")
     END IF
 
     NULLIFY(rho_elec_rs)
@@ -170,8 +170,7 @@ CONTAINS
       END IF
       CALL pw_pool_give_back_pw(pw_pool, rho_core_rs)
     ELSE 
-      CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                     "For dielectric constant larger than 1, rho_core has to be present.")
+      CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
     END IF
 
 ! calculate the dielectric constant
@@ -304,8 +303,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (eps0 .LT. 1.0_dp) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "The dielectric constant has to be greater than or equal to 1.")
+      CPABORT("The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     bounds_local = rho%pw_grid%bounds_local
@@ -388,8 +386,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (dielec_const .LT. 1.0_dp) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The dielectric constant has to be greater than or equal to 1.")
+       CPABORT("The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     pw_grid => eps%pw_grid
@@ -405,9 +402,9 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The given extents for the dielectric region are outside the range of "//&
-                      "the simulation cell.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "The given extents for the dielectric region are outside the range of "//&
+            "the simulation cell.")
     END IF
 
     CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
@@ -491,8 +488,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (dielec_const .LT. 1.0_dp) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The dielectric constant has to be greater than or equal to 1.")
+       CPABORT("The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     pw_grid => eps%pw_grid
@@ -509,9 +505,9 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The given extents for the dielectric region are outside the range of "//&
-                      "the simulation cell.")
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "The given extents for the dielectric region are outside the range of "//&
+            "the simulation cell.")
     END IF
 
     CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
@@ -581,8 +577,7 @@ CONTAINS
     n_dielectric_region = n_aa_cuboidal + n_xaa_annular
 
     IF (n_dielectric_region .EQ. 0) THEN
-       CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                      "No density independent dielectric region is defined.")
+       CPABORT("No density independent dielectric region is defined.")
     END IF
 
     DO j = 1, n_aa_cuboidal
@@ -645,8 +640,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (dielectric_params%eps0 .LT. 1.0_dp) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "The dielectric constant has to be greater than or equal to 1.")
+      CPABORT("The dielectric constant has to be greater than or equal to 1.")
     END IF
 
     CALL pw_pool_create_pw(pw_pool, eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE)

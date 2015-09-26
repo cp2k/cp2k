@@ -97,20 +97,16 @@ CONTAINS
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble)
        IF (apply_thermostat) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "With the chosen ensemble the temperature is "//&
                "controlled by thermostats. The definition of different thermal "//&
-               "regions might result inconsistent with the presence of thermostats."//&
-               CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "regions might result inconsistent with the presence of thermostats.")
        END IF
        IF (simpar%temp_tol > 0.0_dp) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
                "Control of the global temperature by rescaling of the velocity"//&
                "is not consistent with the presence of different thermal regions."//&
-               "The temperature of different regions is rescaled separatedly."//&
-               CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "The temperature of different regions is rescaled separatedly.")
        END IF
        CALL section_vals_val_get(thermal_region_section, "FORCE_RESCALING", &
                                  l_val=thermal_regions%force_rescaling)

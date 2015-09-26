@@ -640,8 +640,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
      CASE(no_t)
         WRITE(unit=unit_nr,fmt="(' *empty*')",advance="NO")
      CASE default
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unexpected type_of_var for val ")
+        CPABORT("unexpected type_of_var for val ")
      END SELECT
   ELSE
      WRITE(unit=unit_nr,fmt="(' *null*')",advance="NO")
@@ -739,8 +738,7 @@ END SUBROUTINE val_write
           CPASSERT(.FALSE.)
         END IF
       CASE default
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,"unexpected type_of_var for val ")
+        CPABORT("unexpected type_of_var for val ")
       END SELECT
 
     END IF

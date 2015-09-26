@@ -148,9 +148,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   LOGICAL :: my_square_blocks, my_force_block
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
-  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-       routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef)
+  CPABORT("full matrixes need scalapack for parallel runs ")
 #endif
 
   ALLOCATE(fmstruct)

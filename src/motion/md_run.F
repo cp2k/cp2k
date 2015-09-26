@@ -281,9 +281,7 @@ CONTAINS
 
     !If requested set up the REFTRAJ run
     IF(simpar%ensemble == reftraj_ensemble .AND. ehrenfest_md)&
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Ehrenfest MD does not support reftraj ensemble "//&
-                     CPSourceFileRef)
+          CPABORT("Ehrenfest MD does not support reftraj ensemble ")
     IF(simpar%ensemble == reftraj_ensemble) THEN
         reftraj_section => section_vals_get_subs_vals(md_section,"REFTRAJ")
         CALL create_reftraj(reftraj, reftraj_section, para_env)

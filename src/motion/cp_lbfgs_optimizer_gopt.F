@@ -530,10 +530,7 @@ END SUBROUTINE cp_opt_gopt_release
     CPASSERT(optimizer%ref_count>0)
 
     IF (optimizer%status>=4) THEN
-       CALL cp_assert(.FALSE.,level=cp_warning_level,&
-            error_nr=cp_assertion_failed,fromWhere=routineP,&
-            message="status>=4, trying to restart in "//&
-CPSourceFileRef)
+       CPWARN("status>=4, trying to restart")
        optimizer%status=0
        IF (is_master) THEN
           optimizer%task='START'
@@ -596,15 +593,11 @@ CPSourceFileRef)
              optimizer%status=4
           ELSE IF (optimizer%task(1:4)=='STOP') THEN
              optimizer%status=5
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                  routineP,"task became stop in an unknown way in "//&
-CPSourceFileRef)
+             CPWARN("task became stop in an unknown way")
           ELSE IF (optimizer%task(1:5)=='ERROR') THEN
              optimizer%status=5
           ELSE
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                  routineP,"unknown task '"//optimizer%task//"' in "//&
-CPSourceFileRef)
+             CPWARN("unknown task '"//optimizer%task//"'")
           END IF
        END IF ifMaster
        CALL mp_bcast(optimizer%status,optimizer%master, optimizer%para_env%group)
@@ -689,14 +682,10 @@ CPSourceFileRef)
                optimizer%para_env%group)
        CASE (6)
           ! deallocated
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"step on a deallocated opt structure "//&
-               CPSourceFileRef)
+          CPABORT("step on a deallocated opt structure ")
        CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown status "//cp_to_string(optimizer%status)//&
-               " in "//&
-               CPSourceFileRef)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "unknown status "//cp_to_string(optimizer%status))
           optimizer%status=5
           EXIT
        END SELECT

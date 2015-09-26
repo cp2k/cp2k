@@ -308,9 +308,7 @@ CONTAINS
             method_name_id /= do_qmmm .AND.&
             method_name_id /= do_mixed .AND.&
             method_name_id /= do_fist )  &
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Energy/Force run not available for all methods "//&
-            CPSourceFileRef)
+            CPABORT("Energy/Force run not available for all methods ")
 
        sublogger => cp_get_default_logger()
        CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
@@ -343,24 +341,18 @@ CONTAINS
        CALL qs_tamc ( force_env, globenv)
     CASE (electronic_spectra_run)
        IF(method_name_id /= do_qs) &
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Electron spectra available only with Quickstep. "//&
-            CPSourceFileRef)
+            CPABORT("Electron spectra available only with Quickstep. ")
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
        CALL tddfpt_calculation(force_env%qs_env)
     CASE (real_time_propagation)
        IF(method_name_id /= do_qs) &
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Real time propagation needs METHOD QS. "//&
-            CPSourceFileRef)
+            CPABORT("Real time propagation needs METHOD QS. ")
        CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
        dft_control%rtp_control%fixed_ions=.TRUE.
        CALL rt_prop_setup(force_env)
     CASE (ehrenfest)
        IF(method_name_id /= do_qs) &
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Ehrenfest dynamics needs METHOD QS "//&
-            CPSourceFileRef)
+            CPABORT("Ehrenfest dynamics needs METHOD QS ")
        CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
        dft_control%rtp_control%fixed_ions=.FALSE.
        CALL qs_mol_dyn ( force_env, globenv)
@@ -369,9 +361,7 @@ CONTAINS
     CASE (linear_response_run)
        IF(method_name_id /= do_qs .AND. &
           method_name_id /= do_qmmm) &
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Property calculations by Linear Response only within the QS or QMMM program "//&
-               CPSourceFileRef)
+          CPABORT("Property calculations by Linear Response only within the QS or QMMM program ")
        ! The Ground State is needed, it can be read from Restart
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,linres=.TRUE.)
        CALL linres_calculation(force_env)
@@ -380,9 +370,7 @@ CONTAINS
        CASE(do_qs, do_qmmm, do_fist)
           CALL cp2k_debug_energy_and_forces(force_env)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Debug run available only with QS, FIST, and QMMM program "//&
-               CPSourceFileRef)
+          CPABORT("Debug run available only with QS, FIST, and QMMM program ")
        END SELECT
     CASE (vib_anal)
        CALL vb_anal(root_section,input_declaration,para_env,globenv)

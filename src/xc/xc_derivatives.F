@@ -325,10 +325,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
        CALL xbr_pbe_lda_hole_tc_lr_lda_info(reference,shortform,needs,max_deriv)
      END IF
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          message="unknown functional '"//TRIM(functional%section%name)//&
-          "' in "//&
-CPSourceFileRef)
+     CPABORT("unknown functional '"//TRIM(functional%section%name)//"'")
   END SELECT
 END SUBROUTINE xc_functional_get_info
 
@@ -555,10 +552,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
                                              functional)
      END IF
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          message="unknown functional '"//TRIM(functional%section%name)//&
-          "' in "//&
-CPSourceFileRef)
+     CPABORT("unknown functional '"//TRIM(functional%section%name)//"'")
   END SELECT
 
   CALL timestop(handle)

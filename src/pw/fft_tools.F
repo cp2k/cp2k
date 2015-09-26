@@ -2950,8 +2950,7 @@ CONTAINS
           ENDDO
 
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "The number of the scratches exceeded the limit, but none could be deallocated")
+          CPWARN("The number of the scratches exceeded the limit, but none could be deallocated")
        ENDIF
     ENDIF
 

@@ -665,14 +665,12 @@ CONTAINS
         nbuggy = 0
      CASE default
         nbuggy = 0
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+           CALL cp_warn(__SHORT_FILE__,__LINE__,&
                 " This version ("//TRIM(libxc_version)//") of LibXC is new or unknown."//&
                 " ======== Please check the results carefully. ========    "//&
                 " More informations on bugfixes can be found at: "//&
                 " http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_changes"//&
-                " Calculation continues using unsupported LibXC version. "//&
-                CPSourceFileRef,&
-                only_ionode=.TRUE.)
+                " Calculation continues using unsupported LibXC version. ")
     END SELECT
 
     DO i=1,nbuggy

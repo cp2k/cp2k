@@ -842,10 +842,10 @@ CONTAINS
        WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
        CALL compress(this_error,.TRUE.)
        CALL compress(def_error,.TRUE.)
-       CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
             ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-            TRIM(def_error)//' .',only_ionode=.TRUE.)
+            TRIM(def_error)//' .')
     END IF
 
     ! We must print now the energy of the biased system, the weigthing energy
@@ -861,10 +861,10 @@ CONTAINS
        WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
        CALL compress(this_error,.TRUE.)
        CALL compress(def_error,.TRUE.)
-       CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
             ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-            TRIM(def_error)//' .',only_ionode=.TRUE.)
+            TRIM(def_error)//' .')
     END IF
     CALL section_vals_val_get(alch_section,"NEQUIL_STEPS",i_val=NEquilStep)
     ! Store results

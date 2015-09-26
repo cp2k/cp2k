@@ -247,14 +247,12 @@ CONTAINS
     CASE (pw_poisson_periodic)
        green%method = PERIODIC3D
        IF (dim /= 3) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver periodic3d")
+          CPABORT("Illegal combination of periodicity and Poisson solver periodic3d")
        END IF
     CASE (pw_poisson_multipole)
        green%method = MULTIPOLE0D
        IF (dim /= 0) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver mulipole0d")
+          CPABORT("Illegal combination of periodicity and Poisson solver mulipole0d")
        END IF
     CASE (pw_poisson_analytic)
        SELECT CASE (dim)
@@ -301,16 +299,14 @@ CONTAINS
           green%special_dimension = i
           green%slab_size = abc(i)
        CASE (3)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver (MT)")
+          CPABORT("Illegal combination of periodicity and Poisson solver (MT)")
        CASE DEFAULT
           CPASSERT(.FALSE.)
        END SELECT
     CASE (pw_poisson_implicit)
        green%method = PS_IMPLICIT
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "An unknown Poisson solver was specified")
+       CPABORT("An unknown Poisson solver was specified")
     END SELECT
 
     ! allocate influence function,...
