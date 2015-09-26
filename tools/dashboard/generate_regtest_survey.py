@@ -254,12 +254,14 @@ def parse_report(fn):
             if(not parts[0].endswith(".inp")):
                 print("Found strange line:\n"+line)
                 continue
+            test_name = curr_dir+parts[0]
             if(parts[1] == "-"):
                 continue  # test without numeric check
-
-            test_name = curr_dir+parts[0]
-            float(parts[1]) # try parsing float...
-            values[test_name] = parts[1] # ... but pass on the original string
+            try:
+                float(parts[1]) # try parsing float...
+                values[test_name] = parts[1] # ... but pass on the original string
+            except:
+                pass # ignore values which can not be parsed
         else:
             pass # ignore line
 
